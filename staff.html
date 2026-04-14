@@ -72,10 +72,11 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
 .slot-cell.free { border-style: dashed; border-color: var(--primary); border-width: 1.5px; background: rgba(61,153,145,0.03); }
 .slot-cell.free::after { content: '+ Buchen'; position: absolute; right: 12px; font-size: 13px; color: var(--primary); font-weight: 600; }
 .slot-cell.booked { background: #e8f5e9; border-color: var(--green); }
+.slot-cell.booked.pending { background: #faf6eb; border-color: var(--accent); }
 .slot-cell.booked.with-instructor { background: #fff3e0; border-color: var(--orange); }
+.slot-cell.booked.with-instructor.pending { background: #ffe9c2; border-color: var(--orange); }
 .slot-cell.booked .booking-name { font-size: 13px; font-weight: 600; color: #1a1a1a; }
 .slot-cell.booked .booking-meta { font-size: 10px; color: var(--gray-500); margin-top: 1px; }
-.slot-cell.pending { background: #faf6eb; border-color: var(--accent); }
 .slot-cell.towing { background: #f5f5f5; border-color: #ddd; cursor: default; }
 .slot-cell.towing .towing-label { font-size: 10px; color: var(--gray-500); font-weight: 500; }
 
@@ -90,8 +91,9 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
 .ov-cell { min-height: 36px; border-bottom: 1px solid #f5f5f5; border-right: 1px solid #f5f5f5; position: relative; cursor: pointer; transition: background 0.1s; }
 .ov-cell:active { background: rgba(61,153,145,0.08); }
 .ov-cell.ov-booked { background: #e8f5e9; }
-.ov-cell.ov-booked.ov-instructor { background: #fff3e0; }
 .ov-cell.ov-booked.ov-pending { background: #faf6eb; }
+.ov-cell.ov-booked.ov-instructor { background: #fff3e0; }
+.ov-cell.ov-booked.ov-pending.ov-instructor { background: #ffe9c2; }
 .ov-cell.ov-towing { background: #f5f5f5; }
 .ov-cell .ov-name { position: absolute; top: 2px; left: 3px; right: 3px; font-size: 8px; font-weight: 700; color: #333; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ov-cell .ov-meta { position: absolute; bottom: 1px; left: 3px; font-size: 7px; color: var(--gray-500); }
@@ -106,6 +108,7 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
 .booking-item { background: white; border-radius: var(--radius); border: 1px solid #e8eaed; padding: 12px 14px; margin-bottom: 6px; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 10px; }
 .booking-item:active { transform: scale(0.99); background: #f9fafb; }
 .booking-item.pending { border-left: 3px solid var(--accent); background: #fffdf6; }
+.booking-item.pending.with-instr { border-left-color: var(--orange); background: #fff8eb; }
 
 /* Swipe-Container mit zwei Aktionen: links wischen = best&auml;tigen, rechts wischen = bearbeiten */
 .swipe-wrap { position: relative; margin-bottom: 6px; overflow: hidden; border-radius: var(--radius); background: var(--gray-100); }
@@ -195,6 +198,25 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
 .btn-edit { background: var(--primary); color: white; }
 .btn-delete { background: #f5f5f5; color: var(--danger); }
 .btn-close { background: var(--gray-100); color: #666; flex: 1; }
+
+/* Day overview in detail sheet */
+.day-overview { margin-top: 14px; padding-top: 14px; border-top: 1px dashed #e8eaed; }
+.day-overview h4 { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gray-500); margin-bottom: 8px; }
+.day-overview .do-empty { font-size: 12px; color: var(--gray-500); font-style: italic; padding: 6px 0; }
+.day-overview .do-ac { display: flex; gap: 8px; align-items: flex-start; padding: 6px 0; border-bottom: 1px dashed #f0f0f0; }
+.day-overview .do-ac:last-child { border-bottom: none; }
+.day-overview .do-ac-reg { font-size: 10px; font-weight: 700; color: var(--navy); background: var(--gray-100); padding: 2px 6px; border-radius: 5px; letter-spacing: 0.03em; flex-shrink: 0; min-width: 62px; text-align: center; }
+.day-overview .do-slots { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+.day-overview .do-slot { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.day-overview .do-slot .do-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.day-overview .do-slot .do-dot.approved { background: var(--green); }
+.day-overview .do-slot .do-dot.approved.instr { background: var(--orange); }
+.day-overview .do-slot .do-dot.pending { background: var(--accent); }
+.day-overview .do-slot .do-dot.rejected { background: var(--danger); opacity: 0.5; }
+.day-overview .do-slot .do-time { font-weight: 600; color: var(--navy); font-variant-numeric: tabular-nums; min-width: 76px; }
+.day-overview .do-slot .do-name { color: #555; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.day-overview .do-slot.rejected { opacity: 0.45; text-decoration: line-through; }
+.day-overview .do-slot.current { background: rgba(201,168,76,0.12); padding: 2px 4px; border-radius: 4px; margin-left: -4px; }
 
 /* Audit log */
 .audit-log { margin-top: 14px; padding-top: 14px; border-top: 1px dashed #e8eaed; }
@@ -949,7 +971,7 @@ function attachSwipeHandlers() {
 
 function renderBookingItem(b) {
   let cls = 'booking-item ' + (b.status || 'approved');
-  if (b.status === 'approved' && b.instructor === 'ja') cls += ' with-instr';
+  if (b.instructor === 'ja') cls += ' with-instr';
   const time = (b.startTime && b.endTime) ? `${b.startTime}–${b.endTime}` : (b.slot || '');
   const instrLabel = b.instructor === 'ja' ? (b.instructorName ? ` · ${b.instructorName}` : ' · Lehrer') : '';
   const statusLabel = b.status === 'pending' ? ' (Angefragt)' : (b.status === 'rejected' ? ' (Abgelehnt)' : '');
@@ -1235,6 +1257,43 @@ function closeEdit() {
 // ============================================================
 // BOOKING DETAIL
 // ============================================================
+function buildDayOverview(current) {
+  const sameDay = bookings.filter(x => x.date === current.date);
+  // Gruppieren nach Flugzeug, in der Reihenfolge der AIRCRAFT-Konstante
+  const byAc = {};
+  AIRCRAFT.forEach(a => { byAc[a] = []; });
+  sameDay.forEach(x => { if (byAc[x.aircraft]) byAc[x.aircraft].push(x); });
+  // Sortieren nach Startzeit
+  Object.keys(byAc).forEach(a => {
+    byAc[a].sort((x, y) => (x.startTime || x.slot || '').localeCompare(y.startTime || y.slot || ''));
+  });
+
+  const acWithBookings = AIRCRAFT.filter(a => byAc[a].length > 0);
+  if (!acWithBookings.length) {
+    return `<div class="day-overview"><h4>An diesem Tag</h4><div class="do-empty">Noch keine anderen Buchungen.</div></div>`;
+  }
+
+  const rows = acWithBookings.map(a => {
+    const slots = byAc[a].map(bk => {
+      const time = (bk.startTime && bk.endTime) ? `${bk.startTime}&ndash;${bk.endTime}` : (bk.slot || '');
+      const isCurrent = bk.id === current.id;
+      const dotCls = bk.status === 'approved'
+        ? 'approved' + (bk.instructor === 'ja' ? ' instr' : '')
+        : (bk.status || 'pending');
+      const instrSuffix = bk.instructor === 'ja' && bk.instructorName ? ` \u00b7 ${bk.instructorName}` : (bk.instructor === 'ja' ? ' \u00b7 Lehrer' : '');
+      const nameDisplay = isCurrent ? `<strong>${bk.name}</strong> (diese Anfrage)` : `${bk.name}${instrSuffix}`;
+      return `<div class="do-slot ${bk.status}${isCurrent ? ' current' : ''}">
+        <span class="do-dot ${dotCls}"></span>
+        <span class="do-time">${time}</span>
+        <span class="do-name">${nameDisplay}</span>
+      </div>`;
+    }).join('');
+    return `<div class="do-ac"><div class="do-ac-reg">${a}</div><div class="do-slots">${slots}</div></div>`;
+  }).join('');
+
+  return `<div class="day-overview"><h4>An diesem Tag</h4>${rows}</div>`;
+}
+
 function showDetail(id) {
   const b = bookings.find(x => x.id === id);
   if (!b) return;
@@ -1253,6 +1312,7 @@ function showDetail(id) {
     <div class="detail-row"><span class="detail-label">Fluglehrer</span><span class="detail-value">${instrText}</span></div>
     <div class="detail-row"><span class="detail-label">Status</span><span class="detail-value">${statusLabels[b.status] || b.status}</span></div>
     ${b.createdBy ? `<div class="detail-row"><span class="detail-label">Erstellt von</span><span class="detail-value">${b.createdBy}</span></div>` : ''}
+    ${b.status === 'pending' ? buildDayOverview(b) : ''}
     <div class="audit-log" id="auditLog"><h4>Verlauf</h4><div id="auditEntries">Lade...</div></div>
     <div class="detail-actions">
       ${b.status !== 'approved' ? `<button class="btn-approve" onclick="setStatus('${b.id}','approved')">Freischalten</button>` : ''}
