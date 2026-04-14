@@ -107,13 +107,20 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
 .booking-item:active { transform: scale(0.99); background: #f9fafb; }
 .booking-item.pending { border-left: 3px solid var(--accent); background: #fffdf6; }
 
-/* Swipe-to-approve container */
-.swipe-wrap { position: relative; margin-bottom: 6px; overflow: hidden; border-radius: var(--radius); background: var(--green); }
-.swipe-wrap .swipe-action { position: absolute; inset: 0; display: flex; align-items: center; justify-content: flex-end; padding-right: 22px; color: white; font-size: 14px; font-weight: 700; gap: 8px; pointer-events: none; }
-.swipe-wrap .swipe-action .check { font-size: 20px; }
+/* Swipe-Container mit zwei Aktionen: links wischen = best&auml;tigen, rechts wischen = bearbeiten */
+.swipe-wrap { position: relative; margin-bottom: 6px; overflow: hidden; border-radius: var(--radius); background: var(--gray-100); }
+.swipe-wrap .swipe-bg-approve { position: absolute; inset: 0; background: var(--green); opacity: 0; transition: opacity 0.15s; }
+.swipe-wrap .swipe-bg-edit { position: absolute; inset: 0; background: var(--primary); opacity: 0; transition: opacity 0.15s; }
+.swipe-wrap.show-approve .swipe-bg-approve { opacity: 1; }
+.swipe-wrap.show-edit .swipe-bg-edit { opacity: 1; }
+.swipe-wrap .swipe-action { position: absolute; inset: 0; display: flex; align-items: center; color: white; font-size: 14px; font-weight: 700; gap: 8px; pointer-events: none; }
+.swipe-wrap .swipe-action-approve { justify-content: flex-end; padding-right: 22px; }
+.swipe-wrap .swipe-action-edit { justify-content: flex-start; padding-left: 22px; }
+.swipe-wrap .swipe-action .icon { font-size: 18px; }
 .swipe-wrap .booking-item { margin-bottom: 0; position: relative; z-index: 2; transform: translateX(0); transition: transform 0.2s ease; touch-action: pan-y; will-change: transform; }
 .swipe-wrap.swiping .booking-item { transition: none; }
-.swipe-wrap.completing .booking-item { transition: transform 0.25s ease; transform: translateX(-100%); }
+.swipe-wrap.completing-approve .booking-item { transition: transform 0.25s ease; transform: translateX(-100%); }
+.swipe-wrap.completing-edit .booking-item { transition: transform 0.25s ease; transform: translateX(100%); }
 .booking-item.approved { border-left: 3px solid var(--green); }
 .booking-item.approved.with-instr { border-left-color: var(--orange); }
 .booking-item.rejected { border-left: 3px solid var(--danger); opacity: 0.7; }
@@ -408,6 +415,7 @@ let currentEditId = null;
 let manageFilter = 'today';
 let firstLoad = true;
 let knownBookingIds = new Set();
+let pendingOpenBookingId = (new URLSearchParams(window.location.search)).get('booking') || '';
 
 // ============================================================
 // USER MANAGEMENT
@@ -533,7 +541,31 @@ db.ref('bookings').on('value', snap => {
   bookings = newBookings;
   render();
   updatePendingBadge();
+
+  // Wenn via Notification-Klick eine bestimmte Buchung ge\u00f6ffnet werden soll
+  if (pendingOpenBookingId) {
+    const target = bookings.find(b => b.id === pendingOpenBookingId);
+    if (target) {
+      showDetail(pendingOpenBookingId);
+      // URL bereinigen, damit Reload nicht erneut \u00f6ffnet
+      if (window.history && window.history.replaceState) {
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+      pendingOpenBookingId = '';
+    }
+  }
 });
+
+// Service Worker kann via postMessage eine Buchung \u00f6ffnen (Fallback f\u00fcr \u00e4ltere Browser ohne Client.navigate)
+if ('serviceWorker' in navigator && navigator.serviceWorker) {
+  navigator.serviceWorker.addEventListener('message', e => {
+    if (e.data && e.data.type === 'openBooking' && e.data.id) {
+      const b = bookings.find(x => x.id === e.data.id);
+      if (b) showDetail(e.data.id);
+      else pendingOpenBookingId = e.data.id;
+    }
+  });
+}
 
 // ============================================================
 // HELPERS
@@ -834,12 +866,13 @@ function renderManage() {
   attachSwipeHandlers();
 }
 
-// Swipe-to-approve: links wischen auf ausstehende Buchung = best&auml;tigen
+// Swipe: nach links = best\u00e4tigen (nur Pending), nach rechts = bearbeiten
 function attachSwipeHandlers() {
   const wraps = document.querySelectorAll('.swipe-wrap');
   wraps.forEach(wrap => {
     const item = wrap.querySelector('.booking-item');
     if (!item) return;
+    const canApprove = wrap.getAttribute('data-can-approve') === '1';
     let startX = 0, startY = 0, currentX = 0, dragging = false, horizontal = false, didSwipe = false;
 
     const getThreshold = () => Math.min(160, wrap.offsetWidth * 0.45);
@@ -859,17 +892,24 @@ function attachSwipeHandlers() {
         else { dragging = false; return; }
       }
       if (e.cancelable) e.preventDefault();
-      currentX = Math.min(0, dx);
+      // Approve nur wenn pending; Edit immer
+      if (dx < 0 && !canApprove) { currentX = 0; }
+      else { currentX = dx; }
       item.style.transform = `translateX(${currentX}px)`;
+      // Hintergrund einblenden je nach Richtung
+      wrap.classList.toggle('show-approve', currentX < -10);
+      wrap.classList.toggle('show-edit', currentX > 10);
     }
     function onEnd() {
       if (!dragging) return;
       dragging = false;
       wrap.classList.remove('swiping');
       const threshold = getThreshold();
-      if (currentX < -threshold) {
-        const id = wrap.getAttribute('data-id');
-        wrap.classList.add('completing');
+      const id = wrap.getAttribute('data-id');
+
+      if (canApprove && currentX < -threshold) {
+        // Best\u00e4tigen
+        wrap.classList.add('completing-approve');
         item.style.transform = '';
         setTimeout(() => {
           const b = bookings.find(x => x.id === id);
@@ -879,16 +919,23 @@ function attachSwipeHandlers() {
             notify(`${b.name} best\u00e4tigt.`, 'success');
           }
         }, 180);
+      } else if (currentX > threshold) {
+        // Bearbeiten
+        wrap.classList.add('completing-edit');
+        setTimeout(() => {
+          item.style.transform = '';
+          wrap.classList.remove('completing-edit', 'show-edit');
+          openEdit(id);
+        }, 180);
       } else {
         item.style.transform = '';
+        wrap.classList.remove('show-approve', 'show-edit');
       }
       if (didSwipe) {
-        // Verhindere, dass das darauf folgende click-Event die Detailansicht \u00f6ffnet
         item.addEventListener('click', function blocker(ev) {
           ev.stopPropagation(); ev.preventDefault();
           item.removeEventListener('click', blocker, true);
         }, true);
-        setTimeout(() => {}, 300);
       }
     }
 
@@ -917,13 +964,14 @@ function renderBookingItem(b) {
     </div>
     <div class="bi-aircraft">${b.aircraft}</div>
   </div>`;
-  if (b.status === 'pending') {
-    return `<div class="swipe-wrap" data-id="${b.id}">
-      <div class="swipe-action"><span class="check">&#10003;</span><span>Best&auml;tigen</span></div>
-      ${inner}
-    </div>`;
-  }
-  return inner;
+  const canApprove = b.status === 'pending';
+  return `<div class="swipe-wrap" data-id="${b.id}" data-can-approve="${canApprove ? '1' : '0'}">
+    <div class="swipe-bg-edit"></div>
+    <div class="swipe-bg-approve"></div>
+    <div class="swipe-action swipe-action-edit"><span class="icon">&#9998;</span><span>Bearbeiten</span></div>
+    ${canApprove ? '<div class="swipe-action swipe-action-approve"><span class="icon">&#10003;</span><span>Best&auml;tigen</span></div>' : ''}
+    ${inner}
+  </div>`;
 }
 
 function setManageFilter(f) {

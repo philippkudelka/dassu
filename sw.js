@@ -55,12 +55,18 @@ self.addEventListener('push', event => {
 
 self.addEventListener('notificationclick', event => {
   event.notification.close();
+  const bookingId = (event.notification.data && event.notification.data.bookingId) || '';
+  const targetUrl = '/staff.html' + (bookingId ? ('?booking=' + encodeURIComponent(bookingId)) : '');
   event.waitUntil(
-    clients.matchAll({ type: 'window' }).then(clientList => {
-      for (const c of clientList) {
-        if (c.url.includes('/staff') && 'focus' in c) return c.focus();
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+      for (const c of list) {
+        if (c.url.includes('/staff') && 'focus' in c) {
+          if ('navigate' in c) { c.navigate(targetUrl).catch(() => {}); }
+          else if (bookingId && 'postMessage' in c) { c.postMessage({ type: 'openBooking', id: bookingId }); }
+          return c.focus();
+        }
       }
-      if (clients.openWindow) return clients.openWindow('/staff.html');
+      if (clients.openWindow) return clients.openWindow(targetUrl);
     })
   );
 });
