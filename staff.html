@@ -248,6 +248,24 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
 .user-menu-item { padding: 10px 12px; border-radius: 8px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 8px; }
 .user-menu-item:active { background: var(--gray-100); }
 .user-menu-item.danger { color: var(--danger); }
+.user-menu-item.admin-only { color: var(--accent); font-weight: 600; }
+
+/* Role badge */
+.role-badge { display: inline-block; background: var(--accent); color: var(--navy); font-size: 8px; font-weight: 800; padding: 2px 6px; border-radius: 8px; margin-left: 6px; letter-spacing: 0.06em; text-transform: uppercase; vertical-align: middle; }
+.role-badge.staff { background: rgba(255,255,255,0.12); color: #ccc; }
+.header .role-badge { font-size: 8px; padding: 1px 5px; margin-left: 4px; }
+
+/* User management */
+.um-intro { font-size: 12px; color: var(--gray-500); margin-bottom: 10px; line-height: 1.4; }
+.user-mgmt-row { display: flex; align-items: center; gap: 10px; padding: 10px; background: var(--gray-100); border-radius: var(--radius); margin-bottom: 6px; flex-wrap: wrap; }
+.user-mgmt-row .um-avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: var(--navy); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.user-mgmt-row .um-info { flex: 1; min-width: 120px; }
+.user-mgmt-row .um-name { font-size: 14px; font-weight: 600; color: var(--navy); }
+.user-mgmt-row .um-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.user-mgmt-row .um-actions button { padding: 6px 10px; border-radius: 6px; border: none; font-size: 11px; font-weight: 600; cursor: pointer; font-family: var(--font); }
+.btn-mg-promote { background: var(--accent); color: var(--navy); }
+.btn-mg-demote { background: white; color: var(--navy); border: 1px solid var(--gray-300) !important; }
+.btn-mg-delete { background: #fdecec; color: var(--danger); }
 </style>
 </head>
 <body>
@@ -281,6 +299,21 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
 <div class="user-menu" id="userMenu">
   <div class="user-menu-item" onclick="switchUser()">Nutzer wechseln</div>
   <div class="user-menu-item" id="notifMenuItem" onclick="enableNotifications()">Benachrichtigungen aktivieren</div>
+  <div class="user-menu-item admin-only" id="userMgmtMenuItem" onclick="openUserMgmt()" style="display:none;">&#9733; Nutzerverwaltung</div>
+</div>
+
+<!-- User Management Overlay -->
+<div class="quick-overlay" id="userMgmtOverlay" onclick="if(event.target===this)closeUserMgmt()">
+  <div class="quick-sheet">
+    <h3>Nutzerverwaltung</h3>
+    <div class="um-intro">Rollen verwalten, Mitarbeiter hinzuf&uuml;gen oder entfernen.</div>
+    <div id="userMgmtList"></div>
+    <div class="add-user-row">
+      <input type="text" id="mgmtNewUserName" placeholder="Neuer Mitarbeiter..." maxlength="30">
+      <button onclick="addUserFromMgmt()">+ Hinzuf&uuml;gen</button>
+    </div>
+    <button class="btn-cancel" onclick="closeUserMgmt()" style="width:100%;margin-top:14px;padding:12px;text-align:center;">Schlie&szlig;en</button>
+  </div>
 </div>
 
 <!-- Notification permission banner -->
@@ -442,6 +475,21 @@ let pendingOpenBookingId = (new URLSearchParams(window.location.search)).get('bo
 // ============================================================
 // USER MANAGEMENT
 // ============================================================
+function isAdmin() {
+  if (!currentUser) return false;
+  const u = staffUsers.find(x => x.id === currentUser.id);
+  return !!(u && u.role === 'admin');
+}
+
+function hasAdmin() {
+  return staffUsers.some(u => u.role === 'admin');
+}
+
+function roleBadge(role) {
+  if (role === 'admin') return '<span class="role-badge">Admin</span>';
+  return '';
+}
+
 function loadCurrentUser() {
   const stored = localStorage.getItem('dassu_staff_user');
   if (stored) currentUser = JSON.parse(stored);
@@ -469,7 +517,7 @@ function renderUserList() {
   el.innerHTML = staffUsers.map(u => `
     <div class="user-list-item" onclick="selectUser('${u.id}')">
       <div class="ul-avatar">${u.name.charAt(0).toUpperCase()}</div>
-      <div class="ul-name">${u.name}</div>
+      <div class="ul-name">${u.name}${roleBadge(u.role)}</div>
     </div>
   `).join('');
 }
@@ -478,16 +526,103 @@ function addUser() {
   const input = document.getElementById('newUserName');
   const name = input.value.trim();
   if (!name) return;
-  const user = { id: Date.now().toString(36), name: name };
+  const user = {
+    id: Date.now().toString(36),
+    name: name,
+    role: staffUsers.length === 0 ? 'admin' : 'staff'
+  };
   db.ref('staffUsers/' + user.id).set(user);
   input.value = '';
-  // Will refresh via listener; auto-select after a moment
   setTimeout(() => selectUser(user.id), 400);
+}
+
+// ============================================================
+// ADMIN: NUTZERVERWALTUNG
+// ============================================================
+function openUserMgmt() {
+  closeUserMenu();
+  if (!isAdmin()) { notify('Nur Admins d\u00fcrfen die Nutzerverwaltung \u00f6ffnen.', 'error'); return; }
+  renderUserMgmt();
+  document.getElementById('userMgmtOverlay').classList.add('active');
+}
+
+function closeUserMgmt() {
+  document.getElementById('userMgmtOverlay').classList.remove('active');
+}
+
+function renderUserMgmt() {
+  const el = document.getElementById('userMgmtList');
+  if (!el) return;
+  const adminCount = staffUsers.filter(u => u.role === 'admin').length;
+  el.innerHTML = staffUsers.map(u => {
+    const isAdm = u.role === 'admin';
+    const isMe = currentUser && u.id === currentUser.id;
+    const canDemote = isAdm && !(isMe && adminCount === 1);
+    const canDelete = !isMe && !(isAdm && adminCount === 1);
+    return `<div class="user-mgmt-row">
+      <div class="um-avatar">${u.name.charAt(0).toUpperCase()}</div>
+      <div class="um-info">
+        <div class="um-name">${u.name}${roleBadge(u.role)}${isMe ? ' <span style="font-size:10px;color:var(--gray-500);">(du)</span>' : ''}</div>
+      </div>
+      <div class="um-actions">
+        ${!isAdm ? `<button class="btn-mg-promote" onclick="setUserRole('${u.id}','admin')">&rarr; Admin</button>` : ''}
+        ${canDemote ? `<button class="btn-mg-demote" onclick="setUserRole('${u.id}','staff')">&rarr; Staff</button>` : ''}
+        ${canDelete ? `<button class="btn-mg-delete" onclick="deleteStaffUser('${u.id}')">L\u00f6schen</button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function setUserRole(id, role) {
+  if (!isAdmin()) return;
+  const user = staffUsers.find(u => u.id === id);
+  if (!user) return;
+  if (role === 'staff' && user.role === 'admin') {
+    const adminCount = staffUsers.filter(u => u.role === 'admin').length;
+    if (adminCount <= 1) { notify('Mindestens ein Admin muss bleiben.', 'error'); return; }
+  }
+  db.ref('staffUsers/' + id + '/role').set(role);
+  notify('Rolle aktualisiert.', 'success');
+}
+
+function deleteStaffUser(id) {
+  if (!isAdmin()) return;
+  if (currentUser && id === currentUser.id) { notify('Dich selbst kannst du nicht l\u00f6schen.', 'error'); return; }
+  const user = staffUsers.find(u => u.id === id);
+  if (!user) return;
+  if (user.role === 'admin') {
+    const adminCount = staffUsers.filter(u => u.role === 'admin').length;
+    if (adminCount <= 1) { notify('Mindestens ein Admin muss bleiben.', 'error'); return; }
+  }
+  if (!confirm(`Mitarbeiter \u201e${user.name}\u201c wirklich l\u00f6schen?`)) return;
+  db.ref('staffUsers/' + id).remove();
+  notify('Mitarbeiter entfernt.', 'success');
+}
+
+function addUserFromMgmt() {
+  if (!isAdmin()) return;
+  const input = document.getElementById('mgmtNewUserName');
+  const name = input.value.trim();
+  if (!name) return;
+  const user = {
+    id: Date.now().toString(36),
+    name: name,
+    role: 'staff'
+  };
+  db.ref('staffUsers/' + user.id).set(user);
+  input.value = '';
+  notify(`${name} hinzugef\u00fcgt.`, 'success');
 }
 
 function selectUser(id) {
   const u = staffUsers.find(x => x.id === id);
   if (!u) return;
+  // Bootstrap: Wenn es noch keinen Admin gibt, wird der einloggende Nutzer automatisch Admin
+  if (!hasAdmin()) {
+    db.ref('staffUsers/' + u.id + '/role').set('admin');
+    u.role = 'admin';
+    setTimeout(() => notify('Du bist jetzt Admin (erster Login).', 'info'), 600);
+  }
   currentUser = u;
   saveCurrentUser();
   updateUserUI();
@@ -504,7 +639,11 @@ function switchUser() {
 function updateUserUI() {
   if (!currentUser) return;
   document.getElementById('headerAvatar').textContent = currentUser.name.charAt(0).toUpperCase();
-  document.getElementById('headerUserName').textContent = currentUser.name;
+  const liveUser = staffUsers.find(x => x.id === currentUser.id) || currentUser;
+  document.getElementById('headerUserName').innerHTML = liveUser.name + roleBadge(liveUser.role);
+  // Admin-Menupunkt sichtbar?
+  const mgmtItem = document.getElementById('userMgmtMenuItem');
+  if (mgmtItem) mgmtItem.style.display = isAdmin() ? '' : 'none';
 }
 
 function toggleUserMenu() {
@@ -531,6 +670,11 @@ db.ref('staffUsers').on('value', snap => {
   if (document.getElementById('loginOverlay').classList.contains('active')) {
     renderUserList();
   }
+  if (document.getElementById('userMgmtOverlay').classList.contains('active')) {
+    renderUserMgmt();
+  }
+  // Header-Badge & Menue-Sichtbarkeit aktualisieren wenn sich Rollen \u00e4ndern
+  if (currentUser) updateUserUI();
   // If currentUser was deleted/missing, force re-login
   if (currentUser && !staffUsers.find(u => u.id === currentUser.id)) {
     currentUser = null;
@@ -1318,7 +1462,7 @@ function showDetail(id) {
       ${b.status !== 'approved' ? `<button class="btn-approve" onclick="setStatus('${b.id}','approved')">Freischalten</button>` : ''}
       ${b.status !== 'rejected' ? `<button class="btn-reject" onclick="setStatus('${b.id}','rejected')">Ablehnen</button>` : ''}
       <button class="btn-edit" onclick="openEdit('${b.id}')">Bearbeiten</button>
-      <button class="btn-delete" onclick="deleteBooking('${b.id}')">Löschen</button>
+      ${isAdmin() ? `<button class="btn-delete" onclick="deleteBooking('${b.id}')">Löschen</button>` : ''}
       <button class="btn-close" onclick="closeDetail()">Schließen</button>
     </div>
   `;
@@ -1354,6 +1498,7 @@ function setStatus(id, status) {
 }
 
 function deleteBooking(id) {
+  if (!isAdmin()) { notify('Nur Admins d\u00fcrfen Buchungen l\u00f6schen. Du kannst sie ablehnen statt l\u00f6schen.', 'error'); return; }
   if (!confirm('Buchung wirklich löschen?')) return;
   const b = bookings.find(x => x.id === id);
   addAuditEntry(id, 'gelöscht', b ? `${b.name}, ${b.aircraft}, ${b.startTime || ''}–${b.endTime || ''}` : '');
@@ -1480,8 +1625,14 @@ function notifyNewBooking(b) {
 // KEYBOARD SHORTCUTS
 // ============================================================
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closeQuick(); closeDetail(); closeEdit(); closeUserMenu(); }
+  if (e.key === 'Escape') { closeQuick(); closeDetail(); closeEdit(); closeUserMenu(); closeUserMgmt(); closeNotesEdit(); }
 });
+const _mgmtInput = document.getElementById('mgmtNewUserName');
+if (_mgmtInput) {
+  _mgmtInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); addUserFromMgmt(); }
+  });
+}
 document.getElementById('qbName').addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); submitQuick(); }
 });
