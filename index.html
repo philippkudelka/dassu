@@ -875,6 +875,7 @@
       <div style="display:flex; gap:8px; align-items:center;">
         <button class="btn btn-danger btn-sm" onclick="adminLogout()">Abmelden</button>
         <button class="btn btn-sm" onclick="exportData()">Exportieren</button>
+        <button class="btn btn-sm" onclick="showStaffMgmt()">Mitarbeiter</button>
         <button class="btn btn-sm" onclick="showSettings()">Einstellungen</button>
       </div>
     </div>
@@ -979,6 +980,24 @@
     <div class="modal-actions">
       <button class="btn" onclick="closeModal('detailModal')">Schlie&szlig;en</button>
       <button class="btn btn-danger btn-sm" id="detailDeleteBtn" onclick="deleteBookingFromDetail()" style="display:none;">L&ouml;schen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Staff Management Modal -->
+<div class="modal-overlay" id="staffMgmtModal">
+  <div class="modal">
+    <h3>Mitarbeiter-Verwaltung</h3>
+    <p style="font-size:12px; color:var(--gray-500); margin-bottom:14px; line-height:1.5;">
+      Mitarbeiter verwalten &amp; Rollen vergeben. <strong>Admins</strong> haben volle Rechte (inkl. Buchungen l&ouml;schen, Rollen &auml;ndern). <strong>Staff</strong> k&ouml;nnen Buchungen anlegen, best&auml;tigen, ablehnen und bearbeiten.
+    </p>
+    <div id="staffMgmtList" style="display:flex; flex-direction:column; gap:6px; margin-bottom:14px;"></div>
+    <div style="display:flex; gap:6px; padding-top:14px; border-top:1px solid var(--gray-200);">
+      <input type="text" id="staffMgmtNewName" placeholder="Neuer Mitarbeiter..." maxlength="30" style="flex:1; padding:10px; border:1px solid var(--gray-300); border-radius:4px; font-family:var(--font-ui); font-size:14px;">
+      <button class="btn btn-sm" onclick="staffMgmtAdd()">+ Hinzuf&uuml;gen</button>
+    </div>
+    <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:16px;">
+      <button class="btn btn-sm" onclick="closeModal('staffMgmtModal')">Schlie&szlig;en</button>
     </div>
   </div>
 </div>
@@ -1279,12 +1298,23 @@ let firebaseReady = false;
 // PERSISTENCE (Firebase Realtime Database)
 // ============================================================
 let dailyNotes = {};
+let staffUsers = [];
 
 function loadData() {
   // Daily Notes Listener
   db.ref('dailyNotes').on('value', (snapshot) => {
     dailyNotes = snapshot.val() || {};
     renderDailyNotesBanner();
+  }, () => {});
+
+  // Staff Users Listener
+  db.ref('staffUsers').on('value', (snapshot) => {
+    const data = snapshot.val();
+    staffUsers = data ? Object.values(data) : [];
+    // Nachrendern falls Modal offen
+    if (document.getElementById('staffMgmtModal').classList.contains('active')) {
+      renderStaffMgmt();
+    }
   }, () => {});
 
   // Bookings: Echtzeit-Listener — alle Geräte sehen sofort Änderungen
@@ -2620,6 +2650,95 @@ function deleteBooking(id) {
 // ============================================================
 // SETTINGS
 // ============================================================
+// ============================================================
+// STAFF-MITARBEITER-VERWALTUNG (Website-Admin)
+// ============================================================
+function showStaffMgmt() {
+  renderStaffMgmt();
+  document.getElementById('staffMgmtModal').classList.add('active');
+}
+
+function renderStaffMgmt() {
+  const el = document.getElementById('staffMgmtList');
+  if (!el) return;
+  if (!staffUsers.length) {
+    el.innerHTML = '<div style="text-align:center; padding:24px; color:var(--gray-500); font-size:13px; font-style:italic; border:1px dashed var(--gray-300); border-radius:4px;">Noch keine Mitarbeiter angelegt. Unten neuen hinzuf&uuml;gen.</div>';
+    return;
+  }
+  const adminCount = staffUsers.filter(u => u.role === 'admin').length;
+  // Sortiert: Admins zuerst, dann nach Name
+  const sorted = staffUsers.slice().sort((a, b) => {
+    if (a.role === 'admin' && b.role !== 'admin') return -1;
+    if (b.role === 'admin' && a.role !== 'admin') return 1;
+    return (a.name || '').localeCompare(b.name || '');
+  });
+  el.innerHTML = sorted.map(u => {
+    const isAdm = u.role === 'admin';
+    const canDemote = isAdm && adminCount > 1;
+    const canDelete = !(isAdm && adminCount === 1);
+    const initial = (u.name || '?').charAt(0).toUpperCase();
+    const badge = isAdm
+      ? '<span style="display:inline-block; background:#c9a84c; color:#0c1b2e; font-size:9px; font-weight:800; padding:2px 7px; border-radius:8px; margin-left:8px; letter-spacing:0.06em; text-transform:uppercase;">Admin</span>'
+      : '<span style="display:inline-block; background:var(--gray-200); color:var(--gray-600); font-size:9px; font-weight:700; padding:2px 7px; border-radius:8px; margin-left:8px; letter-spacing:0.06em; text-transform:uppercase;">Staff</span>';
+    return `<div style="display:flex; align-items:center; gap:12px; padding:10px 12px; background:var(--gray-50); border-radius:6px; border:1px solid var(--gray-200);">
+      <div style="width:34px; height:34px; border-radius:50%; background:var(--primary); color:white; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; flex-shrink:0;">${initial}</div>
+      <div style="flex:1; min-width:0;">
+        <div style="font-weight:600; font-size:14px; color:var(--dark);">${u.name}${badge}</div>
+      </div>
+      <div style="display:flex; gap:6px; flex-wrap:wrap;">
+        ${!isAdm ? `<button class="btn btn-sm" onclick="staffMgmtSetRole('${u.id}','admin')">&rarr; Admin</button>` : ''}
+        ${canDemote ? `<button class="btn btn-sm" onclick="staffMgmtSetRole('${u.id}','staff')">&rarr; Staff</button>` : ''}
+        ${canDelete ? `<button class="btn btn-sm btn-danger" onclick="staffMgmtDelete('${u.id}')">L\u00f6schen</button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function staffMgmtAdd() {
+  const input = document.getElementById('staffMgmtNewName');
+  const name = input.value.trim();
+  if (!name) return;
+  const user = {
+    id: Date.now().toString(36) + Math.random().toString(36).substr(2, 3),
+    name: name,
+    role: staffUsers.length === 0 ? 'admin' : 'staff'
+  };
+  db.ref('staffUsers/' + user.id).set(user);
+  input.value = '';
+  notify(`${name} hinzugefügt.`, 'success');
+}
+
+function staffMgmtSetRole(id, role) {
+  const user = staffUsers.find(u => u.id === id);
+  if (!user) return;
+  if (role === 'staff' && user.role === 'admin') {
+    const adminCount = staffUsers.filter(u => u.role === 'admin').length;
+    if (adminCount <= 1) { notify('Mindestens ein Admin muss bleiben.', 'error'); return; }
+  }
+  db.ref('staffUsers/' + id + '/role').set(role);
+  notify('Rolle aktualisiert.', 'success');
+}
+
+function staffMgmtDelete(id) {
+  const user = staffUsers.find(u => u.id === id);
+  if (!user) return;
+  if (user.role === 'admin') {
+    const adminCount = staffUsers.filter(u => u.role === 'admin').length;
+    if (adminCount <= 1) { notify('Mindestens ein Admin muss bleiben.', 'error'); return; }
+  }
+  if (!confirm(`Mitarbeiter „${user.name}" wirklich löschen?`)) return;
+  db.ref('staffUsers/' + id).remove();
+  notify('Mitarbeiter entfernt.', 'success');
+}
+
+// Enter-Taste im Input
+document.addEventListener('DOMContentLoaded', () => {
+  const inp = document.getElementById('staffMgmtNewName');
+  if (inp) inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); staffMgmtAdd(); }
+  });
+});
+
 function showSettings() {
   document.getElementById('newPassword').value = '';
   document.getElementById('aircraftNames').value = settings.aircraft.join('\n');
