@@ -1,0 +1,1412 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="DASSU Staff">
+<meta name="theme-color" content="#0c1b2e">
+<link rel="apple-touch-icon" href="https://images.squarespace-cdn.com/content/v1/5a6084aad0e628eab9591587/66b4214a-b88b-427c-8350-c5907ffdcda4/DASSU-Logo+2022+web+768x768+2.png?format=180w">
+<link rel="icon" type="image/png" href="https://images.squarespace-cdn.com/content/v1/5a6084aad0e628eab9591587/66b4214a-b88b-427c-8350-c5907ffdcda4/DASSU-Logo+2022+web+768x768+2.png?format=32w">
+<link rel="manifest" href="/manifest.json">
+<title>DASSU Staff</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+:root {
+  --navy: #0c1b2e;
+  --navy-light: #132640;
+  --primary: #3d9991;
+  --accent: #c9a84c;
+  --green: #43a047;
+  --orange: #ef8c00;
+  --danger: #b83232;
+  --gray-100: #f5f6f8;
+  --gray-300: #ccc;
+  --gray-500: #8896a7;
+  --radius: 10px;
+  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+}
+body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; min-height: 100vh; padding-bottom: env(safe-area-inset-bottom); }
+
+/* Header */
+.header { background: var(--navy); padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+.header-left { display: flex; align-items: center; gap: 10px; }
+.header-left img { width: 30px; height: 30px; border-radius: 50%; border: 1px solid rgba(201,168,76,0.3); }
+.header h1 { color: white; font-size: 16px; font-weight: 600; letter-spacing: 0.08em; }
+.header h1 span { color: var(--accent); font-size: 10px; font-weight: 400; letter-spacing: 0.1em; text-transform: uppercase; margin-left: 6px; }
+.header .user-pill { background: rgba(255,255,255,0.08); color: white; padding: 5px 10px; border-radius: 16px; font-size: 11px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; border: none; font-family: var(--font); }
+.user-avatar { width: 20px; height: 20px; border-radius: 50%; background: var(--accent); color: var(--navy); font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+
+/* Date Nav */
+.date-nav { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px 16px; background: white; border-bottom: 1px solid #e8eaed; }
+.date-nav h2 { font-size: 15px; font-weight: 600; min-width: 200px; text-align: center; }
+.nav-btn { width: 36px; height: 36px; border-radius: 50%; border: 1px solid #ddd; background: white; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.nav-btn:active { background: var(--gray-100); }
+.today-btn { background: var(--navy); color: white; border: none; padding: 7px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; letter-spacing: 0.03em; }
+
+/* View Tabs */
+.view-tabs { display: flex; gap: 4px; background: white; padding: 8px 12px; border-bottom: 1px solid #e8eaed; }
+.view-tab { flex: 1; padding: 10px 6px; text-align: center; font-size: 12px; font-weight: 600; color: var(--gray-500); background: var(--gray-100); border: none; cursor: pointer; font-family: var(--font); transition: all 0.2s; position: relative; border-radius: 8px; }
+.view-tab.active { background: var(--navy); color: white; }
+.tab-badge { display: inline-block; background: var(--danger); color: white; font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 10px; margin-left: 4px; vertical-align: middle; min-width: 16px; }
+
+/* Aircraft Tabs */
+.aircraft-tabs { display: flex; overflow-x: auto; gap: 8px; padding: 12px 16px; background: white; border-bottom: 1px solid #e8eaed; -webkit-overflow-scrolling: touch; }
+.aircraft-tabs::-webkit-scrollbar { display: none; }
+.aircraft-tab { flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 12px; border-radius: var(--radius); border: 2px solid transparent; background: var(--gray-100); cursor: pointer; transition: all 0.2s; min-width: 70px; }
+.aircraft-tab.active { border-color: var(--primary); background: rgba(61,153,145,0.08); }
+.aircraft-tab img { width: 52px; height: 32px; object-fit: cover; border-radius: 6px; }
+.aircraft-tab .reg { font-size: 10px; font-weight: 700; letter-spacing: 0.04em; color: var(--navy); }
+.aircraft-tab .type { font-size: 8px; color: var(--gray-500); }
+
+/* Slot Grid */
+.slots { padding: 8px 12px 100px; }
+.slot-row { display: flex; align-items: stretch; gap: 6px; margin-bottom: 4px; }
+.slot-time { width: 48px; flex-shrink: 0; font-size: 11px; font-weight: 600; color: var(--gray-500); display: flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums; }
+.slot-cell { flex: 1; min-height: 50px; border-radius: 10px; background: white; border: 1.5px solid #e8eaed; display: flex; align-items: center; padding: 8px 12px; cursor: pointer; transition: all 0.15s; position: relative; }
+.slot-cell:active { transform: scale(0.97); background: #f0f8f7; }
+.slot-cell.free { border-style: dashed; border-color: var(--primary); border-width: 1.5px; background: rgba(61,153,145,0.03); }
+.slot-cell.free::after { content: '+ Buchen'; position: absolute; right: 12px; font-size: 13px; color: var(--primary); font-weight: 600; }
+.slot-cell.booked { background: #e8f5e9; border-color: var(--green); }
+.slot-cell.booked.with-instructor { background: #fff3e0; border-color: var(--orange); }
+.slot-cell.booked .booking-name { font-size: 13px; font-weight: 600; color: #1a1a1a; }
+.slot-cell.booked .booking-meta { font-size: 10px; color: var(--gray-500); margin-top: 1px; }
+.slot-cell.pending { background: #faf6eb; border-color: var(--accent); }
+.slot-cell.towing { background: #f5f5f5; border-color: #ddd; cursor: default; }
+.slot-cell.towing .towing-label { font-size: 10px; color: var(--gray-500); font-weight: 500; }
+
+/* Overview Grid */
+.overview { padding: 0 0 100px; }
+.overview-grid { display: grid; grid-template-columns: 42px repeat(5, 1fr); width: 100%; }
+.ov-corner { background: white; padding: 6px 2px; border-bottom: 2px solid #e8eaed; }
+.ov-aircraft-header { background: white; padding: 8px 2px; text-align: center; border-bottom: 2px solid #e8eaed; }
+.ov-aircraft-header img { width: 36px; height: 22px; object-fit: cover; border-radius: 4px; display: block; margin: 0 auto 3px; }
+.ov-aircraft-header .ov-reg { font-size: 9px; font-weight: 700; color: var(--navy); letter-spacing: 0.02em; white-space: nowrap; }
+.ov-time { font-size: 9px; font-weight: 600; color: var(--gray-500); padding: 0 2px; display: flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums; border-right: 1px solid #f0f0f0; min-height: 36px; }
+.ov-cell { min-height: 36px; border-bottom: 1px solid #f5f5f5; border-right: 1px solid #f5f5f5; position: relative; cursor: pointer; transition: background 0.1s; }
+.ov-cell:active { background: rgba(61,153,145,0.08); }
+.ov-cell.ov-booked { background: #e8f5e9; }
+.ov-cell.ov-booked.ov-instructor { background: #fff3e0; }
+.ov-cell.ov-booked.ov-pending { background: #faf6eb; }
+.ov-cell.ov-towing { background: #f5f5f5; }
+.ov-cell .ov-name { position: absolute; top: 2px; left: 3px; right: 3px; font-size: 8px; font-weight: 700; color: #333; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ov-cell .ov-meta { position: absolute; bottom: 1px; left: 3px; font-size: 7px; color: var(--gray-500); }
+
+/* Manage View */
+.manage { padding: 12px 16px 100px; }
+.manage-section { margin-bottom: 18px; }
+.manage-section h3 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gray-500); margin-bottom: 8px; padding: 0 4px; display: flex; align-items: center; gap: 6px; }
+.manage-section h3 .count { background: var(--gray-100); color: var(--navy); padding: 1px 7px; border-radius: 10px; font-size: 10px; }
+.manage-section.pending h3 { color: var(--accent); }
+.manage-section.pending h3 .count { background: rgba(201,168,76,0.15); color: var(--accent); }
+.booking-item { background: white; border-radius: var(--radius); border: 1px solid #e8eaed; padding: 12px 14px; margin-bottom: 6px; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 10px; }
+.booking-item:active { transform: scale(0.99); background: #f9fafb; }
+.booking-item.pending { border-left: 3px solid var(--accent); background: #fffdf6; }
+
+/* Swipe-to-approve container */
+.swipe-wrap { position: relative; margin-bottom: 6px; overflow: hidden; border-radius: var(--radius); background: var(--green); }
+.swipe-wrap .swipe-action { position: absolute; inset: 0; display: flex; align-items: center; justify-content: flex-end; padding-right: 22px; color: white; font-size: 14px; font-weight: 700; gap: 8px; pointer-events: none; }
+.swipe-wrap .swipe-action .check { font-size: 20px; }
+.swipe-wrap .booking-item { margin-bottom: 0; position: relative; z-index: 2; transform: translateX(0); transition: transform 0.2s ease; touch-action: pan-y; will-change: transform; }
+.swipe-wrap.swiping .booking-item { transition: none; }
+.swipe-wrap.completing .booking-item { transition: transform 0.25s ease; transform: translateX(-100%); }
+.booking-item.approved { border-left: 3px solid var(--green); }
+.booking-item.approved.with-instr { border-left-color: var(--orange); }
+.booking-item.rejected { border-left: 3px solid var(--danger); opacity: 0.7; }
+.booking-item .bi-time { font-size: 12px; font-weight: 700; color: var(--navy); min-width: 86px; font-variant-numeric: tabular-nums; }
+.booking-item .bi-info { flex: 1; min-width: 0; }
+.booking-item .bi-name { font-size: 14px; font-weight: 600; color: #1a1a1a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.booking-item .bi-meta { font-size: 11px; color: var(--gray-500); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.booking-item .bi-aircraft { font-size: 10px; font-weight: 700; color: var(--navy); background: var(--gray-100); padding: 3px 7px; border-radius: 5px; letter-spacing: 0.04em; flex-shrink: 0; }
+.empty-msg { text-align: center; padding: 24px 16px; color: var(--gray-500); font-size: 13px; background: white; border-radius: var(--radius); border: 1px dashed #ddd; }
+.filter-row { display: flex; gap: 6px; margin-bottom: 12px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 4px; }
+.filter-row::-webkit-scrollbar { display: none; }
+.filter-chip { flex-shrink: 0; padding: 7px 14px; background: white; border: 1.5px solid #e8eaed; border-radius: 20px; font-size: 12px; font-weight: 600; color: var(--gray-500); cursor: pointer; font-family: var(--font); }
+.filter-chip.active { background: var(--navy); color: white; border-color: var(--navy); }
+.search-input { width: 100%; padding: 10px 14px; font-size: 14px; border: 1.5px solid #e8eaed; border-radius: var(--radius); font-family: var(--font); outline: none; margin-bottom: 10px; background: white; }
+.search-input:focus { border-color: var(--primary); }
+
+/* Daily Notes */
+.daily-notes { background: #fffbe6; border-bottom: 1px solid #f0e7c0; padding: 10px 16px; display: flex; align-items: flex-start; gap: 10px; font-size: 13px; cursor: pointer; }
+.daily-notes:active { background: #fef7d0; }
+.daily-notes .dn-icon { flex-shrink: 0; font-size: 14px; margin-top: 1px; }
+.daily-notes .dn-content { flex: 1; min-width: 0; }
+.daily-notes .dn-label { font-size: 10px; font-weight: 700; color: #8a7420; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px; }
+.daily-notes .dn-text { color: #3a3320; line-height: 1.4; white-space: pre-wrap; word-break: break-word; }
+.daily-notes .dn-empty { color: #aa9960; font-style: italic; }
+.daily-notes .dn-edit { font-size: 11px; color: var(--primary); font-weight: 600; flex-shrink: 0; }
+
+/* Notes edit sheet */
+.notes-textarea { width: 100%; min-height: 140px; padding: 12px 14px; font-size: 15px; border: 2px solid #e8eaed; border-radius: var(--radius); font-family: var(--font); outline: none; resize: vertical; line-height: 1.5; }
+.notes-textarea:focus { border-color: var(--primary); }
+
+/* Notification permission banner */
+.notif-banner { background: linear-gradient(135deg, var(--navy), var(--navy-light)); color: white; padding: 10px 16px; display: flex; align-items: center; gap: 10px; font-size: 12px; }
+.notif-banner button { background: var(--accent); color: var(--navy); border: none; padding: 6px 14px; border-radius: 16px; font-size: 11px; font-weight: 700; cursor: pointer; font-family: var(--font); }
+.notif-banner .close-x { background: transparent; color: rgba(255,255,255,0.6); padding: 4px 8px; font-size: 16px; }
+
+/* Quick Book Overlay */
+.quick-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 200; align-items: flex-end; justify-content: center; }
+.quick-overlay.active { display: flex; }
+.quick-sheet { background: white; width: 100%; max-width: 420px; border-radius: 16px 16px 0 0; padding: 20px 20px env(safe-area-inset-bottom); animation: slideUp 0.25s ease; max-height: 90vh; overflow-y: auto; }
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.quick-sheet h3 { font-size: 14px; color: var(--gray-500); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 14px; }
+.quick-sheet .info-row { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.quick-sheet .info-chip { background: var(--gray-100); padding: 6px 12px; border-radius: 8px; font-size: 13px; font-weight: 600; }
+.quick-input { width: 100%; padding: 14px; font-size: 16px; border: 2px solid #e8eaed; border-radius: var(--radius); font-family: var(--font); outline: none; transition: border-color 0.2s; }
+.quick-input:focus { border-color: var(--primary); }
+.quick-input::placeholder { color: #bbb; }
+.quick-row { display: flex; gap: 8px; margin-top: 10px; }
+.quick-select { flex: 1; padding: 12px; font-size: 14px; border: 2px solid #e8eaed; border-radius: var(--radius); font-family: var(--font); background: white; }
+.btn-book { padding: 14px; background: var(--primary); color: white; border: none; border-radius: var(--radius); font-size: 15px; font-weight: 600; cursor: pointer; font-family: var(--font); }
+.btn-book:active { opacity: 0.9; }
+.btn-cancel { padding: 14px 20px; background: var(--gray-100); color: #666; border: none; border-radius: var(--radius); font-size: 15px; cursor: pointer; font-family: var(--font); }
+
+/* Notification */
+.notify { position: fixed; top: 16px; left: 16px; right: 16px; padding: 12px 16px; border-radius: var(--radius); font-size: 13px; font-weight: 500; z-index: 300; transform: translateY(-120%); transition: transform 0.3s ease; text-align: center; max-width: 420px; margin: 0 auto; }
+.notify.show { transform: translateY(0); }
+.notify.success { background: var(--navy); color: white; }
+.notify.error { background: var(--danger); color: white; }
+.notify.info { background: var(--primary); color: white; }
+
+/* Booking detail bottom sheet */
+.detail-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 200; align-items: flex-end; justify-content: center; }
+.detail-overlay.active { display: flex; }
+.detail-sheet { background: white; width: 100%; max-width: 420px; border-radius: 16px 16px 0 0; padding: 20px 20px env(safe-area-inset-bottom); animation: slideUp 0.25s ease; max-height: 90vh; overflow-y: auto; }
+.detail-sheet h3 { font-size: 14px; color: var(--gray-500); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 14px; }
+.detail-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f0f0; gap: 10px; }
+.detail-label { font-size: 11px; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; flex-shrink: 0; }
+.detail-value { font-size: 14px; font-weight: 500; text-align: right; word-break: break-word; }
+.detail-actions { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+.detail-actions button { padding: 10px 16px; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: var(--font); }
+.btn-approve { background: var(--green); color: white; }
+.btn-reject { background: var(--danger); color: white; }
+.btn-edit { background: var(--primary); color: white; }
+.btn-delete { background: #f5f5f5; color: var(--danger); }
+.btn-close { background: var(--gray-100); color: #666; flex: 1; }
+
+/* Audit log */
+.audit-log { margin-top: 14px; padding-top: 14px; border-top: 1px dashed #e8eaed; }
+.audit-log h4 { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gray-500); margin-bottom: 8px; }
+.audit-entry { font-size: 11px; color: #555; padding: 4px 0; display: flex; gap: 6px; }
+.audit-entry .au-user { font-weight: 700; color: var(--navy); }
+.audit-entry .au-time { color: var(--gray-500); margin-left: auto; font-variant-numeric: tabular-nums; }
+
+/* Login overlay */
+.login-overlay { display: none; position: fixed; inset: 0; background: var(--navy); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
+.login-overlay.active { display: flex; }
+.login-box { background: white; border-radius: 16px; padding: 28px 24px; max-width: 360px; width: 100%; }
+.login-box img { width: 56px; height: 56px; border-radius: 50%; display: block; margin: 0 auto 16px; border: 1px solid rgba(201,168,76,0.3); }
+.login-box h2 { text-align: center; font-size: 16px; font-weight: 600; color: var(--navy); margin-bottom: 4px; }
+.login-box p { text-align: center; font-size: 12px; color: var(--gray-500); margin-bottom: 18px; }
+.user-list { display: flex; flex-direction: column; gap: 6px; }
+.user-list-item { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: var(--gray-100); border-radius: var(--radius); cursor: pointer; border: 2px solid transparent; transition: all 0.15s; }
+.user-list-item:active { background: rgba(61,153,145,0.08); border-color: var(--primary); }
+.user-list-item .ul-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--accent); color: var(--navy); font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.user-list-item .ul-name { font-size: 14px; font-weight: 600; color: var(--navy); }
+.add-user-row { display: flex; gap: 6px; margin-top: 14px; padding-top: 14px; border-top: 1px dashed #e8eaed; }
+.add-user-row input { flex: 1; padding: 10px 12px; border: 1.5px solid #e8eaed; border-radius: 8px; font-size: 14px; font-family: var(--font); outline: none; }
+.add-user-row input:focus { border-color: var(--primary); }
+.add-user-row button { padding: 10px 16px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: var(--font); }
+
+/* User menu */
+.user-menu { display: none; position: fixed; top: 56px; right: 12px; background: white; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); padding: 6px; z-index: 250; min-width: 180px; }
+.user-menu.active { display: block; }
+.user-menu-item { padding: 10px 12px; border-radius: 8px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+.user-menu-item:active { background: var(--gray-100); }
+.user-menu-item.danger { color: var(--danger); }
+</style>
+</head>
+<body>
+
+<!-- Login Overlay -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <img src="https://images.squarespace-cdn.com/content/v1/5a6084aad0e628eab9591587/66b4214a-b88b-427c-8350-c5907ffdcda4/DASSU-Logo+2022+web+768x768+2.png?format=120w" alt="DASSU">
+    <h2>Wer bist du?</h2>
+    <p>W&auml;hle dein Profil oder lege ein neues an</p>
+    <div class="user-list" id="userList"></div>
+    <div class="add-user-row">
+      <input type="text" id="newUserName" placeholder="Neuer Mitarbeiter..." maxlength="30">
+      <button onclick="addUser()">+ Hinzuf&uuml;gen</button>
+    </div>
+  </div>
+</div>
+
+<div class="header">
+  <div class="header-left">
+    <img src="https://images.squarespace-cdn.com/content/v1/5a6084aad0e628eab9591587/66b4214a-b88b-427c-8350-c5907ffdcda4/DASSU-Logo+2022+web+768x768+2.png?format=80w" alt="DASSU">
+    <h1>DASSU<span>Staff</span></h1>
+  </div>
+  <button class="user-pill" onclick="toggleUserMenu()">
+    <div class="user-avatar" id="headerAvatar">?</div>
+    <span id="headerUserName">—</span>
+  </button>
+</div>
+
+<!-- User menu -->
+<div class="user-menu" id="userMenu">
+  <div class="user-menu-item" onclick="switchUser()">Nutzer wechseln</div>
+  <div class="user-menu-item" id="notifMenuItem" onclick="enableNotifications()">Benachrichtigungen aktivieren</div>
+</div>
+
+<!-- Notification permission banner -->
+<div class="notif-banner" id="notifBanner" style="display:none;">
+  <span>&#128276;</span>
+  <span>Benachrichtigungen bei neuen Buchungen aktivieren?</span>
+  <button onclick="enableNotifications()">Aktivieren</button>
+  <button class="close-x" onclick="dismissNotifBanner()">&times;</button>
+</div>
+
+<div class="date-nav">
+  <button class="nav-btn" onclick="navigate(-1)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
+  <h2 id="dateDisplay"></h2>
+  <button class="nav-btn" onclick="navigate(1)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>
+  <button class="today-btn" onclick="goToday()">Heute</button>
+</div>
+
+<div class="daily-notes" id="dailyNotes" onclick="openNotesEdit()">
+  <span class="dn-icon">&#128221;</span>
+  <div class="dn-content">
+    <div class="dn-label">Bemerkungen</div>
+    <div class="dn-text" id="dailyNotesText"><span class="dn-empty">Tippen um Bemerkung hinzuzuf&uuml;gen...</span></div>
+  </div>
+  <span class="dn-edit">Bearbeiten</span>
+</div>
+
+<!-- Notes Edit Sheet -->
+<div class="quick-overlay" id="notesOverlay" onclick="if(event.target===this)closeNotesEdit()">
+  <div class="quick-sheet">
+    <h3>Bemerkungen f&uuml;r diesen Tag</h3>
+    <div class="info-row">
+      <div class="info-chip" id="notesDate"></div>
+    </div>
+    <textarea class="notes-textarea" id="notesTextarea" placeholder="z.B. Schleppbetrieb von 10:00-14:00, Flugplatzfest ab 15:00, Wartung D-KYSS..."></textarea>
+    <button class="btn-book" onclick="saveNotes()" style="width:100%;margin-top:14px;padding:16px;font-size:16px;">Speichern</button>
+    <button class="btn-cancel" onclick="closeNotesEdit()" style="width:100%;margin-top:6px;padding:12px;text-align:center;">Abbrechen</button>
+  </div>
+</div>
+
+<div class="view-tabs">
+  <button class="view-tab active" id="tabOverview" onclick="switchView('overview')">&Uuml;bersicht</button>
+  <button class="view-tab" id="tabBook" onclick="switchView('book')">Buchen</button>
+  <button class="view-tab" id="tabManage" onclick="switchView('manage')">Verwalten<span id="pendingBadge" style="display:none;" class="tab-badge">0</span></button>
+</div>
+
+<div id="viewOverview" class="overview">
+  <div class="overview-grid" id="overviewGrid"></div>
+</div>
+
+<div id="viewBook" style="display:none;">
+  <div class="aircraft-tabs" id="aircraftTabs"></div>
+  <div class="slots" id="slotsContainer"></div>
+</div>
+
+<div id="viewManage" class="manage" style="display:none;">
+  <input type="text" class="search-input" id="searchInput" placeholder="Suchen nach Name, Flugzeug..." oninput="renderManage()">
+  <div class="filter-row" id="filterRow"></div>
+  <div id="manageContent"></div>
+</div>
+
+<!-- Quick Book Sheet -->
+<div class="quick-overlay" id="quickOverlay" onclick="if(event.target===this)closeQuick()">
+  <div class="quick-sheet">
+    <h3 id="quickTitle">Schnellbuchung</h3>
+    <div class="info-row">
+      <div class="info-chip" id="quickAircraft"></div>
+      <div class="info-chip" id="quickDate"></div>
+    </div>
+    <input class="quick-input" id="qbName" type="text" placeholder="Name eingeben..." autocomplete="off">
+    <div class="quick-row" style="margin-top:8px;">
+      <input class="quick-input" id="qbInstructor" type="text" placeholder="Fluglehrer (optional)" autocomplete="off" style="flex:1;">
+    </div>
+    <div class="quick-row">
+      <div style="flex:1;"><label style="font-size:11px;color:var(--gray-500);font-weight:600;display:block;margin-bottom:4px;">VON</label><select class="quick-select" id="qbFrom" style="width:100%;"></select></div>
+      <div style="flex:1;"><label style="font-size:11px;color:var(--gray-500);font-weight:600;display:block;margin-bottom:4px;">BIS</label><select class="quick-select" id="qbTo" style="width:100%;"></select></div>
+    </div>
+    <button class="btn-book" onclick="submitQuick()" style="width:100%;margin-top:14px;padding:16px;font-size:16px;">Buchen</button>
+    <button class="btn-cancel" onclick="closeQuick()" style="width:100%;margin-top:6px;padding:12px;text-align:center;">Abbrechen</button>
+  </div>
+</div>
+
+<!-- Edit Sheet -->
+<div class="quick-overlay" id="editOverlay" onclick="if(event.target===this)closeEdit()">
+  <div class="quick-sheet">
+    <h3>Buchung bearbeiten</h3>
+    <div class="info-row">
+      <div class="info-chip" id="editAircraft"></div>
+      <div class="info-chip" id="editDate"></div>
+    </div>
+    <input class="quick-input" id="ebName" type="text" placeholder="Name" autocomplete="off">
+    <div class="quick-row" style="margin-top:8px;">
+      <input class="quick-input" id="ebInstructor" type="text" placeholder="Fluglehrer (optional)" autocomplete="off" style="flex:1;">
+    </div>
+    <div class="quick-row">
+      <div style="flex:1;"><label style="font-size:11px;color:var(--gray-500);font-weight:600;display:block;margin-bottom:4px;">VON</label><select class="quick-select" id="ebFrom" style="width:100%;"></select></div>
+      <div style="flex:1;"><label style="font-size:11px;color:var(--gray-500);font-weight:600;display:block;margin-bottom:4px;">BIS</label><select class="quick-select" id="ebTo" style="width:100%;"></select></div>
+    </div>
+    <button class="btn-book" onclick="submitEdit()" style="width:100%;margin-top:14px;padding:16px;font-size:16px;">Speichern</button>
+    <button class="btn-cancel" onclick="closeEdit()" style="width:100%;margin-top:6px;padding:12px;text-align:center;">Abbrechen</button>
+  </div>
+</div>
+
+<!-- Detail Sheet -->
+<div class="detail-overlay" id="detailOverlay" onclick="if(event.target===this)closeDetail()">
+  <div class="detail-sheet" id="detailSheet"></div>
+</div>
+
+<div class="notify" id="notify"></div>
+
+<script>
+// ============================================================
+// FIREBASE
+// ============================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyAe5CPZl8kb0bKfHIiGclHTpQK88MMsnTI",
+  authDomain: "buchungskalender-ffe4c.firebaseapp.com",
+  databaseURL: "https://buchungskalender-ffe4c-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "buchungskalender-ffe4c",
+  storageBucket: "buchungskalender-ffe4c.firebasestorage.app",
+  messagingSenderId: "913839321247",
+  appId: "1:913839321247:web:723106a2d73c048e15f2aa"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const VAPID_KEY = 'BND8qrjFmPRi4R7bubN7Tf8aL3pdCFg26ruSxnVIQbQ7DjvVUn9K6QXrWhLUE9Jy-ezZplGJ9-BfDua2sMaZ5zg';
+let fcmMessaging = null;
+try { fcmMessaging = firebase.messaging(); } catch(e) { console.warn('FCM nicht verfügbar:', e); }
+
+// ============================================================
+// DATA
+// ============================================================
+const AIRCRAFT = ['D-KYGL', 'D-KYCK', 'D-KYSS', 'D-MYUW', 'D-MYIH'];
+const AIRCRAFT_IMAGES = {
+  'D-KYGL': 'https://images.squarespace-cdn.com/content/v1/5a6084aad0e628eab9591587/1547813117982-OW707IT4O3SF6ZRSEEYN/D-KYGL.jpg',
+  'D-KYCK': 'https://images.squarespace-cdn.com/content/v1/5a6084aad0e628eab9591587/0caf31ac-0093-46ba-920f-8cbd9d0b6a06/IMG_9563.jpg',
+  'D-KYSS': 'https://images.squarespace-cdn.com/content/v1/5a6084aad0e628eab9591587/1547811279745-R2SL7W8T3RN4DPKE3P0I/D-KYSS.jpg',
+  'D-MYUW': 'https://images.squarespace-cdn.com/content/v1/5a6084aad0e628eab9591587/1547811326442-DPH0ZBIPWXCP3AR70LRH/D-MYUW.jpg',
+  'D-MYIH': 'https://images.squarespace-cdn.com/content/v1/5a6084aad0e628eab9591587/5e1c4b36-0560-4129-9c5d-ffa648d3e54a/IMG_4794.jpeg'
+};
+const AIRCRAFT_TYPES = { 'D-KYGL':'SF25 Falke','D-KYCK':'SF25 Falke','D-KYSS':'Samburo','D-MYUW':'Eurostar','D-MYIH':'Dynamic' };
+
+const TIME_SLOTS = [];
+const TIME_POINTS = ['08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00'];
+for (let i = 0; i < TIME_POINTS.length - 1; i++) TIME_SLOTS.push(`${TIME_POINTS[i]} - ${TIME_POINTS[i+1]}`);
+
+let bookings = [];
+let staffUsers = [];
+let dailyNotes = {};
+let currentUser = null;
+let currentDate = new Date();
+let selectedAircraft = AIRCRAFT[0];
+let currentView = 'overview';
+let currentEditId = null;
+let manageFilter = 'today';
+let firstLoad = true;
+let knownBookingIds = new Set();
+
+// ============================================================
+// USER MANAGEMENT
+// ============================================================
+function loadCurrentUser() {
+  const stored = localStorage.getItem('dassu_staff_user');
+  if (stored) currentUser = JSON.parse(stored);
+}
+
+function saveCurrentUser() {
+  if (currentUser) localStorage.setItem('dassu_staff_user', JSON.stringify(currentUser));
+}
+
+function showLogin() {
+  document.getElementById('loginOverlay').classList.add('active');
+  renderUserList();
+}
+
+function hideLogin() {
+  document.getElementById('loginOverlay').classList.remove('active');
+}
+
+function renderUserList() {
+  const el = document.getElementById('userList');
+  if (!staffUsers.length) {
+    el.innerHTML = '<div class="empty-msg" style="border:none;padding:8px 0;">Noch keine Mitarbeiter angelegt</div>';
+    return;
+  }
+  el.innerHTML = staffUsers.map(u => `
+    <div class="user-list-item" onclick="selectUser('${u.id}')">
+      <div class="ul-avatar">${u.name.charAt(0).toUpperCase()}</div>
+      <div class="ul-name">${u.name}</div>
+    </div>
+  `).join('');
+}
+
+function addUser() {
+  const input = document.getElementById('newUserName');
+  const name = input.value.trim();
+  if (!name) return;
+  const user = { id: Date.now().toString(36), name: name };
+  db.ref('staffUsers/' + user.id).set(user);
+  input.value = '';
+  // Will refresh via listener; auto-select after a moment
+  setTimeout(() => selectUser(user.id), 400);
+}
+
+function selectUser(id) {
+  const u = staffUsers.find(x => x.id === id);
+  if (!u) return;
+  currentUser = u;
+  saveCurrentUser();
+  updateUserUI();
+  hideLogin();
+  maybeShowNotifBanner();
+  setTimeout(autoRegisterFcmIfReady, 1500);
+}
+
+function switchUser() {
+  closeUserMenu();
+  showLogin();
+}
+
+function updateUserUI() {
+  if (!currentUser) return;
+  document.getElementById('headerAvatar').textContent = currentUser.name.charAt(0).toUpperCase();
+  document.getElementById('headerUserName').textContent = currentUser.name;
+}
+
+function toggleUserMenu() {
+  const m = document.getElementById('userMenu');
+  m.classList.toggle('active');
+}
+
+function closeUserMenu() {
+  document.getElementById('userMenu').classList.remove('active');
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.user-pill') && !e.target.closest('.user-menu')) {
+    closeUserMenu();
+  }
+});
+
+// ============================================================
+// FIREBASE LISTENERS
+// ============================================================
+db.ref('staffUsers').on('value', snap => {
+  const data = snap.val();
+  staffUsers = data ? Object.values(data) : [];
+  if (document.getElementById('loginOverlay').classList.contains('active')) {
+    renderUserList();
+  }
+  // If currentUser was deleted/missing, force re-login
+  if (currentUser && !staffUsers.find(u => u.id === currentUser.id)) {
+    currentUser = null;
+    localStorage.removeItem('dassu_staff_user');
+    showLogin();
+  }
+});
+
+db.ref('dailyNotes').on('value', snap => {
+  dailyNotes = snap.val() || {};
+  renderDailyNotes();
+});
+
+db.ref('bookings').on('value', snap => {
+  const data = snap.val();
+  const newBookings = data ? Object.values(data) : [];
+
+  // Detect new bookings (only after first load)
+  if (!firstLoad) {
+    newBookings.forEach(b => {
+      if (!knownBookingIds.has(b.id) && !b.quickBook) {
+        // New booking from customer (not from staff quick-book)
+        notifyNewBooking(b);
+      }
+    });
+  }
+  knownBookingIds = new Set(newBookings.map(b => b.id));
+  firstLoad = false;
+
+  bookings = newBookings;
+  render();
+  updatePendingBadge();
+});
+
+// ============================================================
+// HELPERS
+// ============================================================
+function dateKey(d) { return d.toISOString().split('T')[0]; }
+function formatDate(d) {
+  const days = ['So','Mo','Di','Mi','Do','Fr','Sa'];
+  const months = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+  return `${days[d.getDay()]}, ${d.getDate()}. ${months[d.getMonth()]} ${d.getFullYear()}`;
+}
+function formatDateShort(dStr) {
+  const d = new Date(dStr);
+  const days = ['So','Mo','Di','Mi','Do','Fr','Sa'];
+  const months = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+  return `${days[d.getDay()]} ${d.getDate()}. ${months[d.getMonth()]}`;
+}
+function formatTime(iso) {
+  const d = new Date(iso);
+  return d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+}
+function formatRel(iso) {
+  const d = new Date(iso);
+  const diff = (Date.now() - d.getTime()) / 1000;
+  if (diff < 60) return 'gerade eben';
+  if (diff < 3600) return Math.floor(diff/60) + ' Min.';
+  if (diff < 86400) return Math.floor(diff/3600) + ' Std.';
+  return d.toLocaleDateString('de-DE');
+}
+function findBooking(date, slot, aircraft) {
+  return bookings.find(b => {
+    if (b.aircraft !== aircraft || b.date !== date) return false;
+    if (b.startTime && b.endTime) {
+      const slotStart = slot.split(' - ')[0];
+      return slotStart >= b.startTime && slotStart < b.endTime;
+    }
+    return b.slot === slot;
+  });
+}
+function isTowingBlocked(aircraft, time) {
+  if (aircraft !== 'D-MYIH') return false;
+  const m = parseInt(time.split(':')[0]) * 60 + parseInt(time.split(':')[1]);
+  return m >= 600 && m < 810;
+}
+// 2h-Block-Regel: D-KYCK und D-KYGL nur in 2h-Bl&ouml;cken vormittags Mo-Sa
+function getMorningBlock(aircraft, dateStr, slotStart) {
+  if (aircraft !== 'D-KYCK' && aircraft !== 'D-KYGL') return null;
+  const d = new Date(dateStr);
+  if (d.getDay() === 0) return null; // Sonntag kein Block
+  const [h, m] = slotStart.split(':').map(Number);
+  const mins = h * 60 + m;
+  if (mins >= 480 && mins < 600) return { start: '08:00', end: '10:00' };
+  if (mins >= 600 && mins < 720) return { start: '10:00', end: '12:00' };
+  return null;
+}
+function notify(msg, type) {
+  const el = document.getElementById('notify');
+  el.textContent = msg;
+  el.className = `notify ${type} show`;
+  setTimeout(() => el.classList.remove('show'), 2500);
+}
+function slotIndex(time) { return TIME_POINTS.indexOf(time); }
+
+// ============================================================
+// AUDIT LOG
+// ============================================================
+function addAuditEntry(bookingId, action, details) {
+  if (!currentUser) return;
+  const entry = {
+    id: Date.now().toString(36) + Math.random().toString(36).substr(2, 4),
+    user: currentUser.name,
+    userId: currentUser.id,
+    action: action,
+    details: details || '',
+    timestamp: new Date().toISOString()
+  };
+  db.ref('audit/' + bookingId + '/' + entry.id).set(entry);
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+function navigate(dir) {
+  currentDate.setDate(currentDate.getDate() + dir);
+  render();
+}
+function goToday() { currentDate = new Date(); render(); }
+
+// ============================================================
+// VIEW SWITCHING
+// ============================================================
+function switchView(view) {
+  currentView = view;
+  ['Overview','Book','Manage'].forEach(v => {
+    const tab = document.getElementById('tab' + v);
+    const cont = document.getElementById('view' + v);
+    const isActive = v.toLowerCase() === view;
+    tab.classList.toggle('active', isActive);
+    cont.style.display = isActive ? '' : 'none';
+  });
+  render();
+}
+
+function updatePendingBadge() {
+  const pending = bookings.filter(b => b.status === 'pending').length;
+  const badge = document.getElementById('pendingBadge');
+  if (pending > 0) {
+    badge.textContent = pending;
+    badge.style.display = '';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+// ============================================================
+// OVERVIEW RENDER
+// ============================================================
+function renderOverview() {
+  const dk = dateKey(currentDate);
+  const grid = document.getElementById('overviewGrid');
+
+  const lookup = {};
+  AIRCRAFT.forEach(a => { lookup[a] = {}; });
+  bookings.filter(b => b.date === dk).forEach(b => {
+    if (!lookup[b.aircraft]) return;
+    if (b.startTime && b.endTime) {
+      const si = slotIndex(b.startTime);
+      const ei = slotIndex(b.endTime);
+      for (let i = si; i < ei; i++) {
+        lookup[b.aircraft][TIME_POINTS[i]] = { ...b, isFirst: i === si };
+      }
+    } else {
+      const st = b.slot ? b.slot.split(' - ')[0] : '';
+      if (st) lookup[b.aircraft][st] = { ...b, isFirst: true };
+    }
+  });
+
+  let html = `<div class="ov-corner"></div>`;
+  AIRCRAFT.forEach(a => {
+    const img = AIRCRAFT_IMAGES[a] ? `<img src="${AIRCRAFT_IMAGES[a]}?format=60w" alt="${a}">` : '';
+    html += `<div class="ov-aircraft-header">${img}<div class="ov-reg">${a}</div></div>`;
+  });
+
+  TIME_POINTS.slice(0, -1).forEach(tp => {
+    html += `<div class="ov-time">${tp}</div>`;
+    AIRCRAFT.forEach(a => {
+      const entry = lookup[a][tp];
+      if (entry) {
+        const instrCls = entry.instructor === 'ja' ? ' ov-instructor' : '';
+        const pendingCls = entry.status === 'pending' ? ' ov-pending' : '';
+        const nameHtml = entry.isFirst ? `<span class="ov-name">${entry.name}</span>` : '';
+        const metaHtml = entry.isFirst && entry.instructorName ? `<span class="ov-meta">${entry.instructorName}</span>` : '';
+        html += `<div class="ov-cell ov-booked${instrCls}${pendingCls}" onclick="showDetail('${entry.id}')">${nameHtml}${metaHtml}</div>`;
+      } else if (isTowingBlocked(a, tp)) {
+        html += `<div class="ov-cell ov-towing"></div>`;
+      } else {
+        html += `<div class="ov-cell" onclick="switchToBook('${a}','${tp}')"></div>`;
+      }
+    });
+  });
+
+  grid.innerHTML = html;
+}
+
+function switchToBook(aircraft, slotStart) {
+  selectedAircraft = aircraft;
+  switchView('book');
+  setTimeout(() => openQuick(slotStart), 200);
+}
+
+// ============================================================
+// BOOK VIEW RENDER
+// ============================================================
+function renderBook() {
+  const dk = dateKey(currentDate);
+
+  const tabsEl = document.getElementById('aircraftTabs');
+  tabsEl.innerHTML = AIRCRAFT.map(a => {
+    const img = AIRCRAFT_IMAGES[a] ? `<img src="${AIRCRAFT_IMAGES[a]}?format=80w" alt="${a}">` : '';
+    return `<div class="aircraft-tab${a === selectedAircraft ? ' active' : ''}" onclick="selectAircraft('${a}')">${img}<span class="reg">${a}</span><span class="type">${AIRCRAFT_TYPES[a] || ''}</span></div>`;
+  }).join('');
+
+  const slotsEl = document.getElementById('slotsContainer');
+  let html = '';
+
+  TIME_SLOTS.forEach(slot => {
+    const slotStart = slot.split(' - ')[0];
+    const booking = findBooking(dk, slot, selectedAircraft);
+    const towing = isTowingBlocked(selectedAircraft, slotStart);
+
+    let cellClass = 'slot-cell';
+    let content = '';
+
+    if (towing && !booking) {
+      cellClass += ' towing';
+      content = '<span class="towing-label">Schleppbetrieb</span>';
+    } else if (booking) {
+      const instrClass = booking.instructor === 'ja' ? ' with-instructor' : '';
+      const statusClass = booking.status === 'pending' ? ' pending' : '';
+      cellClass += ` booked${instrClass}${statusClass}`;
+      const instrLabel = booking.instructor === 'ja' && booking.instructorName ? ` · ${booking.instructorName}` : '';
+      const statusLabel = booking.status === 'pending' ? ' (Angefragt)' : '';
+      content = `<div><div class="booking-name">${booking.name}${statusLabel}</div><div class="booking-meta">${booking.startTime}–${booking.endTime}${instrLabel}</div></div>`;
+    } else {
+      cellClass += ' free';
+    }
+
+    const onclick = booking ? `showDetail('${booking.id}')` : (towing ? '' : `openQuick('${slotStart}')`);
+
+    html += `<div class="slot-row">
+      <div class="slot-time">${slotStart}</div>
+      <div class="${cellClass}" ${onclick ? `onclick="${onclick}"` : ''}>${content}</div>
+    </div>`;
+  });
+
+  slotsEl.innerHTML = html;
+}
+
+function selectAircraft(a) {
+  selectedAircraft = a;
+  renderBook();
+}
+
+// ============================================================
+// MANAGE VIEW
+// ============================================================
+function renderManage() {
+  const filterRow = document.getElementById('filterRow');
+  const filters = [
+    { id: 'pending', label: 'Ausstehend', count: bookings.filter(b => b.status === 'pending').length },
+    { id: 'today', label: 'Heute', count: bookings.filter(b => b.date === dateKey(new Date())).length },
+    { id: 'upcoming', label: 'Kommend', count: bookings.filter(b => b.date >= dateKey(new Date())).length },
+    { id: 'past', label: 'Vergangen', count: bookings.filter(b => b.date < dateKey(new Date())).length },
+    { id: 'all', label: 'Alle', count: bookings.length }
+  ];
+  filterRow.innerHTML = filters.map(f =>
+    `<button class="filter-chip${manageFilter === f.id ? ' active' : ''}" onclick="setManageFilter('${f.id}')">${f.label} (${f.count})</button>`
+  ).join('');
+
+  const search = document.getElementById('searchInput').value.trim().toLowerCase();
+  const today = dateKey(new Date());
+
+  let filtered = bookings.slice();
+  if (manageFilter === 'pending') filtered = filtered.filter(b => b.status === 'pending');
+  else if (manageFilter === 'today') filtered = filtered.filter(b => b.date === today);
+  else if (manageFilter === 'upcoming') filtered = filtered.filter(b => b.date >= today);
+  else if (manageFilter === 'past') filtered = filtered.filter(b => b.date < today);
+
+  if (search) {
+    filtered = filtered.filter(b =>
+      (b.name || '').toLowerCase().includes(search) ||
+      (b.aircraft || '').toLowerCase().includes(search) ||
+      (b.instructorName || '').toLowerCase().includes(search) ||
+      (b.email || '').toLowerCase().includes(search)
+    );
+  }
+
+  // Sort: pending first, then by date+time
+  filtered.sort((a, b) => {
+    if (a.status === 'pending' && b.status !== 'pending') return -1;
+    if (b.status === 'pending' && a.status !== 'pending') return 1;
+    const ad = (a.date || '') + (a.startTime || a.slot || '');
+    const bd = (b.date || '') + (b.startTime || b.slot || '');
+    return ad.localeCompare(bd);
+  });
+
+  const cont = document.getElementById('manageContent');
+  if (!filtered.length) {
+    cont.innerHTML = '<div class="empty-msg">Keine Buchungen gefunden</div>';
+    return;
+  }
+
+  // Group: pending separate, then by date
+  const pending = filtered.filter(b => b.status === 'pending');
+  const others = filtered.filter(b => b.status !== 'pending');
+
+  let html = '';
+  if (pending.length && manageFilter !== 'past') {
+    html += `<div class="manage-section pending">
+      <h3>&#9888; Ausstehend <span class="count">${pending.length}</span></h3>
+      ${pending.map(renderBookingItem).join('')}
+    </div>`;
+  }
+
+  if (others.length) {
+    // Group by date
+    const byDate = {};
+    others.forEach(b => { (byDate[b.date] = byDate[b.date] || []).push(b); });
+    Object.keys(byDate).sort().forEach(date => {
+      const isToday = date === today;
+      html += `<div class="manage-section">
+        <h3>${isToday ? 'Heute' : formatDateShort(date)} <span class="count">${byDate[date].length}</span></h3>
+        ${byDate[date].map(renderBookingItem).join('')}
+      </div>`;
+    });
+  }
+
+  cont.innerHTML = html;
+  attachSwipeHandlers();
+}
+
+// Swipe-to-approve: links wischen auf ausstehende Buchung = best&auml;tigen
+function attachSwipeHandlers() {
+  const wraps = document.querySelectorAll('.swipe-wrap');
+  wraps.forEach(wrap => {
+    const item = wrap.querySelector('.booking-item');
+    if (!item) return;
+    let startX = 0, startY = 0, currentX = 0, dragging = false, horizontal = false, didSwipe = false;
+
+    const getThreshold = () => Math.min(160, wrap.offsetWidth * 0.45);
+
+    function onStart(e) {
+      const t = e.touches ? e.touches[0] : e;
+      startX = t.clientX; startY = t.clientY; currentX = 0; dragging = true; horizontal = false; didSwipe = false;
+    }
+    function onMove(e) {
+      if (!dragging) return;
+      const t = e.touches ? e.touches[0] : e;
+      const dx = t.clientX - startX;
+      const dy = t.clientY - startY;
+      if (!horizontal) {
+        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+        if (Math.abs(dx) > Math.abs(dy)) { horizontal = true; wrap.classList.add('swiping'); didSwipe = true; }
+        else { dragging = false; return; }
+      }
+      if (e.cancelable) e.preventDefault();
+      currentX = Math.min(0, dx);
+      item.style.transform = `translateX(${currentX}px)`;
+    }
+    function onEnd() {
+      if (!dragging) return;
+      dragging = false;
+      wrap.classList.remove('swiping');
+      const threshold = getThreshold();
+      if (currentX < -threshold) {
+        const id = wrap.getAttribute('data-id');
+        wrap.classList.add('completing');
+        item.style.transform = '';
+        setTimeout(() => {
+          const b = bookings.find(x => x.id === id);
+          if (b) {
+            db.ref('bookings/' + id + '/status').set('approved');
+            addAuditEntry(id, 'freigegeben (swipe)');
+            notify(`${b.name} best\u00e4tigt.`, 'success');
+          }
+        }, 180);
+      } else {
+        item.style.transform = '';
+      }
+      if (didSwipe) {
+        // Verhindere, dass das darauf folgende click-Event die Detailansicht \u00f6ffnet
+        item.addEventListener('click', function blocker(ev) {
+          ev.stopPropagation(); ev.preventDefault();
+          item.removeEventListener('click', blocker, true);
+        }, true);
+        setTimeout(() => {}, 300);
+      }
+    }
+
+    item.addEventListener('touchstart', onStart, { passive: true });
+    item.addEventListener('touchmove', onMove, { passive: false });
+    item.addEventListener('touchend', onEnd);
+    item.addEventListener('touchcancel', onEnd);
+    item.addEventListener('mousedown', e => { onStart(e); });
+    item.addEventListener('mousemove', onMove);
+    item.addEventListener('mouseup', onEnd);
+    item.addEventListener('mouseleave', onEnd);
+  });
+}
+
+function renderBookingItem(b) {
+  let cls = 'booking-item ' + (b.status || 'approved');
+  if (b.status === 'approved' && b.instructor === 'ja') cls += ' with-instr';
+  const time = (b.startTime && b.endTime) ? `${b.startTime}–${b.endTime}` : (b.slot || '');
+  const instrLabel = b.instructor === 'ja' ? (b.instructorName ? ` · ${b.instructorName}` : ' · Lehrer') : '';
+  const statusLabel = b.status === 'pending' ? ' (Angefragt)' : (b.status === 'rejected' ? ' (Abgelehnt)' : '');
+  const inner = `<div class="${cls}" onclick="showDetail('${b.id}')">
+    <div class="bi-time">${time}</div>
+    <div class="bi-info">
+      <div class="bi-name">${b.name}${statusLabel}</div>
+      <div class="bi-meta">${formatDateShort(b.date)}${instrLabel}</div>
+    </div>
+    <div class="bi-aircraft">${b.aircraft}</div>
+  </div>`;
+  if (b.status === 'pending') {
+    return `<div class="swipe-wrap" data-id="${b.id}">
+      <div class="swipe-action"><span class="check">&#10003;</span><span>Best&auml;tigen</span></div>
+      ${inner}
+    </div>`;
+  }
+  return inner;
+}
+
+function setManageFilter(f) {
+  manageFilter = f;
+  renderManage();
+}
+
+// ============================================================
+// DAILY NOTES
+// ============================================================
+function renderDailyNotes() {
+  const dk = dateKey(currentDate);
+  const txt = (dailyNotes[dk] && dailyNotes[dk].text) || '';
+  const el = document.getElementById('dailyNotesText');
+  if (!el) return;
+  if (txt) {
+    el.textContent = txt;
+  } else {
+    el.innerHTML = '<span class="dn-empty">Tippen um Bemerkung hinzuzuf&uuml;gen...</span>';
+  }
+}
+
+function openNotesEdit() {
+  const dk = dateKey(currentDate);
+  document.getElementById('notesDate').textContent = formatDate(currentDate);
+  document.getElementById('notesTextarea').value = (dailyNotes[dk] && dailyNotes[dk].text) || '';
+  document.getElementById('notesOverlay').classList.add('active');
+  setTimeout(() => document.getElementById('notesTextarea').focus(), 300);
+}
+
+function closeNotesEdit() {
+  document.getElementById('notesOverlay').classList.remove('active');
+}
+
+function saveNotes() {
+  const dk = dateKey(currentDate);
+  const text = document.getElementById('notesTextarea').value.trim();
+  if (text) {
+    db.ref('dailyNotes/' + dk).set({
+      text: text,
+      updatedBy: currentUser ? currentUser.name : '',
+      updatedAt: new Date().toISOString()
+    });
+  } else {
+    db.ref('dailyNotes/' + dk).remove();
+  }
+  closeNotesEdit();
+  notify('Bemerkung gespeichert.', 'success');
+}
+
+// ============================================================
+// MAIN RENDER
+// ============================================================
+function render() {
+  document.getElementById('dateDisplay').textContent = formatDate(currentDate);
+  renderDailyNotes();
+  if (currentView === 'overview') renderOverview();
+  else if (currentView === 'book') renderBook();
+  else if (currentView === 'manage') renderManage();
+}
+
+// ============================================================
+// QUICK BOOK
+// ============================================================
+let quickSlotStart = '';
+
+function openQuick(slotStart) {
+  quickSlotStart = slotStart;
+  const dk = dateKey(currentDate);
+  document.getElementById('quickAircraft').textContent = selectedAircraft;
+  document.getElementById('quickDate').textContent = dk;
+  document.getElementById('qbName').value = '';
+  document.getElementById('qbInstructor').value = '';
+
+  const block = getMorningBlock(selectedAircraft, dk, slotStart);
+  const fromSel = document.getElementById('qbFrom');
+  const toSel = document.getElementById('qbTo');
+
+  if (block) {
+    // Fixer 2h-Block - Zeiten gesperrt
+    fromSel.innerHTML = `<option value="${block.start}" selected>${block.start}</option>`;
+    toSel.innerHTML = `<option value="${block.end}" selected>${block.end} (2h)</option>`;
+    fromSel.disabled = true;
+    toSel.disabled = true;
+  } else {
+    fromSel.disabled = false;
+    toSel.disabled = false;
+    fromSel.innerHTML = '';
+    for (let i = 0; i < TIME_POINTS.length - 1; i++) {
+      const opt = document.createElement('option');
+      opt.value = TIME_POINTS[i];
+      opt.textContent = TIME_POINTS[i];
+      if (TIME_POINTS[i] === slotStart) opt.selected = true;
+      fromSel.appendChild(opt);
+    }
+    updateQbTo();
+    fromSel.onchange = updateQbTo;
+  }
+
+  document.getElementById('quickOverlay').classList.add('active');
+  setTimeout(() => document.getElementById('qbName').focus(), 300);
+}
+
+function updateQbTo() {
+  const fromVal = document.getElementById('qbFrom').value;
+  const fromIdx = slotIndex(fromVal);
+  const toSel = document.getElementById('qbTo');
+  toSel.innerHTML = '';
+  for (let i = fromIdx + 1; i < TIME_POINTS.length; i++) {
+    const dur = (i - fromIdx) * 30;
+    const h = Math.floor(dur / 60); const m = dur % 60;
+    const label = h > 0 ? `${h}h${m > 0 ? m : ''}` : `${m}min`;
+    toSel.innerHTML += `<option value="${TIME_POINTS[i]}">${TIME_POINTS[i]} (${label})</option>`;
+  }
+}
+
+function submitQuick() {
+  const name = document.getElementById('qbName').value.trim();
+  if (!name) { document.getElementById('qbName').style.borderColor = 'var(--danger)'; return; }
+  const startTime = document.getElementById('qbFrom').value;
+  const endTime = document.getElementById('qbTo').value;
+  const dk = dateKey(currentDate);
+  const instructorName = document.getElementById('qbInstructor').value.trim();
+  const hasInstructor = instructorName.length > 0;
+
+  const fromIdx = slotIndex(startTime);
+  const toIdx = slotIndex(endTime);
+  for (let i = fromIdx; i < toIdx; i++) {
+    const existing = findBooking(dk, TIME_SLOTS[i], selectedAircraft);
+    if (existing) {
+      notify(`Konflikt: ${existing.name} hat bereits gebucht.`, 'error');
+      return;
+    }
+  }
+
+  const booking = {
+    id: Date.now().toString(36) + Math.random().toString(36).substr(2, 4),
+    aircraft: selectedAircraft,
+    date: dk,
+    slot: `${startTime} - ${endTime}`,
+    startTime, endTime, name,
+    email: '', phone: '',
+    instructor: hasInstructor ? 'ja' : 'nein',
+    instructorName: hasInstructor ? instructorName : '',
+    status: 'approved',
+    cancelToken: '',
+    quickBook: true,
+    createdBy: currentUser ? currentUser.name : '',
+    createdAt: new Date().toISOString()
+  };
+
+  db.ref('bookings/' + booking.id).set(booking);
+  addAuditEntry(booking.id, 'erstellt', `${name}, ${selectedAircraft}, ${startTime}–${endTime}`);
+  closeQuick();
+  notify(`${name} gebucht: ${startTime}–${endTime}`, 'success');
+}
+
+function closeQuick() {
+  document.getElementById('quickOverlay').classList.remove('active');
+}
+
+// ============================================================
+// EDIT BOOKING
+// ============================================================
+function openEdit(id) {
+  const b = bookings.find(x => x.id === id);
+  if (!b) return;
+  currentEditId = id;
+  closeDetail();
+  document.getElementById('editAircraft').textContent = b.aircraft;
+  document.getElementById('editDate').textContent = b.date;
+  document.getElementById('ebName').value = b.name || '';
+  document.getElementById('ebInstructor').value = b.instructorName || '';
+
+  const fromSel = document.getElementById('ebFrom');
+  fromSel.innerHTML = '';
+  for (let i = 0; i < TIME_POINTS.length - 1; i++) {
+    const opt = document.createElement('option');
+    opt.value = TIME_POINTS[i];
+    opt.textContent = TIME_POINTS[i];
+    if (TIME_POINTS[i] === b.startTime) opt.selected = true;
+    fromSel.appendChild(opt);
+  }
+  fromSel.onchange = updateEbTo;
+
+  // Populate to with current end
+  const fromIdx = slotIndex(b.startTime);
+  const toSel = document.getElementById('ebTo');
+  toSel.innerHTML = '';
+  for (let i = fromIdx + 1; i < TIME_POINTS.length; i++) {
+    const opt = document.createElement('option');
+    opt.value = TIME_POINTS[i];
+    const dur = (i - fromIdx) * 30;
+    const h = Math.floor(dur / 60); const m = dur % 60;
+    const label = h > 0 ? `${h}h${m > 0 ? m : ''}` : `${m}min`;
+    opt.textContent = `${TIME_POINTS[i]} (${label})`;
+    if (TIME_POINTS[i] === b.endTime) opt.selected = true;
+    toSel.appendChild(opt);
+  }
+
+  document.getElementById('editOverlay').classList.add('active');
+}
+
+function updateEbTo() {
+  const fromVal = document.getElementById('ebFrom').value;
+  const fromIdx = slotIndex(fromVal);
+  const toSel = document.getElementById('ebTo');
+  toSel.innerHTML = '';
+  for (let i = fromIdx + 1; i < TIME_POINTS.length; i++) {
+    const dur = (i - fromIdx) * 30;
+    const h = Math.floor(dur / 60); const m = dur % 60;
+    const label = h > 0 ? `${h}h${m > 0 ? m : ''}` : `${m}min`;
+    toSel.innerHTML += `<option value="${TIME_POINTS[i]}">${TIME_POINTS[i]} (${label})</option>`;
+  }
+}
+
+function submitEdit() {
+  const id = currentEditId;
+  const b = bookings.find(x => x.id === id);
+  if (!b) return;
+  const name = document.getElementById('ebName').value.trim();
+  if (!name) { document.getElementById('ebName').style.borderColor = 'var(--danger)'; return; }
+  const startTime = document.getElementById('ebFrom').value;
+  const endTime = document.getElementById('ebTo').value;
+  const instructorName = document.getElementById('ebInstructor').value.trim();
+  const hasInstructor = instructorName.length > 0;
+
+  // Collision check (skip own slots)
+  const fromIdx = slotIndex(startTime);
+  const toIdx = slotIndex(endTime);
+  for (let i = fromIdx; i < toIdx; i++) {
+    const existing = findBooking(b.date, TIME_SLOTS[i], b.aircraft);
+    if (existing && existing.id !== id) {
+      notify(`Konflikt: ${existing.name} hat bereits gebucht.`, 'error');
+      return;
+    }
+  }
+
+  const changes = [];
+  if (b.name !== name) changes.push(`Name: ${b.name} → ${name}`);
+  if (b.startTime !== startTime || b.endTime !== endTime) changes.push(`Zeit: ${b.startTime}–${b.endTime} → ${startTime}–${endTime}`);
+  if ((b.instructorName || '') !== instructorName) changes.push(`Lehrer: ${b.instructorName || '—'} → ${instructorName || '—'}`);
+
+  const updated = {
+    ...b,
+    name,
+    startTime, endTime,
+    slot: `${startTime} - ${endTime}`,
+    instructor: hasInstructor ? 'ja' : 'nein',
+    instructorName: hasInstructor ? instructorName : ''
+  };
+
+  db.ref('bookings/' + id).set(updated);
+  if (changes.length) addAuditEntry(id, 'bearbeitet', changes.join('; '));
+  closeEdit();
+  notify('Buchung aktualisiert.', 'success');
+}
+
+function closeEdit() {
+  document.getElementById('editOverlay').classList.remove('active');
+  currentEditId = null;
+}
+
+// ============================================================
+// BOOKING DETAIL
+// ============================================================
+function showDetail(id) {
+  const b = bookings.find(x => x.id === id);
+  if (!b) return;
+  const instrText = b.instructor === 'ja' ? (b.instructorName || 'Ja') : 'Nein';
+  const statusLabels = { pending: 'Ausstehend', approved: 'Bestätigt', rejected: 'Abgelehnt' };
+  const time = (b.startTime && b.endTime) ? `${b.startTime} – ${b.endTime}` : (b.slot || '—');
+
+  document.getElementById('detailSheet').innerHTML = `
+    <h3>Buchungsdetails</h3>
+    <div class="detail-row"><span class="detail-label">Name</span><span class="detail-value">${b.name}</span></div>
+    <div class="detail-row"><span class="detail-label">Flugzeug</span><span class="detail-value">${b.aircraft}</span></div>
+    <div class="detail-row"><span class="detail-label">Datum</span><span class="detail-value">${formatDateShort(b.date)}</span></div>
+    <div class="detail-row"><span class="detail-label">Uhrzeit</span><span class="detail-value">${time}</span></div>
+    ${b.email ? `<div class="detail-row"><span class="detail-label">E-Mail</span><span class="detail-value">${b.email}</span></div>` : ''}
+    ${b.phone ? `<div class="detail-row"><span class="detail-label">Telefon</span><span class="detail-value">${b.phone}</span></div>` : ''}
+    <div class="detail-row"><span class="detail-label">Fluglehrer</span><span class="detail-value">${instrText}</span></div>
+    <div class="detail-row"><span class="detail-label">Status</span><span class="detail-value">${statusLabels[b.status] || b.status}</span></div>
+    ${b.createdBy ? `<div class="detail-row"><span class="detail-label">Erstellt von</span><span class="detail-value">${b.createdBy}</span></div>` : ''}
+    <div class="audit-log" id="auditLog"><h4>Verlauf</h4><div id="auditEntries">Lade...</div></div>
+    <div class="detail-actions">
+      ${b.status !== 'approved' ? `<button class="btn-approve" onclick="setStatus('${b.id}','approved')">Freischalten</button>` : ''}
+      ${b.status !== 'rejected' ? `<button class="btn-reject" onclick="setStatus('${b.id}','rejected')">Ablehnen</button>` : ''}
+      <button class="btn-edit" onclick="openEdit('${b.id}')">Bearbeiten</button>
+      <button class="btn-delete" onclick="deleteBooking('${b.id}')">Löschen</button>
+      <button class="btn-close" onclick="closeDetail()">Schließen</button>
+    </div>
+  `;
+  document.getElementById('detailOverlay').classList.add('active');
+
+  // Load audit log
+  db.ref('audit/' + id).once('value').then(snap => {
+    const data = snap.val();
+    const entries = data ? Object.values(data).sort((a,b) => a.timestamp.localeCompare(b.timestamp)) : [];
+    const el = document.getElementById('auditEntries');
+    if (!el) return;
+    if (!entries.length) {
+      el.innerHTML = '<div style="font-size:11px;color:var(--gray-500);font-style:italic;">Keine Eintr&auml;ge</div>';
+    } else {
+      el.innerHTML = entries.map(e => `
+        <div class="audit-entry">
+          <span class="au-user">${e.user}</span>
+          <span>${e.action}${e.details ? ': ' + e.details : ''}</span>
+          <span class="au-time">${formatRel(e.timestamp)}</span>
+        </div>
+      `).join('');
+    }
+  });
+}
+
+function setStatus(id, status) {
+  const b = bookings.find(x => x.id === id);
+  db.ref('bookings/' + id + '/status').set(status);
+  const labels = { approved: 'freigegeben', rejected: 'abgelehnt' };
+  addAuditEntry(id, labels[status] || status);
+  closeDetail();
+  notify(`Buchung ${labels[status]}.`, 'success');
+}
+
+function deleteBooking(id) {
+  if (!confirm('Buchung wirklich löschen?')) return;
+  const b = bookings.find(x => x.id === id);
+  addAuditEntry(id, 'gelöscht', b ? `${b.name}, ${b.aircraft}, ${b.startTime || ''}–${b.endTime || ''}` : '');
+  db.ref('bookings/' + id).remove();
+  closeDetail();
+  notify('Buchung gelöscht.', 'success');
+}
+
+function closeDetail() {
+  document.getElementById('detailOverlay').classList.remove('active');
+}
+
+// ============================================================
+// NOTIFICATIONS
+// ============================================================
+function maybeShowNotifBanner() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'granted') return;
+  if (Notification.permission === 'denied') return;
+  if (localStorage.getItem('dassu_notif_dismissed')) return;
+  document.getElementById('notifBanner').style.display = '';
+}
+
+function dismissNotifBanner() {
+  document.getElementById('notifBanner').style.display = 'none';
+  localStorage.setItem('dassu_notif_dismissed', '1');
+}
+
+function enableNotifications() {
+  closeUserMenu();
+  if (!('Notification' in window)) {
+    notify('Browser unterst&uuml;tzt keine Benachrichtigungen.', 'error');
+    return;
+  }
+  if (Notification.permission === 'denied') {
+    notify('Benachrichtigungen wurden abgelehnt. Aktivieren in den Browser-Einstellungen.', 'error');
+    return;
+  }
+  Notification.requestPermission().then(perm => {
+    if (perm === 'granted') {
+      document.getElementById('notifBanner').style.display = 'none';
+      registerFcmToken();
+    } else {
+      notify('Benachrichtigungen abgelehnt.', 'error');
+    }
+  });
+}
+
+async function registerFcmToken() {
+  if (!fcmMessaging) {
+    notify('Push nicht verf&uuml;gbar. In-App-Benachrichtigungen bleiben aktiv.', 'info');
+    return;
+  }
+  try {
+    // Warten bis der Service Worker bereit ist
+    const registration = await navigator.serviceWorker.ready;
+    const token = await fcmMessaging.getToken({
+      vapidKey: VAPID_KEY,
+      serviceWorkerRegistration: registration
+    });
+    if (token) {
+      // Token in Firebase speichern (pro Nutzer und pro Ger&auml;t)
+      const tokenKey = token.replace(/[.#$\[\]\/]/g, '_').slice(0, 40);
+      const data = {
+        token: token,
+        user: currentUser ? currentUser.name : 'unknown',
+        userId: currentUser ? currentUser.id : '',
+        ua: navigator.userAgent.slice(0, 120),
+        updatedAt: new Date().toISOString()
+      };
+      await db.ref('pushTokens/' + tokenKey).set(data);
+      notify('Push-Benachrichtigungen aktiviert!', 'success');
+      // Foreground-Nachrichten abfangen
+      fcmMessaging.onMessage(payload => {
+        const n = payload.notification || {};
+        notify(`&#128276; ${n.title || 'Neue Buchung'}: ${n.body || ''}`, 'info');
+      });
+    } else {
+      notify('Token konnte nicht erstellt werden.', 'error');
+    }
+  } catch (err) {
+    console.error('FCM Registrierung fehlgeschlagen:', err);
+    notify('Push-Setup fehlgeschlagen: ' + (err.message || err), 'error');
+  }
+}
+
+// Auto-Refresh Token, wenn Nutzer schon Permission hat und eingeloggt ist
+function autoRegisterFcmIfReady() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission !== 'granted') return;
+  if (!currentUser) return;
+  if (!fcmMessaging) return;
+  registerFcmToken();
+}
+
+function notifyNewBooking(b) {
+  // Play subtle sound
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator(); const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.value = 880; g.gain.value = 0.05;
+    o.start(); o.stop(ctx.currentTime + 0.15);
+  } catch(e) {}
+
+  // In-app notification
+  const time = (b.startTime && b.endTime) ? `${b.startTime}–${b.endTime}` : (b.slot || '');
+  notify(`&#128276; Neue Buchung: ${b.name} (${b.aircraft}, ${time})`, 'info');
+
+  // System notification (if app in background or PWA)
+  if ('Notification' in window && Notification.permission === 'granted') {
+    try {
+      const n = new Notification('Neue Buchung', {
+        body: `${b.name} – ${b.aircraft} – ${formatDateShort(b.date)} ${time}`,
+        icon: 'https://images.squarespace-cdn.com/content/v1/5a6084aad0e628eab9591587/66b4214a-b88b-427c-8350-c5907ffdcda4/DASSU-Logo+2022+web+768x768+2.png?format=180w',
+        tag: b.id
+      });
+      n.onclick = () => { window.focus(); showDetail(b.id); };
+    } catch(e) {}
+  }
+}
+
+// ============================================================
+// KEYBOARD SHORTCUTS
+// ============================================================
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeQuick(); closeDetail(); closeEdit(); closeUserMenu(); }
+});
+document.getElementById('qbName').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); submitQuick(); }
+});
+document.getElementById('qbInstructor').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); submitQuick(); }
+});
+document.getElementById('newUserName').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); addUser(); }
+});
+
+// ============================================================
+// SERVICE WORKER
+// ============================================================
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+
+// ============================================================
+// INIT
+// ============================================================
+loadCurrentUser();
+if (currentUser) {
+  updateUserUI();
+  maybeShowNotifBanner();
+  // Token beim Start erneuern, falls schon aktiviert
+  setTimeout(autoRegisterFcmIfReady, 2000);
+} else {
+  showLogin();
+}
+render();
+</script>
+</body>
+</html>

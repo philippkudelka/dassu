@@ -1,0 +1,2882 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DASSU - Buchungskalender</title>
+<link rel="icon" type="image/png" href="https://images.squarespace-cdn.com/content/v1/5a6084aad0e628eab9591587/66b4214a-b88b-427c-8350-c5907ffdcda4/DASSU-Logo+2022+web+768x768+2.png?format=32w">
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<!-- Google Fonts entfernt (DSGVO) — lokale Systemschriften werden verwendet -->
+<style>
+  :root {
+    --primary: #3d9991;
+    --primary-light: #eef8f7;
+    --primary-dark: #2d7a73;
+    --primary-50: rgba(61,153,145,0.05);
+    --accent: #c9a84c;
+    --accent-light: #faf6eb;
+    --navy: #0c1b2e;
+    --navy-light: #132640;
+    --navy-mid: #1a3352;
+    --success: #3d9991;
+    --success-light: #eef8f7;
+    --warning: #c9a84c;
+    --warning-light: #faf6eb;
+    --danger: #b83232;
+    --danger-light: #fdf0f0;
+    --dark: #0c1b2e;
+    --gray-50: #fafbfc;
+    --gray-100: #f2f4f7;
+    --gray-200: #e4e7ec;
+    --gray-300: #cdd3dc;
+    --gray-400: #98a2b3;
+    --gray-500: #667085;
+    --gray-600: #475467;
+    --gray-700: #344054;
+    --gray-800: #1d2939;
+    --gray-900: #101828;
+    --radius: 8px;
+    --radius-sm: 6px;
+    --radius-xs: 4px;
+    --shadow-xs: 0 1px 2px rgba(12,27,46,0.05);
+    --shadow: 0 1px 3px rgba(12,27,46,0.08), 0 1px 2px rgba(12,27,46,0.04);
+    --shadow-md: 0 4px 12px rgba(12,27,46,0.08), 0 2px 4px rgba(12,27,46,0.04);
+    --shadow-lg: 0 12px 40px rgba(12,27,46,0.12), 0 4px 12px rgba(12,27,46,0.06);
+    --font-ui: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    --font-brand: 'Georgia', 'Times New Roman', serif;
+    --transition: 0.25s ease;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--font-ui);
+    background: #f0f2f5;
+    color: var(--gray-800);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    font-size: 14px;
+    letter-spacing: -0.01em;
+  }
+  #calendarView, #adminView { flex: 1; }
+
+  /* Header — Airline Premium */
+  .header {
+    background: linear-gradient(180deg, var(--navy) 0%, var(--navy-light) 100%);
+    padding: 0 36px;
+    height: 56px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    border-bottom: 1px solid rgba(201,168,76,0.15);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+  }
+  .header h1 {
+    font-size: 20px;
+    font-weight: 500;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    letter-spacing: 0.12em;
+    font-family: var(--font-brand);
+    text-transform: uppercase;
+  }
+  .header-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  /* Buttons — Airline Premium */
+  .btn {
+    padding: 8px 18px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--gray-300);
+    background: white;
+    color: var(--gray-700);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-ui);
+    letter-spacing: 0.01em;
+  }
+  .btn:hover { background: var(--gray-50); border-color: var(--gray-400); box-shadow: var(--shadow-xs); }
+  .btn:active { transform: scale(0.98); }
+  .btn-primary { background: var(--navy); color: white; border-color: var(--navy); }
+  .btn-primary:hover { background: var(--navy-mid); border-color: var(--navy-mid); box-shadow: 0 2px 8px rgba(12,27,46,0.25); }
+  .btn-success { background: var(--primary); color: white; border-color: var(--primary); }
+  .btn-success:hover { background: var(--primary-dark); border-color: var(--primary-dark); }
+  .btn-danger { background: var(--danger); color: white; border-color: var(--danger); }
+  .btn-danger:hover { background: #a02828; box-shadow: 0 2px 8px rgba(184,50,50,0.25); }
+  .btn-sm { padding: 5px 14px; font-size: 12px; }
+
+  /* Date Navigation */
+  .date-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 20px 36px;
+    background: white;
+    border-bottom: 1px solid var(--gray-200);
+  }
+  .date-nav h2 {
+    font-size: 18px;
+    font-weight: 600;
+    min-width: 260px;
+    text-align: center;
+    color: var(--dark);
+    letter-spacing: 0.02em;
+    font-family: var(--font-ui);
+  }
+  .date-nav .btn { padding: 7px 12px; }
+
+  /* Legend */
+  .legend {
+    display: flex;
+    gap: 24px;
+    padding: 12px 36px;
+    background: white;
+    border-bottom: 1px solid var(--gray-100);
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--gray-500);
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+  }
+  .legend-dot.free { background: var(--primary-light); border: 2px solid var(--primary); }
+  .legend-dot.pending { background: var(--accent-light); border: 2px solid var(--accent); }
+  .legend-dot.approved { background: var(--primary-light); border: 2px solid var(--primary); }
+  .legend-dot.rejected { background: var(--danger-light); border: 2px solid var(--danger); }
+
+  /* Calendar Grid — Airline Premium */
+  .calendar-container { padding: 20px 36px 36px; }
+
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: 54px repeat(5, 1fr);
+    gap: 1px;
+    background: rgba(12,27,46,0.12);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+  }
+  .grid-header {
+    background: var(--navy);
+    color: rgba(255,255,255,0.7);
+    padding: 10px 4px;
+    font-weight: 500;
+    font-size: 10px;
+    text-align: center;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .grid-header.aircraft-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    padding: 10px 4px 12px;
+    background: linear-gradient(180deg, var(--navy) 0%, var(--navy-light) 100%);
+  }
+  .aircraft-thumb {
+    width: 82px;
+    height: 50px;
+    object-fit: cover;
+    border-radius: var(--radius-xs);
+    border: 1px solid rgba(255,255,255,0.12);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    transition: all var(--transition);
+  }
+  .aircraft-header:hover .aircraft-thumb {
+    transform: scale(1.05);
+    border-color: rgba(201,168,76,0.4);
+  }
+  .aircraft-reg {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: white;
+  }
+  .aircraft-type {
+    font-size: 9px;
+    color: var(--accent);
+    letter-spacing: 0.04em;
+    font-weight: 500;
+    text-transform: none;
+  }
+  .grid-time {
+    background: var(--gray-50);
+    padding: 2px 4px;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--gray-500);
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    letter-spacing: 0.02em;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+  .grid-cell {
+    background: white;
+    padding: 2px 4px;
+    min-height: 28px;
+    cursor: pointer;
+    transition: all var(--transition);
+    position: relative;
+  }
+  .grid-cell.past-slot, .grid-time.past-slot { opacity: 0.3; pointer-events: none; }
+  .grid-cell:hover { background: var(--primary-50); }
+  .grid-cell.booked-pending { background: var(--warning-light); }
+  .grid-cell.booked-approved { background: #e8f5e9; }
+  .grid-cell.booked-approved.with-instructor { background: #fff3e0; }
+  .grid-cell.booked-rejected { background: var(--danger-light); }
+
+  /* Platzrunden: eingeschränkte Zeiten */
+  .grid-cell.restricted {
+    background: var(--gray-50);
+    background-image: repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 6px,
+      rgba(0,0,0,0.03) 6px,
+      rgba(0,0,0,0.03) 7px
+    );
+  }
+  .grid-cell.restricted:hover { background: var(--gray-100); }
+  .restricted-label {
+    font-size: 14px;
+    color: var(--gray-400);
+    text-align: center;
+    line-height: 1;
+    pointer-events: none;
+  }
+
+  .platzrunden-legend {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 16px;
+    font-size: 12px;
+    color: var(--gray-400);
+    border-top: 1px solid var(--gray-100);
+    margin-top: 16px;
+    flex-wrap: wrap;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+  }
+  .platzrunden-legend .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .platzrunden-legend .legend-swatch {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    border: 1px solid var(--gray-200);
+    flex-shrink: 0;
+  }
+  .platzrunden-legend .swatch-restricted {
+    background: var(--gray-50);
+    background-image: repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 4px,
+      rgba(0,0,0,0.04) 4px,
+      rgba(0,0,0,0.04) 5px
+    );
+  }
+  .platzrunden-legend .swatch-open {
+    background: white;
+  }
+
+  /* Schleppbetrieb-Block */
+  .grid-cell.towing-blocked {
+    background: rgba(12,27,46,0.06);
+    cursor: default;
+  }
+  .grid-cell.towing-blocked:hover { background: rgba(12,27,46,0.08); }
+  .towing-label {
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--navy);
+    opacity: 0.5;
+    text-align: center;
+    line-height: 1.2;
+    letter-spacing: 0.02em;
+    pointer-events: none;
+  }
+
+  /* Schnellbuchung Mini-Popup */
+  .quick-book-popup {
+    position: fixed;
+    z-index: 250;
+    background: white;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg), 0 0 0 1px rgba(12,27,46,0.08);
+    padding: 14px;
+    width: 260px;
+    animation: modalIn 0.2s ease-out;
+  }
+  .quick-book-popup h4 {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--gray-500);
+    margin-bottom: 10px;
+  }
+  .quick-book-popup input, .quick-book-popup select {
+    width: 100%;
+    padding: 7px 10px;
+    border: 1px solid var(--gray-300);
+    border-radius: var(--radius-xs);
+    font-size: 13px;
+    font-family: var(--font-ui);
+    margin-bottom: 8px;
+    color: var(--dark);
+  }
+  .quick-book-popup input:focus, .quick-book-popup select:focus {
+    outline: none;
+    border-color: var(--navy);
+    box-shadow: 0 0 0 2px rgba(12,27,46,0.08);
+  }
+  .quick-book-row { display: flex; gap: 6px; }
+  .quick-book-row select { flex: 1; }
+  .quick-book-actions { display: flex; gap: 6px; justify-content: flex-end; margin-top: 4px; }
+  .quick-book-actions button { font-size: 12px; padding: 5px 14px; }
+
+  .booking-tag {
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: var(--radius-xs);
+    font-weight: 600;
+    line-height: 1.3;
+    word-break: break-word;
+    letter-spacing: 0.01em;
+    color: white;
+  }
+  .booking-tag.pending { background: var(--accent); }
+  .booking-tag.approved { background: #43a047; }
+  .booking-tag.approved.with-instructor { background: #ef8c00; }
+  .booking-tag.rejected { background: var(--danger); opacity: 0.5; text-decoration: line-through; }
+
+  /* Modal — Premium style */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(12,27,46,0.5);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 200;
+    justify-content: center;
+    align-items: center;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal {
+    background: white;
+    border-radius: var(--radius);
+    padding: 32px;
+    width: 90%;
+    max-width: 460px;
+    box-shadow: var(--shadow-lg), 0 0 0 1px rgba(12,27,46,0.05);
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: modalIn 0.3s ease-out;
+  }
+  @keyframes modalIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .modal h3 {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    color: var(--dark);
+    letter-spacing: 0.01em;
+    font-family: var(--font-ui);
+  }
+  .modal-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 24px;
+  }
+
+  /* Form — Premium inputs */
+  .form-group {
+    margin-bottom: 16px;
+  }
+  .form-group label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--gray-600);
+    margin-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-family: var(--font-ui);
+  }
+  .form-group input, .form-group select, .form-group textarea {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--gray-300);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-family: var(--font-ui);
+    transition: all var(--transition);
+    color: var(--gray-800);
+    background: white;
+    letter-spacing: 0;
+  }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+    outline: none;
+    border-color: var(--navy);
+    box-shadow: 0 0 0 3px rgba(12,27,46,0.08);
+  }
+  .form-group input::placeholder { color: var(--gray-400); }
+
+  /* Admin Panel — Premium table */
+  .admin-panel {
+    display: none;
+    padding: 28px 36px;
+  }
+  .admin-panel.active { display: block; }
+  .admin-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: white;
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+  }
+  .admin-table th {
+    background: var(--navy);
+    color: rgba(255,255,255,0.75);
+    padding: 12px 16px;
+    font-size: 10px;
+    text-align: left;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-family: var(--font-ui);
+  }
+  .admin-table td {
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--gray-100);
+    font-size: 13px;
+    font-weight: 400;
+  }
+  .admin-table tr:hover td { background: var(--gray-50); }
+  .status-badge {
+    padding: 4px 12px;
+    border-radius: var(--radius-xs);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .status-badge.pending { background: var(--accent-light); color: #8a7030; border: 1px solid rgba(201,168,76,0.25); }
+  .status-badge.approved { background: var(--primary-light); color: var(--primary-dark); border: 1px solid rgba(61,153,145,0.2); }
+  .status-badge.rejected { background: var(--danger-light); color: var(--danger); border: 1px solid rgba(184,50,50,0.15); }
+
+  /* Admin Login */
+  .admin-login {
+    max-width: 380px;
+    margin: 80px auto;
+    background: white;
+    padding: 40px;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+    text-align: center;
+    border: 1px solid var(--gray-200);
+  }
+  .admin-login h3 { margin-bottom: 20px; }
+
+  /* Filter tabs */
+  .filter-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--gray-200);
+    width: fit-content;
+  }
+  .filter-tab {
+    padding: 8px 20px;
+    border-radius: 0;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--gray-500);
+    transition: all var(--transition);
+    font-family: var(--font-ui);
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    margin-bottom: -1px;
+  }
+  .filter-tab.active { color: var(--navy); border-bottom-color: var(--navy); font-weight: 600; }
+
+  /* View Tabs */
+  .view-tabs {
+    display: flex;
+    gap: 0;
+    background: transparent;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.2);
+    padding: 0;
+  }
+  .view-tab {
+    padding: 5px 16px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: rgba(255,255,255,0.5);
+    transition: all var(--transition);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-family: var(--font-ui);
+    border-radius: 0;
+  }
+  .view-tab.active { background: rgba(255,255,255,0.12); color: white; }
+
+  /* Responsive Tablet */
+  @media (max-width: 768px) {
+    .calendar-grid { font-size: 11px; }
+    .grid-header { padding: 8px 2px; font-size: 8px; }
+    .aircraft-thumb { width: 54px; height: 34px; }
+    .aircraft-reg { font-size: 9px; }
+    .aircraft-type { display: none; }
+    .header { padding: 0 16px; height: 50px; }
+    .header h1 { font-size: 16px; letter-spacing: 0.08em; }
+    .calendar-container { padding: 12px 12px 24px; }
+    .date-nav { padding: 14px 16px; gap: 8px; }
+    .date-nav h2 { font-size: 15px; min-width: 180px; }
+    .legend { padding: 10px 16px; gap: 14px; }
+    .admin-panel { padding: 20px 16px; }
+    .modal { padding: 28px 24px; }
+  }
+
+  /* Responsive Mobile */
+  @media (max-width: 480px) {
+    .header { padding: 0 10px; height: 46px; }
+    .header h1 { font-size: 14px; letter-spacing: 0.06em; }
+    .header h1 span { display: none; }
+    .header img { height: 28px !important; width: 28px !important; }
+    .header-actions { gap: 6px; }
+    .header-actions .btn-sm { font-size: 9px; padding: 5px 8px; }
+    .view-tabs { display: none; }
+
+    .info-banner-mobile { padding: 10px 12px !important; font-size: 11px !important; line-height: 1.5 !important; }
+
+    .date-nav { padding: 10px 12px; gap: 6px; flex-wrap: wrap; justify-content: center; }
+    .date-nav h2 { font-size: 13px; min-width: auto; text-align: center; order: -1; width: 100%; margin-bottom: 4px; }
+    .date-nav .btn { padding: 6px 10px; }
+    .mode-toggle { margin-left: 0 !important; }
+    .mode-btn { font-size: 10px; padding: 5px 10px; }
+
+    .legend { padding: 6px 12px; gap: 10px; flex-wrap: wrap; justify-content: center; font-size: 10px; }
+    .legend-dot { width: 8px; height: 8px; }
+
+    .calendar-container { padding: 8px 4px 16px; }
+    .calendar-grid { font-size: 9px; }
+    .grid-header { padding: 6px 1px; font-size: 7px; letter-spacing: 0; }
+    .grid-header.aircraft-header { gap: 2px; }
+    .aircraft-thumb { width: 40px; height: 24px; border-radius: 3px; }
+    .aircraft-reg { font-size: 8px; letter-spacing: 0; }
+    .aircraft-type { display: none; }
+    .grid-time { font-size: 8px; padding: 1px 2px; }
+    .grid-cell { min-height: 24px; padding: 1px 2px; }
+    .booking-tag { font-size: 7px; padding: 2px 3px; border-radius: 3px; }
+
+    .modal { padding: 20px 16px; max-height: 90vh; overflow-y: auto; }
+    .modal h3 { font-size: 16px; }
+    .admin-panel { padding: 16px 10px; }
+
+    .platzrunden-legend { font-size: 9px; padding: 8px 10px; gap: 6px; flex-wrap: wrap; }
+    .legend-swatch { width: 10px; height: 10px; }
+
+    .quick-book-popup { width: 220px; padding: 10px; }
+    .quick-book-popup h4 { font-size: 10px; }
+
+    /* Week view mobile */
+    .week-grid { font-size: 8px; }
+    .week-grid-header { padding: 6px 2px; font-size: 8px; letter-spacing: 0; }
+    .week-grid-aircraft { padding: 6px 2px; font-size: 8px; letter-spacing: 0; gap: 2px; }
+    .week-grid-aircraft img { width: 28px !important; height: 16px !important; }
+    .week-cell { padding: 4px 2px; min-height: 32px; }
+    .week-booking-bar { font-size: 7px; padding: 2px 3px; }
+
+    footer { padding: 20px 16px !important; }
+  }
+
+  /* Notification */
+  .notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 12px 20px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+    z-index: 300;
+    transform: translateX(120%);
+    transition: transform 0.3s ease;
+    box-shadow: var(--shadow-lg);
+    font-family: var(--font-ui);
+  }
+  .notification.show { transform: translateX(0); }
+  .notification.success { background: var(--navy); color: white; border-left: 3px solid var(--primary); }
+  .notification.error { background: var(--navy); color: white; border-left: 3px solid var(--danger); }
+  .notification.info { background: var(--navy); color: white; border-left: 3px solid var(--accent); }
+
+  /* Week View */
+  .week-grid {
+    display: grid;
+    gap: 1px;
+    background: rgba(12,27,46,0.12);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+  }
+  .week-grid-header {
+    background: var(--navy);
+    color: rgba(255,255,255,0.7);
+    padding: 12px 8px;
+    font-weight: 500;
+    font-size: 10px;
+    text-align: center;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .week-grid-header.today { background: var(--primary); color: white; }
+  .week-grid-aircraft {
+    background: var(--gray-50);
+    padding: 10px 4px;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--gray-700);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    text-align: center;
+    letter-spacing: 0.06em;
+  }
+  .week-cell {
+    background: white;
+    padding: 4px;
+    min-height: 56px;
+    cursor: pointer;
+    transition: all var(--transition);
+    position: relative;
+  }
+  .week-cell:hover { background: var(--primary-50); }
+  .week-cell.is-today { background: rgba(61,153,145,0.04); }
+  .week-cell.past-day { opacity: 0.35; pointer-events: none; }
+  .week-grid-header.past-day { opacity: 0.35; }
+  .week-cell.week-restricted-full {
+    background: var(--gray-50);
+    background-image: repeating-linear-gradient(
+      -45deg, transparent, transparent 6px, rgba(0,0,0,0.025) 6px, rgba(0,0,0,0.025) 7px
+    );
+  }
+  .week-cell.week-restricted-full:hover { background: var(--gray-100); }
+  .week-booking-bar {
+    font-size: 10px;
+    padding: 3px 6px;
+    border-radius: var(--radius-xs);
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    font-weight: 600;
+    color: white;
+  }
+  .week-booking-bar.pending { background: var(--accent); }
+  .week-booking-bar.approved { background: #43a047; }
+  .week-booking-bar.approved.with-instructor { background: #ef8c00; }
+  .week-booking-bar.rejected { background: var(--danger); opacity: 0.5; }
+
+  .mode-toggle {
+    display: flex;
+    gap: 0;
+    background: var(--gray-100);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    border: 1px solid var(--gray-200);
+    padding: 2px;
+  }
+  .mode-btn {
+    padding: 5px 16px;
+    border-radius: var(--radius-xs);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: var(--gray-500);
+    transition: all var(--transition);
+    font-family: var(--font-ui);
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+  .mode-btn.active { background: var(--navy); color: white; }
+
+  /* Booking detail in modal */
+  .booking-detail { margin-bottom: 10px; }
+  .booking-detail .label { font-size: 10px; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+  .booking-detail .value { font-size: 14px; font-weight: 500; color: var(--dark); }
+  .edit-field {
+    width: 100%; padding: 8px 10px; font-size: 13px; font-family: var(--font-ui);
+    border: 1px solid var(--gray-200); border-radius: var(--radius-sm);
+    background: white; color: var(--dark); transition: border-color var(--transition);
+    box-sizing: border-box;
+  }
+  .edit-field:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px rgba(61,153,145,0.15); }
+</style>
+</head>
+<body>
+
+<!-- Datenschutz-Banner -->
+<div id="privacyBanner" style="display:none; position:fixed; bottom:0; left:0; right:0; z-index:10000; background:var(--navy); color:rgba(255,255,255,0.75); padding:20px 36px; box-shadow:0 -4px 20px rgba(0,0,0,0.2); font-size:13px; line-height:1.6;">
+  <div style="max-width:960px; margin:0 auto; display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
+    <div style="flex:1; min-width:280px;">
+      <strong style="color:white;">Datenschutzhinweis</strong><br>
+      Diese Seite nutzt den lokalen Speicher deines Browsers (LocalStorage) zur Verwaltung von Buchungsdaten sowie den Dienst <strong style="color:rgba(255,255,255,0.9);">EmailJS</strong> zum Versand von E-Mail-Benachrichtigungen. Bilder werden &uuml;ber ein externes CDN geladen. Es werden keine Tracking-Cookies verwendet. Weitere Informationen findest du in unserer <a href="https://www.dassu.de/datenschutz" target="_blank" style="color:var(--accent); text-decoration:underline;">Datenschutzerkl&auml;rung</a>.
+    </div>
+    <div style="display:flex; gap:8px; flex-shrink:0;">
+      <button onclick="acceptPrivacy()" style="padding:8px 24px; background:var(--primary); color:white; border:none; border-radius:var(--radius-sm); font-size:13px; font-weight:600; cursor:pointer; letter-spacing:0.02em;">Verstanden</button>
+    </div>
+  </div>
+</div>
+
+<!-- Loading Screen -->
+<div id="loadingScreen" style="position:fixed; top:0; left:0; right:0; bottom:0; background:var(--navy); z-index:9999; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px; transition:opacity 0.5s ease;">
+  <img src="https://images.squarespace-cdn.com/content/v1/5a6084aad0e628eab9591587/66b4214a-b88b-427c-8350-c5907ffdcda4/DASSU-Logo+2022+web+768x768+2.png?format=100w" alt="DASSU" style="width:52px; height:52px; border-radius:50%; animation:pulse 1.8s ease-in-out infinite; border:1px solid rgba(201,168,76,0.3);">
+  <div style="font-family:var(--font-brand); font-size:16px; color:white; letter-spacing:0.12em; font-weight:400; text-transform:uppercase;">DASSU</div>
+  <div style="font-family:var(--font-ui); font-size:10px; color:rgba(201,168,76,0.5); letter-spacing:0.1em; text-transform:uppercase; font-weight:500;">Buchungskalender</div>
+</div>
+<style>
+  @keyframes pulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.6; transform:scale(0.95); } }
+</style>
+
+<!-- Notification -->
+<div id="notification" class="notification"></div>
+
+<!-- Header -->
+<div class="header">
+  <div style="display:flex; align-items:center; gap:12px;">
+    <img src="https://images.squarespace-cdn.com/content/v1/5a6084aad0e628eab9591587/66b4214a-b88b-427c-8350-c5907ffdcda4/DASSU-Logo+2022+web+768x768+2.png?format=100w" alt="DASSU Logo" style="height:34px; width:34px; border-radius:50%; object-fit:cover; border:1px solid rgba(201,168,76,0.3);">
+    <h1>DASSU <span style="color:rgba(201,168,76,0.7); font-weight:300; font-size:11px; font-family:var(--font-ui); letter-spacing:0.12em; text-transform:uppercase; margin-left:4px;">Buchungskalender</span></h1>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-sm" onclick="document.getElementById('cancelInputModal').classList.add('active')" style="color:rgba(255,255,255,0.6); background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.15); font-size:11px; letter-spacing:0.04em; text-transform:uppercase;">Stornieren</button>
+    <div class="view-tabs">
+      <button class="view-tab active" onclick="showView('calendar')">Kalender</button>
+      <button class="view-tab" onclick="showView('admin')">Admin</button>
+    </div>
+  </div>
+</div>
+
+<!-- Calendar View -->
+<div id="calendarView">
+  <div class="info-banner-mobile" style="background:var(--navy); padding:12px 36px; display:flex; align-items:center; gap:10px; font-size:12px; color:rgba(255,255,255,0.6); line-height:1.6; letter-spacing:0.01em; border-bottom:1px solid rgba(201,168,76,0.1);">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(201,168,76,0.6)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+    <span>Dieser Kalender ist f&uuml;r <strong style="font-weight:600; color:rgba(255,255,255,0.85);">bestehende Charterkunden</strong> und <strong style="font-weight:600; color:rgba(255,255,255,0.85);">angemeldete Flugsch&uuml;ler</strong>. F&uuml;r Gastfl&uuml;ge und alle anderen Anfragen meldet euch bitte in unserem B&uuml;ro: <a href="tel:+498641698787" style="color:var(--accent); font-weight:500; text-decoration:none;">+49 8641 698787</a> oder <a href="mailto:info@dassu.de" style="color:var(--accent); font-weight:500; text-decoration:none;">info@dassu.de</a>. Bitte beachtet, dass eine Buchung erst g&uuml;ltig ist, wenn sie von uns per E-Mail best&auml;tigt wurde.</span>
+  </div>
+
+  <div class="date-nav">
+    <button class="btn" onclick="navigateBack()" title="Zur&uuml;ck" style="padding:8px 12px;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <h2 id="currentDateDisplay"></h2>
+    <button class="btn" onclick="navigateForward()" title="Weiter" style="padding:8px 12px;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+    <button class="btn" onclick="goToToday()" style="background:var(--navy); color:white; border-color:var(--navy);">Heute</button>
+    <div class="mode-toggle" style="margin-left:12px;">
+      <button class="mode-btn active" id="modeDayBtn" onclick="setViewMode('day')">Tag</button>
+      <button class="mode-btn" id="modeWeekBtn" onclick="setViewMode('week')">Woche</button>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot free"></div> Frei</div>
+    <div class="legend-item"><div class="legend-dot pending"></div> Angefragt</div>
+    <div class="legend-item"><div class="legend-dot approved"></div> Best&auml;tigt</div>
+    <div class="legend-item"><div class="legend-dot rejected"></div> Abgelehnt</div>
+  </div>
+
+
+  <div class="calendar-container">
+    <div class="calendar-grid" id="calendarGrid"></div>
+    <div id="weekGrid" style="display:none;"></div>
+  </div>
+</div>
+
+<!-- Admin View -->
+<div id="adminView" class="admin-panel">
+  <!-- Login -->
+  <div id="adminLogin" class="admin-login">
+    <h3>Admin-Bereich</h3>
+    <p style="color:var(--gray-500); margin-bottom:16px; font-size:14px;">
+      Melde dich an, um Buchungen zu verwalten.
+    </p>
+    <div class="form-group">
+      <input type="password" id="adminPassword" placeholder="Passwort eingeben" onkeydown="if(event.key==='Enter') adminLogin()">
+    </div>
+    <button class="btn btn-primary" onclick="adminLogin()" style="width:100%;">Anmelden</button>
+    <p style="color:var(--gray-400); margin-top:12px; font-size:12px;">Standard-Passwort: admin123</p>
+  </div>
+
+  <!-- Admin Dashboard -->
+  <div id="adminDashboard" style="display:none;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
+      <h2 style="font-size:20px; font-weight:700; font-family:var(--font-ui); letter-spacing:0.01em;">Buchungsverwaltung</h2>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <button class="btn btn-danger btn-sm" onclick="adminLogout()">Abmelden</button>
+        <button class="btn btn-sm" onclick="exportData()">Exportieren</button>
+        <button class="btn btn-sm" onclick="showSettings()">Einstellungen</button>
+      </div>
+    </div>
+
+    <div class="filter-tabs">
+      <button class="filter-tab active" onclick="filterBookings('all', this)">Alle</button>
+      <button class="filter-tab" onclick="filterBookings('pending', this)">Ausstehend</button>
+      <button class="filter-tab" onclick="filterBookings('approved', this)">Best&auml;tigt</button>
+      <button class="filter-tab" onclick="filterBookings('rejected', this)">Abgelehnt</button>
+    </div>
+
+    <table class="admin-table" id="adminTable">
+      <thead>
+        <tr>
+          <th>Datum</th>
+          <th>Uhrzeit</th>
+          <th>Flugzeug</th>
+          <th>Name</th>
+          <th>Kontakt</th>
+          <th>Fluglehrer</th>
+          <th>Status</th>
+          <th>Aktionen</th>
+        </tr>
+      </thead>
+      <tbody id="adminTableBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Booking Modal -->
+<div class="modal-overlay" id="bookingModal">
+  <div class="modal">
+    <!-- Step 1: Form -->
+    <div id="bookingStep1">
+      <h3>Neue Buchung</h3>
+      <div class="form-group">
+        <label>Flugzeug</label>
+        <input type="text" id="bookingAircraft" readonly style="background:var(--gray-50);">
+      </div>
+      <div class="form-group">
+        <label>Datum</label>
+        <input type="text" id="bookingDate" readonly style="background:var(--gray-50);">
+      </div>
+      <div style="display:flex; gap:12px;">
+        <div class="form-group" style="flex:1;">
+          <label>Von *</label>
+          <select id="bookingTimeFrom" onchange="updateTimeTo()"></select>
+        </div>
+        <div class="form-group" style="flex:1;">
+          <label>Bis *</label>
+          <select id="bookingTimeTo" onchange="checkConflictWarning()"></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Dein Name *</label>
+        <input type="text" id="bookingName" placeholder="Vor- und Nachname">
+      </div>
+      <div class="form-group">
+        <label>E-Mail *</label>
+        <input type="email" id="bookingEmail" placeholder="deine@email.de">
+      </div>
+      <div class="form-group">
+        <label>Telefon *</label>
+        <input type="tel" id="bookingPhone" placeholder="+49 123 456789" required>
+      </div>
+      <div class="form-group">
+        <label>Fluglehrer ben&ouml;tigt? *</label>
+        <select id="bookingInstructor">
+          <option value="nein">Nein</option>
+          <option value="ja">Ja, Fluglehrer ben&ouml;tigt</option>
+        </select>
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer; font-size:12px; color:var(--gray-600); line-height:1.5; text-transform:none; letter-spacing:0; font-weight:400;">
+          <input type="checkbox" id="bookingConsent" style="margin-top:3px; flex-shrink:0; width:16px; height:16px; accent-color:var(--primary);">
+          <span>Ich bin damit einverstanden, dass meine Angaben zur Bearbeitung meiner Buchungsanfrage verarbeitet und per E-Mail an den Verein &uuml;bermittelt werden. Weitere Informationen in der <a href="https://www.dassu.de/datenschutz" target="_blank" style="color:var(--primary); text-decoration:underline;">Datenschutzerkl&auml;rung</a>. *</span>
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" onclick="closeModal('bookingModal')">Abbrechen</button>
+        <button class="btn btn-primary" onclick="showBookingConfirmation()">Weiter</button>
+      </div>
+    </div>
+    <!-- Step 2: Confirmation -->
+    <div id="bookingStep2" style="display:none;">
+      <h3>Buchung best&auml;tigen</h3>
+      <p style="font-size:13px; color:var(--gray-500); margin-bottom:16px;">Bitte pr&uuml;fe deine Angaben. Nach dem Absenden erh&auml;ltst du eine Best&auml;tigung per E-Mail.</p>
+      <div id="bookingConfirmSummary" style="background:var(--gray-50); border:1px solid var(--gray-200); border-radius:var(--radius-sm); padding:16px; margin-bottom:16px;"></div>
+      <div class="modal-actions">
+        <button class="btn" onclick="document.getElementById('bookingStep1').style.display='block'; document.getElementById('bookingStep2').style.display='none';">Zur&uuml;ck</button>
+        <button class="btn btn-primary" onclick="submitBooking()">Verbindlich anfragen</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Booking Detail Modal -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal">
+    <h3>Buchungsdetails</h3>
+    <div id="detailContent"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('detailModal')">Schlie&szlig;en</button>
+      <button class="btn btn-danger btn-sm" id="detailDeleteBtn" onclick="deleteBookingFromDetail()" style="display:none;">L&ouml;schen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal">
+    <h3>Einstellungen</h3>
+    <div class="form-group">
+      <label>Admin-Passwort &auml;ndern</label>
+      <input type="password" id="newPassword" placeholder="Neues Passwort">
+    </div>
+    <div class="form-group">
+      <label>Flugzeug-Kennzeichen (eines pro Zeile)</label>
+      <textarea id="aircraftNames" rows="5" style="font-family:monospace;"></textarea>
+    </div>
+
+    <hr style="margin:20px 0; border:none; border-top:1px solid var(--gray-200);">
+    <h4 style="margin-bottom:4px; font-size:17px; font-weight:400; color:var(--dark);">E-Mail-Benachrichtigung via info@dassu.de</h4>
+    <p style="font-size:12px; color:var(--gray-500); margin-bottom:14px; line-height:1.6;">
+      E-Mails werden &uuml;ber <a href="https://www.emailjs.com/" target="_blank" style="color:var(--primary);">EmailJS</a> (kostenlos, 200 Mails/Monat) direkt von eurer info@dassu.de-Adresse via Exchange verschickt.
+    </p>
+
+    <details style="margin-bottom:14px; font-size:12px; color:var(--gray-600); line-height:1.7; border:1px solid var(--gray-200); border-radius:4px; padding:10px 14px; background:var(--gray-50);">
+      <summary style="cursor:pointer; font-weight:600; color:var(--dark); margin-bottom:8px;">Einrichtungsanleitung (einmalig, ca. 5 Min.)</summary>
+      <ol style="padding-left:18px; margin:8px 0;">
+        <li>Gehe zu <a href="https://www.emailjs.com/signup" target="_blank" style="color:var(--primary);">emailjs.com/signup</a> und erstelle einen kostenlosen Account.</li>
+        <li><strong>E-Mail-Service hinzuf&uuml;gen:</strong> Klicke auf &bdquo;Add New Service&ldquo; &rarr; w&auml;hle &bdquo;<strong>SMTP server</strong>&ldquo; und trage eure Exchange-Daten ein:
+          <div style="background:white; border:1px solid var(--gray-200); padding:8px; border-radius:4px; margin:6px 0; font-family:monospace; font-size:11px; line-height:1.6;">
+Host: smtp.office365.com<br>
+Port: 587<br>
+Username: info@dassu.de<br>
+Password: (euer Exchange-Passwort oder App-Passwort)</div>
+          Notiere die <em>Service-ID</em> (z.B. <code>service_abc123</code>).</li>
+        <li><strong>E-Mail-Template erstellen:</strong> Gehe zu &bdquo;Email Templates&ldquo; &rarr; &bdquo;Create New Template&ldquo;. F&uuml;ge folgendes ein:</li>
+      </ol>
+      <div style="background:white; border:1px solid var(--gray-200); padding:10px; border-radius:4px; margin:6px 0; font-family:monospace; font-size:11px; white-space:pre-wrap; line-height:1.5;">Betreff: Buchung {{status_text}} &ndash; {{aircraft}} am {{date}}
+
+Hallo {{to_name}},
+
+deine Flugzeug-Buchung wurde {{status_text}}.
+
+Flugzeug: {{aircraft}}
+Datum: {{date}}
+Uhrzeit: {{time}}
+Fluglehrer: {{instructor}}
+
+Bei Fragen melde dich gerne bei uns.
+
+Viele Gr&uuml;&szlig;e
+DASSU &ndash; Deutsche Alpensegelflugschule Unterwössen e.V.
+info@dassu.de</div>
+      <ol start="4" style="padding-left:18px; margin:8px 0;">
+        <li>Setze &bdquo;To Email&ldquo; auf <code>{{to_email}}</code> und speichere. Notiere die <em>Template-ID</em>.</li>
+        <li>Gehe zu &bdquo;Account&ldquo; &rarr; &bdquo;API Keys&ldquo; und kopiere den <em>Public Key</em>.</li>
+        <li>Trage alle drei Werte hier unten ein &mdash; fertig!</li>
+      </ol>
+    </details>
+
+    <div class="form-group">
+      <label>EmailJS Service-ID</label>
+      <input type="text" id="emailServiceId" placeholder="service_abc123">
+    </div>
+    <div class="form-group">
+      <label>EmailJS Template-ID</label>
+      <input type="text" id="emailTemplateId" placeholder="template_xyz789">
+    </div>
+    <div class="form-group">
+      <label>EmailJS Public Key</label>
+      <input type="text" id="emailPublicKey" placeholder="AbCdEfGhIjKlM">
+    </div>
+    <div class="form-group">
+      <label>Absender-Name</label>
+      <input type="text" id="senderName" placeholder="DASSU - Alpensegelflugschule Unterwössen" value="DASSU - Alpensegelflugschule Unterwössen">
+    </div>
+
+    <div style="display:flex; gap:8px; align-items:center; margin-top:8px; margin-bottom:12px;">
+      <button class="btn btn-sm" onclick="testEmail()" style="border-color:var(--primary); color:var(--primary);">Test-E-Mail senden</button>
+      <span id="emailTestStatus" style="font-size:12px; color:var(--gray-500);"></span>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('settingsModal')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveSettings()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- Cancel Confirmation Modal -->
+<div class="modal-overlay" id="cancelModal">
+  <div class="modal" style="text-align:center;">
+    <h3>Buchung stornieren?</h3>
+    <div id="cancelModalContent"></div>
+    <div class="modal-actions" style="justify-content:center; gap:12px;">
+      <button class="btn" onclick="closeModal('cancelModal')">Abbrechen</button>
+      <button class="btn btn-danger" id="cancelConfirmBtn" onclick="confirmCancellation()">Ja, Buchung stornieren</button>
+    </div>
+  </div>
+</div>
+
+<!-- Cancel Input Modal (for entering cancel code) -->
+<div class="modal-overlay" id="cancelInputModal">
+  <div class="modal" style="text-align:center;">
+    <h3>Buchung stornieren</h3>
+    <p style="color:var(--gray-500); font-size:13px; margin-bottom:16px;">Gib deinen Stornierungscode ein, den du per E-Mail erhalten hast.</p>
+    <div class="form-group">
+      <input type="text" id="cancelCodeInput" placeholder="z.B. a1b2c3d4e5f6" style="text-align:center; font-family:monospace; letter-spacing:2px; font-size:16px;">
+    </div>
+    <div id="cancelInputResult" style="margin-bottom:12px;"></div>
+    <div class="modal-actions" style="justify-content:center; gap:12px;">
+      <button class="btn" onclick="closeModal('cancelInputModal')">Abbrechen</button>
+      <button class="btn btn-danger" onclick="lookupCancelCode()">Buchung suchen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Footer -->
+<footer style="background:var(--navy); color:rgba(255,255,255,0.4); padding:32px 36px; margin-top:auto; font-size:12px; line-height:1.8; letter-spacing:0.01em;">
+  <div style="max-width:900px; margin:0 auto; display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:24px;">
+    <div>
+      <div style="color:white; font-family:var(--font-brand); font-weight:500; font-size:18px; margin-bottom:2px; letter-spacing:0.1em; text-transform:uppercase;">DASSU</div>
+      <div style="color:var(--accent); font-size:9px; letter-spacing:0.1em; text-transform:uppercase; margin-bottom:10px; font-weight:500;">Deutsche Alpensegelflugschule Unterwössen e.V.</div>
+      <div>Windseestr. 45, 83246 Unterwössen</div>
+      <div><a href="tel:+498641698787" style="color:rgba(255,255,255,0.4); text-decoration:none;">+49 8641 698787</a> · <a href="mailto:info@dassu.de" style="color:rgba(255,255,255,0.4); text-decoration:none;">info@dassu.de</a></div>
+    </div>
+    <div style="display:flex; gap:24px; font-size:11px; align-items:center; letter-spacing:0.04em; text-transform:uppercase;">
+      <a href="https://www.dassu.de" target="_blank" style="color:rgba(255,255,255,0.4); text-decoration:none;">dassu.de</a>
+      <a href="https://www.dassu.de/impressum" target="_blank" style="color:rgba(255,255,255,0.4); text-decoration:none;">Impressum</a>
+      <a href="https://www.dassu.de/datenschutz" target="_blank" style="color:rgba(255,255,255,0.4); text-decoration:none;">Datenschutz</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+// ============================================================
+// DATA
+// ============================================================
+const DEFAULT_AIRCRAFT = ['D-KYGL', 'D-KYCK', 'D-KYSS', 'D-MYUW', 'D-MYIH'];
+
+const AIRCRAFT_IMAGES = {
+  'D-KYGL': 'https://images.squarespace-cdn.com/content/v1/5a6084aad0e628eab9591587/1547813117982-OW707IT4O3SF6ZRSEEYN/D-KYGL.jpg',
+  'D-KYCK': 'https://images.squarespace-cdn.com/content/v1/5a6084aad0e628eab9591587/0caf31ac-0093-46ba-920f-8cbd9d0b6a06/IMG_9563.jpg',
+  'D-KYSS': 'https://images.squarespace-cdn.com/content/v1/5a6084aad0e628eab9591587/1547811279745-R2SL7W8T3RN4DPKE3P0I/D-KYSS.jpg',
+  'D-MYUW': 'https://images.squarespace-cdn.com/content/v1/5a6084aad0e628eab9591587/1547811326442-DPH0ZBIPWXCP3AR70LRH/D-MYUW.jpg',
+  'D-MYIH': 'https://images.squarespace-cdn.com/content/v1/5a6084aad0e628eab9591587/5e1c4b36-0560-4129-9c5d-ffa648d3e54a/IMG_4794.jpeg'
+};
+
+const AIRCRAFT_TYPES = {
+  'D-KYGL': 'SF25 Falke',
+  'D-KYCK': 'SF25 Falke',
+  'D-KYSS': 'Samburo AVO 68r',
+  'D-MYUW': 'Eurostar EV-97',
+  'D-MYIH': 'Dynamic WT9'
+};
+const TIME_SLOTS = [
+  '08:00 - 08:30', '08:30 - 09:00', '09:00 - 09:30', '09:30 - 10:00',
+  '10:00 - 10:30', '10:30 - 11:00', '11:00 - 11:30', '11:30 - 12:00',
+  '12:00 - 12:30', '12:30 - 13:00', '13:00 - 13:30', '13:30 - 14:00',
+  '14:00 - 14:30', '14:30 - 15:00', '15:00 - 15:30', '15:30 - 16:00',
+  '16:00 - 16:30', '16:30 - 17:00', '17:00 - 17:30', '17:30 - 18:00'
+];
+
+// All selectable time points (start times + final end)
+const TIME_POINTS = [
+  '08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30',
+  '12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30',
+  '16:00','16:30','17:00','17:30','18:00'
+];
+
+function slotIndex(time) { return TIME_POINTS.indexOf(time); }
+
+// Get all slots covered by a booking (from startTime to endTime)
+function getCoveredSlots(startTime, endTime) {
+  const startIdx = slotIndex(startTime);
+  const endIdx = slotIndex(endTime);
+  const slots = [];
+  for (let i = startIdx; i < endIdx; i++) {
+    slots.push(TIME_SLOTS[i]);
+  }
+  return slots;
+}
+
+// Find booking that covers a specific slot for an aircraft on a date
+function findBookingForSlot(date, slot, aircraft) {
+  return bookings.find(b => {
+    if (b.date !== date || b.aircraft !== aircraft) return false;
+    // Legacy support: old bookings with single slot
+    if (b.slot && !b.startTime) return b.slot === slot;
+    // New multi-slot bookings
+    const covered = getCoveredSlots(b.startTime, b.endTime);
+    return covered.includes(slot);
+  });
+}
+
+// Check if a time range conflicts with existing bookings
+function hasConflict(date, aircraft, startTime, endTime, excludeId) {
+  const newSlots = getCoveredSlots(startTime, endTime);
+  return bookings.some(b => {
+    if (b.date !== date || b.aircraft !== aircraft) return false;
+    if (excludeId && b.id === excludeId) return false;
+    // Legacy
+    if (b.slot && !b.startTime) return newSlots.includes(b.slot);
+    const existingSlots = getCoveredSlots(b.startTime, b.endTime);
+    return newSlots.some(s => existingSlots.includes(s));
+  });
+}
+
+// ============================================================
+// PLATZRUNDEN-ZEITEN (Motorsegler / UL)
+// ============================================================
+// Returns true if the given slot is OUTSIDE Platzrunden times (= restricted)
+function isRestrictedSlot(date, slotStartTime) {
+  const d = new Date(date + 'T12:00:00');
+  const dayOfWeek = d.getDay(); // 0=So, 1=Mo, ..., 6=Sa
+  const hour = parseInt(slotStartTime.split(':')[0]);
+  const min = parseInt(slotStartTime.split(':')[1]);
+  const timeMinutes = hour * 60 + min; // minutes since midnight
+
+  // Sonntag: vor 09:00 gesperrt, ab 09:00 buchbar (keine Platzrunden)
+  if (dayOfWeek === 0) return timeMinutes < 540;
+
+  // Samstag: Platzrunden nur 08:00–12:00 → 12:00–18:00 eingeschränkt
+  if (dayOfWeek === 6) {
+    return timeMinutes >= 720; // >= 12:00
+  }
+
+  // Mo–Fr: Platzrunden 08:00–12:00 und 15:00–18:00
+  // Eingeschränkt = 12:00–15:00
+  if (timeMinutes >= 720 && timeMinutes < 900) return true; // 12:00–14:59
+
+  return false;
+}
+
+// D-MYIH: 10:00–13:30 reserviert für Schleppbetrieb
+function isTowingBlocked(aircraft, slotStartTime) {
+  if (aircraft !== 'D-MYIH') return false;
+  const hour = parseInt(slotStartTime.split(':')[0]);
+  const min = parseInt(slotStartTime.split(':')[1]);
+  const timeMinutes = hour * 60 + min;
+  return timeMinutes >= 600 && timeMinutes < 810; // 10:00 bis 13:30
+}
+// 2h-Block-Regel: D-KYCK und D-KYGL nur in 2h-Bl&ouml;cken vormittags Mo-Sa
+function getMorningBlock(aircraft, dateStr, slotStart) {
+  if (aircraft !== 'D-KYCK' && aircraft !== 'D-KYGL') return null;
+  const d = new Date(dateStr + 'T12:00:00');
+  if (d.getDay() === 0) return null; // Sonntag kein Block
+  const [h, m] = slotStart.split(':').map(Number);
+  const mins = h * 60 + m;
+  if (mins >= 480 && mins < 600) return { start: '08:00', end: '10:00' };
+  if (mins >= 600 && mins < 720) return { start: '10:00', end: '12:00' };
+  return null;
+}
+
+// Get Platzrunden info text for a given day
+function getPlatzrundenInfo(date) {
+  const d = new Date(date + 'T12:00:00');
+  const dayOfWeek = d.getDay();
+  if (dayOfWeek === 0) return 'Sonntag: Buchbar ab 09:00, keine Platzrunden';
+  if (dayOfWeek === 6) return 'Samstag: Platzrunden 08:00–12:00';
+  return 'Mo–Fr: Platzrunden 08:00–12:00 & 15:00–18:00';
+}
+
+let currentDate = new Date();
+let bookings = [];
+let adminLoggedIn = false;
+let currentFilter = 'all';
+let detailBookingId = null;
+let viewMode = 'day'; // 'day' or 'week'
+
+// Settings
+let settings = {
+  password: 'admin123',
+  aircraft: [...DEFAULT_AIRCRAFT],
+  emailServiceId: 'service_v2wd3ji',
+  emailTemplateId: 'template_4yxxj22',
+  emailPublicKey: 'aNDJA3t4YBKvH5ynz',
+  senderName: 'DASSU - Alpensegelflugschule Unterwössen'
+};
+
+// ============================================================
+// FIREBASE CONFIGURATION
+// ============================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyAe5CPZl8kb0bKfHIiGclHTpQK88MMsnTI",
+  authDomain: "buchungskalender-ffe4c.firebaseapp.com",
+  databaseURL: "https://buchungskalender-ffe4c-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "buchungskalender-ffe4c",
+  storageBucket: "buchungskalender-ffe4c.firebasestorage.app",
+  messagingSenderId: "913839321247",
+  appId: "1:913839321247:web:723106a2d73c048e15f2aa"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+let firebaseReady = false;
+
+// ============================================================
+// PERSISTENCE (Firebase Realtime Database)
+// ============================================================
+let dailyNotes = {};
+
+function loadData() {
+  // Daily Notes Listener
+  db.ref('dailyNotes').on('value', (snapshot) => {
+    dailyNotes = snapshot.val() || {};
+    renderDailyNotesBanner();
+  }, () => {});
+
+  // Bookings: Echtzeit-Listener — alle Geräte sehen sofort Änderungen
+  db.ref('bookings').on('value', (snapshot) => {
+    const data = snapshot.val();
+    bookings = data ? Object.values(data) : [];
+    firebaseReady = true;
+    renderView();
+    if (adminLoggedIn) renderAdminTable();
+  }, (error) => {
+    console.error('Firebase Bookings Fehler:', error);
+    // Fallback auf localStorage
+    try {
+      const saved = localStorage.getItem('flugkalender_bookings');
+      if (saved) bookings = JSON.parse(saved);
+    } catch(e) {}
+  });
+
+  // Settings: Echtzeit-Listener
+  db.ref('settings').on('value', (snapshot) => {
+    const data = snapshot.val();
+    if (data) {
+      for (const key of Object.keys(data)) {
+        if (data[key] !== '' && data[key] !== undefined && data[key] !== null) {
+          settings[key] = data[key];
+        }
+      }
+    }
+  }, (error) => {
+    console.error('Firebase Settings Fehler:', error);
+    try {
+      const savedSettings = localStorage.getItem('flugkalender_settings');
+      if (savedSettings) {
+        const parsed = JSON.parse(savedSettings);
+        for (const key of Object.keys(parsed)) {
+          if (parsed[key] !== '' && parsed[key] !== undefined && parsed[key] !== null) {
+            settings[key] = parsed[key];
+          }
+        }
+      }
+    } catch(e) {}
+  });
+}
+
+function saveData() {
+  try {
+    // Firebase: Bookings als Objekt mit ID als Key speichern
+    const bookingsObj = {};
+    bookings.forEach(b => { bookingsObj[b.id] = b; });
+    db.ref('bookings').set(bookingsObj);
+    db.ref('settings').set(settings);
+    // Lokaler Fallback
+    localStorage.setItem('flugkalender_bookings', JSON.stringify(bookings));
+    localStorage.setItem('flugkalender_settings', JSON.stringify(settings));
+  } catch(e) { console.error('Fehler beim Speichern:', e); }
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+function formatDate(date) {
+  const days = ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'];
+  const months = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+  return `${days[date.getDay()]}, ${date.getDate()}. ${months[date.getMonth()]} ${date.getFullYear()}`;
+}
+
+function dateKey(date) {
+  return date.toISOString().split('T')[0];
+}
+
+function navigateBack() {
+  const test = new Date(currentDate);
+  if (viewMode === 'week') {
+    test.setDate(test.getDate() - 7);
+  } else {
+    test.setDate(test.getDate() - 1);
+  }
+  if (!adminLoggedIn) {
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    test.setHours(0,0,0,0);
+    if (viewMode === 'week') {
+      const weekStart = new Date(test);
+      const day = weekStart.getDay() || 7;
+      weekStart.setDate(weekStart.getDate() - day + 1);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      if (weekEnd < today) return;
+    } else {
+      if (test < today) return;
+    }
+  }
+  currentDate = test;
+  renderView();
+}
+
+function navigateForward() {
+  if (viewMode === 'week') {
+    currentDate.setDate(currentDate.getDate() + 7);
+  } else {
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+  renderView();
+}
+
+function goToToday() {
+  currentDate = new Date();
+  renderView();
+}
+
+function setViewMode(mode) {
+  viewMode = mode;
+  document.getElementById('modeDayBtn').classList.toggle('active', mode === 'day');
+  document.getElementById('modeWeekBtn').classList.toggle('active', mode === 'week');
+  renderView();
+}
+
+function renderView() {
+  if (typeof renderDailyNotesBanner === 'function') try { renderDailyNotesBanner(); } catch(e){}
+  if (viewMode === 'week') {
+    document.getElementById('calendarGrid').style.display = 'none';
+    document.getElementById('weekGrid').style.display = 'block';
+    renderWeekView();
+  } else {
+    document.getElementById('calendarGrid').style.display = 'grid';
+    document.getElementById('weekGrid').style.display = 'none';
+    renderDayView();
+  }
+}
+
+// ============================================================
+// VIEWS
+// ============================================================
+function showView(view) {
+  document.querySelectorAll('.view-tab').forEach(t => t.classList.remove('active'));
+  if (view === 'calendar') {
+    document.getElementById('calendarView').style.display = 'block';
+    document.getElementById('adminView').classList.remove('active');
+    document.querySelectorAll('.view-tab')[0].classList.add('active');
+  } else {
+    document.getElementById('calendarView').style.display = 'none';
+    document.getElementById('adminView').classList.add('active');
+    document.querySelectorAll('.view-tab')[1].classList.add('active');
+    if (adminLoggedIn) renderAdminTable();
+  }
+}
+
+// ============================================================
+// WEEK HELPERS
+// ============================================================
+function getWeekDays(date) {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Monday start
+  const monday = new Date(d.setDate(diff));
+  const days = [];
+  for (let i = 0; i < 7; i++) {
+    const dd = new Date(monday);
+    dd.setDate(monday.getDate() + i);
+    days.push(dd);
+  }
+  return days;
+}
+
+function formatWeekRange(days) {
+  const months = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+  const first = days[0];
+  const last = days[6];
+  if (first.getMonth() === last.getMonth()) {
+    return `${first.getDate()}. – ${last.getDate()}. ${months[last.getMonth()]} ${last.getFullYear()}`;
+  }
+  return `${first.getDate()}. ${months[first.getMonth()]} – ${last.getDate()}. ${months[last.getMonth()]} ${last.getFullYear()}`;
+}
+
+function getBookingsForDay(date, aircraft) {
+  const dk = dateKey(date);
+  return bookings.filter(b => {
+    if (b.date !== dk || b.aircraft !== aircraft) return false;
+    return true;
+  });
+}
+
+// ============================================================
+// WEEK VIEW RENDERING
+// ============================================================
+function renderWeekView() {
+  const weekDays = getWeekDays(currentDate);
+  const todayKey = dateKey(new Date());
+  const aircraft = settings.aircraft;
+  const dayNames = ['Mo','Di','Mi','Do','Fr','Sa','So'];
+
+  document.getElementById('currentDateDisplay').textContent = formatWeekRange(weekDays);
+
+  const cols = 7;
+  let html = `<div class="week-grid" style="grid-template-columns: 80px repeat(${cols}, 1fr);">`;
+
+  // Header row: empty corner + 7 day headers
+  html += '<div class="week-grid-header"></div>';
+  weekDays.forEach((d, i) => {
+    const dk = dateKey(d);
+    const isToday = dk === todayKey;
+    const isPast = dk < todayKey;
+    const dow = d.getDay();
+    // Show small indicator for restricted days
+    const restrictionHint = dow === 0 ? '<br><span style="font-size:8px;color:#bbb;">ab 09:00</span>' :
+                            dow === 6 ? '<br><span style="font-size:8px;color:#bbb;">PR bis 12h</span>' : '';
+    const pastClass = isPast && !adminLoggedIn ? ' past-day' : '';
+    html += `<div class="week-grid-header${isToday ? ' today' : ''}${pastClass}">${dayNames[i]}<br>${d.getDate()}.${d.getMonth()+1}.${restrictionHint}</div>`;
+  });
+
+  // One row per aircraft
+  aircraft.forEach(a => {
+    const wImg = AIRCRAFT_IMAGES[a] ? `<img src="${AIRCRAFT_IMAGES[a]}?format=80w" alt="${a}" style="width:40px;height:24px;object-fit:cover;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.1);" />` : '';
+    html += `<div class="week-grid-aircraft">${wImg}${a}</div>`;
+    weekDays.forEach(d => {
+      const dk = dateKey(d);
+      const isToday = dk === todayKey;
+      const isPast = dk < todayKey;
+      const dow = d.getDay();
+      const hasRestriction = dow === 0 || dow === 6; // So/Sa have partial/full restrictions
+      const dayBookings = getBookingsForDay(d, a);
+
+      let cellContent = '';
+      // D-MYIH: Schleppbetrieb-Hinweis in Wochenansicht
+      if (a === 'D-MYIH') {
+        cellContent += '<div style="font-size:8px;color:var(--navy);opacity:0.4;text-align:center;padding:1px 0;font-weight:600;">10–13:30 Schlepp</div>';
+      }
+      dayBookings.forEach(b => {
+        const timeLabel = b.startTime ? `${b.startTime}–${b.endTime}` : (b.slot || '');
+        const label = adminLoggedIn ? `${timeLabel} ${b.name}` : timeLabel;
+        const titleAttr = adminLoggedIn ? `${b.name}: ${timeLabel}` : `Belegt: ${timeLabel}`;
+        const instrClass = b.instructor === 'ja' ? ' with-instructor' : '';
+        cellContent += `<div class="week-booking-bar ${b.status}${instrClass}" onclick="event.stopPropagation(); showDetail('${b.id}')" title="${titleAttr}">${label}</div>`;
+      });
+
+      const pastCellClass = isPast && !adminLoggedIn ? ' past-day' : '';
+      html += `<div class="week-cell${isToday ? ' is-today' : ''}${pastCellClass}" onclick="goToDay('${dk}')">${cellContent}</div>`;
+    });
+  });
+
+  html += '</div>';
+
+  // Platzrunden-Legende unter der Wochenansicht
+  html += `<div class="platzrunden-legend">
+    <div class="legend-item"><div class="legend-swatch" style="background:#43a047;"></div> Ohne Fluglehrer</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:#ef8c00;"></div> Mit Fluglehrer</div>
+    <span style="color: var(--gray-300);">|</span>
+    <div class="legend-item"><div class="legend-swatch swatch-open"></div> Platzrundenbetrieb MS/UL</div>
+    <div class="legend-item"><div class="legend-swatch swatch-restricted"></div> Keine Platzrunden in Unterwössen *</div>
+    <span style="color: var(--gray-300);">|</span>
+    <span>Mo–Fr: Platzrunden 08:00–12:00 &amp; 15:00–18:00</span>
+    <span style="color: var(--gray-300);">|</span>
+    <span>Sa: Platzrunden 08:00–12:00</span>
+    <span style="color: var(--gray-300);">|</span>
+    <span>So: ab 09:00, keine Platzrunden</span>
+  </div>`;
+  html += '<div style="padding: 8px 16px 12px; font-size: 12px; color: #999; line-height: 1.5;"><span style="color: var(--primary);">*</span> Platzrunden können problemlos an den umliegenden Flugplätzen (EDPK, EDNV, EDMY, EDME u.&thinsp;a.) geflogen werden — der Shuttle dorthin ist kurz.<br>Für Buchungen, die über diesen Kalender nicht möglich sind (längere Flüge, Übernachtungen, Sonderwünsche), meldet euch bitte bei uns: <a href="tel:+498641698787" style="color:var(--primary);text-decoration:none;font-weight:500;">+49 8641 698787</a> oder <a href="mailto:info@dassu.de" style="color:var(--primary);text-decoration:none;font-weight:500;">info@dassu.de</a></div>';
+
+  document.getElementById('weekGrid').innerHTML = html;
+}
+
+function goToDay(dk) {
+  const target = new Date(dk + 'T12:00:00');
+  if (!adminLoggedIn) {
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    if (target < today) return;
+  }
+  currentDate = target;
+  setViewMode('day');
+}
+
+// ============================================================
+// DAY VIEW RENDERING
+// ============================================================
+function renderDailyNotesBanner() {
+  const dk = dateKey(currentDate);
+  let el = document.getElementById('dailyNotesBanner');
+  const txt = (dailyNotes[dk] && dailyNotes[dk].text) || '';
+  // Nur f&uuml;r Admins sichtbar
+  if (!adminLoggedIn) { if (el) el.style.display = 'none'; return; }
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'dailyNotesBanner';
+    el.style.cssText = 'background:#fffbe6;border:1px solid #f0e7c0;border-radius:8px;padding:10px 14px;margin:12px 16px;display:flex;gap:10px;align-items:flex-start;font-size:13px;color:#3a3320;';
+    const cal = document.getElementById('calendarGrid');
+    if (cal && cal.parentNode) cal.parentNode.insertBefore(el, cal);
+  }
+  if (!txt) { el.style.display = 'none'; return; }
+  el.style.display = 'flex';
+  el.innerHTML = `<span style="font-size:15px;">&#128221;</span><div style="flex:1;"><div style="font-size:10px;font-weight:700;color:#8a7420;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px;">Bemerkungen f&uuml;r diesen Tag</div><div style="white-space:pre-wrap;word-break:break-word;line-height:1.4;">${txt.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div></div>`;
+}
+
+function renderDayView() {
+  document.getElementById('currentDateDisplay').textContent = formatDate(currentDate);
+  const grid = document.getElementById('calendarGrid');
+  const dk = dateKey(currentDate);
+  const aircraft = settings.aircraft;
+
+  const isMobile = window.innerWidth <= 480;
+  grid.style.gridTemplateColumns = `${isMobile ? '36px' : '54px'} repeat(${aircraft.length}, 1fr)`;
+
+  let html = '<div class="grid-header">Uhrzeit</div>';
+  aircraft.forEach(a => {
+    const img = AIRCRAFT_IMAGES[a] ? `<img src="${AIRCRAFT_IMAGES[a]}?format=100w" alt="${a}" class="aircraft-thumb" />` : '';
+    const type = AIRCRAFT_TYPES[a] || '';
+    html += `<div class="grid-header aircraft-header">${img}<span class="aircraft-reg">${a}</span><span class="aircraft-type">${type}</span></div>`;
+  });
+
+  // Vergangene Slots erkennen (heute + Uhrzeit vorbei)
+  const now = new Date();
+  const todayKey = dateKey(now);
+  const isToday = dk === todayKey;
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+  TIME_SLOTS.forEach((slot, slotIdx) => {
+    const slotStart = slot.split(' - ')[0];
+    const slotHour = parseInt(slotStart.split(':')[0]);
+    const slotMin = parseInt(slotStart.split(':')[1]);
+    const slotMinutes = slotHour * 60 + slotMin;
+    const isPastSlot = isToday && slotMinutes < nowMinutes && !adminLoggedIn;
+    const restricted = isRestrictedSlot(dk, slotStart);
+    html += `<div class="grid-time${isPastSlot ? ' past-slot' : ''}">${slotStart}</div>`;
+    aircraft.forEach((a, aIdx) => {
+      const booking = findBookingForSlot(dk, slot, a);
+      const towBlocked = isTowingBlocked(a, slotStart);
+      let cellClass = 'grid-cell';
+      if (isPastSlot) cellClass += ' past-slot';
+      let content = '';
+      if (towBlocked && !booking) {
+        cellClass += ' towing-blocked';
+        if (slotStart === '10:00') {
+          content = '<div class="towing-label">Schleppbetrieb</div>';
+        }
+        html += `<div class="${cellClass}" onclick="openBooking('${a}','${slot}','${dk}', event)">${content}</div>`;
+      } else if (booking) {
+        const hasInstructor = booking.instructor === 'ja';
+        cellClass += ` booked-${booking.status}${hasInstructor ? ' with-instructor' : ''}`;
+        const statusLabels = { pending: 'Angefragt', approved: 'Belegt', rejected: 'Abgelehnt' };
+        const instructorClass = hasInstructor ? ' with-instructor' : '';
+        const isFirstSlot = booking.startTime ? (slotStart === booking.startTime) : true;
+        if (isFirstSlot) {
+          const timeLabel = booking.startTime ? `${booking.startTime}–${booking.endTime}` : '';
+          if (adminLoggedIn) {
+            const instrLabel = booking.instructor === 'ja' && booking.instructorName ? ` · ${booking.instructorName}` : '';
+            content = `<div class="booking-tag ${booking.status}${instructorClass}" onclick="event.stopPropagation(); showDetail('${booking.id}')">${booking.name}<br><small>${timeLabel}${instrLabel} ${statusLabels[booking.status]}</small></div>`;
+          } else {
+            content = `<div class="booking-tag ${booking.status}${instructorClass}" onclick="event.stopPropagation(); showDetail('${booking.id}')"><small>${statusLabels[booking.status]}</small></div>`;
+          }
+        } else {
+          content = `<div class="booking-tag ${booking.status}${instructorClass}" style="opacity:0.5;" onclick="event.stopPropagation(); showDetail('${booking.id}')">&nbsp;</div>`;
+        }
+        html += `<div class="${cellClass}" onclick="openBooking('${a}','${slot}','${dk}', event)">${content}</div>`;
+      } else {
+        if (restricted) {
+          cellClass += ' restricted';
+          if (aIdx === 0) {
+            content = '<div class="restricted-label" style="cursor:pointer;" onclick="event.stopPropagation(); document.getElementById(\'platzrundenFootnote\').scrollIntoView({behavior:\'smooth\'});">*</div>';
+          }
+        }
+        html += `<div class="${cellClass}" onclick="openBooking('${a}','${slot}','${dk}', event)">${content}</div>`;
+      }
+    });
+  });
+
+  grid.innerHTML = html;
+
+  // Platzrunden-Legende unter dem Kalender
+  let legendEl = document.getElementById('platzrundenLegend');
+  if (!legendEl) {
+    legendEl = document.createElement('div');
+    legendEl.id = 'platzrundenLegend';
+    legendEl.className = 'platzrunden-legend';
+    grid.parentNode.insertBefore(legendEl, grid.nextSibling);
+  }
+  const info = getPlatzrundenInfo(dk);
+  legendEl.innerHTML = `
+    <div class="legend-item"><div class="legend-swatch" style="background:#43a047;"></div> Ohne Fluglehrer</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:#ef8c00;"></div> Mit Fluglehrer</div>
+    <span style="color: var(--gray-300);">|</span>
+    <div class="legend-item"><div class="legend-swatch swatch-open"></div> Platzrundenbetrieb MS/UL</div>
+    <div class="legend-item"><div class="legend-swatch swatch-restricted"></div> Keine Platzrunden in Unterwössen *</div>
+    <span style="color: var(--gray-300);">|</span>
+    <span>Mo–Fr: Platzrunden 08:00–12:00 &amp; 15:00–18:00</span>
+    <span style="color: var(--gray-300);">|</span>
+    <span>Sa: Platzrunden 08:00–12:00</span>
+    <span style="color: var(--gray-300);">|</span>
+    <span>So: ab 09:00, keine Platzrunden</span>
+  `;
+
+  // Fußnote
+  let footnoteEl = document.getElementById('platzrundenFootnote');
+  if (!footnoteEl) {
+    footnoteEl = document.createElement('div');
+    footnoteEl.id = 'platzrundenFootnote';
+    footnoteEl.style.cssText = 'padding: 8px 16px 12px; font-size: 12px; color: #999; line-height: 1.5;';
+    legendEl.parentNode.insertBefore(footnoteEl, legendEl.nextSibling);
+  }
+  footnoteEl.innerHTML = '<span style="color: var(--primary);">*</span> Platzrunden können problemlos an den umliegenden Flugplätzen (EDPK, EDNV, EDMY, EDME u.&thinsp;a.) geflogen werden — der Shuttle dorthin ist kurz.'
+    + '<br>Für Buchungen, die über diesen Kalender nicht möglich sind (längere Flüge, Übernachtungen, Sonderwünsche), meldet euch bitte bei uns: <a href="tel:+498641698787" style="color:var(--primary);text-decoration:none;font-weight:500;">+49 8641 698787</a> oder <a href="mailto:info@dassu.de" style="color:var(--primary);text-decoration:none;font-weight:500;">info@dassu.de</a>';
+}
+
+// Alias for backward compat
+function renderCalendar() { renderView(); }
+
+// ============================================================
+// BOOKING
+// ============================================================
+function updateTimeTo() {
+  const fromSel = document.getElementById('bookingTimeFrom');
+  const toSel = document.getElementById('bookingTimeTo');
+  const fromVal = fromSel.value;
+  const fromIdx = slotIndex(fromVal);
+  const prevTo = toSel.value;
+
+  toSel.innerHTML = '';
+  // End times: every 30 min after the start, max 4h (8 slots)
+  const maxSlots = 8;
+  const modal = document.getElementById('bookingModal');
+  const currentAircraft = modal._aircraft || document.getElementById('bookingAircraft').value;
+  let maxIdx = Math.min(fromIdx + maxSlots, TIME_POINTS.length - 1);
+  // D-MYIH: Endzeit darf nicht in den Schleppblock (10:00–13:30) hineinreichen
+  if (currentAircraft === 'D-MYIH') {
+    const fromMinutes = parseInt(fromVal.split(':')[0]) * 60 + parseInt(fromVal.split(':')[1]);
+    if (fromMinutes < 600) { // Start vor 10:00 → max bis 10:00
+      const towStartIdx = slotIndex('10:00');
+      if (towStartIdx > 0) maxIdx = Math.min(maxIdx, towStartIdx);
+    }
+  }
+  for (let i = fromIdx + 1; i <= maxIdx; i++) {
+    const opt = document.createElement('option');
+    opt.value = TIME_POINTS[i];
+    const duration = (i - fromIdx) * 30;
+    const hours = Math.floor(duration / 60);
+    const mins = duration % 60;
+    const durLabel = hours > 0 ? `${hours}h${mins > 0 ? mins + 'min' : ''}` : `${mins}min`;
+    opt.textContent = `${TIME_POINTS[i]}  (${durLabel})`;
+    toSel.appendChild(opt);
+  }
+  // Try to keep previous selection, otherwise default to +30min
+  if (prevTo && slotIndex(prevTo) > fromIdx && slotIndex(prevTo) <= maxIdx) {
+    toSel.value = prevTo;
+  }
+  checkConflictWarning();
+}
+
+function checkConflictWarning() {
+  const modal = document.getElementById('bookingModal');
+  const startTime = document.getElementById('bookingTimeFrom').value;
+  const endTime = document.getElementById('bookingTimeTo').value;
+  let warningEl = document.getElementById('conflictWarning');
+  if (!warningEl) {
+    warningEl = document.createElement('div');
+    warningEl.id = 'conflictWarning';
+    warningEl.style.cssText = 'background:var(--danger-light); color:var(--danger); padding:10px 14px; border-radius:var(--radius-sm); font-size:13px; font-weight:500; margin-bottom:12px; display:none;';
+    // Insert before the name field
+    const nameGroup = document.getElementById('bookingName').closest('.form-group');
+    nameGroup.parentNode.insertBefore(warningEl, nameGroup);
+  }
+  if (modal._aircraft && modal._date && startTime && endTime && slotIndex(endTime) > slotIndex(startTime)) {
+    if (hasConflict(modal._date, modal._aircraft, startTime, endTime)) {
+      warningEl.innerHTML = '⚠ Dieser Zeitraum ist bereits (teilweise) belegt. Bitte wähle eine andere Zeit.';
+      warningEl.style.display = 'block';
+      return;
+    }
+  }
+  warningEl.style.display = 'none';
+}
+
+function openBooking(aircraft, slot, date, evt) {
+  const existing = findBookingForSlot(date, slot, aircraft);
+  if (existing) {
+    showDetail(existing.id);
+    return;
+  }
+  // Vergangene Zeitslots blockieren (für Nicht-Admins)
+  const slotStart = slot.split(' - ')[0];
+  if (!adminLoggedIn) {
+    const now = new Date();
+    const todayStr = dateKey(now);
+    if (date < todayStr) return;
+    if (date === todayStr) {
+      const slotH = parseInt(slotStart.split(':')[0]);
+      const slotM = parseInt(slotStart.split(':')[1]);
+      if (slotH * 60 + slotM < now.getHours() * 60 + now.getMinutes()) {
+        notify('Dieser Zeitslot liegt in der Vergangenheit.', 'info');
+        return;
+      }
+    }
+  }
+  // Sonntag vor 09:00: nicht buchbar
+  const bookDate = new Date(date + 'T12:00:00');
+  if (bookDate.getDay() === 0 && slotStart < '09:00') {
+    notify('Sonntags ist eine Buchung erst ab 09:00 möglich.', 'info');
+    return;
+  }
+  // D-MYIH: Schleppbetrieb 10:00–13:30
+  if (isTowingBlocked(aircraft, slotStart)) {
+    notify('Die D-MYIH wird von 10:00–13:30 für den Schleppbetrieb benötigt. Anfragen für diesen Zeitraum bitte telefonisch: +49 8641 698787', 'info');
+    return;
+  }
+  // Admin: Schnellbuchung statt Formular
+  if (adminLoggedIn) {
+    openQuickBook(aircraft, slot, date, evt);
+    return;
+  }
+  document.getElementById('bookingAircraft').value = aircraft;
+  document.getElementById('bookingDate').value = formatDate(currentDate);
+
+  // Populate "From" dropdown — Sonntags erst ab 09:00, D-MYIH Schleppzeiten ausblenden
+  const fromSel = document.getElementById('bookingTimeFrom');
+  const toSel = document.getElementById('bookingTimeTo');
+  fromSel.innerHTML = '';
+  const bookingDate = new Date(date);
+  const isSunday = bookingDate.getDay() === 0;
+  const sundayStart = '09:00';
+  const clickedStart = slot.split(' - ')[0];
+  const morningBlock = getMorningBlock(aircraft, date, clickedStart);
+
+  if (morningBlock) {
+    // Fixer 2h-Block f&uuml;r D-KYCK/D-KYGL vormittags
+    fromSel.innerHTML = `<option value="${morningBlock.start}" selected>${morningBlock.start}</option>`;
+    toSel.innerHTML = `<option value="${morningBlock.end}" selected>${morningBlock.end}  (2h)</option>`;
+    fromSel.disabled = true;
+    toSel.disabled = true;
+  } else {
+    fromSel.disabled = false;
+    toSel.disabled = false;
+    for (let i = 0; i < TIME_POINTS.length - 1; i++) {
+      if (isSunday && TIME_POINTS[i] < sundayStart) continue;
+      if (isTowingBlocked(aircraft, TIME_POINTS[i])) continue;
+      // D-KYCK/D-KYGL Mo-Sa vormittags: 8-12 Uhr aus Dropdown ausschlie&szlig;en (nur 2h-Bl&ouml;cke)
+      const mbTest = getMorningBlock(aircraft, date, TIME_POINTS[i]);
+      if (mbTest) continue;
+      const opt = document.createElement('option');
+      opt.value = TIME_POINTS[i];
+      opt.textContent = TIME_POINTS[i];
+      fromSel.appendChild(opt);
+    }
+    if (isSunday && clickedStart < sundayStart) {
+      fromSel.value = sundayStart;
+    } else {
+      fromSel.value = clickedStart;
+    }
+    updateTimeTo();
+  }
+
+  document.getElementById('bookingName').value = '';
+  document.getElementById('bookingEmail').value = '';
+  document.getElementById('bookingPhone').value = '';
+  document.getElementById('bookingInstructor').value = 'nein';
+  document.getElementById('bookingConsent').checked = false;
+  document.getElementById('bookingModal').classList.add('active');
+  document.getElementById('bookingModal')._date = date;
+  document.getElementById('bookingModal')._aircraft = aircraft;
+  // Reset to step 1
+  document.getElementById('bookingStep1').style.display = 'block';
+  document.getElementById('bookingStep2').style.display = 'none';
+  // Check for conflicts
+  setTimeout(checkConflictWarning, 50);
+}
+
+function showBookingConfirmation() {
+  const name = document.getElementById('bookingName').value.trim();
+  const email = document.getElementById('bookingEmail').value.trim();
+  const phone = document.getElementById('bookingPhone').value.trim();
+  const instructor = document.getElementById('bookingInstructor').value;
+  const startTime = document.getElementById('bookingTimeFrom').value;
+  const endTime = document.getElementById('bookingTimeTo').value;
+  const modal = document.getElementById('bookingModal');
+
+  if (!name || !email || !phone) {
+    notify('Bitte Name, E-Mail und Telefon ausfüllen.', 'error');
+    return;
+  }
+  if (!document.getElementById('bookingConsent').checked) {
+    notify('Bitte stimme der Datenschutzerklärung zu.', 'error');
+    return;
+  }
+  if (!startTime || !endTime || slotIndex(endTime) <= slotIndex(startTime)) {
+    notify('Bitte gültige Zeiten wählen.', 'error');
+    return;
+  }
+  // Check for conflicts
+  if (hasConflict(modal._date, modal._aircraft, startTime, endTime)) {
+    notify('Dieser Zeitraum ist bereits (teilweise) belegt!', 'error');
+    return;
+  }
+
+  // Show confirmation step
+  const summaryHtml = `
+    <div style="display:grid; grid-template-columns:auto 1fr; gap:6px 16px; font-size:14px;">
+      <span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Flugzeug</span><span style="font-weight:600;">${modal._aircraft}</span>
+      <span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Datum</span><span>${document.getElementById('bookingDate').value}</span>
+      <span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Uhrzeit</span><span>${startTime} – ${endTime}</span>
+      <span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Name</span><span>${name}</span>
+      <span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">E-Mail</span><span>${email}</span>
+      ${phone ? `<span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Telefon</span><span>${phone}</span>` : ''}
+      <span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Fluglehrer</span><span>${instructor === 'ja' ? 'Ja, benötigt' : 'Nein'}</span>
+    </div>
+  `;
+  document.getElementById('bookingConfirmSummary').innerHTML = summaryHtml;
+  document.getElementById('bookingStep1').style.display = 'none';
+  document.getElementById('bookingStep2').style.display = 'block';
+}
+
+function submitBooking() {
+  const name = document.getElementById('bookingName').value.trim();
+  const email = document.getElementById('bookingEmail').value.trim();
+  const phone = document.getElementById('bookingPhone').value.trim();
+  const instructor = document.getElementById('bookingInstructor').value;
+  const startTime = document.getElementById('bookingTimeFrom').value;
+  const endTime = document.getElementById('bookingTimeTo').value;
+  const modal = document.getElementById('bookingModal');
+
+  const booking = {
+    id: 'b_' + Date.now() + '_' + Math.random().toString(36).substr(2,5),
+    cancelToken: Math.random().toString(36).substr(2,12),
+    aircraft: modal._aircraft,
+    date: modal._date,
+    startTime: startTime,
+    endTime: endTime,
+    name: name,
+    email: email,
+    phone: phone,
+    instructor: instructor,
+    status: 'pending',
+    createdAt: new Date().toISOString()
+  };
+
+  bookings.push(booking);
+  saveData();
+  closeModal('bookingModal');
+  // Reset steps for next time
+  document.getElementById('bookingStep1').style.display = 'block';
+  document.getElementById('bookingStep2').style.display = 'none';
+  renderCalendar();
+  notify(`Buchung ${startTime}–${endTime} angefragt! Du erhältst eine Bestätigung per E-Mail.`, 'success');
+
+  // Send admin notification + customer confirmation
+  sendAdminNotification(booking);
+  sendBookingReceivedEmail(booking);
+  sendStaffPushNotification(booking);
+}
+
+function sendStaffPushNotification(booking) {
+  try {
+    const time = (booking.startTime && booking.endTime) ? `${booking.startTime}–${booking.endTime}` : (booking.slot || '');
+    const title = 'Neue Buchungsanfrage';
+    const body = `${booking.name} · ${booking.aircraft} · ${booking.date} ${time}`;
+    fetch('/.netlify/functions/send-push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, body, bookingId: booking.id })
+    }).catch(e => console.warn('Push senden fehlgeschlagen:', e));
+  } catch(e) { console.warn(e); }
+}
+
+// ============================================================
+// BOOKING DETAIL
+// ============================================================
+function showDetail(id) {
+  const b = bookings.find(x => x.id === id);
+  if (!b) return;
+  detailBookingId = id;
+
+  const statusLabels = { pending: 'Ausstehend', approved: 'Bestätigt', rejected: 'Abgelehnt' };
+  const created = new Date(b.createdAt || b.timestamp);
+
+  const timeDisplay = b.startTime ? `${b.startTime} – ${b.endTime}` : (b.slot || '—');
+
+  let html = '';
+  if (adminLoggedIn) {
+    html += `
+      <div class="booking-detail"><div class="label">Flugzeug</div><div class="value">${b.aircraft}</div></div>
+      <div class="booking-detail"><div class="label">Datum</div><div class="value">${b.date}</div></div>
+      <div class="booking-detail"><div class="label">Uhrzeit</div><div class="value">${timeDisplay}</div></div>
+      <div class="booking-detail"><div class="label">Name</div><div class="value">${b.name}</div></div>
+      <div class="booking-detail"><div class="label">E-Mail</div><div class="value">${b.email}</div></div>
+      <div class="booking-detail"><div class="label">Telefon</div><div class="value">${b.phone || '—'}</div></div>
+      <div class="booking-detail"><div class="label">Fluglehrer</div><div class="value">${b.instructor === 'ja' ? (b.instructorName ? b.instructorName : 'Ja, benötigt') : 'Nein'}</div></div>
+      <div class="booking-detail"><div class="label">Status</div><div class="value"><span class="status-badge ${b.status}">${statusLabels[b.status]}</span></div></div>
+      <div class="booking-detail"><div class="label">Erstellt am</div><div class="value">${isNaN(created.getTime()) ? '—' : created.toLocaleDateString('de-DE') + ' ' + created.toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'})}</div></div>
+    `;
+  } else {
+    html += `
+      <div class="booking-detail"><div class="label">Flugzeug</div><div class="value">${b.aircraft}</div></div>
+      <div class="booking-detail"><div class="label">Datum</div><div class="value">${b.date}</div></div>
+      <div class="booking-detail"><div class="label">Uhrzeit</div><div class="value">${timeDisplay}</div></div>
+      <div class="booking-detail"><div class="label">Status</div><div class="value"><span class="status-badge ${b.status}">${statusLabels[b.status]}</span></div></div>
+      <p style="font-size:12px; color:var(--gray-500); margin-top:8px;">Persönliche Daten sind nur für Mitarbeiter sichtbar.</p>
+    `;
+  }
+
+  if (adminLoggedIn) {
+    html += `<div style="margin-top:16px; display:flex; gap:8px; flex-wrap:wrap;">`;
+    html += `<button class="btn btn-sm" style="background:var(--navy);color:white;" onclick="editBookingFromDetail('${b.id}')">Bearbeiten</button>`;
+    if (b.status !== 'approved') html += `<button class="btn btn-success btn-sm" onclick="updateStatus('${b.id}','approved')">Freischalten</button>`;
+    if (b.status !== 'rejected') html += `<button class="btn btn-danger btn-sm" onclick="updateStatus('${b.id}','rejected')">Ablehnen</button>`;
+    if (b.status !== 'pending') html += `<button class="btn btn-sm" onclick="updateStatus('${b.id}','pending')">Zurücksetzen</button>`;
+    html += `</div>`;
+    document.getElementById('detailDeleteBtn').style.display = 'inline-flex';
+  } else {
+    document.getElementById('detailDeleteBtn').style.display = 'none';
+  }
+
+  document.getElementById('detailContent').innerHTML = html;
+  document.getElementById('detailModal').classList.add('active');
+}
+
+function deleteBookingFromDetail() {
+  if (!detailBookingId) return;
+  if (!confirm('Buchung wirklich löschen?')) return;
+  bookings = bookings.filter(b => b.id !== detailBookingId);
+  saveData();
+  closeModal('detailModal');
+  renderCalendar();
+  renderAdminTable();
+  notify('Buchung gelöscht.', 'info');
+}
+
+function editBookingFromDetail(id) {
+  const b = bookings.find(x => x.id === id);
+  if (!b) return;
+
+  // Build aircraft options
+  const aircraftOpts = settings.aircraft.map(a =>
+    `<option value="${a}"${a === b.aircraft ? ' selected' : ''}>${a}</option>`
+  ).join('');
+
+  // Build time options
+  const fromOpts = TIME_POINTS.slice(0, -1).map(t =>
+    `<option value="${t}"${t === b.startTime ? ' selected' : ''}>${t}</option>`
+  ).join('');
+
+  const toOpts = TIME_POINTS.slice(1).map(t =>
+    `<option value="${t}"${t === b.endTime ? ' selected' : ''}>${t}</option>`
+  ).join('');
+
+  const instrSel = (val) => b.instructor === val ? ' selected' : '';
+
+  let html = `
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
+      <div><div class="label" style="font-size:10px;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:4px;">Flugzeug</div><select id="editAircraft" class="edit-field">${aircraftOpts}</select></div>
+      <div><div class="label" style="font-size:10px;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:4px;">Datum</div><input type="date" id="editDate" class="edit-field" value="${b.date}"></div>
+      <div><div class="label" style="font-size:10px;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:4px;">Von</div><select id="editFrom" class="edit-field">${fromOpts}</select></div>
+      <div><div class="label" style="font-size:10px;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:4px;">Bis</div><select id="editTo" class="edit-field">${toOpts}</select></div>
+    </div>
+    <div style="display:grid; gap:10px;">
+      <div><div class="label" style="font-size:10px;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:4px;">Name</div><input type="text" id="editName" class="edit-field" value="${b.name}"></div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <div><div class="label" style="font-size:10px;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:4px;">E-Mail</div><input type="email" id="editEmail" class="edit-field" value="${b.email || ''}"></div>
+        <div><div class="label" style="font-size:10px;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:4px;">Telefon</div><input type="tel" id="editPhone" class="edit-field" value="${b.phone || ''}"></div>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <div><div class="label" style="font-size:10px;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:4px;">Fluglehrer</div><select id="editInstructor" class="edit-field" onchange="document.getElementById('editInstructorNameRow').style.display = this.value === 'ja' ? '' : 'none';"><option value="nein"${instrSel('nein')}>Nein</option><option value="ja"${instrSel('ja')}>Ja</option></select></div>
+        <div id="editInstructorNameRow" style="display:${b.instructor === 'ja' ? '' : 'none'};"><div class="label" style="font-size:10px;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:4px;">Lehrer</div><input type="text" id="editInstructorName" class="edit-field" value="${b.instructorName || ''}" placeholder="Name (optional)"></div>
+      </div>
+    </div>
+    <div style="margin-top:16px; display:flex; gap:8px;">
+      <button class="btn btn-primary btn-sm" onclick="saveBookingEdit('${b.id}')">Speichern</button>
+      <button class="btn btn-sm" onclick="showDetail('${b.id}')">Abbrechen</button>
+    </div>
+  `;
+
+  document.getElementById('detailContent').innerHTML = html;
+  document.getElementById('detailDeleteBtn').style.display = 'none';
+}
+
+function saveBookingEdit(id) {
+  const b = bookings.find(x => x.id === id);
+  if (!b) return;
+
+  const newName = document.getElementById('editName').value.trim();
+  if (!newName) { notify('Name darf nicht leer sein.', 'error'); return; }
+
+  const newAircraft = document.getElementById('editAircraft').value;
+  const newDate = document.getElementById('editDate').value;
+  const newFrom = document.getElementById('editFrom').value;
+  const newTo = document.getElementById('editTo').value;
+
+  if (newFrom >= newTo) { notify('Endzeit muss nach Startzeit liegen.', 'error'); return; }
+
+  // Collision check (exclude current booking)
+  const fromIdx = slotIndex(newFrom);
+  const toIdx = slotIndex(newTo);
+  for (let i = fromIdx; i < toIdx; i++) {
+    const checkSlot = TIME_SLOTS[i];
+    const existing = findBookingForSlot(newDate, checkSlot, newAircraft);
+    if (existing && existing.id !== id) {
+      notify(`Konflikt: ${existing.name} hat bereits eine Buchung in diesem Zeitraum.`, 'error');
+      return;
+    }
+  }
+
+  b.aircraft = newAircraft;
+  b.date = newDate;
+  b.startTime = newFrom;
+  b.endTime = newTo;
+  b.slot = `${newFrom} - ${newTo}`;
+  b.name = newName;
+  b.email = document.getElementById('editEmail').value.trim();
+  b.phone = document.getElementById('editPhone').value.trim();
+  b.instructor = document.getElementById('editInstructor').value;
+  b.instructorName = b.instructor === 'ja' ? (document.getElementById('editInstructorName').value.trim() || '') : '';
+
+  saveData();
+  renderView();
+  renderAdminTable();
+  closeModal('detailModal');
+  notify('Buchung aktualisiert.', 'success');
+}
+
+function updateStatus(id, status) {
+  const b = bookings.find(x => x.id === id);
+  if (b) {
+    b.status = status;
+    saveData();
+    closeModal('detailModal');
+    renderCalendar();
+    renderAdminTable();
+    const labels = { approved: 'freigeschaltet', rejected: 'abgelehnt', pending: 'zurückgesetzt' };
+    notify(`Buchung ${labels[status]}.`, status === 'approved' ? 'success' : status === 'rejected' ? 'error' : 'info');
+
+    // Send email notification on approval or rejection
+    if (status === 'approved' || status === 'rejected') {
+      sendStatusEmail(b);
+    }
+  }
+}
+
+function isEmailConfigured() {
+  return settings.emailServiceId && settings.emailTemplateId && settings.emailPublicKey;
+}
+
+// Shared email layout builder
+function emailHeader() {
+  return `
+  <div style="padding: 40px 40px 0; text-align: center;">
+    <div style="font-family: 'Georgia', 'Times New Roman', serif; font-size: 26px; font-weight: 400; letter-spacing: 5px; color: #272727;">DASSU</div>
+    <div style="width: 40px; height: 2px; background: #3d9991; margin: 10px auto 8px;"></div>
+    <div style="font-family: Arial, Helvetica, sans-serif; font-size: 9px; letter-spacing: 2.5px; text-transform: uppercase; color: #999999;">Deutsche Alpensegelflugschule Unterwössen</div>
+  </div>`;
+}
+
+function emailBookingTable(booking) {
+  const timeDisplay = booking.startTime ? `${booking.startTime} – ${booking.endTime}` : (booking.slot || '');
+  const instructorText = booking.instructor === 'ja' ? (booking.instructorName || 'Ja, benötigt') : 'Nein';
+  return `
+    <table style="width: 100%; border-collapse: collapse; font-size: 14px; font-family: Arial, Helvetica, sans-serif;">
+      <tr><td style="padding: 10px 0; color: #999; border-bottom: 1px solid #f0f0f0; width: 120px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Flugzeug</td><td style="padding: 10px 0; border-bottom: 1px solid #f0f0f0; color: #272727; font-weight: 600;">${booking.aircraft}</td></tr>
+      <tr><td style="padding: 10px 0; color: #999; border-bottom: 1px solid #f0f0f0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Datum</td><td style="padding: 10px 0; border-bottom: 1px solid #f0f0f0; color: #272727; font-weight: 600;">${booking.date}</td></tr>
+      <tr><td style="padding: 10px 0; color: #999; border-bottom: 1px solid #f0f0f0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Uhrzeit</td><td style="padding: 10px 0; border-bottom: 1px solid #f0f0f0; color: #272727; font-weight: 600;">${timeDisplay}</td></tr>
+      <tr><td style="padding: 10px 0; color: #999; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Fluglehrer</td><td style="padding: 10px 0; color: #272727; font-weight: 600;">${instructorText}</td></tr>
+    </table>`;
+}
+
+function emailFooter() {
+  return `
+  <div style="margin: 0 40px; border-top: 1px solid #e8e8e8;"></div>
+  <div style="padding: 24px 40px 32px; text-align: center;">
+    <div style="font-family: 'Georgia', 'Times New Roman', serif; font-size: 13px; color: #272727; margin-bottom: 6px;">Deutsche Alpensegelflugschule Unterwössen e.V.</div>
+    <div style="font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #aaa; line-height: 1.8;">
+      <a href="tel:+498641698787" style="color: #3d9991; text-decoration: none;">+49 8641 698787</a>&nbsp;&nbsp;·&nbsp;&nbsp;<a href="mailto:info@dassu.de" style="color: #3d9991; text-decoration: none;">info@dassu.de</a>&nbsp;&nbsp;·&nbsp;&nbsp;<a href="https://www.dassu.de" style="color: #3d9991; text-decoration: none;">www.dassu.de</a>
+    </div>
+  </div>`;
+}
+
+function buildEmailParams(booking) {
+  const timeDisplay = booking.startTime ? `${booking.startTime} – ${booking.endTime}` : (booking.slot || '');
+  const statusText = booking.status === 'approved' ? 'bestätigt' : 'abgelehnt';
+  const instructorText = booking.instructor === 'ja' ? (booking.instructorName || 'Ja, benötigt') : 'Nein';
+  const statusColor = booking.status === 'approved' ? '#3d9991' : '#c0392b';
+  const statusLabel = booking.status === 'approved' ? 'Bestätigt' : 'Abgelehnt';
+
+  const message = `
+<div style="font-family: 'Georgia', 'Times New Roman', serif; max-width: 560px; margin: 0 auto; background: #ffffff;">
+  ${emailHeader()}
+
+  <!-- Status -->
+  <div style="text-align: center; padding: 28px 40px 8px;">
+    <div style="display: inline-block; padding: 6px 24px; border-radius: 20px; background: ${booking.status === 'approved' ? '#edf7f6' : '#fdf0ee'}; color: ${statusColor}; font-family: Arial, Helvetica, sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;">${statusLabel}</div>
+  </div>
+
+  <!-- Content -->
+  <div style="padding: 24px 40px 32px; color: #4a4a4a; line-height: 1.7;">
+    <p style="margin: 0 0 16px 0; font-size: 16px;">Hallo ${booking.name},</p>
+    <p style="margin: 0 0 24px 0; font-size: 15px; color: #666;">deine Buchung wurde <strong style="color: ${statusColor};">${statusText}</strong>.</p>
+
+    ${emailBookingTable(booking)}
+
+    <p style="margin: 24px 0 0 0; font-size: 14px; color: #888; font-family: Arial, Helvetica, sans-serif;">Bei Fragen erreichst du uns jederzeit.</p>
+    ${booking.status === 'approved' && booking.cancelToken ? `<div style="margin: 24px 0 0 0; padding: 14px 18px; background: #fafafa; border-radius: 6px; font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #999; line-height: 1.6; text-align: center;">
+      Du m&ouml;chtest stornieren? Klicke im Buchungskalender oben rechts auf <strong style="color:#666;">&bdquo;Stornieren&ldquo;</strong> und gib folgenden Code ein:<br>
+      <span style="display: inline-block; margin-top: 6px; padding: 6px 16px; background: #fff; border: 1px solid #e0e0e0; border-radius: 4px; font-family: monospace; font-size: 15px; letter-spacing: 2px; color: #272727; font-weight: 700;">${booking.cancelToken}</span>
+    </div>` : ''}
+  </div>
+
+  ${emailFooter()}
+</div>`;
+
+  return {
+    to_email: booking.email,
+    to_name: booking.name,
+    aircraft: booking.aircraft,
+    date: booking.date,
+    time: timeDisplay,
+    instructor: instructorText,
+    status_text: statusText,
+    sender_name: settings.senderName || 'DASSU - Alpensegelflugschule Unterwössen',
+    message: message
+  };
+}
+
+// ============================================================
+// ADMIN NOTIFICATION (new booking received)
+// ============================================================
+function sendAdminNotification(booking) {
+  if (!isEmailConfigured()) return;
+  const timeDisplay = booking.startTime ? `${booking.startTime} – ${booking.endTime}` : '';
+  const instructorText = booking.instructor === 'ja' ? (booking.instructorName || 'Ja, benötigt') : 'Nein';
+
+  const message = `
+<div style="font-family: 'Georgia', 'Times New Roman', serif; max-width: 560px; margin: 0 auto; background: #ffffff;">
+  ${emailHeader()}
+
+  <div style="text-align: center; padding: 28px 40px 8px;">
+    <div style="display: inline-block; padding: 6px 24px; border-radius: 20px; background: #fef8ec; color: #d4880f; font-family: Arial, Helvetica, sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;">Neue Anfrage</div>
+  </div>
+
+  <div style="padding: 24px 40px 32px; color: #4a4a4a; line-height: 1.7;">
+    <p style="margin: 0 0 20px 0; font-size: 15px; color: #666;">Neue Buchungsanfrage eingegangen:</p>
+
+    <table style="width: 100%; border-collapse: collapse; font-size: 14px; font-family: Arial, Helvetica, sans-serif;">
+      <tr><td style="padding: 10px 0; color: #999; border-bottom: 1px solid #f0f0f0; width: 120px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Flugzeug</td><td style="padding: 10px 0; border-bottom: 1px solid #f0f0f0; color: #272727; font-weight: 600;">${booking.aircraft}</td></tr>
+      <tr><td style="padding: 10px 0; color: #999; border-bottom: 1px solid #f0f0f0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Datum</td><td style="padding: 10px 0; border-bottom: 1px solid #f0f0f0; color: #272727; font-weight: 600;">${booking.date}</td></tr>
+      <tr><td style="padding: 10px 0; color: #999; border-bottom: 1px solid #f0f0f0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Uhrzeit</td><td style="padding: 10px 0; border-bottom: 1px solid #f0f0f0; color: #272727; font-weight: 600;">${timeDisplay}</td></tr>
+      <tr><td style="padding: 10px 0; color: #999; border-bottom: 1px solid #f0f0f0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Name</td><td style="padding: 10px 0; border-bottom: 1px solid #f0f0f0; color: #272727; font-weight: 600;">${booking.name}</td></tr>
+      <tr><td style="padding: 10px 0; color: #999; border-bottom: 1px solid #f0f0f0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">E-Mail</td><td style="padding: 10px 0; border-bottom: 1px solid #f0f0f0;"><a href="mailto:${booking.email}" style="color: #3d9991; text-decoration: none;">${booking.email}</a></td></tr>
+      <tr><td style="padding: 10px 0; color: #999; border-bottom: 1px solid #f0f0f0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Telefon</td><td style="padding: 10px 0; border-bottom: 1px solid #f0f0f0; color: #272727;">${booking.phone || '—'}</td></tr>
+      <tr><td style="padding: 10px 0; color: #999; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Fluglehrer</td><td style="padding: 10px 0; color: #272727; font-weight: 600;">${instructorText}</td></tr>
+    </table>
+
+    <div style="text-align: center; margin-top: 28px;">
+      <a href="${window.location.href.split('?')[0].split('#')[0]}#admin" style="display: inline-block; padding: 10px 28px; background: #3d9991; color: #fff; text-decoration: none; border-radius: 4px; font-family: Arial, sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 0.5px;">Im Admin-Bereich pr&uuml;fen</a>
+    </div>
+  </div>
+
+  ${emailFooter()}
+</div>`;
+
+  try {
+    emailjs.init(settings.emailPublicKey);
+    emailjs.send(settings.emailServiceId, settings.emailTemplateId, {
+      to_email: 'info@dassu.de',
+      to_name: 'DASSU Büro',
+      status_text: 'Neue Anfrage',
+      aircraft: booking.aircraft,
+      date: booking.date,
+      message: message
+    }).then(
+      () => console.log('Admin-Benachrichtigung gesendet.'),
+      (err) => console.error('Admin-Benachrichtigung fehlgeschlagen:', err)
+    );
+  } catch(e) { console.error('Admin-Benachrichtigung Fehler:', e); }
+}
+
+// ============================================================
+// BOOKING RECEIVED EMAIL (to customer)
+// ============================================================
+function sendBookingReceivedEmail(booking) {
+  if (!isEmailConfigured()) return;
+
+  const message = `
+<div style="font-family: 'Georgia', 'Times New Roman', serif; max-width: 560px; margin: 0 auto; background: #ffffff;">
+  ${emailHeader()}
+
+  <div style="text-align: center; padding: 28px 40px 8px;">
+    <div style="display: inline-block; padding: 6px 24px; border-radius: 20px; background: #fef8ec; color: #d4880f; font-family: Arial, Helvetica, sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;">Anfrage eingegangen</div>
+  </div>
+
+  <div style="padding: 24px 40px 32px; color: #4a4a4a; line-height: 1.7;">
+    <p style="margin: 0 0 16px 0; font-size: 16px;">Hallo ${booking.name},</p>
+    <p style="margin: 0 0 24px 0; font-size: 15px; color: #666;">vielen Dank f&uuml;r deine Buchungsanfrage! Wir haben folgende Daten erhalten:</p>
+
+    ${emailBookingTable(booking)}
+
+    <div style="background: #fafafa; border-left: 3px solid #d4880f; padding: 14px 18px; margin: 24px 0; font-family: Arial, Helvetica, sans-serif; font-size: 13px; line-height: 1.6; color: #666;">
+      <strong style="color: #4a4a4a;">Bitte beachte:</strong> Deine Buchung ist noch <strong style="color: #4a4a4a;">nicht best&auml;tigt</strong>. Wir pr&uuml;fen deine Anfrage und du erh&auml;ltst in K&uuml;rze eine separate E-Mail mit der endg&uuml;ltigen Best&auml;tigung.
+    </div>
+
+    <p style="margin: 0; font-size: 14px; color: #888; font-family: Arial, Helvetica, sans-serif;">Bei Fragen erreichst du uns jederzeit.</p>
+
+    <div style="margin: 24px 0 0 0; padding: 14px 18px; background: #fafafa; border-radius: 6px; font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #999; line-height: 1.6; text-align: center;">
+      Falls du stornieren m&ouml;chtest, klicke im Buchungskalender oben rechts auf <strong style="color:#666;">&bdquo;Stornieren&ldquo;</strong> und gib diesen Code ein:<br>
+      <span style="display: inline-block; margin-top: 6px; padding: 6px 16px; background: #fff; border: 1px solid #e0e0e0; border-radius: 4px; font-family: monospace; font-size: 15px; letter-spacing: 2px; color: #272727; font-weight: 700;">${booking.cancelToken}</span>
+    </div>
+  </div>
+
+  ${emailFooter()}
+</div>`;
+
+  try {
+    emailjs.init(settings.emailPublicKey);
+    emailjs.send(settings.emailServiceId, settings.emailTemplateId, {
+      to_email: booking.email,
+      to_name: booking.name,
+      status_text: 'Anfrage eingegangen',
+      aircraft: booking.aircraft,
+      date: booking.date,
+      message: message
+    }).then(
+      () => console.log('Eingangsbestätigung an Kunden gesendet.'),
+      (err) => console.error('Eingangsbestätigung fehlgeschlagen:', err)
+    );
+  } catch(e) { console.error('Eingangsbestätigung Fehler:', e); }
+}
+
+// ============================================================
+// CANCELLATION
+// ============================================================
+function cancelBookingByToken(token) {
+  const booking = bookings.find(b => b.cancelToken === token);
+  if (!booking) {
+    notify('Buchung nicht gefunden oder bereits storniert.', 'error');
+    return;
+  }
+  if (booking.status === 'rejected') {
+    notify('Diese Buchung wurde bereits abgelehnt.', 'info');
+    return;
+  }
+  booking.status = 'rejected';
+  booking.cancelledByUser = true;
+  saveData();
+  renderCalendar();
+  notify('Deine Buchung wurde erfolgreich storniert.', 'success');
+
+  // Notify admin + customer about cancellation
+  if (isEmailConfigured()) {
+    const timeDisplay = booking.startTime ? `${booking.startTime} – ${booking.endTime}` : '';
+    const adminMessage = `
+<div style="font-family: 'Georgia', 'Times New Roman', serif; max-width: 560px; margin: 0 auto; background: #ffffff;">
+  ${emailHeader()}
+  <div style="text-align: center; padding: 28px 40px 8px;">
+    <div style="display: inline-block; padding: 6px 24px; border-radius: 20px; background: #fdf0ee; color: #c0392b; font-family: Arial, Helvetica, sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;">Stornierung</div>
+  </div>
+  <div style="padding: 24px 40px 32px; color: #4a4a4a; line-height: 1.7;">
+    <p style="margin: 0 0 16px 0; font-size: 15px; color: #666;"><strong style="color: #272727;">${booking.name}</strong> hat folgende Buchung storniert:</p>
+    <p style="margin: 0; font-size: 15px; color: #272727; font-weight: 600;">${booking.aircraft} am ${booking.date}, ${timeDisplay}</p>
+  </div>
+  ${emailFooter()}
+</div>`;
+
+    const customerMessage = `
+<div style="font-family: 'Georgia', 'Times New Roman', serif; max-width: 560px; margin: 0 auto; background: #ffffff;">
+  ${emailHeader()}
+
+  <div style="text-align: center; padding: 28px 40px 8px;">
+    <div style="display: inline-block; padding: 6px 24px; border-radius: 20px; background: #fdf0ee; color: #c0392b; font-family: Arial, Helvetica, sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;">Storniert</div>
+  </div>
+
+  <div style="padding: 24px 40px 32px; color: #4a4a4a; line-height: 1.7;">
+    <p style="margin: 0 0 16px 0; font-size: 16px;">Hallo ${booking.name},</p>
+    <p style="margin: 0 0 24px 0; font-size: 15px; color: #666;">deine Buchung wurde erfolgreich storniert.</p>
+
+    <table style="width: 100%; border-collapse: collapse; font-size: 14px; font-family: Arial, Helvetica, sans-serif;">
+      <tr><td style="padding: 10px 0; color: #999; border-bottom: 1px solid #f0f0f0; width: 120px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Flugzeug</td><td style="padding: 10px 0; border-bottom: 1px solid #f0f0f0; color: #272727; font-weight: 600;">${booking.aircraft}</td></tr>
+      <tr><td style="padding: 10px 0; color: #999; border-bottom: 1px solid #f0f0f0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Datum</td><td style="padding: 10px 0; border-bottom: 1px solid #f0f0f0; color: #272727; font-weight: 600;">${booking.date}</td></tr>
+      <tr><td style="padding: 10px 0; color: #999; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Uhrzeit</td><td style="padding: 10px 0; color: #272727; font-weight: 600;">${timeDisplay}</td></tr>
+    </table>
+
+    <p style="margin: 24px 0 0 0; font-size: 14px; color: #888; font-family: Arial, Helvetica, sans-serif;">M&ouml;chtest du einen neuen Termin buchen? <a href="${window.location.href.split('?')[0].split('#')[0]}" style="color: #3d9991; text-decoration: none;">Zum Buchungskalender</a></p>
+  </div>
+
+  ${emailFooter()}
+</div>`;
+
+    try {
+      emailjs.init(settings.emailPublicKey);
+      // E-Mail an Admin
+      emailjs.send(settings.emailServiceId, settings.emailTemplateId, {
+        to_email: 'info@dassu.de',
+        to_name: 'DASSU Büro',
+        status_text: 'Storniert',
+        aircraft: booking.aircraft,
+        date: booking.date,
+        message: adminMessage
+      });
+      // E-Mail an Kunden
+      emailjs.send(settings.emailServiceId, settings.emailTemplateId, {
+        to_email: booking.email,
+        to_name: booking.name,
+        status_text: 'Storniert',
+        aircraft: booking.aircraft,
+        date: booking.date,
+        message: customerMessage
+      });
+    } catch(e) {}
+  }
+}
+
+let pendingCancelToken = null;
+
+// Check URL for cancel token on page load → show confirmation modal
+function checkCancelToken() {
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('cancel');
+  if (token) {
+    pendingCancelToken = token;
+    const booking = bookings.find(b => b.cancelToken === token);
+
+    if (!booking) {
+      const content = document.getElementById('cancelModalContent');
+      content.innerHTML = '<p style="color:var(--gray-500); margin-bottom:16px;">Diese Buchung wurde nicht gefunden oder bereits storniert.</p>';
+      document.getElementById('cancelConfirmBtn').style.display = 'none';
+      document.getElementById('cancelModal').classList.add('active');
+    } else if (booking.status === 'rejected') {
+      const content = document.getElementById('cancelModalContent');
+      content.innerHTML = '<p style="color:var(--gray-500); margin-bottom:16px;">Diese Buchung wurde bereits storniert oder abgelehnt.</p>';
+      document.getElementById('cancelConfirmBtn').style.display = 'none';
+      document.getElementById('cancelModal').classList.add('active');
+    } else {
+      showCancelConfirmation(booking);
+    }
+    // Clean URL
+    window.history.replaceState({}, '', window.location.pathname);
+  }
+}
+
+function confirmCancellation() {
+  if (pendingCancelToken) {
+    cancelBookingByToken(pendingCancelToken);
+    pendingCancelToken = null;
+    closeModal('cancelModal');
+  }
+}
+
+function lookupCancelCode() {
+  const code = document.getElementById('cancelCodeInput').value.trim();
+  const resultEl = document.getElementById('cancelInputResult');
+  if (!code) {
+    resultEl.innerHTML = '<span style="color:var(--danger); font-size:13px;">Bitte Stornierungscode eingeben.</span>';
+    return;
+  }
+  const booking = bookings.find(b => b.cancelToken === code);
+  if (!booking) {
+    resultEl.innerHTML = '<span style="color:var(--danger); font-size:13px;">Code nicht gefunden. Bitte pr&uuml;fe die Eingabe.</span>';
+    return;
+  }
+  if (booking.status === 'rejected') {
+    resultEl.innerHTML = '<span style="color:var(--gray-500); font-size:13px;">Diese Buchung wurde bereits storniert.</span>';
+    return;
+  }
+  // Found it — close input modal, open confirmation modal
+  closeModal('cancelInputModal');
+  document.getElementById('cancelCodeInput').value = '';
+  resultEl.innerHTML = '';
+  pendingCancelToken = code;
+  showCancelConfirmation(booking);
+}
+
+function showCancelConfirmation(booking) {
+  const content = document.getElementById('cancelModalContent');
+  const timeDisplay = booking.startTime ? `${booking.startTime} – ${booking.endTime}` : '';
+  content.innerHTML = `
+    <p style="color:var(--gray-600); margin-bottom:16px; font-size:14px;">M&ouml;chtest du die folgende Buchung wirklich stornieren?</p>
+    <div style="background:var(--gray-50); border:1px solid var(--gray-200); border-radius:var(--radius-sm); padding:16px; margin-bottom:20px; text-align:left;">
+      <div style="display:grid; grid-template-columns:auto 1fr; gap:6px 16px; font-size:14px;">
+        <span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Flugzeug</span><span style="font-weight:600;">${booking.aircraft}</span>
+        <span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Datum</span><span>${booking.date}</span>
+        <span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Uhrzeit</span><span>${timeDisplay}</span>
+        <span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Name</span><span>${booking.name}</span>
+      </div>
+    </div>
+  `;
+  document.getElementById('cancelConfirmBtn').style.display = 'inline-flex';
+  document.getElementById('cancelModal').classList.add('active');
+}
+
+function sendStatusEmail(booking) {
+  const params = buildEmailParams(booking);
+
+  if (isEmailConfigured()) {
+    try {
+      emailjs.init(settings.emailPublicKey);
+      emailjs.send(settings.emailServiceId, settings.emailTemplateId, params).then(
+        () => notify(`E-Mail an ${booking.email} gesendet!`, 'success'),
+        (err) => {
+          console.error('EmailJS Fehler:', err);
+          notify('E-Mail-Versand fehlgeschlagen. Öffne Outlook als Fallback.', 'error');
+          openMailtoFallback(booking, params);
+        }
+      );
+    } catch(e) {
+      console.error('EmailJS Fehler:', e);
+      openMailtoFallback(booking, params);
+    }
+  } else {
+    openMailtoFallback(booking, params);
+  }
+}
+
+function openMailtoFallback(booking, params) {
+  const subject = encodeURIComponent(`Buchung ${params.status_text}: ${params.aircraft} am ${params.date}`);
+  const body = encodeURIComponent(
+    `Hallo ${params.to_name},\n\n` +
+    `deine Flugzeug-Buchung wurde ${params.status_text}.\n\n` +
+    `Flugzeug: ${params.aircraft}\n` +
+    `Datum: ${params.date}\n` +
+    `Uhrzeit: ${params.time}\n` +
+    `Fluglehrer: ${params.instructor}\n\n` +
+    `Bei Fragen melde dich gerne bei uns.\n\n` +
+    `Viele Grüße\n${params.sender_name}\ninfo@dassu.de`
+  );
+  window.open(`mailto:${booking.email}?subject=${subject}&body=${body}`, '_blank');
+}
+
+function testEmail() {
+  const statusEl = document.getElementById('emailTestStatus');
+  const sid = document.getElementById('emailServiceId').value.trim();
+  const tid = document.getElementById('emailTemplateId').value.trim();
+  const pk = document.getElementById('emailPublicKey').value.trim();
+
+  if (!sid || !tid || !pk) {
+    statusEl.textContent = 'Bitte alle drei EmailJS-Felder ausfüllen.';
+    statusEl.style.color = 'var(--danger)';
+    return;
+  }
+
+  statusEl.textContent = 'Sende Test-E-Mail...';
+  statusEl.style.color = 'var(--gray-500)';
+
+  try {
+    emailjs.init(pk);
+    const testBooking = {
+      email: 'info@dassu.de',
+      name: 'DASSU Admin',
+      aircraft: 'D-KYGL (Testbuchung)',
+      date: new Date().toLocaleDateString('de-DE'),
+      startTime: '10:00',
+      endTime: '12:00',
+      instructor: 'nein',
+      status: 'approved'
+    };
+    const testParams = buildEmailParams(testBooking);
+    emailjs.send(sid, tid, testParams).then(
+      () => {
+        statusEl.textContent = 'Test erfolgreich! Prüfe den Posteingang von info@dassu.de.';
+        statusEl.style.color = 'var(--primary)';
+      },
+      (err) => {
+        console.error('Test fehlgeschlagen:', err);
+        statusEl.textContent = 'Fehler: ' + (err.text || err.message || 'Unbekannter Fehler');
+        statusEl.style.color = 'var(--danger)';
+      }
+    );
+  } catch(e) {
+    statusEl.textContent = 'Fehler: ' + e.message;
+    statusEl.style.color = 'var(--danger)';
+  }
+}
+
+// ============================================================
+// ADMIN
+// ============================================================
+function adminLogin() {
+  const pw = document.getElementById('adminPassword').value;
+  if (pw === settings.password) {
+    adminLoggedIn = true;
+    document.getElementById('adminLogin').style.display = 'none';
+    document.getElementById('adminDashboard').style.display = 'block';
+    renderAdminTable();
+    notify('Erfolgreich angemeldet.', 'success');
+  } else {
+    notify('Falsches Passwort.', 'error');
+  }
+}
+
+function adminLogout() {
+  adminLoggedIn = false;
+  document.getElementById('adminLogin').style.display = 'block';
+  document.getElementById('adminDashboard').style.display = 'none';
+  document.getElementById('adminPassword').value = '';
+}
+
+function filterBookings(filter, el) {
+  currentFilter = filter;
+  document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+  if (el) el.classList.add('active');
+  renderAdminTable();
+}
+
+function renderAdminTable() {
+  const tbody = document.getElementById('adminTableBody');
+  let filtered = [...bookings].sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+  if (currentFilter !== 'all') filtered = filtered.filter(b => b.status === currentFilter);
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:24px; color:var(--gray-400);">Keine Buchungen vorhanden.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(b => {
+    const statusLabels = { pending: 'Ausstehend', approved: 'Bestätigt', rejected: 'Abgelehnt' };
+    const timeDisplay = b.startTime ? `${b.startTime} – ${b.endTime}` : (b.slot || '—');
+    return `<tr>
+      <td>${b.date}</td>
+      <td>${timeDisplay}</td>
+      <td>${b.aircraft}</td>
+      <td>${b.name}</td>
+      <td>${b.email}${b.phone ? '<br>' + b.phone : ''}</td>
+      <td>${b.instructor === 'ja' ? '<strong style="color:var(--warning);">' + (b.instructorName || 'Ja') + '</strong>' : 'Nein'}</td>
+      <td><span class="status-badge ${b.status}">${statusLabels[b.status]}</span></td>
+      <td>
+        ${b.status !== 'approved' ? `<button class="btn btn-success btn-sm" onclick="updateStatus('${b.id}','approved')">&#10003;</button>` : ''}
+        ${b.status !== 'rejected' ? `<button class="btn btn-danger btn-sm" onclick="updateStatus('${b.id}','rejected')">&#10007;</button>` : ''}
+        <button class="btn btn-sm" onclick="showDetail('${b.id}')">&#128065;</button>
+        <button class="btn btn-sm" onclick="deleteBooking('${b.id}')">&#128465;</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function deleteBooking(id) {
+  if (!confirm('Buchung wirklich löschen?')) return;
+  bookings = bookings.filter(b => b.id !== id);
+  saveData();
+  renderCalendar();
+  renderAdminTable();
+  notify('Buchung gelöscht.', 'info');
+}
+
+// ============================================================
+// SETTINGS
+// ============================================================
+function showSettings() {
+  document.getElementById('newPassword').value = '';
+  document.getElementById('aircraftNames').value = settings.aircraft.join('\n');
+  document.getElementById('emailServiceId').value = settings.emailServiceId || '';
+  document.getElementById('emailTemplateId').value = settings.emailTemplateId || '';
+  document.getElementById('emailPublicKey').value = settings.emailPublicKey || '';
+  document.getElementById('senderName').value = settings.senderName || '';
+  document.getElementById('settingsModal').classList.add('active');
+}
+
+function saveSettings() {
+  const pw = document.getElementById('newPassword').value.trim();
+  if (pw) settings.password = pw;
+
+  const names = document.getElementById('aircraftNames').value.trim().split('\n').map(n => n.trim()).filter(n => n);
+  if (names.length > 0 && names.length <= 10) {
+    settings.aircraft = names;
+  } else if (names.length > 10) {
+    notify('Maximal 10 Flugzeuge möglich.', 'error');
+    return;
+  }
+
+  settings.emailServiceId = document.getElementById('emailServiceId').value.trim();
+  settings.emailTemplateId = document.getElementById('emailTemplateId').value.trim();
+  settings.emailPublicKey = document.getElementById('emailPublicKey').value.trim();
+  settings.senderName = document.getElementById('senderName').value.trim();
+
+  // Initialize EmailJS if credentials are set
+  if (settings.emailPublicKey) {
+    try { emailjs.init(settings.emailPublicKey); } catch(e) {}
+  }
+
+  saveData();
+  closeModal('settingsModal');
+  renderCalendar();
+  notify('Einstellungen gespeichert.', 'success');
+}
+
+// ============================================================
+// EXPORT
+// ============================================================
+function exportData() {
+  let csv = 'Datum,Von,Bis,Flugzeug,Name,Email,Telefon,Fluglehrer,Status,Erstellt\n';
+  bookings.forEach(b => {
+    const von = b.startTime || (b.slot ? b.slot.split(' - ')[0] : '');
+    const bis = b.endTime || (b.slot ? b.slot.split(' - ')[1] : '');
+    const instrCsv = b.instructor === 'ja' ? (b.instructorName || 'Ja') : 'Nein';
+    csv += `${b.date},${von},${bis},"${b.name}",${b.email},${b.phone || ''},${instrCsv},${b.status},${b.createdAt}\n`;
+  });
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `buchungen_export_${dateKey(new Date())}.csv`;
+  a.click();
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+function closeModal(id) {
+  document.getElementById(id).classList.remove('active');
+}
+
+function notify(msg, type) {
+  const el = document.getElementById('notification');
+  el.textContent = msg;
+  el.className = `notification ${type} show`;
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) overlay.classList.remove('active');
+  });
+});
+
+// ============================================================
+// INIT
+// ============================================================
+loadData();
+checkCancelToken();
+renderView();
+
+// Open admin view if #admin hash is in URL
+if (window.location.hash === '#admin') {
+  showView('admin');
+}
+
+// Hide loading screen
+// Datenschutz-Banner
+function acceptPrivacy() {
+  localStorage.setItem('dassu_privacy_accepted', 'true');
+  const banner = document.getElementById('privacyBanner');
+  if (banner) { banner.style.display = 'none'; }
+}
+function checkPrivacyBanner() {
+  if (!localStorage.getItem('dassu_privacy_accepted')) {
+    const banner = document.getElementById('privacyBanner');
+    if (banner) { banner.style.display = 'block'; }
+  }
+}
+
+window.addEventListener('load', () => {
+  const loader = document.getElementById('loadingScreen');
+  if (loader) {
+    setTimeout(() => {
+      loader.style.opacity = '0';
+      setTimeout(() => loader.remove(), 400);
+    }, 300);
+  }
+  checkPrivacyBanner();
+});
+
+// ============================================================
+// SCHNELLBUCHUNG (Admin Quick-Book)
+// ============================================================
+let quickBookPopup = null;
+
+function openQuickBook(aircraft, slot, date, event) {
+  closeQuickBook();
+  const slotStart = slot.split(' - ')[0];
+  // Build popup
+  const popup = document.createElement('div');
+  popup.className = 'quick-book-popup';
+  popup.id = 'quickBookPopup';
+
+  // Position near click
+  const rect = event.target.getBoundingClientRect();
+  let top = rect.bottom + 4;
+  let left = rect.left;
+  if (top + 220 > window.innerHeight) top = rect.top - 220;
+  if (left + 260 > window.innerWidth) left = window.innerWidth - 270;
+  popup.style.top = top + 'px';
+  popup.style.left = left + 'px';
+
+  // Determine available start times (respect Sunday / towing rules)
+  const bookDate = new Date(date + 'T12:00:00');
+  const isSunday = bookDate.getDay() === 0;
+  let fromOptions = '';
+  let toOptions = '';
+  for (let i = 0; i < TIME_POINTS.length - 1; i++) {
+    if (isSunday && TIME_POINTS[i] < '09:00') continue;
+    fromOptions += `<option value="${TIME_POINTS[i]}"${TIME_POINTS[i] === slotStart ? ' selected' : ''}>${TIME_POINTS[i]}</option>`;
+  }
+
+  popup.innerHTML = `
+    <h4>Schnellbuchung · ${aircraft}</h4>
+    <input type="text" id="qbName" placeholder="Name eingeben" autofocus>
+    <input type="text" id="qbInstructor" placeholder="Fluglehrer (optional)" style="margin-top:4px;">
+    <div class="quick-book-row">
+      <select id="qbFrom" onchange="updateQbTo()">${fromOptions}</select>
+      <select id="qbTo"></select>
+    </div>
+    <div class="quick-book-actions">
+      <button class="btn btn-sm" onclick="closeQuickBook()">Esc</button>
+      <button class="btn btn-primary btn-sm" onclick="submitQuickBook()">Buchen</button>
+    </div>
+  `;
+  popup._aircraft = aircraft;
+  popup._date = date;
+
+  document.body.appendChild(popup);
+  quickBookPopup = popup;
+
+  // Focus name input
+  setTimeout(() => {
+    document.getElementById('qbName').focus();
+    updateQbTo();
+  }, 50);
+
+  // Enter = submit, Escape = close
+  popup.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); submitQuickBook(); }
+    if (e.key === 'Escape') { closeQuickBook(); }
+  });
+}
+
+function updateQbTo() {
+  const fromVal = document.getElementById('qbFrom').value;
+  const fromIdx = slotIndex(fromVal);
+  const toSel = document.getElementById('qbTo');
+  const prevTo = toSel.value;
+  toSel.innerHTML = '';
+  // Max 4h, aber im Admin kein hartes Limit — bis 18:00
+  for (let i = fromIdx + 1; i < TIME_POINTS.length; i++) {
+    const duration = (i - fromIdx) * 30;
+    const hours = Math.floor(duration / 60);
+    const mins = duration % 60;
+    const durLabel = hours > 0 ? `${hours}h${mins > 0 ? mins + 'min' : ''}` : `${mins}min`;
+    toSel.innerHTML += `<option value="${TIME_POINTS[i]}">${TIME_POINTS[i]} (${durLabel})</option>`;
+  }
+  if (prevTo && slotIndex(prevTo) > fromIdx) toSel.value = prevTo;
+}
+
+function submitQuickBook() {
+  const name = document.getElementById('qbName').value.trim();
+  if (!name) { document.getElementById('qbName').style.borderColor = 'var(--danger)'; return; }
+  const startTime = document.getElementById('qbFrom').value;
+  const endTime = document.getElementById('qbTo').value;
+  const popup = document.getElementById('quickBookPopup');
+  const aircraft = popup._aircraft;
+  const date = popup._date;
+
+  // Collision check: ensure no existing bookings in the selected range
+  const fromIdx = slotIndex(startTime);
+  const toIdx = slotIndex(endTime);
+  for (let i = fromIdx; i < toIdx; i++) {
+    const checkSlot = TIME_SLOTS[i];
+    const existing = findBookingForSlot(date, checkSlot, aircraft);
+    if (existing) {
+      notify(`Konflikt: ${existing.name} hat bereits eine Buchung in diesem Zeitraum.`, 'error');
+      return;
+    }
+  }
+
+  // Fluglehrer (optional)
+  const instructorName = document.getElementById('qbInstructor').value.trim();
+  const hasInstructor = instructorName.length > 0;
+
+  // Create booking directly as approved, no email
+  const booking = {
+    id: Date.now().toString(36) + Math.random().toString(36).substr(2, 4),
+    aircraft: aircraft,
+    date: date,
+    slot: `${startTime} - ${endTime}`,
+    startTime: startTime,
+    endTime: endTime,
+    name: name,
+    email: '',
+    phone: '',
+    instructor: hasInstructor ? 'ja' : 'nein',
+    instructorName: hasInstructor ? instructorName : '',
+    status: 'approved',
+    cancelToken: '',
+    quickBook: true, // Flag: Admin-Schnellbuchung
+    createdAt: new Date().toISOString()
+  };
+  bookings.push(booking);
+  saveData();
+  closeQuickBook();
+  renderView();
+  notify(`${name} gebucht: ${aircraft} ${startTime}–${endTime}`, 'success');
+}
+
+function closeQuickBook() {
+  const popup = document.getElementById('quickBookPopup');
+  if (popup) popup.remove();
+  quickBookPopup = null;
+}
+
+// Close quick-book on outside click
+document.addEventListener('click', (e) => {
+  if (quickBookPopup && !quickBookPopup.contains(e.target) && !e.target.closest('.grid-cell')) {
+    closeQuickBook();
+  }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+{
+  "name": "DASSU Staff Buchungskalender",
+  "short_name": "DASSU Staff",
+  "description": "Mitarbeiter-App für den DASSU Buchungskalender",
+  "start_url": "/staff.html",
+  "display": "standalone",
+  "background_color": "#0c1b2e",
+  "theme_color": "#0c1b2e",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://images.squarespace-cdn.com/content/v1/5a6084aad0e628eab9591587/66b4214a-b88b-427c-8350-c5907ffdcda4/DASSU-Logo+2022+web+768x768+2.png?format=192w",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://images.squarespace-cdn.com/content/v1/5a6084aad0e628eab9591587/66b4214a-b88b-427c-8350-c5907ffdcda4/DASSU-Logo+2022+web+768x768+2.png?format=512w",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
