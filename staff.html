@@ -875,7 +875,7 @@ function attachSwipeHandlers() {
     const canApprove = wrap.getAttribute('data-can-approve') === '1';
     let startX = 0, startY = 0, currentX = 0, dragging = false, horizontal = false, didSwipe = false;
 
-    const getThreshold = () => Math.min(160, wrap.offsetWidth * 0.45);
+    const getThreshold = () => Math.min(110, wrap.offsetWidth * 0.3);
 
     function onStart(e) {
       const t = e.touches ? e.touches[0] : e;
@@ -908,9 +908,9 @@ function attachSwipeHandlers() {
       const id = wrap.getAttribute('data-id');
 
       if (canApprove && currentX < -threshold) {
-        // Best\u00e4tigen
-        wrap.classList.add('completing-approve');
+        // Best\u00e4tigen — mit slide-out Animation
         item.style.transform = '';
+        wrap.classList.add('completing-approve');
         setTimeout(() => {
           const b = bookings.find(x => x.id === id);
           if (b) {
@@ -920,13 +920,10 @@ function attachSwipeHandlers() {
           }
         }, 180);
       } else if (currentX > threshold) {
-        // Bearbeiten
-        wrap.classList.add('completing-edit');
-        setTimeout(() => {
-          item.style.transform = '';
-          wrap.classList.remove('completing-edit', 'show-edit');
-          openEdit(id);
-        }, 180);
+        // Bearbeiten — direkt \u00f6ffnen, kein Slide-out
+        item.style.transform = '';
+        wrap.classList.remove('show-approve', 'show-edit');
+        openEdit(id);
       } else {
         item.style.transform = '';
         wrap.classList.remove('show-approve', 'show-edit');
