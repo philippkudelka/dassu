@@ -1007,9 +1007,12 @@
 <!-- Theorie-Admin Modal -->
 <div class="modal-overlay" id="theoryAdminModal">
   <div class="modal" style="max-width:960px; width:96vw; max-height:90vh; display:flex; flex-direction:column;">
-    <h3 style="margin-bottom:8px;">Theoriestunden &ndash; &Uuml;bersicht &amp; Abrechnung</h3>
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:8px; flex-wrap:wrap;">
+      <h3 style="margin:0;">Theoriestunden &ndash; &Uuml;bersicht &amp; Abrechnung</h3>
+      <button class="btn btn-primary btn-sm" onclick="theoryAdminOpenForm()">+ Neue Theoriestunde</button>
+    </div>
     <p style="font-size:12px; color:var(--gray-500); margin-bottom:14px; line-height:1.5;">
-      Alle erfassten Theoriestunden. Filter einstellen und bei Bedarf als CSV exportieren.
+      Alle erfassten Theoriestunden. Filter einstellen, auf eine Zeile klicken zum Bearbeiten, oder als CSV exportieren.
     </p>
 
     <!-- Filter -->
@@ -1058,6 +1061,58 @@
     <div style="display:flex; gap:8px; justify-content:space-between; margin-top:14px; flex-wrap:wrap;">
       <button class="btn btn-primary btn-sm" onclick="exportTheoryCsv()">CSV exportieren</button>
       <button class="btn btn-sm" onclick="closeModal('theoryAdminModal')">Schlie&szlig;en</button>
+    </div>
+  </div>
+</div>
+
+<!-- Theorie-Erfassen/Bearbeiten Modal -->
+<div class="modal-overlay" id="theoryFormModal">
+  <div class="modal" style="max-width:520px;">
+    <h3 id="theoryFormTitleAdmin" style="margin-bottom:14px;">Neue Theoriestunde</h3>
+    <input type="hidden" id="theoryFormEditIdAdmin">
+
+    <div class="form-group">
+      <label>Lehrer *</label>
+      <select id="theoryFormTeacher" style="width:100%; padding:10px; border:1px solid var(--gray-300); border-radius:4px; font-family:var(--font-ui); font-size:14px; background:white;">
+        <option value="">— bitte wählen —</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Schüler *</label>
+      <input type="text" id="theoryFormStudent" placeholder="Name des Schülers" list="theoryFormStudentSugg" style="width:100%; padding:10px; border:1px solid var(--gray-300); border-radius:4px; font-family:var(--font-ui); font-size:14px;">
+      <datalist id="theoryFormStudentSugg"></datalist>
+    </div>
+    <div class="form-group">
+      <label>Thema / Inhalt</label>
+      <input type="text" id="theoryFormTopic" placeholder="z.B. Meteorologie – Fronten" list="theoryFormTopicSugg" style="width:100%; padding:10px; border:1px solid var(--gray-300); border-radius:4px; font-family:var(--font-ui); font-size:14px;">
+      <datalist id="theoryFormTopicSugg"></datalist>
+    </div>
+    <div class="form-group">
+      <label>Datum *</label>
+      <input type="date" id="theoryFormDate" style="width:100%; padding:10px; border:1px solid var(--gray-300); border-radius:4px; font-family:var(--font-ui); font-size:14px;">
+    </div>
+    <div style="display:flex; gap:12px;">
+      <div class="form-group" style="flex:1;">
+        <label>Von *</label>
+        <input type="time" id="theoryFormStart" style="width:100%; padding:10px; border:1px solid var(--gray-300); border-radius:4px; font-family:var(--font-ui); font-size:14px;">
+      </div>
+      <div class="form-group" style="flex:1;">
+        <label>Bis *</label>
+        <input type="time" id="theoryFormEnd" style="width:100%; padding:10px; border:1px solid var(--gray-300); border-radius:4px; font-family:var(--font-ui); font-size:14px;">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Notiz (optional)</label>
+      <textarea id="theoryFormNotes" rows="2" placeholder="Details, Besonderheiten..." style="width:100%; padding:10px; border:1px solid var(--gray-300); border-radius:4px; font-family:var(--font-ui); font-size:14px; resize:vertical;"></textarea>
+    </div>
+    <div id="theoryFormErrorAdmin" style="color:var(--danger); font-size:13px; margin-bottom:10px; display:none;"></div>
+
+    <div style="display:flex; gap:8px; justify-content:space-between; margin-top:16px; flex-wrap:wrap;">
+      <button id="theoryFormDeleteBtnAdmin" class="btn btn-danger btn-sm" onclick="theoryAdminDelete()" style="display:none;">Löschen</button>
+      <div style="display:flex; gap:8px; margin-left:auto;">
+        <button class="btn btn-sm" onclick="closeModal('theoryFormModal')">Abbrechen</button>
+        <button class="btn btn-primary btn-sm" onclick="theoryAdminSave()">Speichern</button>
+      </div>
     </div>
   </div>
 </div>
@@ -2925,7 +2980,7 @@ function renderTheoryAdmin() {
     body.innerHTML = rows.map(t => {
       const dateFmt = t.date ? new Date(t.date + 'T12:00:00').toLocaleDateString('de-DE') : '';
       const time = t.startTime && t.endTime ? `${t.startTime}–${t.endTime}` : '';
-      return `<tr>
+      return `<tr style="cursor:pointer;" onclick="theoryAdminOpenForm('${t.id}')" title="Zum Bearbeiten klicken">
         <td style="white-space:nowrap;">${theoryEscapeHtml(dateFmt)}</td>
         <td style="white-space:nowrap; font-variant-numeric: tabular-nums;">${time}</td>
         <td style="white-space:nowrap; font-weight:600; color:var(--primary);">${theoryFormatDuration(t.duration || 0)}</td>
@@ -2982,6 +3037,137 @@ function exportTheoryCsv() {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
   notify(`${rows.length} Einträge exportiert.`, 'success');
+}
+
+// --- Admin: Theoriestunden erstellen / bearbeiten / löschen ---
+
+function theoryMinutesBetween(start, end) {
+  if (!start || !end) return 0;
+  const [sh, sm] = start.split(':').map(Number);
+  const [eh, em] = end.split(':').map(Number);
+  return Math.max(0, (eh * 60 + em) - (sh * 60 + sm));
+}
+
+function theoryAdminOpenForm(id) {
+  const modal = document.getElementById('theoryFormModal');
+  const title = document.getElementById('theoryFormTitleAdmin');
+  const err = document.getElementById('theoryFormErrorAdmin');
+  const delBtn = document.getElementById('theoryFormDeleteBtnAdmin');
+  const teacherSel = document.getElementById('theoryFormTeacher');
+
+  err.style.display = 'none';
+
+  // Lehrer-Dropdown mit allen aktiven Usern füllen
+  const teachers = (typeof staffUsers !== 'undefined' ? staffUsers : []).slice()
+    .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  teacherSel.innerHTML = '<option value="">— bitte wählen —</option>' +
+    teachers.map(u => `<option value="${u.id}" data-name="${theoryEscapeHtml(u.name)}">${theoryEscapeHtml(u.name)}</option>`).join('');
+
+  // Vorschlagslisten
+  const uniqStudents = [...new Set(theoryLessons.map(t => t.studentName).filter(Boolean))].sort();
+  const uniqTopics = [...new Set(theoryLessons.map(t => t.topic).filter(Boolean))].sort();
+  document.getElementById('theoryFormStudentSugg').innerHTML = uniqStudents.map(s => `<option value="${theoryEscapeHtml(s)}">`).join('');
+  document.getElementById('theoryFormTopicSugg').innerHTML = uniqTopics.map(s => `<option value="${theoryEscapeHtml(s)}">`).join('');
+
+  if (id) {
+    const t = theoryLessons.find(x => x.id === id);
+    if (!t) { notify('Eintrag nicht gefunden.', 'error'); return; }
+    title.textContent = 'Theoriestunde bearbeiten';
+    document.getElementById('theoryFormEditIdAdmin').value = id;
+    teacherSel.value = t.teacherId || '';
+    // Falls der Lehrer nicht mehr in staffUsers ist, als Option hinzufügen
+    if (t.teacherId && !teachers.find(u => u.id === t.teacherId)) {
+      const opt = document.createElement('option');
+      opt.value = t.teacherId;
+      opt.textContent = (t.teacherName || '(gelöschter Nutzer)') + ' *';
+      opt.setAttribute('data-name', t.teacherName || '');
+      opt.selected = true;
+      teacherSel.appendChild(opt);
+    }
+    document.getElementById('theoryFormStudent').value = t.studentName || '';
+    document.getElementById('theoryFormTopic').value = t.topic || '';
+    document.getElementById('theoryFormDate').value = t.date || '';
+    document.getElementById('theoryFormStart').value = t.startTime || '';
+    document.getElementById('theoryFormEnd').value = t.endTime || '';
+    document.getElementById('theoryFormNotes').value = t.notes || '';
+    delBtn.style.display = '';
+  } else {
+    title.textContent = 'Neue Theoriestunde';
+    document.getElementById('theoryFormEditIdAdmin').value = '';
+    teacherSel.value = '';
+    document.getElementById('theoryFormStudent').value = '';
+    document.getElementById('theoryFormTopic').value = '';
+    // Datum: heute
+    const now = new Date();
+    const iso = now.toISOString().split('T')[0];
+    document.getElementById('theoryFormDate').value = iso;
+    document.getElementById('theoryFormStart').value = '';
+    document.getElementById('theoryFormEnd').value = '';
+    document.getElementById('theoryFormNotes').value = '';
+    delBtn.style.display = 'none';
+  }
+  modal.classList.add('active');
+}
+
+function theoryAdminSave() {
+  const err = document.getElementById('theoryFormErrorAdmin');
+  const id = document.getElementById('theoryFormEditIdAdmin').value;
+  const teacherSel = document.getElementById('theoryFormTeacher');
+  const teacherId = teacherSel.value;
+  const teacherOpt = teacherSel.options[teacherSel.selectedIndex];
+  const teacherName = teacherOpt ? (teacherOpt.getAttribute('data-name') || teacherOpt.textContent) : '';
+  const student = document.getElementById('theoryFormStudent').value.trim();
+  const topic = document.getElementById('theoryFormTopic').value.trim();
+  const date = document.getElementById('theoryFormDate').value;
+  const startTime = document.getElementById('theoryFormStart').value;
+  const endTime = document.getElementById('theoryFormEnd').value;
+  const notes = document.getElementById('theoryFormNotes').value.trim();
+
+  const show = msg => { err.textContent = msg; err.style.display = ''; };
+  err.style.display = 'none';
+  if (!teacherId) return show('Bitte Lehrer wählen.');
+  if (!student) return show('Bitte Schüler angeben.');
+  if (!date) return show('Bitte Datum angeben.');
+  if (!startTime || !endTime) return show('Bitte Von- und Bis-Zeit angeben.');
+  const duration = theoryMinutesBetween(startTime, endTime);
+  if (duration <= 0) return show('Bis-Zeit muss nach Von-Zeit liegen.');
+
+  const now = Date.now();
+  const payload = {
+    teacherId: teacherId,
+    teacherName: teacherName,
+    studentName: student,
+    topic: topic,
+    date: date,
+    startTime: startTime,
+    endTime: endTime,
+    duration: duration,
+    notes: notes,
+    updatedAt: now,
+  };
+
+  if (id) {
+    db.ref('theoryLessons/' + id).update(payload);
+    notify('Theoriestunde aktualisiert.', 'success');
+  } else {
+    const newId = 't' + now.toString(36) + Math.random().toString(36).slice(2, 6);
+    payload.id = newId;
+    payload.createdAt = now;
+    db.ref('theoryLessons/' + newId).set(payload);
+    notify('Theoriestunde gespeichert.', 'success');
+  }
+  closeModal('theoryFormModal');
+}
+
+function theoryAdminDelete() {
+  const id = document.getElementById('theoryFormEditIdAdmin').value;
+  if (!id) return;
+  const t = theoryLessons.find(x => x.id === id);
+  if (!t) return;
+  if (!confirm(`Theoriestunde "${t.studentName} – ${t.topic || ''}" wirklich löschen?`)) return;
+  db.ref('theoryLessons/' + id).remove();
+  notify('Eintrag gelöscht.', 'info');
+  closeModal('theoryFormModal');
 }
 
 function showSettings() {
