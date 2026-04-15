@@ -35,7 +35,7 @@
   }
 
   // Registrierung mit Einladungs-Check
-  // Gibt {ok:true, profile} zurück wenn erfolgreich, sonst {ok:false, error}
+  // Reihenfolge: Firebase Auth zuerst, dann Einladung prüfen (damit Rules auth-required sein können).
   async function signUpWithInvitation(email, password, displayName) {
     email = (email || '').trim().toLowerCase();
     if (!email || !password) return { ok: false, error: 'E-Mail und Passwort sind Pflicht.' };
@@ -43,19 +43,11 @@
     const auth = firebase.auth();
     const db = firebase.database();
 
-    // 1. Prüfen ob es eine Einladung gibt (unauth read, Firebase Rules müssen das erlauben)
-    const invSnap = await db.ref('invitations/' + emailKey(email)).once('value');
-    const inv = invSnap.val();
-    if (!inv) {
-      return { ok: false, error: 'Keine Einladung für diese E-Mail gefunden. Bitte wende dich an den Admin.' };
-    }
-
-    // 2. Firebase Auth Account erstellen
+    // 1. Firebase Auth Account erstellen (User ist danach eingeloggt)
     let cred;
     try {
       cred = await auth.createUserWithEmailAndPassword(email, password);
     } catch (e) {
-      // Falls Account schon existiert: versuchen einzuloggen (kann sein dass jemand doppelt registriert)
       if (e.code === 'auth/email-already-in-use') {
         return { ok: false, error: 'Für diese E-Mail gibt es bereits einen Account. Bitte einloggen oder Passwort zurücksetzen.' };
       }
@@ -64,7 +56,26 @@
 
     const uid = cred.user.uid;
 
-    // 3. Profil in staffUsers anlegen
+    // 2. Einladung prüfen (jetzt authed, Rules können auth != null verlangen)
+    let inv;
+    try {
+      const invSnap = await db.ref('invitations/' + emailKey(email)).once('value');
+      inv = invSnap.val();
+    } catch (e) {
+      // Zugriff verweigert – Auth-Account wieder löschen
+      try { await cred.user.delete(); } catch (_) {}
+      return { ok: false, error: 'Einladung konnte nicht geprüft werden: ' + e.message };
+    }
+
+    if (!inv) {
+      // Keine Einladung – Auth-Account wieder löschen
+      try { await cred.user.delete(); } catch (_) {
+        try { await auth.signOut(); } catch (_) {}
+      }
+      return { ok: false, error: 'Keine Einladung für diese E-Mail gefunden. Bitte wende dich an den Admin.' };
+    }
+
+    // 3. Profil in staffUsers anlegen + Einladung verbrauchen
     const profile = {
       id: uid,
       name: (displayName || inv.name || '').trim() || email,
@@ -74,11 +85,8 @@
     };
     try {
       await db.ref('staffUsers/' + uid).set(profile);
-      // Einladung verbrauchen
       await db.ref('invitations/' + emailKey(email)).remove();
     } catch (e) {
-      // Wenn wir das staffUsers-Profil nicht speichern können, ist der Auth-Account unbrauchbar.
-      // Versuchen ihn zu löschen (nur möglich solange eingeloggt).
       try { await cred.user.delete(); } catch (_) {}
       return { ok: false, error: 'Profil konnte nicht gespeichert werden: ' + e.message };
     }
