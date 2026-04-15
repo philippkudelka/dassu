@@ -2669,22 +2669,25 @@ function staffMgmtTogglePerms(id) {
 }
 
 function staffMgmtRenderPermsPanel(u) {
+  const isAdm = u.role === 'admin';
+  const roleLabel = roleMeta(u.role).label;
   const rows = DASSU_PERMISSIONS.map(p => {
     const effective = hasPermission(u, staffUsers, p.key);
-    const explicit = isPermissionExplicit(u, p.key);
-    const hint = explicit ? '' : ` <small style="display:block;font-size:10px;color:var(--gray-500);font-weight:400;margin-top:1px;">(Standard für ${u.role === 'admin' ? 'Admin' : 'Staff'})</small>`;
-    const toggleStyle = effective
-      ? 'background:var(--primary);'
-      : 'background:var(--gray-300);';
+    const explicit = !isAdm && isPermissionExplicit(u, p.key);
+    const hint = isAdm
+      ? ` <small style="display:block;font-size:10px;color:var(--gray-500);font-weight:400;margin-top:1px;">(Admin hat immer alle Rechte)</small>`
+      : (explicit ? '' : ` <small style="display:block;font-size:10px;color:var(--gray-500);font-weight:400;margin-top:1px;">(Standard für ${roleLabel})</small>`);
+    const toggleStyle = (effective ? 'background:var(--primary);' : 'background:var(--gray-300);') + (isAdm ? 'opacity:0.5;cursor:not-allowed;' : 'cursor:pointer;');
     const knobPos = effective ? 'left:18px;' : 'left:2px;';
+    const clickHandler = isAdm ? '' : `onclick="staffMgmtTogglePermission('${u.id}','${p.key}')"`;
     return `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px dashed var(--gray-200);">
       <div style="font-size:13px;color:var(--dark);">
         <div style="font-weight:600;">${p.label}</div>
         <div style="font-size:11px;color:var(--gray-500);font-weight:400;margin-top:2px;">${p.desc}</div>
         ${hint}
       </div>
-      <div onclick="staffMgmtTogglePermission('${u.id}','${p.key}')"
-           style="position:relative;width:38px;height:22px;border-radius:22px;cursor:pointer;transition:background 0.15s;flex-shrink:0;${toggleStyle}">
+      <div ${clickHandler}
+           style="position:relative;width:38px;height:22px;border-radius:22px;transition:background 0.15s;flex-shrink:0;${toggleStyle}">
         <div style="position:absolute;top:2px;${knobPos}width:18px;height:18px;background:white;border-radius:50%;transition:left 0.15s;box-shadow:0 1px 2px rgba(0,0,0,0.2);"></div>
       </div>
     </div>`;
@@ -2713,22 +2716,28 @@ function renderStaffMgmt() {
   });
   el.innerHTML = sorted.map(u => {
     const isAdm = u.role === 'admin';
-    const canDemote = isAdm && adminCount > 1;
+    const lockedToAdmin = isAdm && adminCount === 1;
     const canDelete = !(isAdm && adminCount === 1);
     const initial = (u.name || '?').charAt(0).toUpperCase();
+    const meta = roleMeta(u.role);
     const badge = isAdm
       ? '<span style="display:inline-block; background:#c9a84c; color:#0c1b2e; font-size:9px; font-weight:800; padding:2px 7px; border-radius:8px; margin-left:8px; letter-spacing:0.06em; text-transform:uppercase;">Admin</span>'
-      : '<span style="display:inline-block; background:var(--gray-200); color:var(--gray-600); font-size:9px; font-weight:700; padding:2px 7px; border-radius:8px; margin-left:8px; letter-spacing:0.06em; text-transform:uppercase;">Staff</span>';
+      : `<span style="display:inline-block; background:var(--gray-200); color:var(--gray-600); font-size:9px; font-weight:700; padding:2px 7px; border-radius:8px; margin-left:8px; letter-spacing:0.06em; text-transform:uppercase;">${meta.short || meta.label}</span>`;
+    const roleOpts = DASSU_ROLES.filter(r => !r.legacy || r.id === u.role);
+    const selectHtml = `<select ${lockedToAdmin ? 'disabled title="Mindestens ein Admin muss bleiben"' : ''}
+        onchange="staffMgmtSetRole('${u.id}', this.value)"
+        style="font-size:12px; padding:4px 8px; border:1px solid var(--gray-300); border-radius:4px; background:white; color:var(--dark); margin-top:4px;">
+      ${roleOpts.map(r => `<option value="${r.id}" ${u.role === r.id ? 'selected' : ''}>${r.label}</option>`).join('')}
+    </select>`;
     const permsOpen = staffMgmtExpandedPerms.has(u.id);
     return `<div style="display:flex; align-items:center; gap:12px; padding:10px 12px; background:var(--gray-50); border-radius:6px; border:1px solid var(--gray-200); flex-wrap:wrap;">
       <div style="width:34px; height:34px; border-radius:50%; background:var(--primary); color:white; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; flex-shrink:0;">${initial}</div>
       <div style="flex:1; min-width:0;">
         <div style="font-weight:600; font-size:14px; color:var(--dark);">${u.name}${badge}</div>
+        ${selectHtml}
       </div>
       <div style="display:flex; gap:6px; flex-wrap:wrap;">
         <button class="btn btn-sm" onclick="staffMgmtTogglePerms('${u.id}')">${permsOpen ? 'Rechte ▲' : 'Rechte ▼'}</button>
-        ${!isAdm ? `<button class="btn btn-sm" onclick="staffMgmtSetRole('${u.id}','admin')">&rarr; Admin</button>` : ''}
-        ${canDemote ? `<button class="btn btn-sm" onclick="staffMgmtSetRole('${u.id}','staff')">&rarr; Staff</button>` : ''}
         ${canDelete ? `<button class="btn btn-sm btn-danger" onclick="staffMgmtDelete('${u.id}')">L\u00f6schen</button>` : ''}
       </div>
       ${permsOpen ? staffMgmtRenderPermsPanel(u) : ''}
@@ -2754,7 +2763,7 @@ function staffMgmtAdd() {
   const user = {
     id: Date.now().toString(36) + Math.random().toString(36).substr(2, 3),
     name: name,
-    role: staffUsers.length === 0 ? 'admin' : 'staff'
+    role: staffUsers.length === 0 ? 'admin' : 'team'
   };
   db.ref('staffUsers/' + user.id).set(user);
   input.value = '';
@@ -2764,9 +2773,13 @@ function staffMgmtAdd() {
 function staffMgmtSetRole(id, role) {
   const user = staffUsers.find(u => u.id === id);
   if (!user) return;
-  if (role === 'staff' && user.role === 'admin') {
+  if (user.role === 'admin' && role !== 'admin') {
     const adminCount = staffUsers.filter(u => u.role === 'admin').length;
-    if (adminCount <= 1) { notify('Mindestens ein Admin muss bleiben.', 'error'); return; }
+    if (adminCount <= 1) {
+      notify('Mindestens ein Admin muss bleiben.', 'error');
+      renderStaffMgmt();
+      return;
+    }
   }
   db.ref('staffUsers/' + id + '/role').set(role);
   notify('Rolle aktualisiert.', 'success');

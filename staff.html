@@ -83,21 +83,26 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
 
 /* Overview Grid */
 .overview { padding: 0 0 100px; }
-.overview-grid { display: grid; grid-template-columns: 42px repeat(5, 1fr); width: 100%; }
-.ov-corner { background: white; padding: 6px 2px; border-bottom: 2px solid #e8eaed; }
-.ov-aircraft-header { background: white; padding: 8px 2px; text-align: center; border-bottom: 2px solid #e8eaed; }
-.ov-aircraft-header img { width: 36px; height: 22px; object-fit: cover; border-radius: 4px; display: block; margin: 0 auto 3px; }
-.ov-aircraft-header .ov-reg { font-size: 9px; font-weight: 700; color: var(--navy); letter-spacing: 0.02em; white-space: nowrap; }
-.ov-time { font-size: 9px; font-weight: 600; color: var(--gray-500); padding: 0 2px; display: flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums; border-right: 1px solid #f0f0f0; min-height: 36px; }
-.ov-cell { min-height: 36px; border-bottom: 1px solid #f5f5f5; border-right: 1px solid #f5f5f5; position: relative; cursor: pointer; transition: background 0.1s; }
+.overview-grid { display: grid; grid-template-columns: 54px repeat(5, 1fr); width: 100%; background: white; }
+.ov-corner { background: white; padding: 6px 2px; border-bottom: 2px solid var(--navy); border-right: 2px solid var(--navy); }
+.ov-aircraft-header { background: white; padding: 8px 2px; text-align: center; border-bottom: 2px solid var(--navy); }
+.ov-aircraft-header + .ov-aircraft-header { border-left: 1px solid #e8eaed; }
+.ov-aircraft-header img { width: 40px; height: 24px; object-fit: cover; border-radius: 4px; display: block; margin: 0 auto 3px; }
+.ov-aircraft-header .ov-reg { font-size: 10px; font-weight: 700; color: var(--navy); letter-spacing: 0.02em; white-space: nowrap; }
+.ov-time { font-size: 11px; font-weight: 700; color: var(--navy); padding: 0 4px; display: flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums; border-right: 2px solid var(--navy); border-bottom: 1px solid #e8eaed; min-height: 38px; background: var(--gray-100); }
+.ov-time.ov-hour { border-bottom-color: var(--gray-400); font-size: 12px; color: var(--navy); }
+.ov-time.ov-half { color: var(--gray-500); font-weight: 600; font-size: 10px; }
+.ov-cell { min-height: 38px; border-bottom: 1px solid #e8eaed; border-right: 1px solid #eef0f2; position: relative; cursor: pointer; transition: background 0.1s; }
+.ov-cell.ov-hour { border-bottom-color: var(--gray-400); }
+.ov-cell.ov-half { background: #fafbfc; }
 .ov-cell:active { background: rgba(61,153,145,0.08); }
-.ov-cell.ov-booked { background: #e8f5e9; }
-.ov-cell.ov-booked.ov-pending { background: #faf6eb; }
-.ov-cell.ov-booked.ov-instructor { background: #fff3e0; }
-.ov-cell.ov-booked.ov-pending.ov-instructor { background: #ffe9c2; }
-.ov-cell.ov-towing { background: #f5f5f5; }
-.ov-cell .ov-name { position: absolute; top: 2px; left: 3px; right: 3px; font-size: 8px; font-weight: 700; color: #333; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ov-cell .ov-meta { position: absolute; bottom: 1px; left: 3px; font-size: 7px; color: var(--gray-500); }
+.ov-cell.ov-booked { background: #d4ecd7 !important; }
+.ov-cell.ov-booked.ov-pending { background: #f5ebc4 !important; }
+.ov-cell.ov-booked.ov-instructor { background: #ffe4b8 !important; }
+.ov-cell.ov-booked.ov-pending.ov-instructor { background: #ffd999 !important; }
+.ov-cell.ov-towing { background: #ececec !important; }
+.ov-cell .ov-name { position: absolute; top: 3px; left: 4px; right: 4px; font-size: 10px; font-weight: 700; color: #1a1a1a; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ov-cell .ov-meta { position: absolute; bottom: 2px; left: 4px; right: 4px; font-size: 9px; color: var(--gray-600); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Manage View */
 .manage { padding: 12px 16px 100px; }
@@ -262,6 +267,9 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
 .user-mgmt-row .um-avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: var(--navy); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .user-mgmt-row .um-info { flex: 1; min-width: 120px; }
 .user-mgmt-row .um-name { font-size: 14px; font-weight: 600; color: var(--navy); }
+.user-mgmt-row .um-role { margin-top: 4px; }
+.role-select { font-size: 12px; font-family: var(--font); padding: 4px 22px 4px 8px; border: 1px solid var(--gray-300); border-radius: 6px; background: white; color: var(--navy); cursor: pointer; -webkit-appearance: none; appearance: none; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='%230c1b2e' d='M0 0l5 6 5-6z'/></svg>"); background-repeat: no-repeat; background-position: right 6px center; }
+.role-select:disabled { opacity: 0.6; cursor: not-allowed; }
 .user-mgmt-row .um-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 .user-mgmt-row .um-actions button { padding: 6px 10px; border-radius: 6px; border: none; font-size: 11px; font-weight: 600; cursor: pointer; font-family: var(--font); }
 .btn-mg-promote { background: var(--accent); color: var(--navy); }
@@ -508,8 +516,10 @@ function hasAdmin() {
 }
 
 function roleBadge(role) {
+  const meta = roleMeta(role);
   if (role === 'admin') return '<span class="role-badge">Admin</span>';
-  return '';
+  if (!role) return '';
+  return `<span class="role-badge staff">${meta.short || meta.label}</span>`;
 }
 
 function loadCurrentUser() {
@@ -551,7 +561,7 @@ function addUser() {
   const user = {
     id: Date.now().toString(36),
     name: name,
-    role: staffUsers.length === 0 ? 'admin' : 'staff'
+    role: staffUsers.length === 0 ? 'admin' : 'team'
   };
   db.ref('staffUsers/' + user.id).set(user);
   input.value = '';
@@ -581,19 +591,36 @@ function togglePermsPanel(id) {
 }
 
 function renderPermsPanel(u) {
+  const isAdm = u.role === 'admin';
+  const roleLabel = roleMeta(u.role).label;
   const rows = DASSU_PERMISSIONS.map(p => {
     const effective = hasPermission(u, staffUsers, p.key);
-    const explicit = isPermissionExplicit(u, p.key);
-    const hint = explicit ? '' : ' <small>(Standard für ' + (u.role === 'admin' ? 'Admin' : 'Staff') + ')</small>';
+    const explicit = !isAdm && isPermissionExplicit(u, p.key);
+    const hint = isAdm
+      ? ' <small>(Admin hat immer alle Rechte)</small>'
+      : (explicit ? '' : ' <small>(Standard für ' + roleLabel + ')</small>');
+    const toggleCls = 'perm-toggle' + (effective ? ' on' : '') + (isAdm ? ' disabled' : '');
+    const onClick = isAdm ? '' : `onclick="togglePermission('${u.id}','${p.key}')"`;
     return `<div class="perm-row">
       <div class="perm-label">${p.label}${hint}<small>${p.desc}</small></div>
-      <div class="perm-toggle ${effective ? 'on' : ''}" onclick="togglePermission('${u.id}','${p.key}')"></div>
+      <div class="${toggleCls}" ${onClick}></div>
     </div>`;
   }).join('');
   return `<div class="perms-panel open">
     <div class="perms-hint">Individuelle Rechte überschreiben die Rollen-Standardwerte. Zum Zurücksetzen auf Standard lange auf den Schalter tippen.</div>
     ${rows}
   </div>`;
+}
+
+function renderRoleSelect(u, lockedToAdmin) {
+  // Alle nicht-Legacy-Rollen + falls der User aktuell eine Legacy-Rolle hat,
+  // diese zusätzlich als auswählbar anzeigen (damit die Anzeige stimmt).
+  const opts = DASSU_ROLES.filter(r => !r.legacy || r.id === u.role);
+  const disabled = lockedToAdmin ? 'disabled' : '';
+  const title = lockedToAdmin ? 'title="Mindestens ein Admin muss bleiben"' : '';
+  return `<select class="role-select" ${disabled} ${title} onchange="setUserRole('${u.id}', this.value)">
+    ${opts.map(r => `<option value="${r.id}" ${u.role === r.id ? 'selected' : ''}>${r.label}</option>`).join('')}
+  </select>`;
 }
 
 function renderUserMgmt() {
@@ -603,18 +630,17 @@ function renderUserMgmt() {
   el.innerHTML = staffUsers.map(u => {
     const isAdm = u.role === 'admin';
     const isMe = currentUser && u.id === currentUser.id;
-    const canDemote = isAdm && !(isMe && adminCount === 1);
+    const lockedToAdmin = isAdm && adminCount === 1;
     const canDelete = !isMe && !(isAdm && adminCount === 1);
     const permsOpen = expandedPerms.has(u.id);
     return `<div class="user-mgmt-row">
       <div class="um-avatar">${u.name.charAt(0).toUpperCase()}</div>
       <div class="um-info">
         <div class="um-name">${u.name}${roleBadge(u.role)}${isMe ? ' <span style="font-size:10px;color:var(--gray-500);">(du)</span>' : ''}</div>
+        <div class="um-role">${renderRoleSelect(u, lockedToAdmin)}</div>
       </div>
       <div class="um-actions">
         <button class="btn-mg-perms" onclick="togglePermsPanel('${u.id}')">${permsOpen ? 'Rechte ▲' : 'Rechte ▼'}</button>
-        ${!isAdm ? `<button class="btn-mg-promote" onclick="setUserRole('${u.id}','admin')">&rarr; Admin</button>` : ''}
-        ${canDemote ? `<button class="btn-mg-demote" onclick="setUserRole('${u.id}','staff')">&rarr; Staff</button>` : ''}
         ${canDelete ? `<button class="btn-mg-delete" onclick="deleteStaffUser('${u.id}')">L\u00f6schen</button>` : ''}
       </div>
       ${permsOpen ? renderPermsPanel(u) : ''}
@@ -648,9 +674,13 @@ function setUserRole(id, role) {
   if (!isAdmin()) return;
   const user = staffUsers.find(u => u.id === id);
   if (!user) return;
-  if (role === 'staff' && user.role === 'admin') {
+  if (user.role === 'admin' && role !== 'admin') {
     const adminCount = staffUsers.filter(u => u.role === 'admin').length;
-    if (adminCount <= 1) { notify('Mindestens ein Admin muss bleiben.', 'error'); return; }
+    if (adminCount <= 1) {
+      notify('Mindestens ein Admin muss bleiben.', 'error');
+      renderUserMgmt(); // select zurücksetzen
+      return;
+    }
   }
   db.ref('staffUsers/' + id + '/role').set(role);
   notify('Rolle aktualisiert.', 'success');
@@ -946,7 +976,9 @@ function renderOverview() {
   });
 
   TIME_POINTS.slice(0, -1).forEach(tp => {
-    html += `<div class="ov-time">${tp}</div>`;
+    const isHour = tp.endsWith(':00');
+    const rowCls = isHour ? 'ov-hour' : 'ov-half';
+    html += `<div class="ov-time ${rowCls}">${tp}</div>`;
     AIRCRAFT.forEach(a => {
       const entry = lookup[a][tp];
       if (entry) {
@@ -954,11 +986,11 @@ function renderOverview() {
         const pendingCls = entry.status === 'pending' ? ' ov-pending' : '';
         const nameHtml = entry.isFirst ? `<span class="ov-name">${entry.name}</span>` : '';
         const metaHtml = entry.isFirst && entry.instructorName ? `<span class="ov-meta">${entry.instructorName}</span>` : '';
-        html += `<div class="ov-cell ov-booked${instrCls}${pendingCls}" onclick="showDetail('${entry.id}')">${nameHtml}${metaHtml}</div>`;
+        html += `<div class="ov-cell ${rowCls} ov-booked${instrCls}${pendingCls}" onclick="showDetail('${entry.id}')">${nameHtml}${metaHtml}</div>`;
       } else if (isTowingBlocked(a, tp)) {
-        html += `<div class="ov-cell ov-towing"></div>`;
+        html += `<div class="ov-cell ${rowCls} ov-towing"></div>`;
       } else {
-        html += `<div class="ov-cell" onclick="switchToBook('${a}','${tp}')"></div>`;
+        html += `<div class="ov-cell ${rowCls}" onclick="switchToBook('${a}','${tp}')"></div>`;
       }
     });
   });
