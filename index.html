@@ -1011,8 +1011,12 @@
         <select id="invRole" style="padding:10px; border:1px solid var(--gray-300); border-radius:4px; font-family:var(--font-ui); font-size:14px; background:white;"></select>
         <button class="btn btn-primary btn-sm" onclick="createInvitation()">Einladung anlegen</button>
       </div>
-      <div style="font-size:11px; color:var(--gray-500); margin-top:8px; line-height:1.4;">
-        Der Mitarbeiter erhält einen Link zu <code style="background:var(--gray-100); padding:1px 4px; border-radius:3px;">welcome.html</code>, auf dem er sich mit seiner E-Mail registrieren kann.
+      <div style="margin-top:8px; display:flex; align-items:center; gap:6px;">
+        <input type="checkbox" id="invSendEmail" checked>
+        <label for="invSendEmail" style="font-size:12px; color:var(--gray-600);">Einladungs-Mail direkt verschicken (EmailJS)</label>
+      </div>
+      <div style="font-size:11px; color:var(--gray-500); margin-top:6px; line-height:1.4;">
+        Ohne Mail-Versand: Link über den „Link kopieren"-Button teilen.
       </div>
     </div>
 
@@ -1195,8 +1199,15 @@ info@dassu.de</div>
       <input type="text" id="emailServiceId" placeholder="service_abc123">
     </div>
     <div class="form-group">
-      <label>EmailJS Template-ID</label>
+      <label>EmailJS Template-ID (Buchungen)</label>
       <input type="text" id="emailTemplateId" placeholder="template_xyz789">
+    </div>
+    <div class="form-group">
+      <label>EmailJS Template-ID (Mitarbeiter-Einladungen)</label>
+      <input type="text" id="emailInviteTemplateId" placeholder="template_invite_abc">
+      <small style="display:block;margin-top:4px;color:var(--gray-500);font-size:11px;line-height:1.4;">
+        Eigenes Template mit den Variablen <code>{{to_name}}</code>, <code>{{to_email}}</code>, <code>{{invitation_link}}</code>, <code>{{role}}</code>, <code>{{inviter_name}}</code>.
+      </small>
     </div>
     <div class="form-group">
       <label>EmailJS Public Key</label>
@@ -2921,12 +2932,17 @@ function renderInvitations() {
   el.innerHTML = invitations.map(inv => {
     const link = `${window.location.origin}/welcome.html?email=${encodeURIComponent(inv.email || '')}`;
     const roleLabel = (typeof roleMeta === 'function' ? roleMeta(inv.role).label : inv.role);
+    const sentInfo = inv.sentAt
+      ? `<div style="font-size:10px;color:#1e7b4e;margin-top:2px;">✉ Mail gesendet: ${new Date(inv.sentAt).toLocaleString('de-DE')}</div>`
+      : '';
     return `<div style="display:flex; align-items:center; gap:10px; padding:10px 12px; background:#fff8e1; border:1px solid #f0e0a0; border-radius:6px; flex-wrap:wrap;">
       <div style="flex:1; min-width:180px;">
         <div style="font-size:14px; font-weight:600; color:var(--dark);">${escapeAttr(inv.name || '—')} <span style="color:var(--gray-500); font-weight:400; font-size:12px;">(${escapeAttr(inv.email || '')})</span></div>
         <div style="font-size:11px; color:var(--gray-600); margin-top:2px;">Rolle: ${escapeAttr(roleLabel)}</div>
+        ${sentInfo}
       </div>
       <div style="display:flex; gap:6px; flex-wrap:wrap;">
+        <button class="btn btn-sm btn-primary" onclick="sendInvitationEmail('${inv.key}')" title="Einladungs-Mail verschicken">${inv.sentAt ? 'Mail erneut senden' : 'Mail senden'}</button>
         <button class="btn btn-sm" onclick="copyInvitationLink('${escapeAttr(link)}')" title="Einladungs-Link kopieren">Link kopieren</button>
         <button class="btn btn-sm btn-danger" onclick="deleteInvitation('${inv.key}')">Löschen</button>
       </div>
@@ -2958,10 +2974,20 @@ function createInvitation() {
     name: name,
     role: role,
     createdAt: Date.now()
-  }).then(() => {
+  }).then(async () => {
     nameEl.value = '';
     emailEl.value = '';
-    notify(`Einladung für ${name} angelegt. Link kopieren und per E-Mail schicken.`, 'success');
+    const sendCheckbox = document.getElementById('invSendEmail');
+    if (sendCheckbox && sendCheckbox.checked) {
+      if (settings.emailServiceId && settings.emailInviteTemplateId && settings.emailPublicKey) {
+        notify(`Einladung für ${name} angelegt. Sende Mail...`, 'info');
+        await sendInvitationEmail(key);
+      } else {
+        notify(`Einladung für ${name} angelegt. ⚠ Einladungs-Template fehlt in Einstellungen – Link bitte manuell kopieren.`, 'info');
+      }
+    } else {
+      notify(`Einladung für ${name} angelegt. Link kopieren und verschicken.`, 'success');
+    }
   }).catch(e => notify('Fehler: ' + e.message, 'error'));
 }
 
@@ -2976,6 +3002,35 @@ function copyInvitationLink(link) {
     () => notify('Link kopiert! Jetzt per E-Mail / WhatsApp an den Mitarbeiter schicken.', 'success'),
     () => notify('Kopieren fehlgeschlagen. Link: ' + link, 'error')
   );
+}
+
+// Einladungs-E-Mail via EmailJS senden
+async function sendInvitationEmail(invKey) {
+  const inv = invitations.find(i => i.key === invKey);
+  if (!inv) return notify('Einladung nicht gefunden.', 'error');
+  if (!settings.emailServiceId || !settings.emailInviteTemplateId || !settings.emailPublicKey) {
+    notify('EmailJS ist nicht vollständig konfiguriert. Bitte Einstellungen prüfen (Einladungs-Template-ID fehlt).', 'error');
+    return;
+  }
+  const link = `${window.location.origin}/welcome.html?email=${encodeURIComponent(inv.email)}`;
+  const roleLabel = (typeof roleMeta === 'function' ? roleMeta(inv.role).label : inv.role);
+  try {
+    emailjs.init(settings.emailPublicKey);
+    await emailjs.send(settings.emailServiceId, settings.emailInviteTemplateId, {
+      to_name: inv.name || '',
+      to_email: inv.email || '',
+      invitation_link: link,
+      role: roleLabel,
+      inviter_name: settings.senderName || 'DASSU',
+      reply_to: 'info@dassu.de'
+    });
+    // Mark as sent
+    db.ref('invitations/' + invKey + '/sentAt').set(Date.now());
+    notify(`Einladungs-Mail an ${inv.email} verschickt.`, 'success');
+  } catch (e) {
+    console.error('Invite-Mail Fehler:', e);
+    notify('Mail-Versand fehlgeschlagen: ' + (e.text || e.message || 'Unbekannter Fehler'), 'error');
+  }
 }
 
 function staffMgmtSetRole(id, role) {
@@ -3271,6 +3326,7 @@ function showSettings() {
   document.getElementById('aircraftNames').value = settings.aircraft.join('\n');
   document.getElementById('emailServiceId').value = settings.emailServiceId || '';
   document.getElementById('emailTemplateId').value = settings.emailTemplateId || '';
+  document.getElementById('emailInviteTemplateId').value = settings.emailInviteTemplateId || '';
   document.getElementById('emailPublicKey').value = settings.emailPublicKey || '';
   document.getElementById('senderName').value = settings.senderName || '';
   document.getElementById('settingsModal').classList.add('active');
@@ -3290,6 +3346,7 @@ function saveSettings() {
 
   settings.emailServiceId = document.getElementById('emailServiceId').value.trim();
   settings.emailTemplateId = document.getElementById('emailTemplateId').value.trim();
+  settings.emailInviteTemplateId = document.getElementById('emailInviteTemplateId').value.trim();
   settings.emailPublicKey = document.getElementById('emailPublicKey').value.trim();
   settings.senderName = document.getElementById('senderName').value.trim();
 
