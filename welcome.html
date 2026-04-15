@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0c1b2e">
+<title>DASSU Staff – Willkommen</title>
+<link rel="icon" type="image/png" href="https://images.squarespace-cdn.com/content/v1/5a6084aad0e628eab9591587/66b4214a-b88b-427c-8350-c5907ffdcda4/DASSU-Logo+2022+web+768x768+2.png?format=32w">
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="shared/auth.js"></script>
+<style>
+:root {
+  --primary: #3d9991;
+  --primary-dark: #2d7a73;
+  --accent: #c9a84c;
+  --navy: #0c1b2e;
+  --navy-light: #132640;
+  --danger: #b83232;
+  --gray-100: #f2f4f7;
+  --gray-200: #e4e7ec;
+  --gray-300: #cdd3dc;
+  --gray-500: #667085;
+  --gray-600: #475467;
+  --gray-900: #101828;
+  --radius: 10px;
+  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; font-family: var(--font); color: var(--navy); background: linear-gradient(180deg, #f6f8fa 0%, #eaf0f4 100%); min-height: 100vh; }
+.page { max-width: 480px; margin: 0 auto; padding: 24px 20px 40px; }
+.brand { text-align: center; margin-bottom: 20px; }
+.brand img { width: 72px; height: 72px; border-radius: 14px; box-shadow: 0 4px 14px rgba(12,27,46,0.15); }
+.brand h1 { font-size: 22px; font-weight: 800; margin: 12px 0 4px; letter-spacing: 0.02em; }
+.brand h1 span { color: var(--accent); font-weight: 600; }
+.brand p { font-size: 14px; color: var(--gray-600); margin: 0; }
+
+.card { background: white; border-radius: var(--radius); box-shadow: 0 2px 12px rgba(12,27,46,0.06); padding: 20px; margin-bottom: 16px; }
+.card h2 { font-size: 16px; font-weight: 700; margin: 0 0 14px; color: var(--navy); }
+.tab-row { display: flex; gap: 4px; background: var(--gray-100); padding: 3px; border-radius: 8px; margin-bottom: 18px; }
+.tab-row button { flex: 1; padding: 9px; background: transparent; border: none; border-radius: 6px; font-family: var(--font); font-size: 13px; font-weight: 600; color: var(--gray-600); cursor: pointer; }
+.tab-row button.active { background: white; color: var(--navy); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+
+.field { margin-bottom: 12px; }
+.field label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gray-500); margin-bottom: 4px; }
+.field input { width: 100%; padding: 12px 14px; font-size: 15px; border: 1.5px solid var(--gray-200); border-radius: 8px; font-family: var(--font); outline: none; background: white; transition: border-color 0.15s; }
+.field input:focus { border-color: var(--primary); }
+.btn-primary { width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; font-family: var(--font); cursor: pointer; transition: background 0.15s; }
+.btn-primary:hover { background: var(--primary-dark); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-link { background: none; border: none; color: var(--primary); font-size: 13px; cursor: pointer; font-family: var(--font); padding: 0; text-decoration: underline; }
+.note { margin-top: 10px; font-size: 12px; color: var(--gray-600); text-align: center; }
+.note a { color: var(--primary); }
+
+.msg { padding: 10px 12px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; line-height: 1.4; }
+.msg.error { background: #fdecec; color: var(--danger); border: 1px solid #f5c2c2; }
+.msg.success { background: #e8f5ee; color: #1e7b4e; border: 1px solid #b5dfc5; }
+.msg.info { background: #e8f3ff; color: #0e4a88; border: 1px solid #b8d6f5; }
+
+details { background: white; border-radius: var(--radius); box-shadow: 0 2px 12px rgba(12,27,46,0.06); margin-bottom: 12px; }
+details summary { padding: 14px 18px; font-size: 14px; font-weight: 600; cursor: pointer; list-style: none; display: flex; align-items: center; gap: 10px; color: var(--navy); }
+details summary::after { content: '▾'; margin-left: auto; transition: transform 0.15s; }
+details[open] summary::after { transform: rotate(180deg); }
+details .body { padding: 0 18px 16px; font-size: 13px; color: var(--gray-600); line-height: 1.55; }
+details .body ol { padding-left: 20px; }
+details .body li { margin-bottom: 6px; }
+details .body code { background: var(--gray-100); padding: 1px 6px; border-radius: 4px; font-size: 12px; }
+
+.device-icon { width: 20px; height: 20px; flex-shrink: 0; color: var(--primary); }
+.small-cta { text-align: center; margin-top: 14px; }
+.small-cta a { font-size: 12px; color: var(--gray-500); }
+
+.hidden { display: none !important; }
+
+.footer { text-align: center; font-size: 11px; color: var(--gray-500); margin-top: 20px; }
+.footer a { color: var(--primary); }
+
+#authedBox { text-align: center; padding: 28px 20px; }
+#authedBox p { margin: 8px 0; }
+#authedBox .email { font-weight: 600; color: var(--navy); }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="brand">
+    <img src="https://images.squarespace-cdn.com/content/v1/5a6084aad0e628eab9591587/66b4214a-b88b-427c-8350-c5907ffdcda4/DASSU-Logo+2022+web+768x768+2.png?format=200w" alt="DASSU">
+    <h1>DASSU <span>Staff</span></h1>
+    <p>Flugzeug-Buchungen &amp; Theoriestunden</p>
+  </div>
+
+  <!-- Wenn schon eingeloggt -->
+  <div class="card hidden" id="authedBox">
+    <p>Du bist angemeldet als <span class="email" id="authedEmail"></span></p>
+    <a class="btn-primary" href="staff.html" style="display:inline-block;text-decoration:none;text-align:center;margin-top:14px;">Zur App →</a>
+    <div class="small-cta"><button class="btn-link" onclick="doSignOut()">Abmelden</button></div>
+  </div>
+
+  <!-- Auth-Formulare -->
+  <div class="card" id="authBox">
+    <div class="tab-row">
+      <button id="tabLogin" class="active" onclick="showTab('login')">Anmelden</button>
+      <button id="tabRegister" onclick="showTab('register')">Registrieren</button>
+    </div>
+
+    <!-- Login -->
+    <form id="loginForm" onsubmit="event.preventDefault(); doLogin();">
+      <div id="loginMsg"></div>
+      <div class="field">
+        <label for="loginEmail">E-Mail</label>
+        <input type="email" id="loginEmail" autocomplete="email" required>
+      </div>
+      <div class="field">
+        <label for="loginPassword">Passwort</label>
+        <input type="password" id="loginPassword" autocomplete="current-password" required>
+      </div>
+      <button class="btn-primary" id="loginBtn" type="submit">Anmelden</button>
+      <div class="note"><button class="btn-link" type="button" onclick="showResetDialog()">Passwort vergessen?</button></div>
+    </form>
+
+    <!-- Register -->
+    <form id="registerForm" class="hidden" onsubmit="event.preventDefault(); doRegister();">
+      <div id="regMsg"></div>
+      <div class="field">
+        <label for="regName">Dein Name</label>
+        <input type="text" id="regName" autocomplete="name" required>
+      </div>
+      <div class="field">
+        <label for="regEmail">E-Mail</label>
+        <input type="email" id="regEmail" autocomplete="email" required>
+      </div>
+      <div class="field">
+        <label for="regPassword">Passwort</label>
+        <input type="password" id="regPassword" autocomplete="new-password" minlength="6" required>
+      </div>
+      <div class="field">
+        <label for="regPassword2">Passwort bestätigen</label>
+        <input type="password" id="regPassword2" autocomplete="new-password" minlength="6" required>
+      </div>
+      <button class="btn-primary" id="regBtn" type="submit">Account anlegen</button>
+      <div class="note">Eine Registrierung funktioniert nur, wenn dich der Admin per E-Mail eingeladen hat.</div>
+    </form>
+
+    <!-- Reset -->
+    <form id="resetForm" class="hidden" onsubmit="event.preventDefault(); doReset();">
+      <div id="resetMsg"></div>
+      <div class="field">
+        <label for="resetEmail">E-Mail für Reset-Link</label>
+        <input type="email" id="resetEmail" required>
+      </div>
+      <button class="btn-primary" id="resetBtn" type="submit">Reset-Link senden</button>
+      <div class="note"><button class="btn-link" type="button" onclick="showTab('login')">← zurück zur Anmeldung</button></div>
+    </form>
+  </div>
+
+  <!-- Install-Anleitungen -->
+  <details>
+    <summary>📱 App auf iPhone / iPad installieren</summary>
+    <div class="body">
+      <ol>
+        <li>Diese Seite im <strong>Safari</strong>-Browser öffnen (Chrome funktioniert auf iOS nicht für PWAs).</li>
+        <li>Unten in der Leiste auf das <strong>Teilen</strong>-Symbol tippen (Quadrat mit Pfeil nach oben).</li>
+        <li>In der Liste nach unten scrollen und <strong>„Zum Home-Bildschirm"</strong> wählen.</li>
+        <li>Rechts oben auf <strong>„Hinzufügen"</strong> tippen.</li>
+        <li>Die DASSU-App erscheint auf dem Home-Bildschirm und lässt sich von dort wie jede andere App starten.</li>
+      </ol>
+    </div>
+  </details>
+
+  <details>
+    <summary>🤖 App auf Android installieren</summary>
+    <div class="body">
+      <ol>
+        <li>Diese Seite im <strong>Chrome</strong>-Browser öffnen.</li>
+        <li>Oben rechts auf das <strong>Drei-Punkte-Menü</strong> tippen.</li>
+        <li><strong>„App installieren"</strong> oder <strong>„Zum Startbildschirm hinzufügen"</strong> auswählen.</li>
+        <li>Bestätigen – die App erscheint auf dem Startbildschirm.</li>
+      </ol>
+    </div>
+  </details>
+
+  <details>
+    <summary>💻 App am Computer (Mac / Windows) installieren</summary>
+    <div class="body">
+      <ol>
+        <li>Diese Seite in <strong>Chrome</strong>, <strong>Edge</strong> oder <strong>Safari</strong> öffnen.</li>
+        <li>In der Adressleiste rechts neben der URL erscheint ein <strong>Installations-Symbol</strong> (Bildschirm mit Pfeil oder <code>+</code>).</li>
+        <li>Darauf klicken und <strong>„Installieren"</strong> wählen.</li>
+        <li>Die App startet in einem eigenen Fenster und wird im Dock / Startmenü abgelegt.</li>
+      </ol>
+    </div>
+  </details>
+
+  <details>
+    <summary>🔔 Push-Benachrichtigungen aktivieren</summary>
+    <div class="body">
+      <p>Nach dem ersten Login wirst du in der App einmalig gefragt, ob Benachrichtigungen aktiviert werden sollen.</p>
+      <p><strong>Aktivieren empfohlen:</strong> du bekommst dann sofort eine Nachricht, wenn eine neue Buchungsanfrage eintrifft oder jemand eine Buchung ändert.</p>
+      <p>Du kannst die Erlaubnis jederzeit in den Geräte-Einstellungen deines Browsers / der App ändern.</p>
+    </div>
+  </details>
+
+  <div class="footer">
+    DASSU – Deutsche Alpensegelflugschule Unterwössen e.V.<br>
+    Bei Problemen: <a href="mailto:info@dassu.de">info@dassu.de</a>
+  </div>
+</div>
+
+<script>
+// Firebase initialisieren
+const firebaseConfig = {
+  apiKey: "AIzaSyAe5CPZl8kb0bKfHIiGclHTpQK88MMsnTI",
+  authDomain: "buchungskalender-ffe4c.firebaseapp.com",
+  databaseURL: "https://buchungskalender-ffe4c-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "buchungskalender-ffe4c",
+  storageBucket: "buchungskalender-ffe4c.firebasestorage.app",
+  messagingSenderId: "913839321247",
+  appId: "1:913839321247:web:723106a2d73c048e15f2aa"
+};
+firebase.initializeApp(firebaseConfig);
+
+function showTab(which) {
+  document.getElementById('tabLogin').classList.toggle('active', which === 'login');
+  document.getElementById('tabRegister').classList.toggle('active', which === 'register');
+  document.getElementById('loginForm').classList.toggle('hidden', which !== 'login');
+  document.getElementById('registerForm').classList.toggle('hidden', which !== 'register');
+  document.getElementById('resetForm').classList.add('hidden');
+  clearMessages();
+}
+
+function showResetDialog() {
+  document.getElementById('loginForm').classList.add('hidden');
+  document.getElementById('registerForm').classList.add('hidden');
+  document.getElementById('resetForm').classList.remove('hidden');
+  // Email aus Login-Form übernehmen
+  const lE = document.getElementById('loginEmail').value;
+  if (lE) document.getElementById('resetEmail').value = lE;
+  clearMessages();
+}
+
+function clearMessages() {
+  ['loginMsg','regMsg','resetMsg'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = ''; });
+}
+
+function showMsg(id, kind, text) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.innerHTML = `<div class="msg ${kind}">${text}</div>`;
+}
+
+// Pre-fill E-Mail aus ?email=... Query
+(function prefillFromQuery() {
+  const email = new URLSearchParams(window.location.search).get('email');
+  if (email) {
+    document.getElementById('regEmail').value = email;
+    document.getElementById('loginEmail').value = email;
+  }
+})();
+
+async function doLogin() {
+  clearMessages();
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const btn = document.getElementById('loginBtn');
+  btn.disabled = true; btn.textContent = 'Moment…';
+  const res = await DASSU_AUTH.signIn(email, password);
+  btn.disabled = false; btn.textContent = 'Anmelden';
+  if (!res.ok) {
+    showMsg('loginMsg', 'error', res.error);
+    return;
+  }
+  // onAuthChange kümmert sich um die Weiterleitung
+}
+
+async function doRegister() {
+  clearMessages();
+  const name = document.getElementById('regName').value.trim();
+  const email = document.getElementById('regEmail').value.trim();
+  const p1 = document.getElementById('regPassword').value;
+  const p2 = document.getElementById('regPassword2').value;
+  if (p1 !== p2) { showMsg('regMsg', 'error', 'Die Passwörter stimmen nicht überein.'); return; }
+  if (p1.length < 6) { showMsg('regMsg', 'error', 'Passwort muss mindestens 6 Zeichen haben.'); return; }
+
+  const btn = document.getElementById('regBtn');
+  btn.disabled = true; btn.textContent = 'Registriere…';
+  const res = await DASSU_AUTH.signUpWithInvitation(email, p1, name);
+  btn.disabled = false; btn.textContent = 'Account anlegen';
+  if (!res.ok) {
+    showMsg('regMsg', 'error', res.error);
+    return;
+  }
+  showMsg('regMsg', 'success', 'Willkommen! Du wirst gleich in die App weitergeleitet…');
+}
+
+async function doReset() {
+  clearMessages();
+  const email = document.getElementById('resetEmail').value.trim();
+  const btn = document.getElementById('resetBtn');
+  btn.disabled = true; btn.textContent = 'Sende…';
+  const res = await DASSU_AUTH.resetPassword(email);
+  btn.disabled = false; btn.textContent = 'Reset-Link senden';
+  if (!res.ok) {
+    showMsg('resetMsg', 'error', res.error);
+    return;
+  }
+  showMsg('resetMsg', 'success', 'Wenn es einen Account zu dieser E-Mail gibt, ist jetzt eine Reset-Mail unterwegs. Bitte Posteingang (und ggf. Spam) checken.');
+}
+
+async function doSignOut() {
+  await DASSU_AUTH.signOut();
+  window.location.reload();
+}
+
+// Auth-Status überwachen
+DASSU_AUTH.onAuthChange(async user => {
+  const authedBox = document.getElementById('authedBox');
+  const authBox = document.getElementById('authBox');
+  if (user) {
+    // Wir müssen auch das staffUsers-Profil prüfen (Fall: Auth existiert, aber keine Freigabe)
+    const profile = await DASSU_AUTH.currentStaffProfile();
+    if (!profile) {
+      // Kein Profil → ausloggen und melden
+      await DASSU_AUTH.signOut();
+      showMsg('loginMsg', 'error', 'Dein Account ist angelegt, aber noch nicht freigeschaltet. Bitte beim Admin melden.');
+      return;
+    }
+    authedBox.classList.remove('hidden');
+    authBox.classList.add('hidden');
+    document.getElementById('authedEmail').textContent = user.email || '';
+    // Auto-Redirect nach 1.5s
+    setTimeout(() => { window.location.href = 'staff.html'; }, 1500);
+  } else {
+    authedBox.classList.add('hidden');
+    authBox.classList.remove('hidden');
+  }
+});
+</script>
+</body>
+</html>

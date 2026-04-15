@@ -8,7 +8,9 @@
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="shared/permissions.js"></script>
+<script src="shared/auth.js"></script>
 <!-- Google Fonts entfernt (DSGVO) — lokale Systemschriften werden verwendet -->
 <style>
   :root {
@@ -993,11 +995,27 @@
     <p style="font-size:12px; color:var(--gray-500); margin-bottom:14px; line-height:1.5;">
       Mitarbeiter verwalten, Rollen vergeben und individuelle Rechte setzen. Die Rolle (<strong>Admin</strong> / <strong>Staff</strong>) legt Standardrechte fest; einzelne Rechte lassen sich pro Mitarbeiter &uuml;ber &bdquo;Rechte&ldquo; individuell an- oder ausschalten.
     </p>
+    <h4 style="margin:16px 0 8px; font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--gray-500);">Aktive Mitarbeiter</h4>
     <div id="staffMgmtList" style="display:flex; flex-direction:column; gap:6px; margin-bottom:14px;"></div>
-    <div style="display:flex; gap:6px; padding-top:14px; border-top:1px solid var(--gray-200);">
-      <input type="text" id="staffMgmtNewName" placeholder="Neuer Mitarbeiter..." maxlength="30" style="flex:1; padding:10px; border:1px solid var(--gray-300); border-radius:4px; font-family:var(--font-ui); font-size:14px;">
-      <button class="btn btn-sm" onclick="staffMgmtAdd()">+ Hinzuf&uuml;gen</button>
+
+    <h4 style="margin:16px 0 8px; font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--gray-500);">Offene Einladungen</h4>
+    <div id="invitationsList" style="display:flex; flex-direction:column; gap:6px; margin-bottom:10px;"></div>
+
+    <div style="padding:12px; background:var(--gray-50); border:1px solid var(--gray-200); border-radius:6px; margin-top:14px;">
+      <div style="font-size:13px; font-weight:600; color:var(--dark); margin-bottom:10px;">+ Neue Einladung</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
+        <input type="text" id="invName" placeholder="Name" maxlength="40" style="padding:10px; border:1px solid var(--gray-300); border-radius:4px; font-family:var(--font-ui); font-size:14px;">
+        <input type="email" id="invEmail" placeholder="E-Mail" style="padding:10px; border:1px solid var(--gray-300); border-radius:4px; font-family:var(--font-ui); font-size:14px;">
+      </div>
+      <div style="display:grid; grid-template-columns:1fr auto; gap:8px;">
+        <select id="invRole" style="padding:10px; border:1px solid var(--gray-300); border-radius:4px; font-family:var(--font-ui); font-size:14px; background:white;"></select>
+        <button class="btn btn-primary btn-sm" onclick="createInvitation()">Einladung anlegen</button>
+      </div>
+      <div style="font-size:11px; color:var(--gray-500); margin-top:8px; line-height:1.4;">
+        Der Mitarbeiter erhält einen Link zu <code style="background:var(--gray-100); padding:1px 4px; border-radius:3px;">welcome.html</code>, auf dem er sich mit seiner E-Mail registrieren kann.
+      </div>
     </div>
+
     <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:16px;">
       <button class="btn btn-sm" onclick="closeModal('staffMgmtModal')">Schlie&szlig;en</button>
     </div>
@@ -2770,6 +2788,8 @@ function deleteBooking(id) {
 // ============================================================
 function showStaffMgmt() {
   renderStaffMgmt();
+  renderInvitations();
+  populateInvRoleOptions();
   document.getElementById('staffMgmtModal').classList.add('active');
 }
 
@@ -2870,18 +2890,92 @@ function staffMgmtTogglePermission(id, key) {
   notify('Recht aktualisiert.', 'success');
 }
 
-function staffMgmtAdd() {
-  const input = document.getElementById('staffMgmtNewName');
-  const name = input.value.trim();
-  if (!name) return;
-  const user = {
-    id: Date.now().toString(36) + Math.random().toString(36).substr(2, 3),
+// ============================================================
+// EINLADUNGEN
+// ============================================================
+let invitations = [];
+
+db.ref('invitations').on('value', snap => {
+  const data = snap.val() || {};
+  invitations = Object.entries(data).map(([key, v]) => ({ key, ...v }));
+  if (document.getElementById('staffMgmtModal').classList.contains('active')) {
+    renderInvitations();
+    populateInvRoleOptions();
+  }
+});
+
+function populateInvRoleOptions() {
+  const sel = document.getElementById('invRole');
+  if (!sel) return;
+  const roles = (typeof DASSU_ROLES !== 'undefined' ? DASSU_ROLES : []).filter(r => !r.legacy);
+  sel.innerHTML = roles.map(r => `<option value="${r.id}" ${r.id === 'team' ? 'selected' : ''}>${r.label}</option>`).join('');
+}
+
+function renderInvitations() {
+  const el = document.getElementById('invitationsList');
+  if (!el) return;
+  if (!invitations.length) {
+    el.innerHTML = '<div style="text-align:center; padding:14px; color:var(--gray-500); font-size:12px; font-style:italic; border:1px dashed var(--gray-300); border-radius:4px;">Keine offenen Einladungen.</div>';
+    return;
+  }
+  el.innerHTML = invitations.map(inv => {
+    const link = `${window.location.origin}/welcome.html?email=${encodeURIComponent(inv.email || '')}`;
+    const roleLabel = (typeof roleMeta === 'function' ? roleMeta(inv.role).label : inv.role);
+    return `<div style="display:flex; align-items:center; gap:10px; padding:10px 12px; background:#fff8e1; border:1px solid #f0e0a0; border-radius:6px; flex-wrap:wrap;">
+      <div style="flex:1; min-width:180px;">
+        <div style="font-size:14px; font-weight:600; color:var(--dark);">${escapeAttr(inv.name || '—')} <span style="color:var(--gray-500); font-weight:400; font-size:12px;">(${escapeAttr(inv.email || '')})</span></div>
+        <div style="font-size:11px; color:var(--gray-600); margin-top:2px;">Rolle: ${escapeAttr(roleLabel)}</div>
+      </div>
+      <div style="display:flex; gap:6px; flex-wrap:wrap;">
+        <button class="btn btn-sm" onclick="copyInvitationLink('${escapeAttr(link)}')" title="Einladungs-Link kopieren">Link kopieren</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteInvitation('${inv.key}')">Löschen</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function escapeAttr(s) { return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function createInvitation() {
+  const nameEl = document.getElementById('invName');
+  const emailEl = document.getElementById('invEmail');
+  const roleEl = document.getElementById('invRole');
+  const name = nameEl.value.trim();
+  const email = emailEl.value.trim().toLowerCase();
+  const role = roleEl.value;
+  if (!name) return notify('Bitte Name eintragen.', 'error');
+  if (!email || !/^\S+@\S+\.\S+$/.test(email)) return notify('Bitte gültige E-Mail eintragen.', 'error');
+  if (!role) return notify('Bitte Rolle wählen.', 'error');
+
+  // Prüfen ob schon ein User mit dieser E-Mail existiert
+  if (staffUsers.some(u => (u.email || '').toLowerCase() === email)) {
+    return notify('Es gibt bereits einen aktiven Mitarbeiter mit dieser E-Mail.', 'error');
+  }
+
+  const key = DASSU_AUTH.emailKey(email);
+  db.ref('invitations/' + key).set({
+    email: email,
     name: name,
-    role: staffUsers.length === 0 ? 'admin' : 'team'
-  };
-  db.ref('staffUsers/' + user.id).set(user);
-  input.value = '';
-  notify(`${name} hinzugefügt.`, 'success');
+    role: role,
+    createdAt: Date.now()
+  }).then(() => {
+    nameEl.value = '';
+    emailEl.value = '';
+    notify(`Einladung für ${name} angelegt. Link kopieren und per E-Mail schicken.`, 'success');
+  }).catch(e => notify('Fehler: ' + e.message, 'error'));
+}
+
+function deleteInvitation(key) {
+  if (!confirm('Diese Einladung wirklich löschen?')) return;
+  db.ref('invitations/' + key).remove();
+  notify('Einladung entfernt.', 'info');
+}
+
+function copyInvitationLink(link) {
+  navigator.clipboard.writeText(link).then(
+    () => notify('Link kopiert! Jetzt per E-Mail / WhatsApp an den Mitarbeiter schicken.', 'success'),
+    () => notify('Kopieren fehlgeschlagen. Link: ' + link, 'error')
+  );
 }
 
 function staffMgmtSetRole(id, role) {
@@ -2911,11 +3005,13 @@ function staffMgmtDelete(id) {
   notify('Mitarbeiter entfernt.', 'success');
 }
 
-// Enter-Taste im Input
+// Enter-Taste im Einladungs-Formular
 document.addEventListener('DOMContentLoaded', () => {
-  const inp = document.getElementById('staffMgmtNewName');
-  if (inp) inp.addEventListener('keydown', e => {
-    if (e.key === 'Enter') { e.preventDefault(); staffMgmtAdd(); }
+  ['invName', 'invEmail'].forEach(id => {
+    const inp = document.getElementById(id);
+    if (inp) inp.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); createInvitation(); }
+    });
   });
 });
 

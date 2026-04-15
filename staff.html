@@ -13,7 +13,9 @@
 <title>DASSU Staff</title>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="shared/permissions.js"></script>
+<script src="shared/auth.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -307,17 +309,12 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
 </head>
 <body>
 
-<!-- Login Overlay -->
+<!-- Auth Splash: nur kurz sichtbar während auth geprüft wird -->
 <div class="login-overlay" id="loginOverlay">
-  <div class="login-box">
+  <div class="login-box" style="text-align:center;">
     <img src="https://images.squarespace-cdn.com/content/v1/5a6084aad0e628eab9591587/66b4214a-b88b-427c-8350-c5907ffdcda4/DASSU-Logo+2022+web+768x768+2.png?format=120w" alt="DASSU">
-    <h2>Wer bist du?</h2>
-    <p>W&auml;hle dein Profil oder lege ein neues an</p>
-    <div class="user-list" id="userList"></div>
-    <div class="add-user-row">
-      <input type="text" id="newUserName" placeholder="Neuer Mitarbeiter..." maxlength="30">
-      <button onclick="addUser()">+ Hinzuf&uuml;gen</button>
-    </div>
+    <h2>DASSU Staff</h2>
+    <p id="authSplashMsg" style="margin-top:8px; color:#666;">Prüfe Anmeldung…</p>
   </div>
 </div>
 
@@ -334,7 +331,7 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
 
 <!-- User menu -->
 <div class="user-menu" id="userMenu">
-  <div class="user-menu-item" onclick="switchUser()">Nutzer wechseln</div>
+  <div class="user-menu-item danger" onclick="switchUser()">Abmelden</div>
   <div class="user-menu-item" id="notifMenuItem" onclick="enableNotifications()">Benachrichtigungen aktivieren</div>
   <div class="user-menu-item admin-only" id="userMgmtMenuItem" onclick="openUserMgmt()" style="display:none;">&#9733; Nutzerverwaltung</div>
 </div>
@@ -343,12 +340,8 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
 <div class="quick-overlay" id="userMgmtOverlay" onclick="if(event.target===this)closeUserMgmt()">
   <div class="quick-sheet">
     <h3>Nutzerverwaltung</h3>
-    <div class="um-intro">Rollen verwalten, Mitarbeiter hinzuf&uuml;gen oder entfernen.</div>
+    <div class="um-intro">Rollen &amp; Rechte verwalten. Neue Mitarbeiter legst du über den Admin-Bereich der Website an (Einladung per E-Mail).</div>
     <div id="userMgmtList"></div>
-    <div class="add-user-row">
-      <input type="text" id="mgmtNewUserName" placeholder="Neuer Mitarbeiter..." maxlength="30">
-      <button onclick="addUserFromMgmt()">+ Hinzuf&uuml;gen</button>
-    </div>
     <button class="btn-cancel" onclick="closeUserMgmt()" style="width:100%;margin-top:14px;padding:12px;text-align:center;">Schlie&szlig;en</button>
   </div>
 </div>
@@ -590,50 +583,42 @@ function roleBadge(role) {
   return `<span class="role-badge staff">${meta.short || meta.label}</span>`;
 }
 
-function loadCurrentUser() {
-  const stored = localStorage.getItem('dassu_staff_user');
-  if (stored) currentUser = JSON.parse(stored);
-}
-
-function saveCurrentUser() {
-  if (currentUser) localStorage.setItem('dassu_staff_user', JSON.stringify(currentUser));
-}
-
-function showLogin() {
+// Auth-Splash zeigen/verbergen (während Firebase Auth check läuft)
+function showSplash(msg) {
   document.getElementById('loginOverlay').classList.add('active');
-  renderUserList();
+  const el = document.getElementById('authSplashMsg');
+  if (el && msg) el.textContent = msg;
 }
-
-function hideLogin() {
+function hideSplash() {
   document.getElementById('loginOverlay').classList.remove('active');
 }
 
-function renderUserList() {
-  const el = document.getElementById('userList');
-  if (!staffUsers.length) {
-    el.innerHTML = '<div class="empty-msg" style="border:none;padding:8px 0;">Noch keine Mitarbeiter angelegt</div>';
-    return;
-  }
-  el.innerHTML = staffUsers.map(u => `
-    <div class="user-list-item" onclick="selectUser('${u.id}')">
-      <div class="ul-avatar">${u.name.charAt(0).toUpperCase()}</div>
-      <div class="ul-name">${u.name}${roleBadge(u.role)}</div>
-    </div>
-  `).join('');
-}
-
-function addUser() {
-  const input = document.getElementById('newUserName');
-  const name = input.value.trim();
-  if (!name) return;
-  const user = {
-    id: Date.now().toString(36),
-    name: name,
-    role: staffUsers.length === 0 ? 'admin' : 'team'
-  };
-  db.ref('staffUsers/' + user.id).set(user);
-  input.value = '';
-  setTimeout(() => selectUser(user.id), 400);
+// Auth-Guard: überwacht Firebase Auth-Status und redirected bei fehlendem Login.
+function setupAuthGuard() {
+  DASSU_AUTH.onAuthChange(async (authUser) => {
+    if (!authUser) {
+      // Nicht eingeloggt → zur welcome-Seite
+      currentUser = null;
+      localStorage.removeItem('dassu_staff_user');
+      window.location.href = 'welcome.html';
+      return;
+    }
+    // Eingeloggt → staffUsers-Profil holen
+    const profile = await DASSU_AUTH.currentStaffProfile();
+    if (!profile) {
+      showSplash('Dein Account ist noch nicht freigeschaltet. Bitte beim Admin melden.');
+      await DASSU_AUTH.signOut();
+      setTimeout(() => { window.location.href = 'welcome.html'; }, 2500);
+      return;
+    }
+    currentUser = { id: profile.id, name: profile.name, email: profile.email };
+    localStorage.setItem('dassu_staff_user', JSON.stringify(currentUser));
+    hideSplash();
+    updateUserUI();
+    maybeShowNotifBanner();
+    setTimeout(autoRegisterFcmIfReady, 2000);
+    render();
+  });
 }
 
 // ============================================================
@@ -768,41 +753,11 @@ function deleteStaffUser(id) {
   notify('Mitarbeiter entfernt.', 'success');
 }
 
-function addUserFromMgmt() {
-  if (!isAdmin()) return;
-  const input = document.getElementById('mgmtNewUserName');
-  const name = input.value.trim();
-  if (!name) return;
-  const user = {
-    id: Date.now().toString(36),
-    name: name,
-    role: 'staff'
-  };
-  db.ref('staffUsers/' + user.id).set(user);
-  input.value = '';
-  notify(`${name} hinzugef\u00fcgt.`, 'success');
-}
-
-function selectUser(id) {
-  const u = staffUsers.find(x => x.id === id);
-  if (!u) return;
-  // Bootstrap: Wenn es noch keinen Admin gibt, wird der einloggende Nutzer automatisch Admin
-  if (!hasAdmin()) {
-    db.ref('staffUsers/' + u.id + '/role').set('admin');
-    u.role = 'admin';
-    setTimeout(() => notify('Du bist jetzt Admin (erster Login).', 'info'), 600);
-  }
-  currentUser = u;
-  saveCurrentUser();
-  updateUserUI();
-  hideLogin();
-  maybeShowNotifBanner();
-  setTimeout(autoRegisterFcmIfReady, 1500);
-}
-
-function switchUser() {
+// Abmelden (Menü-Punkt) — signOut + Redirect wird vom Auth-Guard erledigt.
+async function switchUser() {
   closeUserMenu();
-  showLogin();
+  await DASSU_AUTH.signOut();
+  // Auth-Guard reagiert automatisch und leitet auf welcome.html
 }
 
 function updateUserUI() {
@@ -838,19 +793,14 @@ document.addEventListener('click', e => {
 db.ref('staffUsers').on('value', snap => {
   const data = snap.val();
   staffUsers = data ? Object.values(data) : [];
-  if (document.getElementById('loginOverlay').classList.contains('active')) {
-    renderUserList();
-  }
   if (document.getElementById('userMgmtOverlay').classList.contains('active')) {
     renderUserMgmt();
   }
-  // Header-Badge & Menue-Sichtbarkeit aktualisieren wenn sich Rollen \u00e4ndern
+  // Header-Badge & Menue-Sichtbarkeit aktualisieren wenn sich Rollen ändern
   if (currentUser) updateUserUI();
-  // If currentUser was deleted/missing, force re-login
+  // Wenn dein Profil entfernt wurde (Admin hat gelöscht) → ausloggen
   if (currentUser && !staffUsers.find(u => u.id === currentUser.id)) {
-    currentUser = null;
-    localStorage.removeItem('dassu_staff_user');
-    showLogin();
+    DASSU_AUTH.signOut(); // Auth-Guard leitet auf welcome.html
   }
 });
 
@@ -2026,12 +1976,6 @@ function notifyNewBooking(b) {
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') { closeQuick(); closeDetail(); closeEdit(); closeUserMenu(); closeUserMgmt(); closeNotesEdit(); }
 });
-const _mgmtInput = document.getElementById('mgmtNewUserName');
-if (_mgmtInput) {
-  _mgmtInput.addEventListener('keydown', e => {
-    if (e.key === 'Enter') { e.preventDefault(); addUserFromMgmt(); }
-  });
-}
 document.getElementById('qbName').addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); submitQuick(); }
 });
@@ -2052,16 +1996,10 @@ if ('serviceWorker' in navigator) {
 // ============================================================
 // INIT
 // ============================================================
-loadCurrentUser();
-if (currentUser) {
-  updateUserUI();
-  maybeShowNotifBanner();
-  // Token beim Start erneuern, falls schon aktiviert
-  setTimeout(autoRegisterFcmIfReady, 2000);
-} else {
-  showLogin();
-}
-render();
+// Während Auth-Prüfung: Splash zeigen
+showSplash('Prüfe Anmeldung…');
+// Firebase Auth übernimmt: meldet an, lädt staffUsers-Profil, zeigt UI – oder redirect auf welcome.html
+setupAuthGuard();
 </script>
 </body>
 </html>
