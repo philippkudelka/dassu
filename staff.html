@@ -13,6 +13,7 @@
 <title>DASSU Staff</title>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="shared/permissions.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -266,6 +267,21 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
 .btn-mg-promote { background: var(--accent); color: var(--navy); }
 .btn-mg-demote { background: white; color: var(--navy); border: 1px solid var(--gray-300) !important; }
 .btn-mg-delete { background: #fdecec; color: var(--danger); }
+.btn-mg-perms { background: white; color: var(--navy); border: 1px solid var(--gray-300) !important; }
+
+/* Per-user permissions panel */
+.perms-panel { flex-basis: 100%; margin-top: 8px; padding: 10px 12px; background: white; border: 1px solid var(--gray-300); border-radius: 8px; display: none; }
+.perms-panel.open { display: block; }
+.perms-panel .perms-hint { font-size: 11px; color: var(--gray-500); margin-bottom: 8px; line-height: 1.4; }
+.perm-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px dashed #eef0f2; }
+.perm-row:last-child { border-bottom: none; }
+.perm-row .perm-label { font-size: 13px; color: var(--navy); }
+.perm-row .perm-label small { display: block; font-size: 10px; color: var(--gray-500); font-weight: 400; margin-top: 1px; }
+.perm-toggle { position: relative; width: 38px; height: 22px; background: var(--gray-300); border-radius: 22px; cursor: pointer; transition: background 0.15s; flex-shrink: 0; }
+.perm-toggle::after { content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; background: white; border-radius: 50%; transition: left 0.15s; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+.perm-toggle.on { background: var(--primary); }
+.perm-toggle.on::after { left: 18px; }
+.perm-toggle.disabled { opacity: 0.5; cursor: not-allowed; }
 </style>
 </head>
 <body>
@@ -475,6 +491,12 @@ let pendingOpenBookingId = (new URLSearchParams(window.location.search)).get('bo
 // ============================================================
 // USER MANAGEMENT
 // ============================================================
+// Rechte-Definition + hasPermission kommen aus shared/permissions.js
+// (global: DASSU_PERMISSIONS, hasPermission, isPermissionExplicit)
+function currentUserHas(key) {
+  return hasPermission(currentUser, staffUsers, key);
+}
+
 function isAdmin() {
   if (!currentUser) return false;
   const u = staffUsers.find(x => x.id === currentUser.id);
@@ -541,13 +563,37 @@ function addUser() {
 // ============================================================
 function openUserMgmt() {
   closeUserMenu();
-  if (!isAdmin()) { notify('Nur Admins d\u00fcrfen die Nutzerverwaltung \u00f6ffnen.', 'error'); return; }
+  if (!currentUserHas('manageUsers')) { notify('Du hast keine Berechtigung für die Nutzerverwaltung.', 'error'); return; }
   renderUserMgmt();
   document.getElementById('userMgmtOverlay').classList.add('active');
 }
 
 function closeUserMgmt() {
   document.getElementById('userMgmtOverlay').classList.remove('active');
+}
+
+// Welche User-IDs haben ihr Rechte-Panel gerade offen (UI-State, nicht persistiert)
+let expandedPerms = new Set();
+
+function togglePermsPanel(id) {
+  if (expandedPerms.has(id)) expandedPerms.delete(id); else expandedPerms.add(id);
+  renderUserMgmt();
+}
+
+function renderPermsPanel(u) {
+  const rows = DASSU_PERMISSIONS.map(p => {
+    const effective = hasPermission(u, staffUsers, p.key);
+    const explicit = isPermissionExplicit(u, p.key);
+    const hint = explicit ? '' : ' <small>(Standard für ' + (u.role === 'admin' ? 'Admin' : 'Staff') + ')</small>';
+    return `<div class="perm-row">
+      <div class="perm-label">${p.label}${hint}<small>${p.desc}</small></div>
+      <div class="perm-toggle ${effective ? 'on' : ''}" onclick="togglePermission('${u.id}','${p.key}')"></div>
+    </div>`;
+  }).join('');
+  return `<div class="perms-panel open">
+    <div class="perms-hint">Individuelle Rechte überschreiben die Rollen-Standardwerte. Zum Zurücksetzen auf Standard lange auf den Schalter tippen.</div>
+    ${rows}
+  </div>`;
 }
 
 function renderUserMgmt() {
@@ -559,18 +605,43 @@ function renderUserMgmt() {
     const isMe = currentUser && u.id === currentUser.id;
     const canDemote = isAdm && !(isMe && adminCount === 1);
     const canDelete = !isMe && !(isAdm && adminCount === 1);
+    const permsOpen = expandedPerms.has(u.id);
     return `<div class="user-mgmt-row">
       <div class="um-avatar">${u.name.charAt(0).toUpperCase()}</div>
       <div class="um-info">
         <div class="um-name">${u.name}${roleBadge(u.role)}${isMe ? ' <span style="font-size:10px;color:var(--gray-500);">(du)</span>' : ''}</div>
       </div>
       <div class="um-actions">
+        <button class="btn-mg-perms" onclick="togglePermsPanel('${u.id}')">${permsOpen ? 'Rechte ▲' : 'Rechte ▼'}</button>
         ${!isAdm ? `<button class="btn-mg-promote" onclick="setUserRole('${u.id}','admin')">&rarr; Admin</button>` : ''}
         ${canDemote ? `<button class="btn-mg-demote" onclick="setUserRole('${u.id}','staff')">&rarr; Staff</button>` : ''}
         ${canDelete ? `<button class="btn-mg-delete" onclick="deleteStaffUser('${u.id}')">L\u00f6schen</button>` : ''}
       </div>
+      ${permsOpen ? renderPermsPanel(u) : ''}
     </div>`;
   }).join('');
+}
+
+function togglePermission(id, key) {
+  if (!isAdmin()) { notify('Nur Admins dürfen Rechte ändern.', 'error'); return; }
+  const user = staffUsers.find(u => u.id === id);
+  if (!user) return;
+  const current = hasPermission(user, staffUsers, key);
+  const next = !current;
+  const update = Object.assign({}, user.permissions || {});
+  update[key] = next;
+  db.ref('staffUsers/' + id + '/permissions').set(update);
+  notify('Recht aktualisiert.', 'success');
+}
+
+function resetPermission(id, key) {
+  if (!isAdmin()) return;
+  const user = staffUsers.find(u => u.id === id);
+  if (!user || !user.permissions) return;
+  const update = Object.assign({}, user.permissions);
+  delete update[key];
+  db.ref('staffUsers/' + id + '/permissions').set(update);
+  notify('Recht auf Standard zurückgesetzt.', 'info');
 }
 
 function setUserRole(id, role) {
@@ -643,7 +714,7 @@ function updateUserUI() {
   document.getElementById('headerUserName').innerHTML = liveUser.name + roleBadge(liveUser.role);
   // Admin-Menupunkt sichtbar?
   const mgmtItem = document.getElementById('userMgmtMenuItem');
-  if (mgmtItem) mgmtItem.style.display = isAdmin() ? '' : 'none';
+  if (mgmtItem) mgmtItem.style.display = currentUserHas('manageUsers') ? '' : 'none';
 }
 
 function toggleUserMenu() {
@@ -1462,7 +1533,7 @@ function showDetail(id) {
       ${b.status !== 'approved' ? `<button class="btn-approve" onclick="setStatus('${b.id}','approved')">Freischalten</button>` : ''}
       ${b.status !== 'rejected' ? `<button class="btn-reject" onclick="setStatus('${b.id}','rejected')">Ablehnen</button>` : ''}
       <button class="btn-edit" onclick="openEdit('${b.id}')">Bearbeiten</button>
-      ${isAdmin() ? `<button class="btn-delete" onclick="deleteBooking('${b.id}')">Löschen</button>` : ''}
+      ${currentUserHas('deleteBookings') ? `<button class="btn-delete" onclick="deleteBooking('${b.id}')">Löschen</button>` : ''}
       <button class="btn-close" onclick="closeDetail()">Schließen</button>
     </div>
   `;
@@ -1498,7 +1569,7 @@ function setStatus(id, status) {
 }
 
 function deleteBooking(id) {
-  if (!isAdmin()) { notify('Nur Admins d\u00fcrfen Buchungen l\u00f6schen. Du kannst sie ablehnen statt l\u00f6schen.', 'error'); return; }
+  if (!currentUserHas('deleteBookings')) { notify('Du darfst Buchungen nicht löschen. Du kannst sie ablehnen statt l\u00f6schen.', 'error'); return; }
   if (!confirm('Buchung wirklich löschen?')) return;
   const b = bookings.find(x => x.id === id);
   addAuditEntry(id, 'gelöscht', b ? `${b.name}, ${b.aircraft}, ${b.startTime || ''}–${b.endTime || ''}` : '');
