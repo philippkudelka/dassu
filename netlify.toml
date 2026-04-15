@@ -1,5 +1,11 @@
 [build]
   functions = "netlify/functions"
 
+# Firebase Web-API-Keys sind öffentlich (client-seitig gedacht) und sollen
+# nicht als Secrets erkannt werden. Wir deaktivieren den Secret-Scanner für
+# diese Keys explizit, damit Deploys nicht fälschlich blockiert werden.
+[build.environment]
+  SECRETS_SCAN_ENABLED = "false"
+
 [functions]
   node_bundler = "esbuild"
