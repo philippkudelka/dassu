@@ -39,6 +39,18 @@
       desc: 'Darf Buchungen endgültig entfernen.',
       defaults: { admin: true, team: false, guestGlider: false, guestMotor: false },
     },
+    {
+      key: 'trackTheory',
+      label: 'Theorieunterricht erfassen',
+      desc: 'Darf eigene Theoriestunden (Schüler, Thema, Zeit) erfassen und bearbeiten.',
+      defaults: { admin: true, team: true, guestGlider: true, guestMotor: true },
+    },
+    {
+      key: 'viewAllTheory',
+      label: 'Alle Theorie-Einträge sehen',
+      desc: 'Darf die Theoriestunden aller Lehrer einsehen (z.B. für Abrechnung).',
+      defaults: { admin: true, team: false, guestGlider: false, guestMotor: false },
+    },
     // Weitere Rechte hier ergänzen, sobald definiert.
   ];
 

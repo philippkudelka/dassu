@@ -876,6 +876,7 @@
       <div style="display:flex; gap:8px; align-items:center;">
         <button class="btn btn-danger btn-sm" onclick="adminLogout()">Abmelden</button>
         <button class="btn btn-sm" onclick="exportData()">Exportieren</button>
+        <button class="btn btn-sm" onclick="showTheoryAdmin()">Theorie</button>
         <button class="btn btn-sm" onclick="showStaffMgmt()">Mitarbeiter</button>
         <button class="btn btn-sm" onclick="showSettings()">Einstellungen</button>
       </div>
@@ -999,6 +1000,64 @@
     </div>
     <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:16px;">
       <button class="btn btn-sm" onclick="closeModal('staffMgmtModal')">Schlie&szlig;en</button>
+    </div>
+  </div>
+</div>
+
+<!-- Theorie-Admin Modal -->
+<div class="modal-overlay" id="theoryAdminModal">
+  <div class="modal" style="max-width:960px; width:96vw; max-height:90vh; display:flex; flex-direction:column;">
+    <h3 style="margin-bottom:8px;">Theoriestunden &ndash; &Uuml;bersicht &amp; Abrechnung</h3>
+    <p style="font-size:12px; color:var(--gray-500); margin-bottom:14px; line-height:1.5;">
+      Alle erfassten Theoriestunden. Filter einstellen und bei Bedarf als CSV exportieren.
+    </p>
+
+    <!-- Filter -->
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:10px; margin-bottom:14px; padding:12px; background:var(--gray-50); border-radius:6px; border:1px solid var(--gray-200);">
+      <div>
+        <label style="font-size:11px; font-weight:600; color:var(--gray-600); text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:4px;">Von</label>
+        <input type="date" id="theoryFilterFrom" onchange="renderTheoryAdmin()" style="width:100%; padding:8px; border:1px solid var(--gray-300); border-radius:4px; font-family:var(--font-ui); font-size:13px;">
+      </div>
+      <div>
+        <label style="font-size:11px; font-weight:600; color:var(--gray-600); text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:4px;">Bis</label>
+        <input type="date" id="theoryFilterTo" onchange="renderTheoryAdmin()" style="width:100%; padding:8px; border:1px solid var(--gray-300); border-radius:4px; font-family:var(--font-ui); font-size:13px;">
+      </div>
+      <div>
+        <label style="font-size:11px; font-weight:600; color:var(--gray-600); text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:4px;">Lehrer</label>
+        <select id="theoryFilterTeacher" onchange="renderTheoryAdmin()" style="width:100%; padding:8px; border:1px solid var(--gray-300); border-radius:4px; font-family:var(--font-ui); font-size:13px; background:white;">
+          <option value="">Alle</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:11px; font-weight:600; color:var(--gray-600); text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:4px;">Sch&uuml;ler (Freitext)</label>
+        <input type="text" id="theoryFilterStudent" oninput="renderTheoryAdmin()" placeholder="filtern..." style="width:100%; padding:8px; border:1px solid var(--gray-300); border-radius:4px; font-family:var(--font-ui); font-size:13px;">
+      </div>
+    </div>
+
+    <!-- Summary -->
+    <div id="theoryAdminSummary" style="display:flex; gap:16px; flex-wrap:wrap; padding:10px 14px; background:var(--primary-light); border-radius:6px; margin-bottom:12px; font-size:13px;"></div>
+
+    <!-- Table -->
+    <div style="flex:1; overflow:auto; border:1px solid var(--gray-200); border-radius:6px;">
+      <table class="admin-table" id="theoryAdminTable" style="margin:0;">
+        <thead>
+          <tr>
+            <th>Datum</th>
+            <th>Zeit</th>
+            <th>Dauer</th>
+            <th>Lehrer</th>
+            <th>Sch&uuml;ler</th>
+            <th>Thema</th>
+            <th>Notiz</th>
+          </tr>
+        </thead>
+        <tbody id="theoryAdminBody"></tbody>
+      </table>
+    </div>
+
+    <div style="display:flex; gap:8px; justify-content:space-between; margin-top:14px; flex-wrap:wrap;">
+      <button class="btn btn-primary btn-sm" onclick="exportTheoryCsv()">CSV exportieren</button>
+      <button class="btn btn-sm" onclick="closeModal('theoryAdminModal')">Schlie&szlig;en</button>
     </div>
   </div>
 </div>
@@ -2804,6 +2863,126 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Enter') { e.preventDefault(); staffMgmtAdd(); }
   });
 });
+
+// ============================================================
+// THEORIE-MODUL (ADMIN-ANSICHT)
+// ============================================================
+let theoryLessons = [];
+
+db.ref('theoryLessons').on('value', snap => {
+  const data = snap.val();
+  theoryLessons = data ? Object.values(data) : [];
+  if (document.getElementById('theoryAdminModal').classList.contains('active')) {
+    renderTheoryAdmin();
+  }
+});
+
+function showTheoryAdmin() {
+  // Lehrer-Filter mit verfügbaren Lehrern füllen
+  const teachers = [...new Set(theoryLessons.map(t => t.teacherName).filter(Boolean))].sort();
+  const sel = document.getElementById('theoryFilterTeacher');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">Alle</option>' + teachers.map(t => `<option value="${t}" ${current === t ? 'selected' : ''}>${t}</option>`).join('');
+  renderTheoryAdmin();
+  document.getElementById('theoryAdminModal').classList.add('active');
+}
+
+function theoryEscapeHtml(s) {
+  return (s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function theoryFormatDuration(minutes) {
+  if (!minutes || minutes <= 0) return '0 min';
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h && m) return `${h}h ${m}m`;
+  if (h) return `${h}h`;
+  return `${m} min`;
+}
+
+function getFilteredTheory() {
+  const from = document.getElementById('theoryFilterFrom').value;
+  const to = document.getElementById('theoryFilterTo').value;
+  const teacher = document.getElementById('theoryFilterTeacher').value;
+  const student = (document.getElementById('theoryFilterStudent').value || '').trim().toLowerCase();
+  return theoryLessons.filter(t => {
+    if (from && t.date < from) return false;
+    if (to && t.date > to) return false;
+    if (teacher && t.teacherName !== teacher) return false;
+    if (student && !(t.studentName || '').toLowerCase().includes(student)) return false;
+    return true;
+  }).sort((a, b) => (b.date + (b.startTime || '')).localeCompare(a.date + (a.startTime || '')));
+}
+
+function renderTheoryAdmin() {
+  const rows = getFilteredTheory();
+  const body = document.getElementById('theoryAdminBody');
+  const summary = document.getElementById('theoryAdminSummary');
+
+  if (!rows.length) {
+    body.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:24px; color:var(--gray-500); font-style:italic;">Keine Einträge im gewählten Zeitraum.</td></tr>';
+  } else {
+    body.innerHTML = rows.map(t => {
+      const dateFmt = t.date ? new Date(t.date + 'T12:00:00').toLocaleDateString('de-DE') : '';
+      const time = t.startTime && t.endTime ? `${t.startTime}–${t.endTime}` : '';
+      return `<tr>
+        <td style="white-space:nowrap;">${theoryEscapeHtml(dateFmt)}</td>
+        <td style="white-space:nowrap; font-variant-numeric: tabular-nums;">${time}</td>
+        <td style="white-space:nowrap; font-weight:600; color:var(--primary);">${theoryFormatDuration(t.duration || 0)}</td>
+        <td>${theoryEscapeHtml(t.teacherName || '—')}</td>
+        <td>${theoryEscapeHtml(t.studentName || '—')}</td>
+        <td>${theoryEscapeHtml(t.topic || '—')}</td>
+        <td style="color:var(--gray-600); font-size:12px;">${theoryEscapeHtml(t.notes || '')}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  const totalMin = rows.reduce((sum, t) => sum + (t.duration || 0), 0);
+  const uniqStudents = new Set(rows.map(t => t.studentName).filter(Boolean)).size;
+  const uniqTeachers = new Set(rows.map(t => t.teacherName).filter(Boolean)).size;
+  summary.innerHTML = `
+    <div><strong>${rows.length}</strong> Eintr${rows.length === 1 ? 'ag' : 'äge'}</div>
+    <div><strong>${theoryFormatDuration(totalMin)}</strong> gesamt</div>
+    <div><strong>${uniqStudents}</strong> Schüler</div>
+    <div><strong>${uniqTeachers}</strong> Lehrer</div>
+  `;
+}
+
+function exportTheoryCsv() {
+  const rows = getFilteredTheory();
+  if (!rows.length) { notify('Keine Einträge zum Exportieren.', 'error'); return; }
+
+  // BOM für Excel-kompatibles UTF-8
+  const BOM = '\uFEFF';
+  const header = ['Datum', 'Von', 'Bis', 'Dauer (min)', 'Dauer (h)', 'Lehrer', 'Schüler', 'Thema', 'Notiz'];
+  const esc = v => {
+    const s = (v == null ? '' : String(v));
+    if (/[;"\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+    return s;
+  };
+  const body = rows.map(t => {
+    const h = ((t.duration || 0) / 60).toFixed(2).replace('.', ',');
+    return [t.date || '', t.startTime || '', t.endTime || '', t.duration || 0, h, t.teacherName || '', t.studentName || '', t.topic || '', t.notes || ''].map(esc).join(';');
+  });
+  const csv = BOM + header.join(';') + '\r\n' + body.join('\r\n');
+
+  const from = document.getElementById('theoryFilterFrom').value;
+  const to = document.getElementById('theoryFilterTo').value;
+  let fname = 'Theoriestunden';
+  if (from || to) fname += `_${from || 'anfang'}_bis_${to || 'heute'}`;
+  fname += '.csv';
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fname;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  notify(`${rows.length} Einträge exportiert.`, 'success');
+}
 
 function showSettings() {
   document.getElementById('newPassword').value = '';

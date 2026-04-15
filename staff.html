@@ -146,6 +146,19 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
 .search-input { width: 100%; padding: 10px 14px; font-size: 14px; border: 1.5px solid #e8eaed; border-radius: var(--radius); font-family: var(--font); outline: none; margin-bottom: 10px; background: white; }
 .search-input:focus { border-color: var(--primary); }
 
+/* Theorie-Liste */
+.theory-item { background: white; border: 1px solid #e8eaed; border-left: 3px solid var(--primary); border-radius: var(--radius); padding: 10px 12px; margin-bottom: 6px; cursor: pointer; display: flex; align-items: flex-start; gap: 10px; }
+.theory-item:active { background: #f9fafb; }
+.theory-item .th-date { font-size: 11px; font-weight: 700; color: var(--navy); min-width: 72px; font-variant-numeric: tabular-nums; }
+.theory-item .th-date small { display: block; font-size: 10px; font-weight: 500; color: var(--gray-500); margin-top: 1px; }
+.theory-item .th-info { flex: 1; min-width: 0; }
+.theory-item .th-student { font-size: 14px; font-weight: 600; color: #1a1a1a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.theory-item .th-topic { font-size: 12px; color: var(--gray-600); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.theory-item .th-teacher { font-size: 10px; color: var(--gray-500); margin-top: 2px; }
+.theory-item .th-duration { font-size: 11px; font-weight: 700; color: var(--primary); background: rgba(61,153,145,0.1); padding: 3px 8px; border-radius: 6px; flex-shrink: 0; }
+.theory-summary { background: var(--gray-100); border-radius: var(--radius); padding: 10px 12px; margin-bottom: 10px; font-size: 12px; color: var(--navy); display: flex; justify-content: space-between; gap: 10px; }
+.theory-summary strong { color: var(--primary); font-size: 14px; }
+
 /* Daily Notes */
 .daily-notes { background: #fffbe6; border-bottom: 1px solid #f0e7c0; padding: 10px 16px; display: flex; align-items: flex-start; gap: 10px; font-size: 13px; cursor: pointer; }
 .daily-notes:active { background: #fef7d0; }
@@ -381,6 +394,7 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
   <button class="view-tab active" id="tabOverview" onclick="switchView('overview')">&Uuml;bersicht</button>
   <button class="view-tab" id="tabBook" onclick="switchView('book')">Buchen</button>
   <button class="view-tab" id="tabManage" onclick="switchView('manage')">Verwalten<span id="pendingBadge" style="display:none;" class="tab-badge">0</span></button>
+  <button class="view-tab" id="tabTheory" onclick="switchView('theory')" style="display:none;">Theorie</button>
 </div>
 
 <div id="viewOverview" class="overview">
@@ -396,6 +410,58 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
   <input type="text" class="search-input" id="searchInput" placeholder="Suchen nach Name, Flugzeug..." oninput="renderManage()">
   <div class="filter-row" id="filterRow"></div>
   <div id="manageContent"></div>
+</div>
+
+<!-- Theorie-Modul -->
+<div id="viewTheory" class="manage" style="display:none;">
+  <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;">
+    <h3 style="flex:1;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--gray-500);margin:0;">Theoriestunden</h3>
+    <button class="btn-book" onclick="openTheoryForm()" style="padding:8px 14px;font-size:13px;">+ Neu</button>
+  </div>
+  <div id="theoryFilterRow" class="filter-row" style="display:none;"></div>
+  <div id="theoryList"></div>
+</div>
+
+<!-- Theorie-Formular (Bottom Sheet) -->
+<div class="quick-overlay" id="theoryOverlay" onclick="if(event.target===this)closeTheoryForm()">
+  <div class="quick-sheet">
+    <h3 id="theoryFormTitle">Theoriestunde erfassen</h3>
+    <input type="hidden" id="theoryEditId">
+    <div style="margin-bottom:10px;">
+      <label style="font-size:11px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:4px;">Schüler</label>
+      <input type="text" class="quick-input" id="theoryStudent" placeholder="Name des Schülers" list="theoryStudentSuggestions">
+      <datalist id="theoryStudentSuggestions"></datalist>
+    </div>
+    <div style="margin-bottom:10px;">
+      <label style="font-size:11px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:4px;">Thema / Inhalt</label>
+      <input type="text" class="quick-input" id="theoryTopic" placeholder="z.B. Meteorologie – Fronten" list="theoryTopicSuggestions">
+      <datalist id="theoryTopicSuggestions"></datalist>
+    </div>
+    <div style="margin-bottom:10px;">
+      <label style="font-size:11px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:4px;">Datum</label>
+      <input type="date" class="quick-input" id="theoryDate">
+    </div>
+    <div class="quick-row" style="margin-bottom:10px;">
+      <div style="flex:1;">
+        <label style="font-size:11px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:4px;">Von</label>
+        <input type="time" class="quick-input" id="theoryStart">
+      </div>
+      <div style="flex:1;">
+        <label style="font-size:11px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:4px;">Bis</label>
+        <input type="time" class="quick-input" id="theoryEnd">
+      </div>
+    </div>
+    <div style="margin-bottom:10px;">
+      <label style="font-size:11px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:4px;">Notiz (optional)</label>
+      <textarea class="quick-input" id="theoryNotes" rows="2" placeholder="Details, Besonderheiten..."></textarea>
+    </div>
+    <div id="theoryFormError" style="color:var(--danger);font-size:12px;margin-bottom:10px;display:none;"></div>
+    <div class="quick-row">
+      <button class="btn-cancel" onclick="closeTheoryForm()">Abbrechen</button>
+      <button class="btn-book" id="theoryDeleteBtn" onclick="deleteTheoryFromForm()" style="background:var(--danger);display:none;">Löschen</button>
+      <button class="btn-book" onclick="saveTheory()" style="flex:1;">Speichern</button>
+    </div>
+  </div>
 </div>
 
 <!-- Quick Book Sheet -->
@@ -486,6 +552,8 @@ for (let i = 0; i < TIME_POINTS.length - 1; i++) TIME_SLOTS.push(`${TIME_POINTS[
 let bookings = [];
 let staffUsers = [];
 let dailyNotes = {};
+let theoryLessons = [];
+let theoryFilterMode = 'mine'; // 'mine' | 'all' (nur für Admins/Berechtigte)
 let currentUser = null;
 let currentDate = new Date();
 let selectedAircraft = AIRCRAFT[0];
@@ -745,6 +813,8 @@ function updateUserUI() {
   // Admin-Menupunkt sichtbar?
   const mgmtItem = document.getElementById('userMgmtMenuItem');
   if (mgmtItem) mgmtItem.style.display = currentUserHas('manageUsers') ? '' : 'none';
+  // Theorie-Tab nur anzeigen, wenn Recht vorhanden
+  if (typeof updateTheoryTabVisibility === 'function') updateTheoryTabVisibility();
 }
 
 function toggleUserMenu() {
@@ -787,6 +857,12 @@ db.ref('staffUsers').on('value', snap => {
 db.ref('dailyNotes').on('value', snap => {
   dailyNotes = snap.val() || {};
   renderDailyNotes();
+});
+
+db.ref('theoryLessons').on('value', snap => {
+  const data = snap.val();
+  theoryLessons = data ? Object.values(data) : [];
+  if (currentView === 'theory') renderTheory();
 });
 
 db.ref('bookings').on('value', snap => {
@@ -925,14 +1001,23 @@ function goToday() { currentDate = new Date(); render(); }
 // ============================================================
 function switchView(view) {
   currentView = view;
-  ['Overview','Book','Manage'].forEach(v => {
+  ['Overview','Book','Manage','Theory'].forEach(v => {
     const tab = document.getElementById('tab' + v);
     const cont = document.getElementById('view' + v);
+    if (!tab || !cont) return;
     const isActive = v.toLowerCase() === view;
     tab.classList.toggle('active', isActive);
     cont.style.display = isActive ? '' : 'none';
   });
   render();
+}
+
+function updateTheoryTabVisibility() {
+  const tab = document.getElementById('tabTheory');
+  if (!tab) return;
+  const canTrack = currentUserHas('trackTheory');
+  tab.style.display = canTrack ? '' : 'none';
+  if (!canTrack && currentView === 'theory') switchView('overview');
 }
 
 function updatePendingBadge() {
@@ -1289,6 +1374,216 @@ function saveNotes() {
 }
 
 // ============================================================
+// THEORIE-MODUL
+// ============================================================
+function canSeeAllTheory() {
+  return currentUserHas('viewAllTheory');
+}
+
+function formatDuration(minutes) {
+  if (!minutes || minutes <= 0) return '0 min';
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h && m) return `${h}h ${m}m`;
+  if (h) return `${h}h`;
+  return `${m} min`;
+}
+
+function minutesBetween(start, end) {
+  if (!start || !end) return 0;
+  const [sh, sm] = start.split(':').map(Number);
+  const [eh, em] = end.split(':').map(Number);
+  return Math.max(0, (eh * 60 + em) - (sh * 60 + sm));
+}
+
+function formatDateShort(isoDate) {
+  if (!isoDate) return '';
+  const d = new Date(isoDate + 'T12:00:00');
+  return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' });
+}
+
+function formatDayName(isoDate) {
+  if (!isoDate) return '';
+  const d = new Date(isoDate + 'T12:00:00');
+  return d.toLocaleDateString('de-DE', { weekday: 'short' });
+}
+
+function renderTheory() {
+  const listEl = document.getElementById('theoryList');
+  const filterRow = document.getElementById('theoryFilterRow');
+  if (!listEl) return;
+
+  // Filter-Zeile für Berechtigte
+  if (canSeeAllTheory()) {
+    filterRow.style.display = '';
+    filterRow.innerHTML = `
+      <div class="filter-chip ${theoryFilterMode === 'mine' ? 'active' : ''}" onclick="setTheoryFilter('mine')">Meine</div>
+      <div class="filter-chip ${theoryFilterMode === 'all' ? 'active' : ''}" onclick="setTheoryFilter('all')">Alle Lehrer</div>
+    `;
+  } else {
+    filterRow.style.display = 'none';
+    theoryFilterMode = 'mine';
+  }
+
+  let visible = theoryLessons.slice();
+  if (theoryFilterMode === 'mine' && currentUser) {
+    visible = visible.filter(t => t.teacherId === currentUser.id);
+  }
+  // Neueste zuerst
+  visible.sort((a, b) => (b.date + (b.startTime || '')).localeCompare(a.date + (a.startTime || '')));
+
+  // Summary
+  const totalMin = visible.reduce((sum, t) => sum + (t.duration || 0), 0);
+  const summary = `<div class="theory-summary">
+    <div>${visible.length} Eintr${visible.length === 1 ? 'ag' : 'äge'}</div>
+    <div><strong>${formatDuration(totalMin)}</strong> gesamt</div>
+  </div>`;
+
+  if (!visible.length) {
+    listEl.innerHTML = summary + `<div class="empty-msg">Noch keine Theoriestunden erfasst. Oben rechts auf „+ Neu" tippen.</div>`;
+    return;
+  }
+
+  listEl.innerHTML = summary + visible.map(t => {
+    const time = t.startTime && t.endTime ? `${t.startTime}–${t.endTime}` : '';
+    const showTeacher = theoryFilterMode === 'all' || (t.teacherId !== (currentUser && currentUser.id));
+    const teacherLine = showTeacher && t.teacherName ? `<div class="th-teacher">Lehrer: ${escapeHtml(t.teacherName)}</div>` : '';
+    return `<div class="theory-item" onclick="openTheoryForm('${t.id}')">
+      <div class="th-date">
+        ${formatDateShort(t.date)}
+        <small>${formatDayName(t.date)} ${time}</small>
+      </div>
+      <div class="th-info">
+        <div class="th-student">${escapeHtml(t.studentName || '—')}</div>
+        <div class="th-topic">${escapeHtml(t.topic || '—')}</div>
+        ${teacherLine}
+      </div>
+      <div class="th-duration">${formatDuration(t.duration || 0)}</div>
+    </div>`;
+  }).join('');
+}
+
+function escapeHtml(s) {
+  return (s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function setTheoryFilter(mode) {
+  theoryFilterMode = mode;
+  renderTheory();
+}
+
+function openTheoryForm(id) {
+  if (!currentUserHas('trackTheory')) { notify('Keine Berechtigung zum Erfassen.', 'error'); return; }
+  const form = document.getElementById('theoryOverlay');
+  const title = document.getElementById('theoryFormTitle');
+  const delBtn = document.getElementById('theoryDeleteBtn');
+  const errEl = document.getElementById('theoryFormError');
+  errEl.style.display = 'none';
+
+  // Vorschläge für Schüler/Themen aus bisherigen Einträgen
+  const studentsDl = document.getElementById('theoryStudentSuggestions');
+  const topicsDl = document.getElementById('theoryTopicSuggestions');
+  const myLessons = theoryLessons.filter(t => !currentUser || t.teacherId === currentUser.id);
+  const uniqStudents = [...new Set(myLessons.map(t => t.studentName).filter(Boolean))].sort();
+  const uniqTopics = [...new Set(myLessons.map(t => t.topic).filter(Boolean))].sort();
+  studentsDl.innerHTML = uniqStudents.map(s => `<option value="${escapeHtml(s)}">`).join('');
+  topicsDl.innerHTML = uniqTopics.map(s => `<option value="${escapeHtml(s)}">`).join('');
+
+  if (id) {
+    const t = theoryLessons.find(x => x.id === id);
+    if (!t) { notify('Eintrag nicht gefunden.', 'error'); return; }
+    const canEdit = (currentUser && t.teacherId === currentUser.id) || isAdmin();
+    if (!canEdit) { notify('Du kannst nur deine eigenen Einträge bearbeiten.', 'error'); return; }
+    title.textContent = 'Theoriestunde bearbeiten';
+    document.getElementById('theoryEditId').value = id;
+    document.getElementById('theoryStudent').value = t.studentName || '';
+    document.getElementById('theoryTopic').value = t.topic || '';
+    document.getElementById('theoryDate').value = t.date || '';
+    document.getElementById('theoryStart').value = t.startTime || '';
+    document.getElementById('theoryEnd').value = t.endTime || '';
+    document.getElementById('theoryNotes').value = t.notes || '';
+    delBtn.style.display = '';
+  } else {
+    title.textContent = 'Theoriestunde erfassen';
+    document.getElementById('theoryEditId').value = '';
+    document.getElementById('theoryStudent').value = '';
+    document.getElementById('theoryTopic').value = '';
+    document.getElementById('theoryDate').value = dateKey(new Date());
+    document.getElementById('theoryStart').value = '';
+    document.getElementById('theoryEnd').value = '';
+    document.getElementById('theoryNotes').value = '';
+    delBtn.style.display = 'none';
+  }
+  form.classList.add('active');
+}
+
+function closeTheoryForm() {
+  document.getElementById('theoryOverlay').classList.remove('active');
+}
+
+function saveTheory() {
+  const errEl = document.getElementById('theoryFormError');
+  const id = document.getElementById('theoryEditId').value;
+  const student = document.getElementById('theoryStudent').value.trim();
+  const topic = document.getElementById('theoryTopic').value.trim();
+  const date = document.getElementById('theoryDate').value;
+  const startTime = document.getElementById('theoryStart').value;
+  const endTime = document.getElementById('theoryEnd').value;
+  const notes = document.getElementById('theoryNotes').value.trim();
+
+  errEl.style.display = 'none';
+  if (!student) { errEl.textContent = 'Bitte Schüler angeben.'; errEl.style.display = ''; return; }
+  if (!date) { errEl.textContent = 'Bitte Datum angeben.'; errEl.style.display = ''; return; }
+  if (!startTime || !endTime) { errEl.textContent = 'Bitte Von- und Bis-Zeit angeben.'; errEl.style.display = ''; return; }
+  const duration = minutesBetween(startTime, endTime);
+  if (duration <= 0) { errEl.textContent = 'Bis-Zeit muss nach Von-Zeit liegen.'; errEl.style.display = ''; return; }
+
+  const now = Date.now();
+  const payload = {
+    studentName: student,
+    topic: topic,
+    date: date,
+    startTime: startTime,
+    endTime: endTime,
+    duration: duration,
+    notes: notes,
+    updatedAt: now,
+  };
+
+  if (id) {
+    // Nur erlauben, wenn Besitzer oder Admin
+    const existing = theoryLessons.find(t => t.id === id);
+    if (!existing) { notify('Eintrag nicht gefunden.', 'error'); return; }
+    const canEdit = (currentUser && existing.teacherId === currentUser.id) || isAdmin();
+    if (!canEdit) { notify('Keine Berechtigung.', 'error'); return; }
+    db.ref('theoryLessons/' + id).update(payload);
+    notify('Theoriestunde aktualisiert.', 'success');
+  } else {
+    const newId = 't' + now.toString(36) + Math.random().toString(36).slice(2, 6);
+    payload.id = newId;
+    payload.teacherId = currentUser ? currentUser.id : null;
+    payload.teacherName = currentUser ? currentUser.name : null;
+    payload.createdAt = now;
+    db.ref('theoryLessons/' + newId).set(payload);
+    notify('Theoriestunde gespeichert.', 'success');
+  }
+  closeTheoryForm();
+}
+
+function deleteTheoryFromForm() {
+  const id = document.getElementById('theoryEditId').value;
+  if (!id) return;
+  const t = theoryLessons.find(x => x.id === id);
+  if (!t) return;
+  const canEdit = (currentUser && t.teacherId === currentUser.id) || isAdmin();
+  if (!canEdit) { notify('Keine Berechtigung.', 'error'); return; }
+  if (!confirm('Theoriestunde wirklich löschen?')) return;
+  db.ref('theoryLessons/' + id).remove();
+  notify('Eintrag gelöscht.', 'info');
+  closeTheoryForm();
+}
+
+// ============================================================
 // MAIN RENDER
 // ============================================================
 function render() {
@@ -1297,6 +1592,7 @@ function render() {
   if (currentView === 'overview') renderOverview();
   else if (currentView === 'book') renderBook();
   else if (currentView === 'manage') renderManage();
+  else if (currentView === 'theory') renderTheory();
 }
 
 // ============================================================
