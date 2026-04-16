@@ -265,16 +265,16 @@
 
   /* Platzrunden: eingeschränkte Zeiten */
   .grid-cell.restricted {
-    background: var(--gray-50);
+    background-color: rgba(245, 222, 195, 0.3);
     background-image: repeating-linear-gradient(
       -45deg,
       transparent,
-      transparent 6px,
-      rgba(0,0,0,0.03) 6px,
-      rgba(0,0,0,0.03) 7px
+      transparent 4px,
+      rgba(0,0,0,0.025) 4px,
+      rgba(0,0,0,0.025) 5px
     );
   }
-  .grid-cell.restricted:hover { background: var(--gray-100); }
+  .grid-cell.restricted:hover { background-color: rgba(245, 222, 195, 0.4); }
   .restricted-label {
     font-size: 14px;
     color: var(--gray-400);
@@ -309,13 +309,13 @@
     flex-shrink: 0;
   }
   .platzrunden-legend .swatch-restricted {
-    background: var(--gray-50);
+    background-color: rgba(245, 222, 195, 0.4);
     background-image: repeating-linear-gradient(
       -45deg,
       transparent,
       transparent 4px,
-      rgba(0,0,0,0.04) 4px,
-      rgba(0,0,0,0.04) 5px
+      rgba(0,0,0,0.03) 4px,
+      rgba(0,0,0,0.03) 5px
     );
   }
   .platzrunden-legend .swatch-open {
@@ -324,10 +324,10 @@
 
   /* Schleppbetrieb-Block */
   .grid-cell.towing-blocked {
-    background: rgba(12,27,46,0.06);
+    background: #ececec;
     cursor: default;
   }
-  .grid-cell.towing-blocked:hover { background: rgba(12,27,46,0.08); }
+  .grid-cell.towing-blocked:hover { background: #e2e2e2; }
   .towing-label {
     font-size: 9px;
     font-weight: 600;
@@ -716,12 +716,12 @@
   .week-cell.past-day { opacity: 0.35; pointer-events: none; }
   .week-grid-header.past-day { opacity: 0.35; }
   .week-cell.week-restricted-full {
-    background: var(--gray-50);
+    background-color: rgba(245, 222, 195, 0.3);
     background-image: repeating-linear-gradient(
-      -45deg, transparent, transparent 6px, rgba(0,0,0,0.025) 6px, rgba(0,0,0,0.025) 7px
+      -45deg, transparent, transparent 4px, rgba(0,0,0,0.025) 4px, rgba(0,0,0,0.025) 5px
     );
   }
-  .week-cell.week-restricted-full:hover { background: var(--gray-100); }
+  .week-cell.week-restricted-full:hover { background-color: rgba(245, 222, 195, 0.4); }
   .week-booking-bar {
     font-size: 10px;
     padding: 3px 6px;
