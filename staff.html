@@ -387,24 +387,62 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
 .inv-form .inv-form-actions { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
 
 /* ===== TEAM VIEW (full-page employee management) ===== */
-.team-view { padding: 12px 16px 100px; }
+.team-view { padding: 0 0 100px; }
+.team-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px 16px; background: white; border-bottom: 1px solid #e8eaed; position: sticky; top: 52px; z-index: 20; }
+.team-search { flex: 1; min-width: 160px; padding: 8px 12px; border: 1.5px solid #e8eaed; border-radius: 8px; font-size: 13px; font-family: var(--font); outline: none; }
+.team-search:focus { border-color: var(--primary); }
+.team-filter-chips { display: flex; gap: 4px; flex-wrap: wrap; }
+.team-filter-chip { padding: 5px 10px; border-radius: 16px; border: 1px solid #e8eaed; background: white; font-size: 11px; font-weight: 600; cursor: pointer; font-family: var(--font); color: var(--gray-500); transition: all 0.15s; }
+.team-filter-chip.active { background: var(--navy); color: white; border-color: var(--navy); }
+.team-filter-chip .chip-count { font-size: 9px; opacity: 0.7; margin-left: 2px; }
+.team-invite-quick-btn { padding: 7px 14px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: var(--font); white-space: nowrap; flex-shrink: 0; }
+.team-invite-panel { padding: 12px 16px 0; }
+.team-count-bar { padding: 6px 16px; font-size: 11px; color: var(--gray-500); font-weight: 600; display: flex; align-items: center; justify-content: space-between; }
 .team-section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gray-500); margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
 .team-section-title .count { background: var(--gray-100); color: var(--navy); padding: 1px 7px; border-radius: 10px; font-size: 10px; }
 
 /* Employee Card */
-.team-card { background: white; border-radius: 12px; border: 1px solid #e8eaed; margin-bottom: 10px; overflow: hidden; transition: box-shadow 0.2s; }
-.team-card.expanded { box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
-.team-card-header { display: flex; align-items: center; gap: 12px; padding: 14px 16px; cursor: pointer; }
-.team-card-header:active { background: #f9fafb; }
+/* Compact team list row */
+.team-row { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid #f0f1f3; cursor: pointer; transition: background 0.1s; }
+.team-row:active { background: #f5f6f8; }
+.team-row:last-child { border-bottom: none; }
+.team-row-avatar { width: 34px; height: 34px; border-radius: 50%; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.team-row-avatar.role-admin { background: var(--accent); color: var(--navy); }
+.team-row-avatar.role-team { background: var(--primary); color: white; }
+.team-row-avatar.role-guest { background: var(--gray-300); color: var(--navy); }
+.team-row-info { flex: 1; min-width: 0; }
+.team-row-name { font-size: 14px; font-weight: 600; color: var(--navy); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.team-row-name .you-tag { font-size: 9px; color: var(--gray-500); font-weight: 400; margin-left: 4px; }
+.team-row-meta { font-size: 11px; color: var(--gray-500); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.team-row-badge { padding: 2px 8px; border-radius: 10px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; flex-shrink: 0; }
+.team-row-badge.badge-admin { background: rgba(201,168,76,0.15); color: #8a6d10; }
+.team-row-badge.badge-team { background: rgba(61,153,145,0.12); color: #2d7a73; }
+.team-row-badge.badge-guest { background: var(--gray-100); color: var(--gray-500); }
+.team-row-chevron { color: var(--gray-300); font-size: 12px; flex-shrink: 0; }
+
+/* Detail overlay panel */
+.team-detail-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 200; justify-content: flex-end; }
+.team-detail-overlay.active { display: flex; }
+.team-detail-panel { width: 100%; max-width: 420px; background: white; height: 100%; overflow-y: auto; padding: 0; box-shadow: -4px 0 20px rgba(0,0,0,0.15); animation: slideInRight 0.2s ease; }
+@keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
+.td-header { display: flex; align-items: center; gap: 14px; padding: 20px 20px 16px; border-bottom: 1px solid #e8eaed; }
+.td-avatar { width: 52px; height: 52px; border-radius: 50%; font-size: 20px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.td-avatar.role-admin { background: var(--accent); color: var(--navy); }
+.td-avatar.role-team { background: var(--primary); color: white; }
+.td-avatar.role-guest { background: var(--gray-300); color: var(--navy); }
+.td-close { position: absolute; right: 16px; top: 16px; width: 32px; height: 32px; border-radius: 50%; border: none; background: var(--gray-100); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--gray-500); }
+.td-name { font-size: 18px; font-weight: 700; color: var(--navy); }
+.td-email { font-size: 13px; color: var(--gray-500); margin-top: 2px; }
+.td-section { padding: 16px 20px; border-bottom: 1px solid #f0f1f3; }
+.td-section:last-child { border-bottom: none; }
+.td-section-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gray-500); margin-bottom: 10px; }
+.td-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.td-info-item .td-label { font-size: 10px; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.03em; }
+.td-info-item .td-value { font-size: 14px; color: var(--navy); font-weight: 500; margin-top: 2px; }
+.td-info-item .td-value.mono { font-size: 10px; color: var(--gray-500); font-family: monospace; word-break: break-all; }
+
+/* Keep old card styles for backward compat but they won't be used in new layout */
 .team-card-avatar { width: 42px; height: 42px; border-radius: 50%; background: var(--accent); color: var(--navy); font-size: 16px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.team-card-avatar.role-admin { background: var(--accent); }
-.team-card-avatar.role-team { background: var(--primary); color: white; }
-.team-card-avatar.role-guest { background: var(--gray-300); color: var(--navy); }
-.team-card-info { flex: 1; min-width: 0; }
-.team-card-name { font-size: 15px; font-weight: 600; color: var(--navy); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.team-card-email { font-size: 12px; color: var(--gray-500); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.team-card-chevron { color: var(--gray-500); font-size: 14px; flex-shrink: 0; transition: transform 0.2s; }
-.team-card.expanded .team-card-chevron { transform: rotate(180deg); }
 .team-card-you { font-size: 10px; color: var(--gray-500); font-weight: 400; }
 
 /* Expanded Card Body */
@@ -764,12 +802,17 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
 
 <!-- Team View (full-page employee management) -->
 <div id="viewTeam" class="team-view" style="display:none;">
-  <div id="teamMembersList"></div>
-  <div class="team-invite-section" id="teamInviteSection">
-    <div class="team-section-title">Offene Einladungen</div>
-    <div id="teamInvitationsList"></div>
-    <div class="team-invite-card" style="margin-top: 10px;">
-      <h4>+ Neuen Mitarbeiter einladen</h4>
+  <!-- Toolbar: Suche + Filter + Einladen -->
+  <div class="team-toolbar">
+    <input type="text" class="team-search" id="teamSearchInput" placeholder="Mitarbeiter suchen..." oninput="renderTeamView()">
+    <div class="team-filter-chips" id="teamFilterChips"></div>
+    <button class="team-invite-quick-btn" id="teamInviteToggle" onclick="toggleTeamInvite()" style="display:none;">+ Einladen</button>
+  </div>
+
+  <!-- Einladungsformular (einklappbar) -->
+  <div class="team-invite-panel" id="teamInvitePanel" style="display:none;">
+    <div class="team-invite-card">
+      <h4>Neuen Mitarbeiter einladen</h4>
       <div class="team-invite-form">
         <input type="text" class="team-invite-input" id="teamInvName" placeholder="Name" maxlength="40">
         <input type="email" class="team-invite-input" id="teamInvEmail" placeholder="E-Mail-Adresse">
@@ -780,6 +823,16 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
         </label>
       </div>
     </div>
+    <div id="teamInvitationsList" style="margin-top:8px;"></div>
+  </div>
+
+  <!-- Kompakte Mitarbeiterliste -->
+  <div class="team-count-bar" id="teamCountBar"></div>
+  <div id="teamMembersList"></div>
+
+  <!-- Detail-Panel (Overlay) -->
+  <div class="team-detail-overlay" id="teamDetailOverlay" onclick="if(event.target===this)closeTeamDetail()">
+    <div class="team-detail-panel" id="teamDetailPanel"></div>
   </div>
 </div>
 
@@ -2483,107 +2536,177 @@ function toggleTeamCard(id) {
   renderTeamView();
 }
 
+let teamRoleFilter = 'all';
+
 function renderTeamView() {
   const el = document.getElementById('teamMembersList');
   if (!el) return;
 
-  const adminCount = staffUsers.filter(u => u.role === 'admin').length;
-  const sorted = staffUsers.slice().sort((a, b) => {
+  // Search + Filter
+  const query = (document.getElementById('teamSearchInput')?.value || '').toLowerCase().trim();
+  let filtered = staffUsers.slice();
+  if (query) {
+    filtered = filtered.filter(u =>
+      (u.name || '').toLowerCase().includes(query) ||
+      (u.email || '').toLowerCase().includes(query) ||
+      (u.role || '').toLowerCase().includes(query)
+    );
+  }
+  if (teamRoleFilter !== 'all') {
+    filtered = filtered.filter(u => u.role === teamRoleFilter);
+  }
+
+  // Sort: admins first, then alphabetical
+  filtered.sort((a, b) => {
     if (a.role === 'admin' && b.role !== 'admin') return -1;
     if (b.role === 'admin' && a.role !== 'admin') return 1;
     return (a.name || '').localeCompare(b.name || '');
   });
 
-  el.innerHTML = `<div class="team-section-title">Mitarbeiter <span class="count">${sorted.length}</span></div>` +
-    sorted.map(u => {
-      const isAdm = u.role === 'admin';
-      const isMe = currentUser && u.id === currentUser.id;
-      const lockedToAdmin = isAdm && adminCount === 1;
-      const canDelete = !isMe && !(isAdm && adminCount === 1);
-      const expanded = expandedTeamCards.has(u.id);
-      const avatarClass = isAdm ? 'role-admin' : (u.role === 'team' ? 'role-team' : 'role-guest');
-      const meta = roleMeta(u.role);
-      const createdAt = u.createdAt ? new Date(u.createdAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '\u2014';
-
-      // Permissions HTML
-      const permsHtml = DASSU_PERMISSIONS.map(p => {
-        const effective = hasPermission(u, staffUsers, p.key);
-        const explicit = !isAdm && isPermissionExplicit(u, p.key);
-        const hint = isAdm
-          ? '<span class="team-perm-hint">(immer an)</span>'
-          : (explicit ? '' : `<span class="team-perm-hint">(Standard)</span>`);
-        const toggleCls = 'perm-toggle' + (effective ? ' on' : '') + (isAdm ? ' disabled' : '');
-        const onClick = isAdm ? '' : `onclick="togglePermission('${u.id}','${p.key}')"`;
-        return `<div class="team-perm-row">
-          <div class="team-perm-label">${p.label} ${hint}<small>${p.desc}</small></div>
-          <div class="${toggleCls}" ${onClick}></div>
-        </div>`;
-      }).join('');
-
-      // Role options
-      const roleOpts = DASSU_ROLES.filter(r => !r.legacy || r.id === u.role);
-      const roleDisabled = lockedToAdmin ? 'disabled' : '';
-
-      return `<div class="team-card${expanded ? ' expanded' : ''}">
-        <div class="team-card-header" onclick="toggleTeamCard('${u.id}')">
-          <div class="team-card-avatar ${avatarClass}">${(u.name || '?').charAt(0).toUpperCase()}</div>
-          <div class="team-card-info">
-            <div class="team-card-name">
-              ${escapeHtml(u.name)}${roleBadge(u.role)}${isMe ? '<span class="team-card-you">(du)</span>' : ''}
-            </div>
-            <div class="team-card-email">${escapeHtml(u.email || '\u2014')}</div>
-          </div>
-          <div class="team-card-chevron">\u25BC</div>
-        </div>
-        <div class="team-card-body">
-          <div class="team-card-body-divider"></div>
-
-          <div class="team-edit-row">
-            <label>Name</label>
-            <input type="text" class="team-edit-input" id="teamName_${u.id}" value="${escapeHtml(u.name || '')}">
-            <button class="team-btn-save" style="padding:8px 14px;flex-shrink:0;" onclick="saveMemberName('${u.id}', 'teamName_')">Speichern</button>
-          </div>
-
-          <div class="team-info-grid">
-            <div class="team-info-item">
-              <div class="team-info-label">E-Mail</div>
-              <div class="team-info-value">${escapeHtml(u.email || '\u2014')}</div>
-            </div>
-            <div class="team-info-item">
-              <div class="team-info-label">Erstellt am</div>
-              <div class="team-info-value">${createdAt}</div>
-            </div>
-            <div class="team-info-item" style="grid-column:1/-1;">
-              <div class="team-info-label">ID</div>
-              <div class="team-info-value mono">${u.id}</div>
-            </div>
-          </div>
-
-          <div class="team-role-row">
-            <label>Rolle</label>
-            <select class="team-role-select" ${roleDisabled} onchange="setUserRole('${u.id}', this.value)">
-              ${roleOpts.map(r => `<option value="${r.id}" ${u.role === r.id ? 'selected' : ''}>${r.label}</option>`).join('')}
-            </select>
-          </div>
-
-          <div class="team-perms">
-            <div class="team-perms-title">Berechtigungen</div>
-            ${permsHtml}
-          </div>
-
-          ${canDelete ? `<div class="team-card-actions">
-            <button class="team-btn-delete" onclick="deleteStaffUser('${u.id}')">Mitarbeiter entfernen</button>
-          </div>` : ''}
-        </div>
-      </div>`;
+  // Role counts for filter chips
+  const roleCounts = {};
+  staffUsers.forEach(u => { roleCounts[u.role] = (roleCounts[u.role] || 0) + 1; });
+  const chipEl = document.getElementById('teamFilterChips');
+  if (chipEl) {
+    const roles = [
+      { id: 'all', label: 'Alle' },
+      { id: 'admin', label: 'Admin' },
+      { id: 'team', label: 'Team' },
+      { id: 'guestGlider', label: 'Gast MS' },
+      { id: 'guestMotor', label: 'Gast UL' }
+    ];
+    chipEl.innerHTML = roles.map(r => {
+      const count = r.id === 'all' ? staffUsers.length : (roleCounts[r.id] || 0);
+      if (r.id !== 'all' && !count) return '';
+      return `<button class="team-filter-chip${teamRoleFilter === r.id ? ' active' : ''}" onclick="teamRoleFilter='${r.id}';renderTeamView();">${r.label}<span class="chip-count">${count}</span></button>`;
     }).join('');
+  }
 
-  // Render invitations
+  // Invite button visibility
+  const invToggle = document.getElementById('teamInviteToggle');
+  if (invToggle) invToggle.style.display = isAdmin() ? '' : 'none';
+
+  // Count bar
+  const countBar = document.getElementById('teamCountBar');
+  if (countBar) {
+    const showing = filtered.length === staffUsers.length ? `${staffUsers.length} Mitarbeiter` : `${filtered.length} von ${staffUsers.length}`;
+    countBar.textContent = showing;
+  }
+
+  // Compact list rows
+  el.innerHTML = filtered.map(u => {
+    const avatarCls = u.role === 'admin' ? 'role-admin' : (u.role === 'team' ? 'role-team' : 'role-guest');
+    const meta = roleMeta(u.role);
+    const badgeCls = u.role === 'admin' ? 'badge-admin' : (u.role === 'team' ? 'badge-team' : 'badge-guest');
+    const isMe = currentUser && u.id === currentUser.id;
+    const youTag = isMe ? '<span class="you-tag">(du)</span>' : '';
+
+    return `<div class="team-row" onclick="openTeamDetail('${u.id}')">
+      <div class="team-row-avatar ${avatarCls}">${(u.name || '?').charAt(0).toUpperCase()}</div>
+      <div class="team-row-info">
+        <div class="team-row-name">${escapeHtml(u.name)}${youTag}</div>
+        <div class="team-row-meta">${escapeHtml(u.email || '\u2014')}</div>
+      </div>
+      <span class="team-row-badge ${badgeCls}">${meta.short || meta.label}</span>
+      <span class="team-row-chevron">\u203A</span>
+    </div>`;
+  }).join('') || '<div style="text-align:center;padding:24px;color:var(--gray-500);font-size:13px;">Keine Mitarbeiter gefunden.</div>';
+
+  // Invitations
   renderTeamInvitations();
   populateTeamInvRoles();
-  // Show/hide invitation section
-  const invSec = document.getElementById('teamInviteSection');
-  if (invSec) invSec.style.display = isAdmin() ? '' : 'none';
+}
+
+function toggleTeamInvite() {
+  const panel = document.getElementById('teamInvitePanel');
+  if (panel) panel.style.display = panel.style.display === 'none' ? '' : 'none';
+}
+
+function openTeamDetail(uid) {
+  const u = staffUsers.find(s => s.id === uid);
+  if (!u) return;
+  const panel = document.getElementById('teamDetailPanel');
+  const overlay = document.getElementById('teamDetailOverlay');
+  if (!panel || !overlay) return;
+
+  const isAdm = u.role === 'admin';
+  const adminCount = staffUsers.filter(s => s.role === 'admin').length;
+  const isMe = currentUser && u.id === currentUser.id;
+  const lockedToAdmin = isAdm && adminCount === 1;
+  const canDelete = !isMe && !(isAdm && adminCount === 1);
+  const avatarCls = isAdm ? 'role-admin' : (u.role === 'team' ? 'role-team' : 'role-guest');
+  const createdAt = u.createdAt ? new Date(u.createdAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '\u2014';
+
+  // Permissions
+  const permsHtml = DASSU_PERMISSIONS.map(p => {
+    const effective = hasPermission(u, staffUsers, p.key);
+    const explicit = !isAdm && isPermissionExplicit(u, p.key);
+    const hint = isAdm ? '<span class="team-perm-hint">(immer an)</span>' : (explicit ? '' : '<span class="team-perm-hint">(Standard)</span>');
+    const toggleCls = 'perm-toggle' + (effective ? ' on' : '') + (isAdm ? ' disabled' : '');
+    const onClick = isAdm ? '' : `onclick="togglePermission('${u.id}','${p.key}');openTeamDetail('${u.id}');"`;
+    return `<div class="team-perm-row">
+      <div class="team-perm-label">${p.label} ${hint}<small>${p.desc}</small></div>
+      <div class="${toggleCls}" ${onClick}></div>
+    </div>`;
+  }).join('');
+
+  // Role options
+  const roleOpts = DASSU_ROLES.filter(r => !r.legacy || r.id === u.role);
+  const roleDisabled = lockedToAdmin ? 'disabled' : '';
+
+  const canEdit = currentUserHas('manageUsers');
+
+  panel.innerHTML = `
+    <div class="td-header" style="position:relative;">
+      <div class="td-avatar ${avatarCls}">${(u.name || '?').charAt(0).toUpperCase()}</div>
+      <div>
+        <div class="td-name">${escapeHtml(u.name)}${isMe ? ' <span style="font-size:11px;color:var(--gray-500);font-weight:400;">(du)</span>' : ''}</div>
+        <div class="td-email">${escapeHtml(u.email || '\u2014')}</div>
+      </div>
+      <button class="td-close" onclick="closeTeamDetail()">\u2715</button>
+    </div>
+
+    ${canEdit ? `<div class="td-section">
+      <div class="td-section-title">Name bearbeiten</div>
+      <div style="display:flex;gap:8px;">
+        <input type="text" class="team-edit-input" id="tdName_${u.id}" value="${escapeHtml(u.name || '')}" style="flex:1;">
+        <button class="team-btn-save" style="padding:8px 14px;" onclick="saveMemberName('${u.id}','tdName_');openTeamDetail('${u.id}');">Speichern</button>
+      </div>
+    </div>` : ''}
+
+    <div class="td-section">
+      <div class="td-section-title">Informationen</div>
+      <div class="td-info-grid">
+        <div class="td-info-item"><div class="td-label">E-Mail</div><div class="td-value">${escapeHtml(u.email || '\u2014')}</div></div>
+        <div class="td-info-item"><div class="td-label">Erstellt am</div><div class="td-value">${createdAt}</div></div>
+        <div class="td-info-item" style="grid-column:1/-1;"><div class="td-label">ID</div><div class="td-value mono">${u.id}</div></div>
+      </div>
+    </div>
+
+    ${canEdit ? `<div class="td-section">
+      <div class="td-section-title">Rolle</div>
+      <select class="team-role-select" ${roleDisabled} onchange="setUserRole('${u.id}', this.value);openTeamDetail('${u.id}');" style="width:100%;">
+        ${roleOpts.map(r => `<option value="${r.id}" ${u.role === r.id ? 'selected' : ''}>${r.label}</option>`).join('')}
+      </select>
+    </div>
+
+    <div class="td-section">
+      <div class="td-section-title">Berechtigungen</div>
+      ${permsHtml}
+    </div>` : ''}
+
+    ${canDelete && canEdit ? `<div class="td-section">
+      <button class="team-btn-delete" onclick="deleteStaffUser('${u.id}');closeTeamDetail();" style="width:100%;padding:10px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);background:#fdecec;color:var(--danger);">Mitarbeiter entfernen</button>
+    </div>` : ''}
+  `;
+
+  overlay.classList.add('active');
+}
+
+function closeTeamDetail() {
+  const overlay = document.getElementById('teamDetailOverlay');
+  if (overlay) overlay.classList.remove('active');
+  renderTeamView(); // refresh list in case changes were made
 }
 
 function renderTeamInvitations() {
