@@ -1438,7 +1438,8 @@ async function appSendInvEmail(invKey) {
   if (!appSettings.emailServiceId || !appSettings.emailInviteTemplateId || !appSettings.emailPublicKey) {
     return notify('EmailJS ist nicht konfiguriert. Bitte im Admin-Bereich der Website Einstellungen pr\u00fcfen.', 'error');
   }
-  const link = `${window.location.origin}/welcome.html?email=${encodeURIComponent(inv.email)}`;
+  const baseUrl = window.location.origin.startsWith('file') ? 'https://dassu-buchungskalender.netlify.app' : window.location.origin;
+  const link = `${baseUrl}/welcome.html?email=${encodeURIComponent(inv.email)}`;
   const roleLabel = roleMeta(inv.role).label;
   try {
     emailjs.init(appSettings.emailPublicKey);
@@ -1459,7 +1460,8 @@ async function appSendInvEmail(invKey) {
 }
 
 function appCopyInvLink(email) {
-  const link = `${window.location.origin}/welcome.html?email=${encodeURIComponent(email)}`;
+  const baseUrl = window.location.origin.startsWith('file') ? 'https://dassu-buchungskalender.netlify.app' : window.location.origin;
+  const link = `${baseUrl}/welcome.html?email=${encodeURIComponent(email)}`;
   navigator.clipboard.writeText(link).then(
     () => notify('Link kopiert!', 'success'),
     () => notify('Kopieren fehlgeschlagen.', 'error')
