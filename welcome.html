@@ -138,7 +138,7 @@ details .body code { background: var(--gray-100); padding: 1px 6px; border-radiu
         <input type="password" id="regPassword2" autocomplete="new-password" minlength="6" required>
       </div>
       <button class="btn-primary" id="regBtn" type="submit">Account anlegen</button>
-      <div class="note">Eine Registrierung funktioniert nur, wenn dich der Admin per E-Mail eingeladen hat.</div>
+      <div class="note">Erstelle hier deinen persönlichen Account. Du benötigst eine Einladung vom Admin — deine E-Mail muss mit der eingeladenen übereinstimmen.</div>
     </form>
 
     <!-- Reset -->
@@ -248,12 +248,17 @@ function showMsg(id, kind, text) {
   el.innerHTML = `<div class="msg ${kind}">${text}</div>`;
 }
 
-// Pre-fill E-Mail aus ?email=... Query
+// Pre-fill E-Mail aus ?email=... Query und automatisch auf Registrieren wechseln
 (function prefillFromQuery() {
-  const email = new URLSearchParams(window.location.search).get('email');
+  const params = new URLSearchParams(window.location.search);
+  const email = params.get('email');
   if (email) {
     document.getElementById('regEmail').value = email;
     document.getElementById('loginEmail').value = email;
+    // Direkt auf Registrieren-Tab wechseln
+    showTab('register');
+    // Willkommens-Hinweis anzeigen
+    showMsg('regMsg', 'success', 'Willkommen bei DASSU Staff! Erstelle hier deinen Account, um loszulegen. Deine E-Mail wurde bereits eingetragen — wähle noch einen Namen und ein Passwort.');
   }
 })();
 
@@ -266,7 +271,13 @@ async function doLogin() {
   const res = await DASSU_AUTH.signIn(email, password);
   btn.disabled = false; btn.textContent = 'Anmelden';
   if (!res.ok) {
-    showMsg('loginMsg', 'error', res.error);
+    // Check if user might need to register first
+    const isNotFound = res.error && (res.error.includes('Kein Account') || res.error.includes('nicht gefunden') || res.error.includes('user-not-found'));
+    if (isNotFound) {
+      showMsg('loginMsg', 'error', 'Kein Account mit dieser E-Mail gefunden. Falls du eine Einladung erhalten hast, wechsle oben auf <strong>Registrieren</strong>, um deinen Account anzulegen.');
+    } else {
+      showMsg('loginMsg', 'error', res.error);
+    }
     return;
   }
   // onAuthChange kümmert sich um die Weiterleitung
