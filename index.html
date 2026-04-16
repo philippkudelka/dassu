@@ -436,6 +436,95 @@
     margin-top: 24px;
   }
 
+  /* ===== Staff Management (Compact Team View) ===== */
+  .sm-overlay { display:none; position:fixed; inset:0; background:rgba(12,27,46,0.5); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); z-index:200; justify-content:flex-end; }
+  .sm-overlay.active { display:flex; }
+  .sm-panel { width:100%; max-width:520px; background:#f5f6f8; height:100%; overflow-y:auto; box-shadow:-4px 0 24px rgba(0,0,0,0.15); animation:smSlideIn 0.25s ease; display:flex; flex-direction:column; }
+  @keyframes smSlideIn { from{transform:translateX(100%);} to{transform:translateX(0);} }
+  .sm-header { display:flex; align-items:center; justify-content:space-between; padding:16px 20px; background:white; border-bottom:1px solid #e8eaed; flex-shrink:0; }
+  .sm-close-btn { width:32px; height:32px; border-radius:50%; border:none; background:var(--gray-100); font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--gray-500); }
+  .sm-toolbar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:12px 16px; background:white; border-bottom:1px solid #e8eaed; flex-shrink:0; }
+  .sm-search { flex:1; min-width:140px; padding:8px 12px; border:1.5px solid #e8eaed; border-radius:8px; font-size:13px; font-family:var(--font-ui); outline:none; }
+  .sm-search:focus { border-color:var(--primary); }
+  .sm-filter-chips { display:flex; gap:4px; flex-wrap:wrap; }
+  .sm-filter-chip { padding:5px 10px; border-radius:16px; border:1px solid #e8eaed; background:white; font-size:11px; font-weight:600; cursor:pointer; font-family:var(--font-ui); color:var(--gray-500); transition:all 0.15s; }
+  .sm-filter-chip.active { background:var(--navy); color:white; border-color:var(--navy); }
+  .sm-filter-chip .chip-count { font-size:9px; opacity:0.7; margin-left:2px; }
+  .sm-invite-toggle-btn { padding:7px 14px; background:var(--primary); color:white; border:none; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer; font-family:var(--font-ui); white-space:nowrap; flex-shrink:0; }
+  .sm-invite-panel { padding:12px 16px 0; flex-shrink:0; }
+  .sm-invite-card { background:white; border-radius:12px; border:1px solid #e8eaed; padding:16px; }
+  .sm-invite-form { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .sm-invite-form .full-width { grid-column:1/-1; }
+  .sm-invite-input { padding:10px 12px; border:1.5px solid #e8eaed; border-radius:8px; font-size:14px; font-family:var(--font-ui); outline:none; }
+  .sm-invite-input:focus { border-color:var(--primary); }
+  .sm-invite-select { padding:10px 12px; border:1.5px solid #e8eaed; border-radius:8px; font-size:14px; font-family:var(--font-ui); background:white; }
+  .sm-invite-btn { padding:10px 16px; background:var(--primary); color:white; border:none; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; font-family:var(--font-ui); }
+  .sm-count-bar { padding:6px 16px; font-size:11px; color:var(--gray-500); font-weight:600; flex-shrink:0; }
+  /* Compact list rows */
+  .sm-row { display:flex; align-items:center; gap:10px; padding:10px 16px; border-bottom:1px solid #f0f1f3; cursor:pointer; transition:background 0.1s; background:white; }
+  .sm-row:active { background:#f5f6f8; }
+  .sm-row:last-child { border-bottom:none; }
+  .sm-row-avatar { width:34px; height:34px; border-radius:50%; font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .sm-row-avatar.role-admin { background:var(--accent); color:var(--navy); }
+  .sm-row-avatar.role-team { background:var(--primary); color:white; }
+  .sm-row-avatar.role-guest { background:var(--gray-300); color:var(--navy); }
+  .sm-row-info { flex:1; min-width:0; }
+  .sm-row-name { font-size:14px; font-weight:600; color:var(--navy); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .sm-row-name .you-tag { font-size:9px; color:var(--gray-500); font-weight:400; margin-left:4px; }
+  .sm-row-meta { font-size:11px; color:var(--gray-500); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .sm-row-badge { padding:2px 8px; border-radius:10px; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; flex-shrink:0; }
+  .sm-row-badge.badge-admin { background:rgba(201,168,76,0.15); color:#8a6d10; }
+  .sm-row-badge.badge-team { background:rgba(61,153,145,0.12); color:#2d7a73; }
+  .sm-row-badge.badge-guest { background:var(--gray-100); color:var(--gray-500); }
+  .sm-row-chevron { color:var(--gray-300); font-size:12px; flex-shrink:0; }
+  /* Pending invitations */
+  .sm-inv-pending { background:#fffdf6; border:1px solid #f0e7c0; border-radius:10px; padding:12px 14px; margin-bottom:8px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .sm-inv-pending .inv-avatar { width:36px; height:36px; border-radius:50%; background:#f0e7c0; color:#8a7420; font-size:14px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .sm-inv-pending .inv-details { flex:1; min-width:120px; }
+  .sm-inv-pending .inv-name { font-size:14px; font-weight:600; color:var(--navy); }
+  .sm-inv-pending .inv-email-line { font-size:12px; color:var(--gray-500); margin-top:1px; }
+  .sm-inv-pending .inv-sent { font-size:10px; color:var(--success); margin-top:2px; }
+  .sm-inv-pending .inv-btns { display:flex; gap:6px; }
+  .sm-inv-pending .inv-btns button { padding:6px 12px; border-radius:6px; border:none; font-size:11px; font-weight:600; cursor:pointer; font-family:var(--font-ui); }
+  .sm-inv-btn-send { background:var(--primary); color:white; }
+  .sm-inv-btn-link { background:white; color:var(--navy); border:1px solid var(--gray-300) !important; }
+  .sm-inv-btn-del { background:#fdecec; color:var(--danger); }
+  /* Detail panel overlay */
+  .sm-detail-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.35); z-index:210; justify-content:flex-end; }
+  .sm-detail-overlay.active { display:flex; }
+  .sm-detail-panel { width:100%; max-width:420px; background:white; height:100%; overflow-y:auto; padding:0; box-shadow:-4px 0 20px rgba(0,0,0,0.15); animation:smSlideIn 0.2s ease; }
+  .smd-header { display:flex; align-items:center; gap:14px; padding:20px 20px 16px; border-bottom:1px solid #e8eaed; position:relative; }
+  .smd-avatar { width:52px; height:52px; border-radius:50%; font-size:20px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .smd-avatar.role-admin { background:var(--accent); color:var(--navy); }
+  .smd-avatar.role-team { background:var(--primary); color:white; }
+  .smd-avatar.role-guest { background:var(--gray-300); color:var(--navy); }
+  .smd-close { position:absolute; right:16px; top:16px; width:32px; height:32px; border-radius:50%; border:none; background:var(--gray-100); font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--gray-500); }
+  .smd-name { font-size:18px; font-weight:700; color:var(--navy); }
+  .smd-email { font-size:13px; color:var(--gray-500); margin-top:2px; }
+  .smd-section { padding:16px 20px; border-bottom:1px solid #f0f1f3; }
+  .smd-section:last-child { border-bottom:none; }
+  .smd-section-title { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--gray-500); margin-bottom:10px; }
+  .smd-info-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .smd-info-item .smd-label { font-size:10px; font-weight:600; color:var(--gray-500); text-transform:uppercase; letter-spacing:0.03em; }
+  .smd-info-item .smd-value { font-size:14px; color:var(--navy); font-weight:500; margin-top:2px; }
+  .smd-info-item .smd-value.mono { font-size:10px; color:var(--gray-500); font-family:monospace; word-break:break-all; }
+  .smd-edit-input { width:100%; padding:8px 12px; border:1.5px solid #e8eaed; border-radius:8px; font-size:14px; font-family:var(--font-ui); outline:none; }
+  .smd-edit-input:focus { border-color:var(--primary); }
+  .smd-role-select { width:100%; padding:8px 12px; border:1.5px solid #e8eaed; border-radius:8px; font-size:14px; font-family:var(--font-ui); background:white; -webkit-appearance:none; appearance:none; cursor:pointer; }
+  .smd-role-select:disabled { opacity:0.5; cursor:not-allowed; }
+  .smd-perm-toggle { position:relative; width:38px; height:22px; background:var(--gray-300); border-radius:22px; cursor:pointer; transition:background 0.15s; flex-shrink:0; }
+  .smd-perm-toggle::after { content:''; position:absolute; top:2px; left:2px; width:18px; height:18px; background:white; border-radius:50%; transition:left 0.15s; box-shadow:0 1px 2px rgba(0,0,0,0.2); }
+  .smd-perm-toggle.on { background:var(--primary); }
+  .smd-perm-toggle.on::after { left:18px; }
+  .smd-perm-toggle.disabled { opacity:0.5; cursor:not-allowed; }
+  .smd-perm-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 0; border-bottom:1px solid #f5f5f5; }
+  .smd-perm-row:last-child { border-bottom:none; }
+  .smd-perm-label { font-size:13px; color:var(--navy); }
+  .smd-perm-label small { display:block; font-size:10px; color:var(--gray-500); font-weight:400; margin-top:1px; }
+  .smd-perm-hint { font-size:10px; color:var(--gray-500); font-style:italic; margin-left:4px; }
+  .smd-btn-save { padding:8px 14px; background:var(--primary); color:white; border:none; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer; font-family:var(--font-ui); }
+  .smd-btn-delete { width:100%; padding:10px; border-radius:8px; border:none; font-size:13px; font-weight:600; cursor:pointer; font-family:var(--font-ui); background:#fdecec; color:var(--danger); }
+
   /* Form — Premium inputs */
   .form-group {
     margin-bottom: 16px;
@@ -988,42 +1077,44 @@
   </div>
 </div>
 
-<!-- Staff Management Modal -->
-<div class="modal-overlay" id="staffMgmtModal">
-  <div class="modal">
-    <h3>Mitarbeiter-Verwaltung</h3>
-    <p style="font-size:12px; color:var(--gray-500); margin-bottom:14px; line-height:1.5;">
-      Mitarbeiter verwalten, Rollen vergeben und individuelle Rechte setzen. Die Rolle (<strong>Admin</strong> / <strong>Staff</strong>) legt Standardrechte fest; einzelne Rechte lassen sich pro Mitarbeiter &uuml;ber &bdquo;Rechte&ldquo; individuell an- oder ausschalten.
-    </p>
-    <h4 style="margin:16px 0 8px; font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--gray-500);">Aktive Mitarbeiter</h4>
-    <div id="staffMgmtList" style="display:flex; flex-direction:column; gap:6px; margin-bottom:14px;"></div>
-
-    <h4 style="margin:16px 0 8px; font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--gray-500);">Offene Einladungen</h4>
-    <div id="invitationsList" style="display:flex; flex-direction:column; gap:6px; margin-bottom:10px;"></div>
-
-    <div style="padding:12px; background:var(--gray-50); border:1px solid var(--gray-200); border-radius:6px; margin-top:14px;">
-      <div style="font-size:13px; font-weight:600; color:var(--dark); margin-bottom:10px;">+ Neue Einladung</div>
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
-        <input type="text" id="invName" placeholder="Name" maxlength="40" style="padding:10px; border:1px solid var(--gray-300); border-radius:4px; font-family:var(--font-ui); font-size:14px;">
-        <input type="email" id="invEmail" placeholder="E-Mail" style="padding:10px; border:1px solid var(--gray-300); border-radius:4px; font-family:var(--font-ui); font-size:14px;">
-      </div>
-      <div style="display:grid; grid-template-columns:1fr auto; gap:8px;">
-        <select id="invRole" style="padding:10px; border:1px solid var(--gray-300); border-radius:4px; font-family:var(--font-ui); font-size:14px; background:white;"></select>
-        <button class="btn btn-primary btn-sm" onclick="createInvitation()">Einladung anlegen</button>
-      </div>
-      <div style="margin-top:8px; display:flex; align-items:center; gap:6px;">
-        <input type="checkbox" id="invSendEmail" checked>
-        <label for="invSendEmail" style="font-size:12px; color:var(--gray-600);">Einladungs-Mail direkt verschicken (EmailJS)</label>
-      </div>
-      <div style="font-size:11px; color:var(--gray-500); margin-top:6px; line-height:1.4;">
-        Ohne Mail-Versand: Link über den „Link kopieren"-Button teilen.
-      </div>
+<!-- Staff Management (Compact Team View) -->
+<div class="sm-overlay" id="staffMgmtOverlay" onclick="if(event.target===this)closeStaffMgmt()">
+  <div class="sm-panel">
+    <!-- Header -->
+    <div class="sm-header">
+      <h3 style="margin:0;font-size:17px;font-weight:700;color:var(--dark);">Mitarbeiter-Verwaltung</h3>
+      <button class="sm-close-btn" onclick="closeStaffMgmt()">&times;</button>
     </div>
-
-    <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:16px;">
-      <button class="btn btn-sm" onclick="closeModal('staffMgmtModal')">Schlie&szlig;en</button>
+    <!-- Toolbar: Suche + Filter + Einladen -->
+    <div class="sm-toolbar">
+      <input type="text" class="sm-search" id="smSearchInput" placeholder="Mitarbeiter suchen..." oninput="renderStaffMgmt()">
+      <div class="sm-filter-chips" id="smFilterChips"></div>
+      <button class="sm-invite-toggle-btn" id="smInviteToggle" onclick="toggleSmInvite()">+ Einladen</button>
     </div>
+    <!-- Einladungsformular (einklappbar) -->
+    <div class="sm-invite-panel" id="smInvitePanel" style="display:none;">
+      <div class="sm-invite-card">
+        <h4 style="font-size:13px;font-weight:700;color:var(--dark);margin:0 0 12px;">Neuen Mitarbeiter einladen</h4>
+        <div class="sm-invite-form">
+          <input type="text" class="sm-invite-input" id="invName" placeholder="Name" maxlength="40">
+          <input type="email" class="sm-invite-input" id="invEmail" placeholder="E-Mail-Adresse">
+          <select class="sm-invite-select" id="invRole"></select>
+          <button class="sm-invite-btn" onclick="createInvitation()">Einladung senden</button>
+          <label class="full-width" style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--gray-500);margin-top:2px;">
+            <input type="checkbox" id="invSendEmail" checked> E-Mail direkt verschicken
+          </label>
+        </div>
+      </div>
+      <div id="invitationsList" style="margin-top:8px;"></div>
+    </div>
+    <!-- Kompakte Mitarbeiterliste -->
+    <div class="sm-count-bar" id="smCountBar"></div>
+    <div id="staffMgmtList"></div>
   </div>
+</div>
+<!-- Staff Detail Panel (slide-in) -->
+<div class="sm-detail-overlay" id="smDetailOverlay" onclick="if(event.target===this)closeSmDetail()">
+  <div class="sm-detail-panel" id="smDetailPanel"></div>
 </div>
 
 <!-- Theorie-Admin Modal -->
@@ -1456,7 +1547,7 @@ function loadData() {
     const data = snapshot.val();
     staffUsers = data ? Object.values(data) : [];
     // Nachrendern falls Modal offen
-    if (document.getElementById('staffMgmtModal').classList.contains('active')) {
+    if (document.getElementById('staffMgmtOverlay').classList.contains('active')) {
       renderStaffMgmt();
     }
   }, () => {});
@@ -2795,140 +2886,173 @@ function deleteBooking(id) {
 // SETTINGS
 // ============================================================
 // ============================================================
-// STAFF-MITARBEITER-VERWALTUNG (Website-Admin)
+// STAFF-MITARBEITER-VERWALTUNG (Compact Team View)
 // ============================================================
+let smRoleFilter = 'all';
+
 function showStaffMgmt() {
   renderStaffMgmt();
   renderInvitations();
   populateInvRoleOptions();
-  document.getElementById('staffMgmtModal').classList.add('active');
+  document.getElementById('staffMgmtOverlay').classList.add('active');
 }
-
-// UI-State: welche User-IDs haben ihr Rechte-Panel offen (nicht persistiert)
-let staffMgmtExpandedPerms = new Set();
-let staffMgmtExpandedDetail = new Set(); // Detail-Panel offen
-
-function staffMgmtTogglePerms(id) {
-  if (staffMgmtExpandedPerms.has(id)) staffMgmtExpandedPerms.delete(id);
-  else staffMgmtExpandedPerms.add(id);
-  renderStaffMgmt();
+function closeStaffMgmt() {
+  document.getElementById('staffMgmtOverlay').classList.remove('active');
 }
-
-function staffMgmtToggleDetail(id) {
-  if (staffMgmtExpandedDetail.has(id)) staffMgmtExpandedDetail.delete(id);
-  else staffMgmtExpandedDetail.add(id);
-  renderStaffMgmt();
-}
-
-function staffMgmtSaveName(id) {
-  const input = document.getElementById('smName_' + id);
-  if (!input) return;
-  const newName = input.value.trim();
-  if (!newName) return notify('Name darf nicht leer sein.', 'error');
-  db.ref('staffUsers/' + id + '/name').set(newName);
-  notify('Name aktualisiert.', 'success');
-}
-
-function staffMgmtRenderDetail(u) {
-  const createdAt = u.createdAt ? new Date(u.createdAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
-  return `<div style="flex-basis:100%;margin-top:10px;padding:14px;background:white;border:1px solid var(--gray-300);border-radius:6px;">
-    <div style="display:grid; grid-template-columns:100px 1fr; gap:8px 12px; font-size:13px; align-items:center;">
-      <div style="font-weight:600;color:var(--gray-600);">Name</div>
-      <div style="display:flex;gap:6px;align-items:center;">
-        <input type="text" id="smName_${u.id}" value="${escapeAttr(u.name)}" style="flex:1;padding:6px 10px;border:1px solid var(--gray-300);border-radius:4px;font-size:13px;font-family:var(--font-ui);"
-          onkeydown="if(event.key==='Enter'){event.preventDefault();staffMgmtSaveName('${u.id}');}">
-        <button class="btn btn-sm btn-primary" onclick="staffMgmtSaveName('${u.id}')" style="white-space:nowrap;">Speichern</button>
-      </div>
-      <div style="font-weight:600;color:var(--gray-600);">E-Mail</div>
-      <div style="color:var(--dark);word-break:break-all;">${escapeAttr(u.email || '—')}</div>
-      <div style="font-weight:600;color:var(--gray-600);">ID</div>
-      <div style="color:var(--gray-500);font-size:11px;font-family:monospace;word-break:break-all;">${u.id}</div>
-      <div style="font-weight:600;color:var(--gray-600);">Erstellt</div>
-      <div style="color:var(--dark);">${createdAt}</div>
-    </div>
-  </div>`;
-}
-
-function staffMgmtRenderPermsPanel(u) {
-  const isAdm = u.role === 'admin';
-  const roleLabel = roleMeta(u.role).label;
-  const rows = DASSU_PERMISSIONS.map(p => {
-    const effective = hasPermission(u, staffUsers, p.key);
-    const explicit = !isAdm && isPermissionExplicit(u, p.key);
-    const hint = isAdm
-      ? ` <small style="display:block;font-size:10px;color:var(--gray-500);font-weight:400;margin-top:1px;">(Admin hat immer alle Rechte)</small>`
-      : (explicit ? '' : ` <small style="display:block;font-size:10px;color:var(--gray-500);font-weight:400;margin-top:1px;">(Standard für ${roleLabel})</small>`);
-    const toggleStyle = (effective ? 'background:var(--primary);' : 'background:var(--gray-300);') + (isAdm ? 'opacity:0.5;cursor:not-allowed;' : 'cursor:pointer;');
-    const knobPos = effective ? 'left:18px;' : 'left:2px;';
-    const clickHandler = isAdm ? '' : `onclick="staffMgmtTogglePermission('${u.id}','${p.key}')"`;
-    return `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px dashed var(--gray-200);">
-      <div style="font-size:13px;color:var(--dark);">
-        <div style="font-weight:600;">${p.label}</div>
-        <div style="font-size:11px;color:var(--gray-500);font-weight:400;margin-top:2px;">${p.desc}</div>
-        ${hint}
-      </div>
-      <div ${clickHandler}
-           style="position:relative;width:38px;height:22px;border-radius:22px;transition:background 0.15s;flex-shrink:0;${toggleStyle}">
-        <div style="position:absolute;top:2px;${knobPos}width:18px;height:18px;background:white;border-radius:50%;transition:left 0.15s;box-shadow:0 1px 2px rgba(0,0,0,0.2);"></div>
-      </div>
-    </div>`;
-  }).join('');
-  return `<div style="flex-basis:100%;margin-top:10px;padding:10px 14px;background:white;border:1px solid var(--gray-300);border-radius:6px;">
-    <div style="font-size:11px;color:var(--gray-500);margin-bottom:6px;line-height:1.4;">
-      Individuelle Rechte überschreiben die Rollen-Standardwerte.
-    </div>
-    ${rows}
-  </div>`;
+function toggleSmInvite() {
+  const panel = document.getElementById('smInvitePanel');
+  if (panel) panel.style.display = panel.style.display === 'none' ? '' : 'none';
 }
 
 function renderStaffMgmt() {
   const el = document.getElementById('staffMgmtList');
   if (!el) return;
-  if (!staffUsers.length) {
-    el.innerHTML = '<div style="text-align:center; padding:24px; color:var(--gray-500); font-size:13px; font-style:italic; border:1px dashed var(--gray-300); border-radius:4px;">Noch keine Mitarbeiter angelegt. Unten neuen hinzuf&uuml;gen.</div>';
-    return;
+  const query = (document.getElementById('smSearchInput')?.value || '').toLowerCase().trim();
+  let filtered = staffUsers.slice();
+  if (query) {
+    filtered = filtered.filter(u =>
+      (u.name || '').toLowerCase().includes(query) ||
+      (u.email || '').toLowerCase().includes(query) ||
+      (u.role || '').toLowerCase().includes(query)
+    );
   }
-  const adminCount = staffUsers.filter(u => u.role === 'admin').length;
-  // Sortiert: Admins zuerst, dann nach Name
-  const sorted = staffUsers.slice().sort((a, b) => {
+  if (smRoleFilter !== 'all') {
+    filtered = filtered.filter(u => u.role === smRoleFilter);
+  }
+  filtered.sort((a, b) => {
     if (a.role === 'admin' && b.role !== 'admin') return -1;
     if (b.role === 'admin' && a.role !== 'admin') return 1;
     return (a.name || '').localeCompare(b.name || '');
   });
-  el.innerHTML = sorted.map(u => {
-    const isAdm = u.role === 'admin';
-    const lockedToAdmin = isAdm && adminCount === 1;
-    const canDelete = !(isAdm && adminCount === 1);
-    const initial = (u.name || '?').charAt(0).toUpperCase();
+  // Filter chips
+  const roleCounts = {};
+  staffUsers.forEach(u => { roleCounts[u.role] = (roleCounts[u.role] || 0) + 1; });
+  const chipEl = document.getElementById('smFilterChips');
+  if (chipEl) {
+    const roles = [
+      { id: 'all', label: 'Alle' },
+      { id: 'admin', label: 'Admin' },
+      { id: 'team', label: 'Team' },
+      { id: 'guestGlider', label: 'Gast MS' },
+      { id: 'guestMotor', label: 'Gast UL' }
+    ];
+    chipEl.innerHTML = roles.map(r => {
+      const count = r.id === 'all' ? staffUsers.length : (roleCounts[r.id] || 0);
+      if (r.id !== 'all' && !count) return '';
+      return `<button class="sm-filter-chip${smRoleFilter === r.id ? ' active' : ''}" onclick="smRoleFilter='${r.id}';renderStaffMgmt();">${r.label}<span class="chip-count">${count}</span></button>`;
+    }).join('');
+  }
+  // Count bar
+  const countBar = document.getElementById('smCountBar');
+  if (countBar) {
+    const showing = filtered.length === staffUsers.length ? `${staffUsers.length} Mitarbeiter` : `${filtered.length} von ${staffUsers.length}`;
+    countBar.textContent = showing;
+  }
+  // Compact list rows
+  const currentUid = firebase.auth().currentUser ? firebase.auth().currentUser.uid : null;
+  el.innerHTML = filtered.map(u => {
+    const avatarCls = u.role === 'admin' ? 'role-admin' : (u.role === 'team' ? 'role-team' : 'role-guest');
     const meta = roleMeta(u.role);
-    const badge = isAdm
-      ? '<span style="display:inline-block; background:#c9a84c; color:#0c1b2e; font-size:9px; font-weight:800; padding:2px 7px; border-radius:8px; margin-left:8px; letter-spacing:0.06em; text-transform:uppercase;">Admin</span>'
-      : `<span style="display:inline-block; background:var(--gray-200); color:var(--gray-600); font-size:9px; font-weight:700; padding:2px 7px; border-radius:8px; margin-left:8px; letter-spacing:0.06em; text-transform:uppercase;">${meta.short || meta.label}</span>`;
-    const emailHint = u.email ? `<div style="font-size:11px;color:var(--gray-500);margin-top:1px;">${escapeAttr(u.email)}</div>` : '';
-    const roleOpts = DASSU_ROLES.filter(r => !r.legacy || r.id === u.role);
-    const selectHtml = `<select ${lockedToAdmin ? 'disabled title="Mindestens ein Admin muss bleiben"' : ''}
-        onchange="staffMgmtSetRole('${u.id}', this.value)"
-        style="font-size:12px; padding:4px 8px; border:1px solid var(--gray-300); border-radius:4px; background:white; color:var(--dark); margin-top:4px;">
-      ${roleOpts.map(r => `<option value="${r.id}" ${u.role === r.id ? 'selected' : ''}>${r.label}</option>`).join('')}
-    </select>`;
-    const permsOpen = staffMgmtExpandedPerms.has(u.id);
-    const detailOpen = staffMgmtExpandedDetail.has(u.id);
-    return `<div style="display:flex; align-items:center; gap:12px; padding:10px 12px; background:var(--gray-50); border-radius:6px; border:1px solid var(--gray-200); flex-wrap:wrap;">
-      <div onclick="staffMgmtToggleDetail('${u.id}')" style="width:34px; height:34px; border-radius:50%; background:var(--primary); color:white; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; flex-shrink:0; cursor:pointer;">${initial}</div>
-      <div style="flex:1; min-width:0;">
-        <div style="font-weight:600; font-size:14px; color:var(--dark); cursor:pointer;" onclick="staffMgmtToggleDetail('${u.id}')">${u.name}${badge}</div>
-        ${emailHint}
-        ${selectHtml}
+    const badgeCls = u.role === 'admin' ? 'badge-admin' : (u.role === 'team' ? 'badge-team' : 'badge-guest');
+    const isMe = currentUid && u.id === currentUid;
+    const youTag = isMe ? '<span class="you-tag">(du)</span>' : '';
+    return `<div class="sm-row" onclick="openSmDetail('${u.id}')">
+      <div class="sm-row-avatar ${avatarCls}">${(u.name || '?').charAt(0).toUpperCase()}</div>
+      <div class="sm-row-info">
+        <div class="sm-row-name">${escapeAttr(u.name)}${youTag}</div>
+        <div class="sm-row-meta">${escapeAttr(u.email || '\u2014')}</div>
       </div>
-      <div style="display:flex; gap:6px; flex-wrap:wrap;">
-        <button class="btn btn-sm" onclick="staffMgmtToggleDetail('${u.id}')" title="Details anzeigen/bearbeiten" style="font-size:12px;">&#9998; Details</button>
-        <button class="btn btn-sm" onclick="staffMgmtTogglePerms('${u.id}')">${permsOpen ? 'Rechte ▲' : 'Rechte ▼'}</button>
-        ${canDelete ? `<button class="btn btn-sm btn-danger" onclick="staffMgmtDelete('${u.id}')">L\u00f6schen</button>` : ''}
-      </div>
-      ${detailOpen ? staffMgmtRenderDetail(u) : ''}
-      ${permsOpen ? staffMgmtRenderPermsPanel(u) : ''}
+      <span class="sm-row-badge ${badgeCls}">${meta.short || meta.label}</span>
+      <span class="sm-row-chevron">\u203A</span>
+    </div>`;
+  }).join('') || '<div style="text-align:center;padding:24px;color:var(--gray-500);font-size:13px;">Keine Mitarbeiter gefunden.</div>';
+  renderInvitations();
+  populateInvRoleOptions();
+}
+
+function openSmDetail(uid) {
+  const u = staffUsers.find(s => s.id === uid);
+  if (!u) return;
+  const panel = document.getElementById('smDetailPanel');
+  const overlay = document.getElementById('smDetailOverlay');
+  if (!panel || !overlay) return;
+  const isAdm = u.role === 'admin';
+  const adminCount = staffUsers.filter(s => s.role === 'admin').length;
+  const currentUid = firebase.auth().currentUser ? firebase.auth().currentUser.uid : null;
+  const isMe = currentUid && u.id === currentUid;
+  const lockedToAdmin = isAdm && adminCount === 1;
+  const canDelete = !isMe && !(isAdm && adminCount === 1);
+  const avatarCls = isAdm ? 'role-admin' : (u.role === 'team' ? 'role-team' : 'role-guest');
+  const createdAt = u.createdAt ? new Date(u.createdAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '\u2014';
+  // Permissions
+  const permsHtml = DASSU_PERMISSIONS.map(p => {
+    const effective = hasPermission(u, staffUsers, p.key);
+    const explicit = !isAdm && isPermissionExplicit(u, p.key);
+    const hint = isAdm ? '<span class="smd-perm-hint">(immer an)</span>' : (explicit ? '' : '<span class="smd-perm-hint">(Standard)</span>');
+    const toggleCls = 'smd-perm-toggle' + (effective ? ' on' : '') + (isAdm ? ' disabled' : '');
+    const onClick = isAdm ? '' : `onclick="staffMgmtTogglePermission('${u.id}','${p.key}');openSmDetail('${u.id}');"`;
+    return `<div class="smd-perm-row">
+      <div class="smd-perm-label">${p.label} ${hint}<small>${p.desc}</small></div>
+      <div class="${toggleCls}" ${onClick}></div>
     </div>`;
   }).join('');
+  // Role options
+  const roleOpts = DASSU_ROLES.filter(r => !r.legacy || r.id === u.role);
+  const roleDisabled = lockedToAdmin ? 'disabled' : '';
+  panel.innerHTML = `
+    <div class="smd-header">
+      <div class="smd-avatar ${avatarCls}">${(u.name || '?').charAt(0).toUpperCase()}</div>
+      <div>
+        <div class="smd-name">${escapeAttr(u.name)}${isMe ? ' <span style="font-size:11px;color:var(--gray-500);font-weight:400;">(du)</span>' : ''}</div>
+        <div class="smd-email">${escapeAttr(u.email || '\u2014')}</div>
+      </div>
+      <button class="smd-close" onclick="closeSmDetail()">\u2715</button>
+    </div>
+    <div class="smd-section">
+      <div class="smd-section-title">Name bearbeiten</div>
+      <div style="display:flex;gap:8px;">
+        <input type="text" class="smd-edit-input" id="smdName_${u.id}" value="${escapeAttr(u.name || '')}" style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault();smSaveName('${u.id}');}">
+        <button class="smd-btn-save" onclick="smSaveName('${u.id}');openSmDetail('${u.id}');">Speichern</button>
+      </div>
+    </div>
+    <div class="smd-section">
+      <div class="smd-section-title">Informationen</div>
+      <div class="smd-info-grid">
+        <div class="smd-info-item"><div class="smd-label">E-Mail</div><div class="smd-value">${escapeAttr(u.email || '\u2014')}</div></div>
+        <div class="smd-info-item"><div class="smd-label">Erstellt am</div><div class="smd-value">${createdAt}</div></div>
+        <div class="smd-info-item" style="grid-column:1/-1;"><div class="smd-label">ID</div><div class="smd-value mono">${u.id}</div></div>
+      </div>
+    </div>
+    <div class="smd-section">
+      <div class="smd-section-title">Rolle</div>
+      <select class="smd-role-select" ${roleDisabled} onchange="staffMgmtSetRole('${u.id}', this.value);openSmDetail('${u.id}');">
+        ${roleOpts.map(r => `<option value="${r.id}" ${u.role === r.id ? 'selected' : ''}>${r.label}</option>`).join('')}
+      </select>
+    </div>
+    <div class="smd-section">
+      <div class="smd-section-title">Berechtigungen</div>
+      ${permsHtml}
+    </div>
+    ${canDelete ? `<div class="smd-section">
+      <button class="smd-btn-delete" onclick="staffMgmtDelete('${u.id}');closeSmDetail();">Mitarbeiter entfernen</button>
+    </div>` : ''}
+  `;
+  overlay.classList.add('active');
+}
+
+function closeSmDetail() {
+  const overlay = document.getElementById('smDetailOverlay');
+  if (overlay) overlay.classList.remove('active');
+  renderStaffMgmt();
+}
+
+function smSaveName(id) {
+  const input = document.getElementById('smdName_' + id);
+  if (!input) return;
+  const newName = input.value.trim();
+  if (!newName) return notify('Name darf nicht leer sein.', 'error');
+  db.ref('staffUsers/' + id + '/name').set(newName);
+  notify('Name aktualisiert.', 'success');
 }
 
 function staffMgmtTogglePermission(id, key) {
@@ -2950,7 +3074,7 @@ let invitations = [];
 db.ref('invitations').on('value', snap => {
   const data = snap.val() || {};
   invitations = Object.entries(data).map(([key, v]) => ({ key, ...v }));
-  if (document.getElementById('staffMgmtModal').classList.contains('active')) {
+  if (document.getElementById('staffMgmtOverlay').classList.contains('active')) {
     renderInvitations();
     populateInvRoleOptions();
   }
@@ -2967,25 +3091,23 @@ function renderInvitations() {
   const el = document.getElementById('invitationsList');
   if (!el) return;
   if (!invitations.length) {
-    el.innerHTML = '<div style="text-align:center; padding:14px; color:var(--gray-500); font-size:12px; font-style:italic; border:1px dashed var(--gray-300); border-radius:4px;">Keine offenen Einladungen.</div>';
+    el.innerHTML = '<div style="text-align:center;padding:12px;color:var(--gray-500);font-size:12px;font-style:italic;">Keine offenen Einladungen.</div>';
     return;
   }
   el.innerHTML = invitations.map(inv => {
-    const link = `${window.location.origin}/welcome.html?email=${encodeURIComponent(inv.email || '')}`;
-    const roleLabel = (typeof roleMeta === 'function' ? roleMeta(inv.role).label : inv.role);
-    const sentInfo = inv.sentAt
-      ? `<div style="font-size:10px;color:#1e7b4e;margin-top:2px;">✉ Mail gesendet: ${new Date(inv.sentAt).toLocaleString('de-DE')}</div>`
-      : '';
-    return `<div style="display:flex; align-items:center; gap:10px; padding:10px 12px; background:#fff8e1; border:1px solid #f0e0a0; border-radius:6px; flex-wrap:wrap;">
-      <div style="flex:1; min-width:180px;">
-        <div style="font-size:14px; font-weight:600; color:var(--dark);">${escapeAttr(inv.name || '—')} <span style="color:var(--gray-500); font-weight:400; font-size:12px;">(${escapeAttr(inv.email || '')})</span></div>
-        <div style="font-size:11px; color:var(--gray-600); margin-top:2px;">Rolle: ${escapeAttr(roleLabel)}</div>
+    const meta = roleMeta(inv.role);
+    const sentInfo = inv.sentAt ? `<div class="inv-sent">\u2709 Gesendet am ${new Date(inv.sentAt).toLocaleDateString('de-DE')}</div>` : '';
+    return `<div class="sm-inv-pending">
+      <div class="inv-avatar">${(inv.name || '?').charAt(0).toUpperCase()}</div>
+      <div class="inv-details">
+        <div class="inv-name">${escapeAttr(inv.name)} <span style="font-size:10px;color:var(--gray-500);">${meta.short || meta.label}</span></div>
+        <div class="inv-email-line">${escapeAttr(inv.email)}</div>
         ${sentInfo}
       </div>
-      <div style="display:flex; gap:6px; flex-wrap:wrap;">
-        <button class="btn btn-sm btn-primary" onclick="sendInvitationEmail('${inv.key}')" title="Einladungs-Mail verschicken">${inv.sentAt ? 'Mail erneut senden' : 'Mail senden'}</button>
-        <button class="btn btn-sm" onclick="copyInvitationLink('${escapeAttr(link)}')" title="Einladungs-Link kopieren">Link kopieren</button>
-        <button class="btn btn-sm btn-danger" onclick="deleteInvitation('${inv.key}')">Löschen</button>
+      <div class="inv-btns">
+        <button class="sm-inv-btn-send" onclick="sendInvitationEmail('${inv.key}')">${inv.sentAt ? 'Erneut' : 'Mail'}</button>
+        <button class="sm-inv-btn-link" onclick="copyInvitationLink('${escapeAttr(inv.email)}')">Link</button>
+        <button class="sm-inv-btn-del" onclick="deleteInvitation('${inv.key}')">X</button>
       </div>
     </div>`;
   }).join('');
@@ -3038,7 +3160,9 @@ function deleteInvitation(key) {
   notify('Einladung entfernt.', 'info');
 }
 
-function copyInvitationLink(link) {
+function copyInvitationLink(emailOrLink) {
+  const baseUrl = window.location.origin.startsWith('file') ? 'https://dassu-buchungskalender.netlify.app' : window.location.origin;
+  const link = emailOrLink.includes('://') ? emailOrLink : `${baseUrl}/welcome.html?email=${encodeURIComponent(emailOrLink)}`;
   navigator.clipboard.writeText(link).then(
     () => notify('Link kopiert! Jetzt per E-Mail / WhatsApp an den Mitarbeiter schicken.', 'success'),
     () => notify('Kopieren fehlgeschlagen. Link: ' + link, 'error')
@@ -3053,7 +3177,8 @@ async function sendInvitationEmail(invKey) {
     notify('EmailJS ist nicht vollständig konfiguriert. Bitte Einstellungen prüfen (Einladungs-Template-ID fehlt).', 'error');
     return;
   }
-  const link = `${window.location.origin}/welcome.html?email=${encodeURIComponent(inv.email)}`;
+  const baseUrl = window.location.origin.startsWith('file') ? 'https://dassu-buchungskalender.netlify.app' : window.location.origin;
+  const link = `${baseUrl}/welcome.html?email=${encodeURIComponent(inv.email)}`;
   const roleLabel = (typeof roleMeta === 'function' ? roleMeta(inv.role).label : inv.role);
   try {
     emailjs.init(settings.emailPublicKey);
@@ -3090,13 +3215,15 @@ function staffMgmtSetRole(id, role) {
 }
 
 function staffMgmtDelete(id) {
+  const currentUid = firebase.auth().currentUser ? firebase.auth().currentUser.uid : null;
+  if (currentUid && id === currentUid) { notify('Dich selbst kannst du nicht löschen.', 'error'); return; }
   const user = staffUsers.find(u => u.id === id);
   if (!user) return;
   if (user.role === 'admin') {
     const adminCount = staffUsers.filter(u => u.role === 'admin').length;
     if (adminCount <= 1) { notify('Mindestens ein Admin muss bleiben.', 'error'); return; }
   }
-  if (!confirm(`Mitarbeiter „${user.name}" wirklich löschen?`)) return;
+  if (!confirm(`Mitarbeiter \u201e${user.name}\u201c wirklich löschen?`)) return;
   db.ref('staffUsers/' + id).remove();
   notify('Mitarbeiter entfernt.', 'success');
 }
