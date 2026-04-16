@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dassu-staff-v3';
+const CACHE_NAME = 'dassu-staff-v4';
 const ASSETS = [
   '/staff.html',
   'https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js',

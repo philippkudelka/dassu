@@ -17,6 +17,8 @@
 <script src="shared/permissions.js"></script>
 <script src="shared/auth.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
 :root {
@@ -80,7 +82,7 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
 .slot-cell.booked.with-instructor.pending { background: #ffe9c2; border-color: var(--orange); }
 .slot-cell.booked .booking-name { font-size: 13px; font-weight: 600; color: #1a1a1a; }
 .slot-cell.booked .booking-meta { font-size: 10px; color: var(--gray-500); margin-top: 1px; }
-.slot-cell.towing { background: #f5f5f5; border-color: #ddd; cursor: default; }
+.slot-cell.towing { background: #f5f5f5; border-color: #ddd; cursor: pointer; border-style: dashed; }
 .slot-cell.towing .towing-label { font-size: 10px; color: var(--gray-500); font-weight: 500; }
 
 /* Overview Grid */
@@ -92,17 +94,72 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
 .ov-aircraft-header img { width: 40px; height: 24px; object-fit: cover; border-radius: 4px; display: block; margin: 0 auto 3px; }
 .ov-aircraft-header .ov-reg { font-size: 10px; font-weight: 700; color: var(--navy); letter-spacing: 0.02em; white-space: nowrap; }
 .ov-time { font-size: 11px; font-weight: 700; color: var(--navy); padding: 0 4px; display: flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums; border-right: 2px solid var(--navy); border-bottom: 1px solid #e8eaed; min-height: 38px; background: var(--gray-100); }
-.ov-time.ov-hour { border-bottom-color: var(--gray-400); font-size: 12px; color: var(--navy); }
-.ov-time.ov-half { color: var(--gray-500); font-weight: 600; font-size: 10px; }
+.ov-time.ov-hour { font-size: 12px; color: var(--navy); }
+.ov-time.ov-half { color: var(--gray-500); font-weight: 600; font-size: 10px; border-bottom-color: var(--gray-400); }
 .ov-cell { min-height: 38px; border-bottom: 1px solid #e8eaed; border-right: 1px solid #eef0f2; position: relative; cursor: pointer; transition: background 0.1s; }
-.ov-cell.ov-hour { border-bottom-color: var(--gray-400); }
-.ov-cell.ov-half { background: #fafbfc; }
+.ov-cell.ov-hour { }
+.ov-cell.ov-half { background: #fafbfc; border-bottom-color: var(--gray-400); }
 .ov-cell:active { background: rgba(61,153,145,0.08); }
-.ov-cell.ov-booked { background: #d4ecd7 !important; }
-.ov-cell.ov-booked.ov-pending { background: #f5ebc4 !important; }
-.ov-cell.ov-booked.ov-instructor { background: #ffe4b8 !important; }
-.ov-cell.ov-booked.ov-pending.ov-instructor { background: #ffd999 !important; }
-.ov-cell.ov-towing { background: #ececec !important; }
+.ov-cell.ov-booked { background: #a8deb0 !important; }
+.ov-cell.ov-booked.ov-pending { background: #f0d87a !important; }
+.ov-cell.ov-booked.ov-instructor { background: #ffb870 !important; }
+.ov-cell.ov-booked.ov-pending.ov-instructor { background: #f5c44e !important; }
+.ov-cell.ov-towing { background: #ececec !important; cursor: default; }
+.ov-cell.ov-towing.ov-bookable { cursor: pointer; background: repeating-linear-gradient(-45deg, #ececec, #ececec 4px, #e2e2e2 4px, #e2e2e2 5px) !important; }
+.ov-cell.ov-towing.ov-bookable:active { background: #ddd !important; }
+.ov-cell.ov-restricted.ov-hour { background-color: rgba(245, 222, 195, 0.3) !important; background-image: repeating-linear-gradient(-45deg, transparent, transparent 4px, rgba(0,0,0,0.025) 4px, rgba(0,0,0,0.025) 5px) !important; }
+.ov-cell.ov-restricted.ov-half { background-color: rgba(245, 222, 195, 0.18) !important; background-image: repeating-linear-gradient(-45deg, transparent, transparent 4px, rgba(0,0,0,0.015) 4px, rgba(0,0,0,0.015) 5px) !important; }
+.ov-cell.ov-restricted.ov-booked { background-image: none !important; }
+.ov-restricted-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 8px; color: rgba(0,0,0,0.15); font-weight: 700; pointer-events: none; }
+
+/* Platzrunden legend under overview */
+.ov-legend { display: flex; align-items: center; gap: 12px; padding: 8px 16px; font-size: 11px; color: var(--gray-500); flex-wrap: wrap; background: white; border-top: 1px solid #e8eaed; }
+.ov-legend-item { display: flex; align-items: center; gap: 5px; }
+.ov-legend-swatch { width: 14px; height: 14px; border-radius: 3px; border: 1px solid #e8eaed; flex-shrink: 0; }
+.ov-legend-swatch.sw-restricted { background: rgba(255, 235, 210, 0.5); background-image: repeating-linear-gradient(-45deg, transparent, transparent 3px, rgba(0,0,0,0.04) 3px, rgba(0,0,0,0.04) 4px); }
+.ov-legend-swatch.sw-towing { background: #ececec; }
+.ov-legend-swatch.sw-booked { background: #a8deb0; }
+.ov-legend-swatch.sw-pending { background: #f0d87a; }
+.ov-legend-swatch.sw-instructor { background: #ffb870; }
+.ov-legend-info { font-size: 10px; color: var(--gray-500); padding: 4px 16px 8px; background: white; line-height: 1.5; }
+
+/* Day/Week toggle */
+.ov-mode-toggle { display: flex; gap: 4px; background: var(--gray-100); border-radius: 8px; padding: 3px; margin: 0 16px 8px; }
+.ov-mode-toggle button { flex: 1; padding: 7px 10px; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; font-family: var(--font); cursor: pointer; background: transparent; color: var(--gray-500); transition: all 0.15s; }
+.ov-mode-toggle button.active { background: white; color: var(--navy); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+
+/* Week overview grid */
+.week-grid { display: grid; grid-template-columns: 54px repeat(7, 1fr); width: 100%; background: white; overflow-x: auto; }
+.wk-corner { background: white; padding: 6px 2px; border-bottom: 2px solid var(--navy); border-right: 2px solid var(--navy); }
+.wk-day-header { background: white; padding: 6px 2px; text-align: center; border-bottom: 2px solid var(--navy); border-left: 1px solid #e8eaed; }
+.wk-day-header .wk-day-name { font-size: 10px; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.04em; }
+.wk-day-header .wk-day-date { font-size: 11px; font-weight: 700; color: var(--navy); margin-top: 1px; }
+.wk-day-header.wk-today { background: rgba(61,153,145,0.06); }
+.wk-day-header.wk-today .wk-day-date { color: var(--primary); }
+.wk-day-header.wk-weekend .wk-day-name { color: var(--accent); }
+.wk-time { font-size: 11px; font-weight: 700; color: var(--navy); padding: 0 4px; display: flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums; border-right: 2px solid var(--navy); border-bottom: 1px solid #e8eaed; min-height: 32px; background: var(--gray-100); }
+.wk-time.wk-hour { font-size: 11px; color: var(--navy); }
+.wk-time.wk-half { color: var(--gray-500); font-weight: 600; font-size: 9px; border-bottom-color: var(--gray-400); }
+.wk-cell { min-height: 32px; border-bottom: 1px solid #e8eaed; border-left: 1px solid #eef0f2; position: relative; cursor: pointer; transition: background 0.1s; font-size: 9px; overflow: hidden; }
+.wk-cell.wk-hour { }
+.wk-cell.wk-half { background: #fafbfc; border-bottom-color: var(--gray-400); }
+.wk-cell:active { background: rgba(61,153,145,0.08); }
+.wk-cell.wk-booked { background: #a8deb0 !important; }
+.wk-cell.wk-booked.wk-pending { background: #f0d87a !important; }
+.wk-cell.wk-booked.wk-instructor { background: #ffb870 !important; }
+.wk-cell.wk-booked.wk-pending.wk-instructor { background: #f5c44e !important; }
+.wk-cell.wk-towing { background: #ececec !important; cursor: default; }
+.wk-cell.wk-towing.wk-bookable { cursor: pointer; }
+.wk-cell.wk-restricted.wk-hour { background-color: rgba(245, 222, 195, 0.3) !important; }
+.wk-cell.wk-restricted.wk-half { background-color: rgba(245, 222, 195, 0.15) !important; }
+.wk-cell.wk-restricted.wk-booked { background-color: transparent !important; }
+.wk-cell .wk-name { position: absolute; top: 1px; left: 2px; right: 2px; font-size: 8px; font-weight: 700; color: #1a1a1a; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Aircraft filter for week view */
+.wk-aircraft-filter { display: flex; gap: 6px; padding: 0 16px 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.wk-aircraft-filter::-webkit-scrollbar { display: none; }
+.wk-aircraft-chip { flex-shrink: 0; padding: 5px 10px; background: white; border: 1.5px solid #e8eaed; border-radius: 16px; font-size: 11px; font-weight: 700; color: var(--gray-500); cursor: pointer; font-family: var(--font); letter-spacing: 0.02em; }
+.wk-aircraft-chip.active { background: var(--navy); color: white; border-color: var(--navy); }
 .ov-cell .ov-name { position: absolute; top: 3px; left: 4px; right: 4px; font-size: 10px; font-weight: 700; color: #1a1a1a; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ov-cell .ov-meta { position: absolute; bottom: 2px; left: 4px; right: 4px; font-size: 9px; color: var(--gray-600); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -305,6 +362,261 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
 .perm-toggle.on { background: var(--primary); }
 .perm-toggle.on::after { left: 18px; }
 .perm-toggle.disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Detail panel in user management */
+.um-detail { flex-basis: 100%; margin-top: 8px; padding: 12px; background: white; border: 1px solid var(--gray-300); border-radius: 8px; }
+.um-detail-grid { display: grid; grid-template-columns: 80px 1fr; gap: 6px 10px; font-size: 13px; align-items: center; }
+.um-detail-grid .dl { font-weight: 600; color: var(--gray-500); font-size: 12px; }
+.um-detail-grid .dd { color: var(--navy); }
+.um-detail-grid input[type="text"] { padding: 6px 10px; border: 1px solid var(--gray-300); border-radius: 6px; font-size: 13px; font-family: var(--font); width: 100%; box-sizing: border-box; }
+.um-detail-grid .dd-mono { font-size: 10px; color: var(--gray-500); font-family: monospace; word-break: break-all; }
+.btn-mg-detail { background: white; color: var(--navy); border: 1px solid var(--gray-300) !important; }
+
+/* Invitation section in user mgmt */
+.inv-section { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--gray-300); }
+.inv-section h4 { font-size: 12px; color: var(--gray-500); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 8px; }
+.inv-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #fff8e1; border-radius: var(--radius); margin-bottom: 6px; flex-wrap: wrap; }
+.inv-row .inv-info { flex: 1; min-width: 120px; font-size: 13px; }
+.inv-row .inv-info .inv-email { font-size: 11px; color: var(--gray-500); }
+.inv-row .inv-actions { display: flex; gap: 4px; flex-wrap: wrap; }
+.inv-row .inv-actions button { padding: 4px 8px; border-radius: 4px; border: none; font-size: 10px; font-weight: 600; cursor: pointer; font-family: var(--font); }
+.inv-form { padding: 12px; background: var(--gray-100); border-radius: var(--radius); margin-top: 10px; }
+.inv-form .inv-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+.inv-form input, .inv-form select { padding: 10px; border: 1px solid var(--gray-300); border-radius: 6px; font-size: 14px; font-family: var(--font); }
+.inv-form select { background: white; }
+.inv-form .inv-form-actions { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+
+/* ===== TEAM VIEW (full-page employee management) ===== */
+.team-view { padding: 12px 16px 100px; }
+.team-section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gray-500); margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
+.team-section-title .count { background: var(--gray-100); color: var(--navy); padding: 1px 7px; border-radius: 10px; font-size: 10px; }
+
+/* Employee Card */
+.team-card { background: white; border-radius: 12px; border: 1px solid #e8eaed; margin-bottom: 10px; overflow: hidden; transition: box-shadow 0.2s; }
+.team-card.expanded { box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+.team-card-header { display: flex; align-items: center; gap: 12px; padding: 14px 16px; cursor: pointer; }
+.team-card-header:active { background: #f9fafb; }
+.team-card-avatar { width: 42px; height: 42px; border-radius: 50%; background: var(--accent); color: var(--navy); font-size: 16px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.team-card-avatar.role-admin { background: var(--accent); }
+.team-card-avatar.role-team { background: var(--primary); color: white; }
+.team-card-avatar.role-guest { background: var(--gray-300); color: var(--navy); }
+.team-card-info { flex: 1; min-width: 0; }
+.team-card-name { font-size: 15px; font-weight: 600; color: var(--navy); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.team-card-email { font-size: 12px; color: var(--gray-500); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.team-card-chevron { color: var(--gray-500); font-size: 14px; flex-shrink: 0; transition: transform 0.2s; }
+.team-card.expanded .team-card-chevron { transform: rotate(180deg); }
+.team-card-you { font-size: 10px; color: var(--gray-500); font-weight: 400; }
+
+/* Expanded Card Body */
+.team-card-body { padding: 0 16px 16px; display: none; }
+.team-card.expanded .team-card-body { display: block; }
+.team-card-body-divider { height: 1px; background: #e8eaed; margin-bottom: 14px; }
+
+/* Info Grid inside card */
+.team-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.team-info-item { }
+.team-info-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--gray-500); margin-bottom: 3px; }
+.team-info-value { font-size: 14px; color: var(--navy); font-weight: 500; }
+.team-info-value.mono { font-size: 10px; color: var(--gray-500); font-family: monospace; word-break: break-all; }
+
+/* Edit fields in card */
+.team-edit-row { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+.team-edit-row label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--gray-500); min-width: 50px; }
+.team-edit-input { flex: 1; padding: 8px 12px; border: 1.5px solid #e8eaed; border-radius: 8px; font-size: 14px; font-family: var(--font); outline: none; transition: border-color 0.2s; }
+.team-edit-input:focus { border-color: var(--primary); }
+
+/* Role selector in card */
+.team-role-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.team-role-row label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--gray-500); }
+.team-role-select { flex: 1; padding: 8px 12px; border: 1.5px solid #e8eaed; border-radius: 8px; font-size: 14px; font-family: var(--font); background: white; -webkit-appearance: none; appearance: none; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='%230c1b2e' d='M0 0l5 6 5-6z'/></svg>"); background-repeat: no-repeat; background-position: right 10px center; cursor: pointer; }
+.team-role-select:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Permissions in card */
+.team-perms { margin-top: 12px; padding-top: 12px; border-top: 1px dashed #e8eaed; }
+.team-perms-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--gray-500); margin-bottom: 8px; }
+.team-perm-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f5f5f5; }
+.team-perm-row:last-child { border-bottom: none; }
+.team-perm-label { font-size: 13px; color: var(--navy); }
+.team-perm-label small { display: block; font-size: 10px; color: var(--gray-500); font-weight: 400; margin-top: 1px; }
+.team-perm-hint { font-size: 10px; color: var(--gray-500); font-style: italic; margin-left: 4px; }
+
+/* Card actions */
+.team-card-actions { display: flex; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px dashed #e8eaed; }
+.team-card-actions button { padding: 8px 14px; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: var(--font); }
+.team-btn-save { background: var(--primary); color: white; }
+.team-btn-delete { background: #fdecec; color: var(--danger); }
+
+/* Invite section in team view */
+.team-invite-section { margin-top: 20px; }
+.team-invite-card { background: white; border-radius: 12px; border: 1px solid #e8eaed; padding: 16px; }
+.team-invite-card h4 { font-size: 13px; font-weight: 700; color: var(--navy); margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
+.team-invite-form { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.team-invite-form .full-width { grid-column: 1 / -1; }
+.team-invite-input { padding: 10px 12px; border: 1.5px solid #e8eaed; border-radius: 8px; font-size: 14px; font-family: var(--font); outline: none; }
+.team-invite-input:focus { border-color: var(--primary); }
+.team-invite-select { padding: 10px 12px; border: 1.5px solid #e8eaed; border-radius: 8px; font-size: 14px; font-family: var(--font); background: white; }
+.team-invite-btn { padding: 10px 16px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: var(--font); }
+.team-invite-btn:active { opacity: 0.9; }
+
+/* Pending invitation cards */
+.team-inv-pending { background: #fffdf6; border: 1px solid #f0e7c0; border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.team-inv-pending .inv-avatar { width: 36px; height: 36px; border-radius: 50%; background: #f0e7c0; color: #8a7420; font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.team-inv-pending .inv-details { flex: 1; min-width: 120px; }
+.team-inv-pending .inv-name { font-size: 14px; font-weight: 600; color: var(--navy); }
+.team-inv-pending .inv-email-line { font-size: 12px; color: var(--gray-500); margin-top: 1px; }
+.team-inv-pending .inv-sent { font-size: 10px; color: var(--green); margin-top: 2px; }
+.team-inv-pending .inv-btns { display: flex; gap: 6px; }
+.team-inv-pending .inv-btns button { padding: 6px 12px; border-radius: 6px; border: none; font-size: 11px; font-weight: 600; cursor: pointer; font-family: var(--font); }
+.team-inv-btn-send { background: var(--primary); color: white; }
+.team-inv-btn-link { background: white; color: var(--navy); border: 1px solid var(--gray-300) !important; }
+.team-inv-btn-del { background: #fdecec; color: var(--danger); }
+
+/* ===== ZEITERFASSUNG (time tracking) ===== */
+.time-view { padding: 12px 16px 100px; }
+
+/* Clock button area */
+.time-clock-area { text-align: center; padding: 20px 0 24px; }
+.time-clock-status { font-size: 13px; color: var(--gray-500); margin-bottom: 10px; font-weight: 500; }
+.time-clock-status .active-since { color: var(--green); font-weight: 700; }
+.time-clock-btn { width: 120px; height: 120px; border-radius: 50%; border: none; font-size: 15px; font-weight: 700; font-family: var(--font); cursor: pointer; transition: all 0.2s; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+.time-clock-btn:active { transform: scale(0.95); }
+.time-clock-btn.clock-in { background: var(--green); color: white; }
+.time-clock-btn.clock-out { background: var(--danger); color: white; }
+.time-clock-btn .clock-icon { font-size: 28px; }
+.time-clock-btn .clock-label { font-size: 12px; font-weight: 600; letter-spacing: 0.04em; }
+.time-clock-elapsed { font-size: 24px; font-weight: 700; color: var(--navy); margin-top: 10px; font-variant-numeric: tabular-nums; }
+
+/* Month navigation */
+.time-month-nav { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 14px; }
+.time-month-nav h3 { font-size: 14px; font-weight: 600; min-width: 160px; text-align: center; color: var(--navy); }
+
+/* Summary bar */
+.time-summary { display: flex; gap: 6px; margin-bottom: 14px; }
+.time-summary-card { flex: 1; background: white; border-radius: 10px; border: 1px solid #e8eaed; padding: 10px 12px; text-align: center; }
+.time-summary-card .ts-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--gray-500); margin-bottom: 2px; }
+.time-summary-card .ts-value { font-size: 18px; font-weight: 700; color: var(--navy); font-variant-numeric: tabular-nums; }
+.time-summary-card .ts-value.positive { color: var(--green); }
+.time-summary-card .ts-value.negative { color: var(--danger); }
+
+/* Daily entries */
+.time-day-group { margin-bottom: 12px; }
+.time-day-header { font-size: 11px; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; padding: 0 4px; }
+.time-day-header .day-total { color: var(--navy); font-size: 12px; }
+.time-entry { background: white; border-radius: 10px; border: 1px solid #e8eaed; padding: 10px 14px; margin-bottom: 4px; display: flex; align-items: center; gap: 10px; }
+.time-entry.running { border-color: var(--green); background: #e8f5e9; }
+.time-entry .te-times { font-size: 14px; font-weight: 600; color: var(--navy); min-width: 100px; font-variant-numeric: tabular-nums; }
+.time-entry .te-duration { font-size: 13px; font-weight: 700; color: var(--primary); background: rgba(61,153,145,0.1); padding: 3px 10px; border-radius: 6px; margin-left: auto; flex-shrink: 0; }
+.time-entry .te-duration.running { background: rgba(67,160,71,0.15); color: var(--green); }
+.time-entry .te-break { font-size: 11px; color: var(--gray-500); font-style: italic; }
+.time-entry .te-note { font-size: 12px; color: var(--gray-500); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tse-break { font-size: 10px; color: var(--gray-500); font-style: italic; }
+.time-entry .te-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.time-entry .te-actions button { padding: 4px 8px; border: none; border-radius: 5px; font-size: 10px; font-weight: 600; cursor: pointer; font-family: var(--font); background: var(--gray-100); color: var(--gray-500); }
+.time-entry .te-actions button:active { background: #ddd; }
+.time-entry .te-actions .te-del { color: var(--danger); background: #fdecec; }
+
+/* Soll-Stunden settings */
+.time-settings { background: white; border-radius: 10px; border: 1px solid #e8eaed; padding: 14px; margin-bottom: 14px; }
+.time-settings summary { font-size: 12px; font-weight: 600; color: var(--navy); cursor: pointer; list-style: none; display: flex; align-items: center; gap: 6px; }
+.time-settings summary::-webkit-details-marker { display: none; }
+.time-settings summary::before { content: '\25B6'; font-size: 9px; color: var(--gray-500); transition: transform 0.2s; }
+.time-settings[open] summary::before { transform: rotate(90deg); }
+.time-settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.time-settings-grid label { font-size: 11px; font-weight: 600; color: var(--gray-500); }
+.time-settings-grid input { padding: 8px 10px; border: 1.5px solid #e8eaed; border-radius: 8px; font-size: 14px; font-family: var(--font); outline: none; width: 100%; }
+.time-settings-grid input:focus { border-color: var(--primary); }
+.time-settings-save { margin-top: 10px; padding: 8px 16px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: var(--font); }
+
+/* Export row */
+.time-export-row { display: flex; gap: 8px; margin-bottom: 14px; }
+.time-export-btn { padding: 8px 14px; background: var(--navy); color: white; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: var(--font); display: flex; align-items: center; gap: 6px; }
+.time-export-btn:active { opacity: 0.9; }
+
+/* Admin time management */
+.time-admin-toggle { display: flex; gap: 4px; background: var(--gray-100); border-radius: 8px; padding: 3px; margin-bottom: 14px; }
+.time-admin-toggle button { flex: 1; padding: 8px 10px; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; font-family: var(--font); cursor: pointer; background: transparent; color: var(--gray-500); transition: all 0.15s; }
+.time-admin-toggle button.active { background: white; color: var(--navy); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+
+/* Staff overview table */
+.time-staff-overview { margin-bottom: 14px; }
+.time-staff-card { background: white; border-radius: 10px; border: 1px solid #e8eaed; margin-bottom: 8px; overflow: hidden; }
+.time-staff-header { display: flex; align-items: center; gap: 10px; padding: 12px 14px; cursor: pointer; }
+.time-staff-header:active { background: #f9fafb; }
+.time-staff-avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--primary); color: white; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.time-staff-name { font-size: 14px; font-weight: 600; color: var(--navy); flex: 1; min-width: 0; }
+.time-staff-name small { font-weight: 400; color: var(--gray-500); font-size: 11px; margin-left: 4px; }
+.time-staff-hours { font-size: 14px; font-weight: 700; color: var(--navy); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.time-staff-status { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.time-staff-status.online { background: var(--green); }
+.time-staff-status.offline { background: var(--gray-300); }
+.time-staff-chevron { color: var(--gray-500); font-size: 12px; flex-shrink: 0; transition: transform 0.2s; }
+.time-staff-card.expanded .time-staff-chevron { transform: rotate(180deg); }
+
+/* Expanded detail in admin view */
+.time-staff-body { padding: 0 14px 14px; display: none; border-top: 1px solid #e8eaed; }
+.time-staff-card.expanded .time-staff-body { display: block; padding-top: 12px; }
+.time-staff-summary { display: flex; gap: 6px; margin-bottom: 10px; }
+.time-staff-summary .tss-item { flex: 1; text-align: center; background: var(--gray-100); border-radius: 8px; padding: 8px 6px; }
+.time-staff-summary .tss-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--gray-500); }
+.time-staff-summary .tss-val { font-size: 15px; font-weight: 700; color: var(--navy); font-variant-numeric: tabular-nums; }
+.time-staff-summary .tss-val.positive { color: var(--green); }
+.time-staff-summary .tss-val.negative { color: var(--danger); }
+.time-staff-entries { max-height: 300px; overflow-y: auto; }
+.time-staff-entry { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid #f5f5f5; font-size: 12px; }
+.time-staff-entry:last-child { border-bottom: none; }
+.time-staff-entry .tse-date { font-weight: 600; color: var(--navy); min-width: 70px; font-variant-numeric: tabular-nums; }
+.time-staff-entry .tse-times { color: var(--gray-500); min-width: 90px; font-variant-numeric: tabular-nums; }
+.time-staff-entry .tse-dur { font-weight: 700; color: var(--primary); margin-left: auto; }
+.time-staff-entry .tse-note { color: var(--gray-500); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.time-admin-export-row { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+.time-admin-export-row .time-export-btn { font-size: 11px; padding: 7px 12px; }
+
+/* ===== STATISTICS VIEW ===== */
+.stats-view { padding: 12px 16px 100px; }
+.stats-header { margin-bottom: 16px; }
+.stats-header h3 { font-size: 16px; font-weight: 700; color: var(--navy); margin-bottom: 10px; }
+.stats-period { display: flex; align-items: center; gap: 8px; }
+.stats-period button { width: 32px; height: 32px; border-radius: 50%; border: 1px solid #e8eaed; background: white; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.stats-period span { font-size: 14px; font-weight: 600; min-width: 120px; text-align: center; }
+.stats-period select { font-size: 12px; padding: 4px 8px; border-radius: 6px; border: 1px solid #e8eaed; background: white; }
+.stats-card { background: white; border-radius: 10px; border: 1px solid #e8eaed; padding: 16px; margin-bottom: 12px; }
+.stats-card h4 { font-size: 13px; font-weight: 700; color: var(--navy); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+.stats-kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; margin-bottom: 12px; }
+.stats-kpi { text-align: center; padding: 10px 6px; background: var(--gray-100); border-radius: 8px; }
+.stats-kpi .kpi-val { font-size: 22px; font-weight: 800; color: var(--primary); }
+.stats-kpi .kpi-label { font-size: 10px; color: var(--gray-500); margin-top: 2px; }
+.stats-bar-chart { display: flex; flex-direction: column; gap: 6px; }
+.stats-bar-row { display: flex; align-items: center; gap: 8px; }
+.stats-bar-label { font-size: 11px; color: var(--navy); width: 70px; flex-shrink: 0; text-align: right; font-weight: 600; }
+.stats-bar-track { flex: 1; height: 22px; background: var(--gray-100); border-radius: 6px; overflow: hidden; position: relative; }
+.stats-bar-fill { height: 100%; border-radius: 6px; transition: width 0.4s ease; min-width: 2px; }
+.stats-bar-val { font-size: 10px; font-weight: 700; position: absolute; right: 6px; top: 4px; color: var(--navy); }
+.stats-heatmap { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+.stats-heat-cell { aspect-ratio: 1; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600; color: var(--navy); }
+.stats-heat-header { font-size: 9px; font-weight: 700; color: var(--gray-500); text-align: center; padding: 2px 0; }
+.stats-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.stats-table th { text-align: left; font-weight: 700; color: var(--gray-500); padding: 6px 8px; border-bottom: 2px solid #e8eaed; font-size: 10px; text-transform: uppercase; }
+.stats-table td { padding: 6px 8px; border-bottom: 1px solid #f0f0f0; }
+.stats-table tr:last-child td { border-bottom: none; }
+
+/* ===== ACTIVITY LOG (Protokoll) ===== */
+.activity-item { background: white; border-radius: var(--radius); border: 1px solid #e8eaed; padding: 10px 14px; margin-bottom: 6px; display: flex; gap: 10px; align-items: flex-start; }
+.activity-icon { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+.activity-icon.act-create { background: #e8f5e9; color: var(--green); }
+.activity-icon.act-edit { background: #e3f2fd; color: #1976d2; }
+.activity-icon.act-approve { background: #e8f5e9; color: var(--green); }
+.activity-icon.act-reject { background: #fdecea; color: var(--danger); }
+.activity-icon.act-delete { background: #fdecea; color: var(--danger); }
+.activity-icon.act-note { background: #fff8e1; color: #f9a825; }
+.activity-body { flex: 1; min-width: 0; }
+.activity-body .act-user { font-size: 13px; font-weight: 600; color: var(--navy); }
+.activity-body .act-text { font-size: 13px; color: #444; margin-top: 1px; line-height: 1.4; }
+.activity-body .act-text strong { color: var(--navy); }
+.activity-body .act-detail { font-size: 11px; color: var(--gray-500); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.activity-time { font-size: 10px; color: var(--gray-500); flex-shrink: 0; font-variant-numeric: tabular-nums; white-space: nowrap; margin-top: 2px; }
+.activity-load-more { text-align: center; padding: 10px; }
+.activity-load-more button { padding: 8px 20px; background: var(--gray-100); border: 1px solid #e8eaed; border-radius: 8px; font-size: 12px; font-weight: 600; color: var(--navy); cursor: pointer; font-family: var(--font); }
+.activity-load-more button:active { background: #e8eaed; }
 </style>
 </head>
 <body>
@@ -340,8 +652,30 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
 <div class="quick-overlay" id="userMgmtOverlay" onclick="if(event.target===this)closeUserMgmt()">
   <div class="quick-sheet">
     <h3>Nutzerverwaltung</h3>
-    <div class="um-intro">Rollen &amp; Rechte verwalten. Neue Mitarbeiter legst du über den Admin-Bereich der Website an (Einladung per E-Mail).</div>
+    <div class="um-intro">Rollen &amp; Rechte verwalten, Mitarbeiter einladen und Details bearbeiten.</div>
     <div id="userMgmtList"></div>
+
+    <div class="inv-section" id="invSection">
+      <h4>Offene Einladungen</h4>
+      <div id="appInvitationsList"></div>
+
+      <div class="inv-form">
+        <div style="font-size:13px; font-weight:600; color:var(--navy); margin-bottom:8px;">+ Neue Einladung</div>
+        <div class="inv-form-row">
+          <input type="text" id="appInvName" placeholder="Name" maxlength="40">
+          <input type="email" id="appInvEmail" placeholder="E-Mail">
+        </div>
+        <div class="inv-form-actions">
+          <select id="appInvRole"></select>
+          <button class="btn-primary" style="padding:10px 16px;border:none;border-radius:6px;font-size:13px;font-weight:600;font-family:var(--font);cursor:pointer;color:white;background:var(--primary);" onclick="appCreateInvitation()">Einladung anlegen</button>
+        </div>
+        <div style="margin-top:8px; display:flex; align-items:center; gap:6px;">
+          <input type="checkbox" id="appInvSendEmail" checked>
+          <label for="appInvSendEmail" style="font-size:12px; color:var(--gray-500);">Einladungs-Mail direkt verschicken</label>
+        </div>
+      </div>
+    </div>
+
     <button class="btn-cancel" onclick="closeUserMgmt()" style="width:100%;margin-top:14px;padding:12px;text-align:center;">Schlie&szlig;en</button>
   </div>
 </div>
@@ -385,13 +719,26 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
 
 <div class="view-tabs">
   <button class="view-tab active" id="tabOverview" onclick="switchView('overview')">&Uuml;bersicht</button>
-  <button class="view-tab" id="tabBook" onclick="switchView('book')">Buchen</button>
+  <button class="view-tab" id="tabBook" onclick="switchView('book')" style="display:none;">Buchen</button>
   <button class="view-tab" id="tabManage" onclick="switchView('manage')">Verwalten<span id="pendingBadge" style="display:none;" class="tab-badge">0</span></button>
   <button class="view-tab" id="tabTheory" onclick="switchView('theory')" style="display:none;">Theorie</button>
+  <button class="view-tab" id="tabTeam" onclick="switchView('team')" style="display:none;">Team</button>
+  <button class="view-tab" id="tabTime" onclick="switchView('time')" style="display:none;">Arbeitszeit</button>
+  <button class="view-tab" id="tabStats" onclick="switchView('stats')" style="display:none;">Statistik</button>
 </div>
 
 <div id="viewOverview" class="overview">
-  <div class="overview-grid" id="overviewGrid"></div>
+  <div class="ov-mode-toggle">
+    <button class="active" id="ovModeDay" onclick="setOvMode('day')">Tag</button>
+    <button id="ovModeWeek" onclick="setOvMode('week')">Woche</button>
+  </div>
+  <div id="ovDayView">
+    <div class="overview-grid" id="overviewGrid"></div>
+  </div>
+  <div id="ovWeekView" style="display:none;">
+    <div class="wk-aircraft-filter" id="wkAircraftFilter"></div>
+    <div class="week-grid" id="weekGrid"></div>
+  </div>
 </div>
 
 <div id="viewBook" style="display:none;">
@@ -413,6 +760,124 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
   </div>
   <div id="theoryFilterRow" class="filter-row" style="display:none;"></div>
   <div id="theoryList"></div>
+</div>
+
+<!-- Team View (full-page employee management) -->
+<div id="viewTeam" class="team-view" style="display:none;">
+  <div id="teamMembersList"></div>
+  <div class="team-invite-section" id="teamInviteSection">
+    <div class="team-section-title">Offene Einladungen</div>
+    <div id="teamInvitationsList"></div>
+    <div class="team-invite-card" style="margin-top: 10px;">
+      <h4>+ Neuen Mitarbeiter einladen</h4>
+      <div class="team-invite-form">
+        <input type="text" class="team-invite-input" id="teamInvName" placeholder="Name" maxlength="40">
+        <input type="email" class="team-invite-input" id="teamInvEmail" placeholder="E-Mail-Adresse">
+        <select class="team-invite-select" id="teamInvRole"></select>
+        <button class="team-invite-btn" onclick="teamCreateInvitation()">Einladung senden</button>
+        <label class="full-width" style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--gray-500);margin-top:2px;">
+          <input type="checkbox" id="teamInvSendEmail" checked> E-Mail direkt verschicken
+        </label>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Zeiterfassung View -->
+<div id="viewTime" class="time-view" style="display:none;">
+  <div class="time-admin-toggle" id="timeAdminToggle" style="display:none;">
+    <button class="active" id="timeToggleMine" onclick="setTimeMode('mine')">Meine Zeiten</button>
+    <button id="timeToggleAll" onclick="setTimeMode('all')">Alle Mitarbeiter</button>
+  </div>
+
+  <!-- Personal view -->
+  <div id="timePersonalView">
+  <div class="time-clock-area">
+    <div class="time-clock-status" id="timeClockStatus">Nicht eingestempelt</div>
+    <button class="time-clock-btn clock-in" id="timeClockBtn" onclick="toggleClock()">
+      <span class="clock-icon" id="timeClockIcon">&#9654;</span>
+      <span class="clock-label" id="timeClockLabel">Einstempeln</span>
+    </button>
+    <div class="time-clock-elapsed" id="timeClockElapsed" style="display:none;">00:00:00</div>
+  </div>
+
+  <details class="time-settings" id="timeSettingsPanel">
+    <summary>Soll-Stunden konfigurieren</summary>
+    <div class="time-settings-grid">
+      <div>
+        <label>Wochenstunden (Soll)</label>
+        <input type="number" id="timeSollHours" placeholder="z.B. 40" min="0" max="80" step="0.5">
+      </div>
+      <div>
+        <label>Arbeitstage / Woche</label>
+        <input type="number" id="timeSollDays" placeholder="z.B. 5" min="1" max="7" step="1">
+      </div>
+    </div>
+    <button class="time-settings-save" onclick="saveTimeSettings()">Speichern</button>
+  </details>
+
+  <div class="time-month-nav">
+    <button class="nav-btn" onclick="navigateTimeMonth(-1)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
+    <h3 id="timeMonthDisplay"></h3>
+    <button class="nav-btn" onclick="navigateTimeMonth(1)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>
+  </div>
+
+  <div class="time-summary" id="timeSummary"></div>
+
+  <div class="time-export-row">
+    <button class="time-export-btn" onclick="exportTimeExcel()">&#128196; Excel-Export</button>
+  </div>
+
+  <div id="timeEntriesList"></div>
+  </div><!-- /timePersonalView -->
+
+  <!-- Admin view: all employees -->
+  <div id="timeAdminView" style="display:none;">
+    <div class="time-month-nav">
+      <button class="nav-btn" onclick="navigateTimeMonth(-1)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
+      <h3 id="timeAdminMonthDisplay"></h3>
+      <button class="nav-btn" onclick="navigateTimeMonth(1)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>
+    </div>
+    <div class="time-admin-export-row">
+      <button class="time-export-btn" onclick="exportAllTimeExcel()">&#128196; Gesamt-Export (alle Mitarbeiter)</button>
+    </div>
+    <div id="timeStaffList"></div>
+  </div>
+</div>
+
+<!-- Zeiterfassung: Eintrag bearbeiten -->
+<div class="quick-overlay" id="timeEditOverlay" onclick="if(event.target===this)closeTimeEdit()">
+  <div class="quick-sheet">
+    <h3 id="timeEditTitle">Zeiteintrag bearbeiten</h3>
+    <input type="hidden" id="timeEditId">
+    <div style="margin-bottom:10px;">
+      <label style="font-size:11px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:4px;">Datum</label>
+      <input type="date" class="quick-input" id="timeEditDate">
+    </div>
+    <div class="quick-row" style="margin-bottom:10px;">
+      <div style="flex:1;">
+        <label style="font-size:11px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:4px;">Kommen</label>
+        <input type="time" class="quick-input" id="timeEditIn">
+      </div>
+      <div style="flex:1;">
+        <label style="font-size:11px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:4px;">Gehen</label>
+        <input type="time" class="quick-input" id="timeEditOut">
+      </div>
+    </div>
+    <div style="margin-bottom:10px;">
+      <label style="font-size:11px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:4px;">Pause (Minuten)</label>
+      <input type="number" class="quick-input" id="timeEditBreak" placeholder="z.B. 30" min="0" max="480" step="5">
+    </div>
+    <div style="margin-bottom:10px;">
+      <label style="font-size:11px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:4px;">Notiz (optional)</label>
+      <input type="text" class="quick-input" id="timeEditNote" placeholder="z.B. Flugbetrieb, Büro...">
+    </div>
+    <div class="quick-row">
+      <button class="btn-cancel" onclick="closeTimeEdit()">Abbrechen</button>
+      <button class="btn-book" id="timeEditDeleteBtn" onclick="deleteTimeEntry()" style="background:var(--danger);display:none;">Löschen</button>
+      <button class="btn-book" onclick="saveTimeEdit()" style="flex:1;">Speichern</button>
+    </div>
+  </div>
 </div>
 
 <!-- Theorie-Formular (Bottom Sheet) -->
@@ -455,6 +920,25 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
       <button class="btn-book" onclick="saveTheory()" style="flex:1;">Speichern</button>
     </div>
   </div>
+</div>
+
+<!-- Statistics View -->
+<div id="viewStats" class="stats-view" style="display:none;">
+  <div class="stats-header">
+    <h3>Statistik</h3>
+    <div class="stats-period">
+      <button onclick="changeStatsPeriod(-1)">&larr;</button>
+      <span id="statsPeriodLabel"></span>
+      <button onclick="changeStatsPeriod(1)">&rarr;</button>
+      <select id="statsRange" onchange="renderStats()">
+        <option value="month">Monat</option>
+        <option value="quarter">Quartal</option>
+        <option value="year">Jahr</option>
+        <option value="all">Gesamt</option>
+      </select>
+    </div>
+  </div>
+  <div id="statsContent"></div>
 </div>
 
 <!-- Quick Book Sheet -->
@@ -547,6 +1031,8 @@ let staffUsers = [];
 let dailyNotes = {};
 let theoryLessons = [];
 let theoryFilterMode = 'mine'; // 'mine' | 'all' (nur für Admins/Berechtigte)
+let appSettings = {};
+let appInvitations = [];
 let currentUser = null;
 let currentDate = new Date();
 let selectedAircraft = AIRCRAFT[0];
@@ -617,6 +1103,8 @@ function setupAuthGuard() {
     updateUserUI();
     maybeShowNotifBanner();
     setTimeout(autoRegisterFcmIfReady, 2000);
+    // Setup time tracking listeners for this user
+    if (typeof setupTimeListeners === 'function') setupTimeListeners();
     render();
   });
 }
@@ -627,8 +1115,8 @@ function setupAuthGuard() {
 function openUserMgmt() {
   closeUserMenu();
   if (!currentUserHas('manageUsers')) { notify('Du hast keine Berechtigung für die Nutzerverwaltung.', 'error'); return; }
-  renderUserMgmt();
-  document.getElementById('userMgmtOverlay').classList.add('active');
+  // Switch to the full-page Team tab instead of the old overlay
+  switchView('team');
 }
 
 function closeUserMgmt() {
@@ -680,22 +1168,33 @@ function renderUserMgmt() {
   const el = document.getElementById('userMgmtList');
   if (!el) return;
   const adminCount = staffUsers.filter(u => u.role === 'admin').length;
-  el.innerHTML = staffUsers.map(u => {
+  // Sortiert: Admins zuerst, dann nach Name
+  const sorted = staffUsers.slice().sort((a, b) => {
+    if (a.role === 'admin' && b.role !== 'admin') return -1;
+    if (b.role === 'admin' && a.role !== 'admin') return 1;
+    return (a.name || '').localeCompare(b.name || '');
+  });
+  el.innerHTML = sorted.map(u => {
     const isAdm = u.role === 'admin';
     const isMe = currentUser && u.id === currentUser.id;
     const lockedToAdmin = isAdm && adminCount === 1;
     const canDelete = !isMe && !(isAdm && adminCount === 1);
     const permsOpen = expandedPerms.has(u.id);
+    const detailOpen = expandedDetail.has(u.id);
+    const emailHint = u.email ? `<div style="font-size:11px;color:var(--gray-500);margin-top:1px;">${escapeHtml(u.email)}</div>` : '';
     return `<div class="user-mgmt-row">
-      <div class="um-avatar">${u.name.charAt(0).toUpperCase()}</div>
+      <div class="um-avatar" onclick="toggleDetailPanel('${u.id}')" style="cursor:pointer;">${(u.name || '?').charAt(0).toUpperCase()}</div>
       <div class="um-info">
-        <div class="um-name">${u.name}${roleBadge(u.role)}${isMe ? ' <span style="font-size:10px;color:var(--gray-500);">(du)</span>' : ''}</div>
+        <div class="um-name" onclick="toggleDetailPanel('${u.id}')" style="cursor:pointer;">${u.name}${roleBadge(u.role)}${isMe ? ' <span style="font-size:10px;color:var(--gray-500);">(du)</span>' : ''}</div>
+        ${emailHint}
         <div class="um-role">${renderRoleSelect(u, lockedToAdmin)}</div>
       </div>
       <div class="um-actions">
-        <button class="btn-mg-perms" onclick="togglePermsPanel('${u.id}')">${permsOpen ? 'Rechte ▲' : 'Rechte ▼'}</button>
+        <button class="btn-mg-detail" onclick="toggleDetailPanel('${u.id}')">&#9998;</button>
+        <button class="btn-mg-perms" onclick="togglePermsPanel('${u.id}')">${permsOpen ? 'Rechte \u25B2' : 'Rechte \u25BC'}</button>
         ${canDelete ? `<button class="btn-mg-delete" onclick="deleteStaffUser('${u.id}')">L\u00f6schen</button>` : ''}
       </div>
+      ${detailOpen ? renderDetailPanel(u) : ''}
       ${permsOpen ? renderPermsPanel(u) : ''}
     </div>`;
   }).join('');
@@ -753,6 +1252,174 @@ function deleteStaffUser(id) {
   notify('Mitarbeiter entfernt.', 'success');
 }
 
+// ============================================================
+// DETAIL-PANEL IN NUTZERVERWALTUNG
+// ============================================================
+let expandedDetail = new Set();
+
+function toggleDetailPanel(id) {
+  if (expandedDetail.has(id)) expandedDetail.delete(id); else expandedDetail.add(id);
+  renderUserMgmt();
+}
+
+function renderDetailPanel(u) {
+  const createdAt = u.createdAt ? new Date(u.createdAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '\u2014';
+  return `<div class="um-detail">
+    <div class="um-detail-grid">
+      <div class="dl">Name</div>
+      <div class="dd" style="display:flex;gap:6px;align-items:center;">
+        <input type="text" id="umName_${u.id}" value="${escapeHtml(u.name || '')}">
+        <button style="padding:4px 10px;border:none;border-radius:6px;background:var(--primary);color:white;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font);white-space:nowrap;" onclick="saveMemberName('${u.id}')">OK</button>
+      </div>
+      <div class="dl">E-Mail</div>
+      <div class="dd" style="word-break:break-all;">${escapeHtml(u.email || '\u2014')}</div>
+      <div class="dl">ID</div>
+      <div class="dd dd-mono">${u.id}</div>
+      <div class="dl">Erstellt</div>
+      <div class="dd">${createdAt}</div>
+    </div>
+  </div>`;
+}
+
+function saveMemberName(id, prefix) {
+  if (!isAdmin()) { notify('Nur Admins d\u00fcrfen Namen \u00e4ndern.', 'error'); return; }
+  const pfx = prefix || 'umName_';
+  const input = document.getElementById(pfx + id);
+  if (!input) return;
+  const newName = input.value.trim();
+  if (!newName) return notify('Name darf nicht leer sein.', 'error');
+  db.ref('staffUsers/' + id + '/name').set(newName);
+  notify('Name aktualisiert.', 'success');
+}
+
+function escapeHtml(s) { return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// ============================================================
+// EINLADUNGEN (APP)
+// ============================================================
+db.ref('settings').on('value', snap => { appSettings = snap.val() || {}; });
+
+db.ref('invitations').on('value', snap => {
+  const data = snap.val() || {};
+  appInvitations = Object.keys(data).map(k => Object.assign({ key: k }, data[k]));
+  if (document.getElementById('userMgmtOverlay').classList.contains('active')) {
+    renderAppInvitations();
+  }
+  // Refresh team view invitations if active
+  if (currentView === 'team') renderTeamInvitations();
+});
+
+function populateAppInvRoles() {
+  const sel = document.getElementById('appInvRole');
+  if (!sel) return;
+  sel.innerHTML = DASSU_ROLES.filter(r => !r.legacy).map(r =>
+    `<option value="${r.id}" ${r.id === 'team' ? 'selected' : ''}>${r.label}</option>`
+  ).join('');
+}
+
+function renderAppInvitations() {
+  const el = document.getElementById('appInvitationsList');
+  if (!el) return;
+  if (!appInvitations.length) {
+    el.innerHTML = '<div style="text-align:center;padding:10px;color:var(--gray-500);font-size:12px;font-style:italic;">Keine offenen Einladungen.</div>';
+    return;
+  }
+  el.innerHTML = appInvitations.map(inv => {
+    const meta = roleMeta(inv.role);
+    const sentInfo = inv.sentAt ? `<span style="color:var(--green);font-size:10px;">\u2709 gesendet ${new Date(inv.sentAt).toLocaleDateString('de-DE')}</span>` : '';
+    return `<div class="inv-row">
+      <div class="inv-info">
+        <div style="font-weight:600;">${escapeHtml(inv.name)} <span style="font-size:10px;color:var(--gray-500);">${meta.short || meta.label}</span></div>
+        <div class="inv-email">${escapeHtml(inv.email)} ${sentInfo}</div>
+      </div>
+      <div class="inv-actions">
+        <button style="background:var(--primary);color:white;" onclick="appSendInvEmail('${inv.key}')">${inv.sentAt ? 'Erneut' : 'Mail'}</button>
+        <button style="background:white;color:var(--navy);border:1px solid var(--gray-300)!important;" onclick="appCopyInvLink('${escapeHtml(inv.email)}')">Link</button>
+        <button style="background:#fdecec;color:var(--danger);" onclick="appDeleteInv('${inv.key}')">X</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function appCreateInvitation() {
+  if (!isAdmin()) { notify('Nur Admins d\u00fcrfen einladen.', 'error'); return; }
+  const nameEl = document.getElementById('appInvName');
+  const emailEl = document.getElementById('appInvEmail');
+  const roleEl = document.getElementById('appInvRole');
+  const name = nameEl.value.trim();
+  const email = emailEl.value.trim().toLowerCase();
+  const role = roleEl.value;
+  if (!name) return notify('Bitte Name eintragen.', 'error');
+  if (!email || !/^\S+@\S+\.\S+$/.test(email)) return notify('Bitte g\u00fcltige E-Mail eintragen.', 'error');
+  if (!role) return notify('Bitte Rolle w\u00e4hlen.', 'error');
+  if (staffUsers.some(u => (u.email || '').toLowerCase() === email)) {
+    return notify('Es gibt bereits einen aktiven Mitarbeiter mit dieser E-Mail.', 'error');
+  }
+  const key = DASSU_AUTH.emailKey(email);
+  db.ref('invitations/' + key).set({
+    email: email,
+    name: name,
+    role: role,
+    createdAt: Date.now()
+  }).then(async () => {
+    nameEl.value = '';
+    emailEl.value = '';
+    const sendCb = document.getElementById('appInvSendEmail');
+    if (sendCb && sendCb.checked) {
+      if (appSettings.emailServiceId && appSettings.emailInviteTemplateId && appSettings.emailPublicKey) {
+        notify(`Einladung f\u00fcr ${name} angelegt. Sende Mail\u2026`, 'info');
+        await appSendInvEmail(key);
+      } else {
+        notify(`Einladung f\u00fcr ${name} angelegt. \u26a0 EmailJS nicht konfiguriert \u2013 Link manuell kopieren.`, 'info');
+      }
+    } else {
+      notify(`Einladung f\u00fcr ${name} angelegt.`, 'success');
+    }
+  }).catch(e => notify('Fehler: ' + e.message, 'error'));
+}
+
+async function appSendInvEmail(invKey) {
+  if (!isAdmin()) return;
+  const inv = appInvitations.find(i => i.key === invKey);
+  if (!inv) return notify('Einladung nicht gefunden.', 'error');
+  if (!appSettings.emailServiceId || !appSettings.emailInviteTemplateId || !appSettings.emailPublicKey) {
+    return notify('EmailJS ist nicht konfiguriert. Bitte im Admin-Bereich der Website Einstellungen pr\u00fcfen.', 'error');
+  }
+  const link = `${window.location.origin}/welcome.html?email=${encodeURIComponent(inv.email)}`;
+  const roleLabel = roleMeta(inv.role).label;
+  try {
+    emailjs.init(appSettings.emailPublicKey);
+    await emailjs.send(appSettings.emailServiceId, appSettings.emailInviteTemplateId, {
+      to_name: inv.name || '',
+      to_email: inv.email || '',
+      invitation_link: link,
+      role: roleLabel,
+      inviter_name: appSettings.senderName || 'DASSU',
+      reply_to: 'info@dassu.de'
+    });
+    db.ref('invitations/' + invKey + '/sentAt').set(Date.now());
+    notify(`Mail an ${inv.email} verschickt.`, 'success');
+  } catch (e) {
+    console.error('Invite-Mail Fehler:', e);
+    notify('Mail-Versand fehlgeschlagen: ' + (e.text || e.message || 'Unbekannt'), 'error');
+  }
+}
+
+function appCopyInvLink(email) {
+  const link = `${window.location.origin}/welcome.html?email=${encodeURIComponent(email)}`;
+  navigator.clipboard.writeText(link).then(
+    () => notify('Link kopiert!', 'success'),
+    () => notify('Kopieren fehlgeschlagen.', 'error')
+  );
+}
+
+function appDeleteInv(key) {
+  if (!isAdmin()) return;
+  if (!confirm('Einladung wirklich l\u00f6schen?')) return;
+  db.ref('invitations/' + key).remove();
+  notify('Einladung entfernt.', 'info');
+}
+
 // Abmelden (Menü-Punkt) — signOut + Redirect wird vom Auth-Guard erledigt.
 async function switchUser() {
   closeUserMenu();
@@ -770,6 +1437,12 @@ function updateUserUI() {
   if (mgmtItem) mgmtItem.style.display = currentUserHas('manageUsers') ? '' : 'none';
   // Theorie-Tab nur anzeigen, wenn Recht vorhanden
   if (typeof updateTheoryTabVisibility === 'function') updateTheoryTabVisibility();
+  // Team-Tab nur anzeigen, wenn Recht vorhanden
+  if (typeof updateTeamTabVisibility === 'function') updateTeamTabVisibility();
+  // Zeiten-Tab für alle Team-Mitglieder
+  if (typeof updateTimeTabVisibility === 'function') updateTimeTabVisibility();
+  // Statistik-Tab nur für Admins
+  if (typeof updateStatsTabVisibility === 'function') updateStatsTabVisibility();
 }
 
 function toggleUserMenu() {
@@ -796,6 +1469,8 @@ db.ref('staffUsers').on('value', snap => {
   if (document.getElementById('userMgmtOverlay').classList.contains('active')) {
     renderUserMgmt();
   }
+  // Refresh team view if active
+  if (currentView === 'team') renderTeamView();
   // Header-Badge & Menue-Sichtbarkeit aktualisieren wenn sich Rollen ändern
   if (currentUser) updateUserUI();
   // Wenn dein Profil entfernt wurde (Admin hat gelöscht) → ausloggen
@@ -902,6 +1577,29 @@ function isTowingBlocked(aircraft, time) {
   const m = parseInt(time.split(':')[0]) * 60 + parseInt(time.split(':')[1]);
   return m >= 600 && m < 810;
 }
+// Platzrunden-Einschränkungen: true = keine Platzrunden möglich
+function isPlatzrundenRestricted(dateStr, slotStart) {
+  const d = new Date(dateStr + 'T12:00:00');
+  const dow = d.getDay(); // 0=So, 6=Sa
+  const m = parseInt(slotStart.split(':')[0]) * 60 + parseInt(slotStart.split(':')[1]);
+  if (dow === 0) return true; // Sonntag: komplett keine Platzrunden
+  if (dow === 6) return m >= 720; // Samstag: ab 12:00 keine Platzrunden
+  return m >= 720 && m < 900; // Mo–Fr: 12:00–15:00 keine Platzrunden
+}
+// Sonntag vor 09:00: komplett gesperrt (nicht buchbar)
+function isSundayBlocked(dateStr, slotStart) {
+  const d = new Date(dateStr + 'T12:00:00');
+  if (d.getDay() !== 0) return false;
+  const m = parseInt(slotStart.split(':')[0]) * 60 + parseInt(slotStart.split(':')[1]);
+  return m < 540; // vor 09:00
+}
+function getPlatzrundenInfo(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00');
+  const dow = d.getDay();
+  if (dow === 0) return 'Sonntag: keine Platzrunden · erst ab 09:00 buchbar';
+  if (dow === 6) return 'Samstag: Platzrunden nur 08:00–12:00';
+  return 'Mo–Fr: keine Platzrunden 12:00–15:00';
+}
 // 2h-Block-Regel: D-KYCK und D-KYGL nur in 2h-Bl&ouml;cken vormittags Mo-Sa
 function getMorningBlock(aircraft, dateStr, slotStart) {
   if (aircraft !== 'D-KYCK' && aircraft !== 'D-KYGL') return null;
@@ -938,6 +1636,77 @@ function addAuditEntry(bookingId, action, details) {
 }
 
 // ============================================================
+// AKTIVITÄTSPROTOKOLL (central activity log)
+// ============================================================
+let activityLog = [];
+let activityLimit = 50;
+let activityListenerAttached = false;
+
+/**
+ * logActivity — writes a central log entry.
+ * @param {string} type  - 'create'|'edit'|'approve'|'reject'|'delete'|'note'
+ * @param {string} text  - human-readable description
+ * @param {string} [ref] - optional reference (e.g. booking id, date key)
+ */
+function logActivity(type, text, ref) {
+  if (!currentUser) return;
+  const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  db.ref('activityLog/' + id).set({
+    id: id,
+    type: type,
+    user: currentUser.name,
+    userId: currentUser.id,
+    text: text,
+    ref: ref || '',
+    timestamp: new Date().toISOString()
+  });
+}
+
+function attachActivityListener() {
+  if (activityListenerAttached) return;
+  activityListenerAttached = true;
+  db.ref('activityLog').orderByChild('timestamp').limitToLast(200).on('value', snap => {
+    const data = snap.val();
+    activityLog = data ? Object.values(data).sort((a, b) => b.timestamp.localeCompare(a.timestamp)) : [];
+    if (currentView === 'manage' && manageFilter === 'log') renderManage();
+  });
+}
+
+function renderActivityLog() {
+  const visible = activityLog.slice(0, activityLimit);
+  if (!visible.length) {
+    return '<div class="empty-msg">Noch keine Aktivitäten aufgezeichnet.</div>';
+  }
+  const icons = {
+    create: { cls: 'act-create', icon: '&#43;' },
+    edit:   { cls: 'act-edit',   icon: '&#9998;' },
+    approve:{ cls: 'act-approve',icon: '&#10003;' },
+    reject: { cls: 'act-reject', icon: '&#10007;' },
+    delete: { cls: 'act-delete', icon: '&#128465;' },
+    note:   { cls: 'act-note',   icon: '&#128221;' }
+  };
+  let html = visible.map(a => {
+    const ic = icons[a.type] || icons.edit;
+    const ts = new Date(a.timestamp);
+    const timeLabel = formatRel(a.timestamp);
+    const dateLabel = ts.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    return `<div class="activity-item">
+      <div class="activity-icon ${ic.cls}">${ic.icon}</div>
+      <div class="activity-body">
+        <div class="act-user">${escapeHtml(a.user)}</div>
+        <div class="act-text">${escapeHtml(a.text)}</div>
+        ${a.ref ? `<div class="act-detail">${escapeHtml(a.ref)}</div>` : ''}
+      </div>
+      <div class="activity-time" title="${dateLabel}">${timeLabel}</div>
+    </div>`;
+  }).join('');
+  if (activityLog.length > activityLimit) {
+    html += `<div class="activity-load-more"><button onclick="activityLimit+=50;renderManage();">Mehr laden</button></div>`;
+  }
+  return html;
+}
+
+// ============================================================
 // NAVIGATION
 // ============================================================
 function navigate(dir) {
@@ -951,7 +1720,7 @@ function goToday() { currentDate = new Date(); render(); }
 // ============================================================
 function switchView(view) {
   currentView = view;
-  ['Overview','Book','Manage','Theory'].forEach(v => {
+  ['Overview','Book','Manage','Theory','Team','Time','Stats'].forEach(v => {
     const tab = document.getElementById('tab' + v);
     const cont = document.getElementById('view' + v);
     if (!tab || !cont) return;
@@ -1010,33 +1779,187 @@ function renderOverview() {
     html += `<div class="ov-aircraft-header">${img}<div class="ov-reg">${a}</div></div>`;
   });
 
+  const restricted = isPlatzrundenRestricted(dk, '12:00'); // check if any restriction today
   TIME_POINTS.slice(0, -1).forEach(tp => {
     const isHour = tp.endsWith(':00');
     const rowCls = isHour ? 'ov-hour' : 'ov-half';
+    const slotRestricted = isPlatzrundenRestricted(dk, tp);
     html += `<div class="ov-time ${rowCls}">${tp}</div>`;
     AIRCRAFT.forEach(a => {
       const entry = lookup[a][tp];
+      const restrictedCls = slotRestricted ? ' ov-restricted' : '';
       if (entry) {
         const instrCls = entry.instructor === 'ja' ? ' ov-instructor' : '';
         const pendingCls = entry.status === 'pending' ? ' ov-pending' : '';
         const nameHtml = entry.isFirst ? `<span class="ov-name">${entry.name}</span>` : '';
         const metaHtml = entry.isFirst && entry.instructorName ? `<span class="ov-meta">${entry.instructorName}</span>` : '';
-        html += `<div class="ov-cell ${rowCls} ov-booked${instrCls}${pendingCls}" onclick="showDetail('${entry.id}')">${nameHtml}${metaHtml}</div>`;
-      } else if (isTowingBlocked(a, tp)) {
+        html += `<div class="ov-cell ${rowCls} ov-booked${instrCls}${pendingCls}${restrictedCls}" onclick="showDetail('${entry.id}')">${nameHtml}${metaHtml}</div>`;
+      } else if (isSundayBlocked(dk, tp)) {
         html += `<div class="ov-cell ${rowCls} ov-towing"></div>`;
+      } else if (isTowingBlocked(a, tp)) {
+        html += `<div class="ov-cell ${rowCls} ov-towing ov-bookable" onclick="confirmTowingBook('${a}','${tp}')"></div>`;
       } else {
-        html += `<div class="ov-cell ${rowCls}" onclick="switchToBook('${a}','${tp}')"></div>`;
+        html += `<div class="ov-cell ${rowCls}${restrictedCls}" onclick="switchToBook('${a}','${tp}')"></div>`;
       }
     });
   });
 
   grid.innerHTML = html;
+
+  // Legend (rendered outside the grid)
+  const infoText = getPlatzrundenInfo(dk);
+  let legendEl = document.getElementById('ovLegend');
+  if (!legendEl) {
+    legendEl = document.createElement('div');
+    legendEl.id = 'ovLegend';
+    grid.parentNode.insertBefore(legendEl, grid.nextSibling);
+  }
+  legendEl.innerHTML = `<div class="ov-legend">
+    <div class="ov-legend-item"><div class="ov-legend-swatch sw-booked"></div> Bestätigt</div>
+    <div class="ov-legend-item"><div class="ov-legend-swatch sw-pending"></div> Angefragt</div>
+    <div class="ov-legend-item"><div class="ov-legend-swatch sw-instructor"></div> Mit Fluglehrer</div>
+    <div class="ov-legend-item"><div class="ov-legend-swatch sw-towing"></div> Schleppbetrieb</div>
+    <div class="ov-legend-item"><div class="ov-legend-swatch sw-restricted"></div> Keine Platzrunden</div>
+  </div>
+  <div class="ov-legend-info"><strong>${infoText}</strong><br>Mo–Fr: Platzrunden 08:00–12:00 &amp; 15:00–18:00 · Sa: Platzrunden 08:00–12:00 · So: keine Platzrunden, buchbar ab 09:00<br>Platzrunden an umliegenden Plätzen (EDPK, EDNV, EDMY, EDME) jederzeit möglich.</div>`;
+}
+
+// ============================================================
+// WEEK OVERVIEW
+// ============================================================
+let ovMode = 'day'; // 'day' | 'week'
+let weekAircraft = AIRCRAFT[0];
+
+function setOvMode(mode) {
+  ovMode = mode;
+  document.getElementById('ovModeDay').classList.toggle('active', mode === 'day');
+  document.getElementById('ovModeWeek').classList.toggle('active', mode === 'week');
+  document.getElementById('ovDayView').style.display = mode === 'day' ? '' : 'none';
+  document.getElementById('ovWeekView').style.display = mode === 'week' ? '' : 'none';
+  if (mode === 'day') renderOverview();
+  else renderWeekOverview();
+}
+
+function setWeekAircraft(a) {
+  weekAircraft = a;
+  renderWeekOverview();
+}
+
+function getWeekDates(baseDate) {
+  const d = new Date(baseDate);
+  const dow = d.getDay(); // 0=Sun
+  const monday = new Date(d);
+  monday.setDate(d.getDate() - ((dow + 6) % 7)); // Monday of this week
+  const dates = [];
+  for (let i = 0; i < 7; i++) {
+    const dd = new Date(monday);
+    dd.setDate(monday.getDate() + i);
+    dates.push(dd);
+  }
+  return dates;
+}
+
+function renderWeekOverview() {
+  const weekDates = getWeekDates(currentDate);
+  const todayDk = dateKey(new Date());
+  const dayNames = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+
+  // Aircraft filter chips
+  const filterEl = document.getElementById('wkAircraftFilter');
+  filterEl.innerHTML = AIRCRAFT.map(a =>
+    `<div class="wk-aircraft-chip${a === weekAircraft ? ' active' : ''}" onclick="setWeekAircraft('${a}')">${a}</div>`
+  ).join('');
+
+  // Build lookup for the whole week
+  const weekLookup = {};
+  weekDates.forEach(wd => {
+    const dk = dateKey(wd);
+    weekLookup[dk] = {};
+    bookings.filter(b => b.date === dk && b.aircraft === weekAircraft).forEach(b => {
+      if (b.startTime && b.endTime) {
+        const si = slotIndex(b.startTime);
+        const ei = slotIndex(b.endTime);
+        for (let i = si; i < ei; i++) {
+          weekLookup[dk][TIME_POINTS[i]] = { ...b, isFirst: i === si };
+        }
+      } else {
+        const st = b.slot ? b.slot.split(' - ')[0] : '';
+        if (st) weekLookup[dk][st] = { ...b, isFirst: true };
+      }
+    });
+  });
+
+  const grid = document.getElementById('weekGrid');
+  let html = '<div class="wk-corner"></div>';
+
+  // Day headers
+  weekDates.forEach((wd, i) => {
+    const dk = dateKey(wd);
+    const isToday = dk === todayDk;
+    const isWeekend = i >= 5;
+    let cls = 'wk-day-header';
+    if (isToday) cls += ' wk-today';
+    if (isWeekend) cls += ' wk-weekend';
+    html += `<div class="${cls}">
+      <div class="wk-day-name">${dayNames[i]}</div>
+      <div class="wk-day-date">${wd.getDate()}.${wd.getMonth() + 1}.</div>
+    </div>`;
+  });
+
+  // Time rows
+  TIME_POINTS.slice(0, -1).forEach(tp => {
+    const isHour = tp.endsWith(':00');
+    const rowCls = isHour ? 'wk-hour' : 'wk-half';
+    html += `<div class="wk-time ${rowCls}">${tp}</div>`;
+
+    weekDates.forEach(wd => {
+      const dk = dateKey(wd);
+      const entry = weekLookup[dk][tp];
+      const sundayBlocked = isSundayBlocked(dk, tp);
+      const towingBlocked = isTowingBlocked(weekAircraft, tp);
+      const restricted = isPlatzrundenRestricted(dk, tp);
+
+      if (entry) {
+        const instrCls = entry.instructor === 'ja' ? ' wk-instructor' : '';
+        const pendingCls = entry.status === 'pending' ? ' wk-pending' : '';
+        const nameHtml = entry.isFirst ? `<span class="wk-name">${entry.name}</span>` : '';
+        html += `<div class="wk-cell ${rowCls} wk-booked${instrCls}${pendingCls}" onclick="showDetail('${entry.id}')">${nameHtml}</div>`;
+      } else if (sundayBlocked) {
+        html += `<div class="wk-cell ${rowCls} wk-towing"></div>`;
+      } else if (towingBlocked) {
+        html += `<div class="wk-cell ${rowCls} wk-towing wk-bookable" onclick="confirmTowingBookWeek('${weekAircraft}','${tp}','${dk}')"></div>`;
+      } else {
+        const resCls = restricted ? ' wk-restricted' : '';
+        html += `<div class="wk-cell ${rowCls}${resCls}" onclick="bookFromWeek('${weekAircraft}','${tp}','${dk}')"></div>`;
+      }
+    });
+  });
+
+  grid.innerHTML = html;
+  grid.style.gridTemplateColumns = '54px repeat(7, 1fr)';
+}
+
+function bookFromWeek(aircraft, slotStart, dk) {
+  selectedAircraft = aircraft;
+  currentDate = new Date(dk + 'T12:00:00');
+  render();
+  openQuick(slotStart);
+}
+
+function confirmTowingBookWeek(aircraft, slotStart, dk) {
+  if (!confirm('Achtung: Dieser Zeitraum liegt in der Schleppzeit der D-MYIH (10:00–13:30).\n\nDie D-MYIH wird in dieser Zeit regulär für den Schleppbetrieb benötigt. Eine Buchung ist nur nach Rücksprache möglich.\n\nTrotzdem buchen?')) return;
+  bookFromWeek(aircraft, slotStart, dk);
 }
 
 function switchToBook(aircraft, slotStart) {
   selectedAircraft = aircraft;
-  switchView('book');
-  setTimeout(() => openQuick(slotStart), 200);
+  openQuick(slotStart);
+}
+
+function confirmTowingBook(aircraft, slotStart) {
+  if (!confirm('Achtung: Dieser Zeitraum liegt in der Schleppzeit der D-MYIH (10:00–13:30).\n\nDie D-MYIH wird in dieser Zeit regulär für den Schleppbetrieb benötigt. Eine Buchung ist nur nach Rücksprache möglich.\n\nTrotzdem buchen?')) return;
+  selectedAircraft = aircraft;
+  openQuick(slotStart);
 }
 
 // ============================================================
@@ -1064,7 +1987,7 @@ function renderBook() {
 
     if (towing && !booking) {
       cellClass += ' towing';
-      content = '<span class="towing-label">Schleppbetrieb</span>';
+      content = '<span class="towing-label">Schleppbetrieb · Tap zum Buchen</span>';
     } else if (booking) {
       const instrClass = booking.instructor === 'ja' ? ' with-instructor' : '';
       const statusClass = booking.status === 'pending' ? ' pending' : '';
@@ -1076,7 +1999,7 @@ function renderBook() {
       cellClass += ' free';
     }
 
-    const onclick = booking ? `showDetail('${booking.id}')` : (towing ? '' : `openQuick('${slotStart}')`);
+    const onclick = booking ? `showDetail('${booking.id}')` : (towing ? `confirmTowingBook('${selectedAircraft}','${slotStart}')` : `openQuick('${slotStart}')`);
 
     html += `<div class="slot-row">
       <div class="slot-time">${slotStart}</div>
@@ -1104,9 +2027,24 @@ function renderManage() {
     { id: 'past', label: 'Vergangen', count: bookings.filter(b => b.date < dateKey(new Date())).length },
     { id: 'all', label: 'Alle', count: bookings.length }
   ];
-  filterRow.innerHTML = filters.map(f =>
-    `<button class="filter-chip${manageFilter === f.id ? ' active' : ''}" onclick="setManageFilter('${f.id}')">${f.label} (${f.count})</button>`
-  ).join('');
+  // Add activity log filter for admins
+  if (isAdmin()) {
+    filters.push({ id: 'log', label: 'Protokoll', count: '' });
+  }
+  filterRow.innerHTML = filters.map(f => {
+    const countLabel = f.count !== '' ? ` (${f.count})` : '';
+    return `<button class="filter-chip${manageFilter === f.id ? ' active' : ''}" onclick="setManageFilter('${f.id}')">${f.label}${countLabel}</button>`;
+  }).join('');
+
+  // If protocol view, render activity log instead of bookings
+  if (manageFilter === 'log' && isAdmin()) {
+    attachActivityListener();
+    const cont = document.getElementById('manageContent');
+    document.getElementById('searchInput').style.display = 'none';
+    cont.innerHTML = renderActivityLog();
+    return;
+  }
+  document.getElementById('searchInput').style.display = '';
 
   const search = document.getElementById('searchInput').value.trim().toLowerCase();
   const today = dateKey(new Date());
@@ -1220,6 +2158,7 @@ function attachSwipeHandlers() {
           if (b) {
             db.ref('bookings/' + id + '/status').set('approved');
             addAuditEntry(id, 'freigegeben (swipe)');
+            logActivity('approve', `Buchung freigegeben: ${b.name}, ${b.aircraft}`, id);
             notify(`${b.name} best\u00e4tigt.`, 'success');
           }
         }, 180);
@@ -1309,6 +2248,7 @@ function closeNotesEdit() {
 
 function saveNotes() {
   const dk = dateKey(currentDate);
+  const oldText = (dailyNotes[dk] && dailyNotes[dk].text) || '';
   const text = document.getElementById('notesTextarea').value.trim();
   if (text) {
     db.ref('dailyNotes/' + dk).set({
@@ -1316,7 +2256,10 @@ function saveNotes() {
       updatedBy: currentUser ? currentUser.name : '',
       updatedAt: new Date().toISOString()
     });
+    const action = oldText ? 'Bemerkung bearbeitet' : 'Bemerkung erstellt';
+    logActivity('note', `${action} für ${formatDate(currentDate)}: "${text.substring(0, 60)}${text.length > 60 ? '…' : ''}"`, dk);
   } else {
+    if (oldText) logActivity('delete', `Bemerkung gelöscht für ${formatDate(currentDate)}`, dk);
     db.ref('dailyNotes/' + dk).remove();
   }
   closeNotesEdit();
@@ -1411,10 +2354,6 @@ function renderTheory() {
       <div class="th-duration">${formatDuration(t.duration || 0)}</div>
     </div>`;
   }).join('');
-}
-
-function escapeHtml(s) {
-  return (s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
 function setTheoryFilter(mode) {
@@ -1534,15 +2473,1102 @@ function deleteTheoryFromForm() {
 }
 
 // ============================================================
+// TEAM VIEW (full-page employee management)
+// ============================================================
+let expandedTeamCards = new Set();
+
+function toggleTeamCard(id) {
+  if (expandedTeamCards.has(id)) expandedTeamCards.delete(id);
+  else expandedTeamCards.add(id);
+  renderTeamView();
+}
+
+function renderTeamView() {
+  const el = document.getElementById('teamMembersList');
+  if (!el) return;
+
+  const adminCount = staffUsers.filter(u => u.role === 'admin').length;
+  const sorted = staffUsers.slice().sort((a, b) => {
+    if (a.role === 'admin' && b.role !== 'admin') return -1;
+    if (b.role === 'admin' && a.role !== 'admin') return 1;
+    return (a.name || '').localeCompare(b.name || '');
+  });
+
+  el.innerHTML = `<div class="team-section-title">Mitarbeiter <span class="count">${sorted.length}</span></div>` +
+    sorted.map(u => {
+      const isAdm = u.role === 'admin';
+      const isMe = currentUser && u.id === currentUser.id;
+      const lockedToAdmin = isAdm && adminCount === 1;
+      const canDelete = !isMe && !(isAdm && adminCount === 1);
+      const expanded = expandedTeamCards.has(u.id);
+      const avatarClass = isAdm ? 'role-admin' : (u.role === 'team' ? 'role-team' : 'role-guest');
+      const meta = roleMeta(u.role);
+      const createdAt = u.createdAt ? new Date(u.createdAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '\u2014';
+
+      // Permissions HTML
+      const permsHtml = DASSU_PERMISSIONS.map(p => {
+        const effective = hasPermission(u, staffUsers, p.key);
+        const explicit = !isAdm && isPermissionExplicit(u, p.key);
+        const hint = isAdm
+          ? '<span class="team-perm-hint">(immer an)</span>'
+          : (explicit ? '' : `<span class="team-perm-hint">(Standard)</span>`);
+        const toggleCls = 'perm-toggle' + (effective ? ' on' : '') + (isAdm ? ' disabled' : '');
+        const onClick = isAdm ? '' : `onclick="togglePermission('${u.id}','${p.key}')"`;
+        return `<div class="team-perm-row">
+          <div class="team-perm-label">${p.label} ${hint}<small>${p.desc}</small></div>
+          <div class="${toggleCls}" ${onClick}></div>
+        </div>`;
+      }).join('');
+
+      // Role options
+      const roleOpts = DASSU_ROLES.filter(r => !r.legacy || r.id === u.role);
+      const roleDisabled = lockedToAdmin ? 'disabled' : '';
+
+      return `<div class="team-card${expanded ? ' expanded' : ''}">
+        <div class="team-card-header" onclick="toggleTeamCard('${u.id}')">
+          <div class="team-card-avatar ${avatarClass}">${(u.name || '?').charAt(0).toUpperCase()}</div>
+          <div class="team-card-info">
+            <div class="team-card-name">
+              ${escapeHtml(u.name)}${roleBadge(u.role)}${isMe ? '<span class="team-card-you">(du)</span>' : ''}
+            </div>
+            <div class="team-card-email">${escapeHtml(u.email || '\u2014')}</div>
+          </div>
+          <div class="team-card-chevron">\u25BC</div>
+        </div>
+        <div class="team-card-body">
+          <div class="team-card-body-divider"></div>
+
+          <div class="team-edit-row">
+            <label>Name</label>
+            <input type="text" class="team-edit-input" id="teamName_${u.id}" value="${escapeHtml(u.name || '')}">
+            <button class="team-btn-save" style="padding:8px 14px;flex-shrink:0;" onclick="saveMemberName('${u.id}', 'teamName_')">Speichern</button>
+          </div>
+
+          <div class="team-info-grid">
+            <div class="team-info-item">
+              <div class="team-info-label">E-Mail</div>
+              <div class="team-info-value">${escapeHtml(u.email || '\u2014')}</div>
+            </div>
+            <div class="team-info-item">
+              <div class="team-info-label">Erstellt am</div>
+              <div class="team-info-value">${createdAt}</div>
+            </div>
+            <div class="team-info-item" style="grid-column:1/-1;">
+              <div class="team-info-label">ID</div>
+              <div class="team-info-value mono">${u.id}</div>
+            </div>
+          </div>
+
+          <div class="team-role-row">
+            <label>Rolle</label>
+            <select class="team-role-select" ${roleDisabled} onchange="setUserRole('${u.id}', this.value)">
+              ${roleOpts.map(r => `<option value="${r.id}" ${u.role === r.id ? 'selected' : ''}>${r.label}</option>`).join('')}
+            </select>
+          </div>
+
+          <div class="team-perms">
+            <div class="team-perms-title">Berechtigungen</div>
+            ${permsHtml}
+          </div>
+
+          ${canDelete ? `<div class="team-card-actions">
+            <button class="team-btn-delete" onclick="deleteStaffUser('${u.id}')">Mitarbeiter entfernen</button>
+          </div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+
+  // Render invitations
+  renderTeamInvitations();
+  populateTeamInvRoles();
+  // Show/hide invitation section
+  const invSec = document.getElementById('teamInviteSection');
+  if (invSec) invSec.style.display = isAdmin() ? '' : 'none';
+}
+
+function renderTeamInvitations() {
+  const el = document.getElementById('teamInvitationsList');
+  if (!el) return;
+  if (!appInvitations.length) {
+    el.innerHTML = '<div style="text-align:center;padding:12px;color:var(--gray-500);font-size:12px;font-style:italic;">Keine offenen Einladungen.</div>';
+    return;
+  }
+  el.innerHTML = appInvitations.map(inv => {
+    const meta = roleMeta(inv.role);
+    const sentInfo = inv.sentAt ? `<div class="inv-sent">\u2709 Gesendet am ${new Date(inv.sentAt).toLocaleDateString('de-DE')}</div>` : '';
+    return `<div class="team-inv-pending">
+      <div class="inv-avatar">${(inv.name || '?').charAt(0).toUpperCase()}</div>
+      <div class="inv-details">
+        <div class="inv-name">${escapeHtml(inv.name)} <span style="font-size:10px;color:var(--gray-500);">${meta.short || meta.label}</span></div>
+        <div class="inv-email-line">${escapeHtml(inv.email)}</div>
+        ${sentInfo}
+      </div>
+      <div class="inv-btns">
+        <button class="team-inv-btn-send" onclick="appSendInvEmail('${inv.key}')">${inv.sentAt ? 'Erneut' : 'Mail'}</button>
+        <button class="team-inv-btn-link" onclick="appCopyInvLink('${escapeHtml(inv.email)}')">Link</button>
+        <button class="team-inv-btn-del" onclick="appDeleteInv('${inv.key}')">X</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function populateTeamInvRoles() {
+  const sel = document.getElementById('teamInvRole');
+  if (!sel) return;
+  sel.innerHTML = DASSU_ROLES.filter(r => !r.legacy).map(r =>
+    `<option value="${r.id}" ${r.id === 'team' ? 'selected' : ''}>${r.label}</option>`
+  ).join('');
+}
+
+function teamCreateInvitation() {
+  if (!isAdmin()) { notify('Nur Admins d\u00fcrfen einladen.', 'error'); return; }
+  const nameEl = document.getElementById('teamInvName');
+  const emailEl = document.getElementById('teamInvEmail');
+  const roleEl = document.getElementById('teamInvRole');
+  const name = nameEl.value.trim();
+  const email = emailEl.value.trim().toLowerCase();
+  const role = roleEl.value;
+  if (!name) return notify('Bitte Name eintragen.', 'error');
+  if (!email || !/^\S+@\S+\.\S+$/.test(email)) return notify('Bitte g\u00fcltige E-Mail eintragen.', 'error');
+  if (!role) return notify('Bitte Rolle w\u00e4hlen.', 'error');
+  if (staffUsers.some(u => (u.email || '').toLowerCase() === email)) {
+    return notify('Es gibt bereits einen aktiven Mitarbeiter mit dieser E-Mail.', 'error');
+  }
+  const key = DASSU_AUTH.emailKey(email);
+  db.ref('invitations/' + key).set({
+    email: email,
+    name: name,
+    role: role,
+    createdAt: Date.now()
+  }).then(async () => {
+    nameEl.value = '';
+    emailEl.value = '';
+    const sendCb = document.getElementById('teamInvSendEmail');
+    if (sendCb && sendCb.checked) {
+      if (appSettings.emailServiceId && appSettings.emailInviteTemplateId && appSettings.emailPublicKey) {
+        notify(`Einladung f\u00fcr ${name} angelegt. Sende Mail\u2026`, 'info');
+        await appSendInvEmail(key);
+      } else {
+        notify(`Einladung f\u00fcr ${name} angelegt. \u26a0 EmailJS nicht konfiguriert \u2013 Link manuell kopieren.`, 'info');
+      }
+    } else {
+      notify(`Einladung f\u00fcr ${name} angelegt.`, 'success');
+    }
+  }).catch(e => notify('Fehler: ' + e.message, 'error'));
+}
+
+function updateTeamTabVisibility() {
+  const tab = document.getElementById('tabTeam');
+  if (!tab) return;
+  const canManage = currentUserHas('manageUsers');
+  tab.style.display = canManage ? '' : 'none';
+  if (!canManage && currentView === 'team') switchView('overview');
+}
+
+// ============================================================
+// ZEITERFASSUNG (Time Tracking)
+// ============================================================
+let timeEntries = [];
+let timeSettings = {};
+let timeMonth = new Date(); // currently viewed month
+let clockTickInterval = null;
+
+// ---- Firebase listeners ----
+function setupTimeListeners() {
+  if (!currentUser) return;
+  db.ref('timeEntries/' + currentUser.id).on('value', snap => {
+    const data = snap.val();
+    timeEntries = data ? Object.values(data) : [];
+    if (currentView === 'time') renderTimeView();
+    updateClockUI();
+  });
+  db.ref('timeSettings/' + currentUser.id).on('value', snap => {
+    timeSettings = snap.val() || {};
+    const sollInput = document.getElementById('timeSollHours');
+    const daysInput = document.getElementById('timeSollDays');
+    if (sollInput && timeSettings.sollHours != null) sollInput.value = timeSettings.sollHours;
+    if (daysInput && timeSettings.sollDays != null) daysInput.value = timeSettings.sollDays;
+    if (currentView === 'time') renderTimeSummary();
+  });
+}
+
+// ---- Tab visibility ----
+function updateTimeTabVisibility() {
+  const tab = document.getElementById('tabTime');
+  if (!tab) return;
+  // All team roles can track time (not just admin)
+  const isTeamMember = !!currentUser && staffUsers.some(u => u.id === currentUser.id);
+  tab.style.display = isTeamMember ? '' : 'none';
+  if (!isTeamMember && currentView === 'time') switchView('overview');
+}
+
+// ---- Clock In/Out ----
+function getRunningEntry() {
+  return timeEntries.find(e => e.clockIn && !e.clockOut);
+}
+
+function toggleClock() {
+  if (!currentUser) return;
+  const running = getRunningEntry();
+  if (running) {
+    // Clock OUT
+    const now = new Date();
+    const clockInTime = new Date(running.clockIn);
+    const duration = Math.round((now - clockInTime) / 60000);
+    db.ref('timeEntries/' + currentUser.id + '/' + running.id).update({
+      clockOut: now.toISOString(),
+      duration: duration
+    });
+    notify('Ausgestempelt. ' + formatDurationHM(duration), 'success');
+  } else {
+    // Clock IN
+    const now = new Date();
+    const id = 'te' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+    db.ref('timeEntries/' + currentUser.id + '/' + id).set({
+      id: id,
+      userId: currentUser.id,
+      userName: currentUser.name,
+      date: dateKey(now),
+      clockIn: now.toISOString(),
+      clockOut: null,
+      duration: 0,
+      note: ''
+    });
+    notify('Eingestempelt!', 'success');
+  }
+}
+
+function updateClockUI() {
+  const running = getRunningEntry();
+  const btn = document.getElementById('timeClockBtn');
+  const icon = document.getElementById('timeClockIcon');
+  const label = document.getElementById('timeClockLabel');
+  const status = document.getElementById('timeClockStatus');
+  const elapsed = document.getElementById('timeClockElapsed');
+  if (!btn) return;
+
+  if (running) {
+    btn.className = 'time-clock-btn clock-out';
+    icon.innerHTML = '&#9724;';
+    label.textContent = 'Ausstempeln';
+    const inTime = new Date(running.clockIn).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    status.innerHTML = 'Eingestempelt seit <span class="active-since">' + inTime + '</span>';
+    elapsed.style.display = '';
+    startClockTick(running.clockIn);
+  } else {
+    btn.className = 'time-clock-btn clock-in';
+    icon.innerHTML = '&#9654;';
+    label.textContent = 'Einstempeln';
+    status.textContent = 'Nicht eingestempelt';
+    elapsed.style.display = 'none';
+    stopClockTick();
+  }
+}
+
+function startClockTick(clockInISO) {
+  stopClockTick();
+  const el = document.getElementById('timeClockElapsed');
+  if (!el) return;
+  function tick() {
+    const diff = Math.floor((Date.now() - new Date(clockInISO).getTime()) / 1000);
+    const h = Math.floor(diff / 3600);
+    const m = Math.floor((diff % 3600) / 60);
+    const s = diff % 60;
+    el.textContent = String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+  }
+  tick();
+  clockTickInterval = setInterval(tick, 1000);
+}
+
+function stopClockTick() {
+  if (clockTickInterval) { clearInterval(clockTickInterval); clockTickInterval = null; }
+}
+
+// ---- Helpers ----
+function formatDurationHM(minutes) {
+  if (!minutes || minutes <= 0) return '0:00';
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return h + ':' + String(m).padStart(2, '0');
+}
+
+function formatDurationDecimal(minutes) {
+  if (!minutes || minutes <= 0) return '0.00';
+  return (minutes / 60).toFixed(2);
+}
+
+function timeOfDay(isoStr) {
+  if (!isoStr) return '--:--';
+  const d = new Date(isoStr);
+  return d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+}
+
+function getMonthKey(d) {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+
+function getMonthLabel(d) {
+  return d.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
+}
+
+function navigateTimeMonth(dir) {
+  timeMonth.setMonth(timeMonth.getMonth() + dir);
+  renderTimeView();
+}
+
+// ---- Soll-Stunden ----
+function saveTimeSettings() {
+  if (!currentUser) return;
+  const sollHours = parseFloat(document.getElementById('timeSollHours').value) || 0;
+  const sollDays = parseInt(document.getElementById('timeSollDays').value) || 5;
+  db.ref('timeSettings/' + currentUser.id).set({
+    sollHours: sollHours,
+    sollDays: Math.min(7, Math.max(1, sollDays))
+  });
+  notify('Soll-Stunden gespeichert.', 'success');
+}
+
+function getSollMinutesForMonth(year, month) {
+  // Count how many work days in the month based on sollDays setting
+  const sollHours = timeSettings.sollHours || 0;
+  const sollDays = timeSettings.sollDays || 5;
+  if (!sollHours) return 0;
+  // Daily target
+  const dailyMinutes = (sollHours * 60) / sollDays;
+  // Count matching weekdays in month
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  let workDays = 0;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dow = new Date(year, month, d).getDay(); // 0=Sun
+    // Default: Mon-Fri for 5 days, Mon-Sat for 6, etc.
+    if (sollDays >= 7) { workDays++; }
+    else if (sollDays >= 6 && dow >= 1 && dow <= 6) { workDays++; }
+    else if (dow >= 1 && dow <= sollDays) { workDays++; }
+  }
+  return Math.round(workDays * dailyMinutes);
+}
+
+// ---- Summary ----
+function renderTimeSummary() {
+  const el = document.getElementById('timeSummary');
+  if (!el) return;
+  const mk = getMonthKey(timeMonth);
+  const monthEntries = timeEntries.filter(e => e.date && e.date.startsWith(mk) && e.clockOut);
+  const istMinutes = monthEntries.reduce((sum, e) => sum + (e.duration || 0), 0);
+  const sollMinutes = getSollMinutesForMonth(timeMonth.getFullYear(), timeMonth.getMonth());
+  const diff = istMinutes - sollMinutes;
+
+  let diffHtml = '';
+  if (sollMinutes > 0) {
+    const diffClass = diff >= 0 ? 'positive' : 'negative';
+    const diffSign = diff >= 0 ? '+' : '';
+    diffHtml = `<div class="time-summary-card">
+      <div class="ts-label">Differenz</div>
+      <div class="ts-value ${diffClass}">${diffSign}${formatDurationHM(Math.abs(diff))}h</div>
+    </div>`;
+  }
+
+  el.innerHTML = `
+    <div class="time-summary-card">
+      <div class="ts-label">Ist-Stunden</div>
+      <div class="ts-value">${formatDurationHM(istMinutes)}h</div>
+    </div>
+    ${sollMinutes > 0 ? `<div class="time-summary-card">
+      <div class="ts-label">Soll-Stunden</div>
+      <div class="ts-value">${formatDurationHM(sollMinutes)}h</div>
+    </div>` : ''}
+    ${diffHtml}
+    <div class="time-summary-card">
+      <div class="ts-label">Einträge</div>
+      <div class="ts-value">${monthEntries.length}</div>
+    </div>
+  `;
+}
+
+// ---- Render entries ----
+function renderTimeView() {
+  // Show admin toggle if user can manage users
+  const toggleEl = document.getElementById('timeAdminToggle');
+  if (toggleEl) toggleEl.style.display = currentUserHas('manageUsers') ? '' : 'none';
+
+  // If in admin mode, render that view
+  if (timeAdminMode === 'all' && currentUserHas('manageUsers')) {
+    attachAllTimeListener();
+    renderAdminTimeView();
+    return;
+  }
+
+  updateClockUI();
+  document.getElementById('timeMonthDisplay').textContent = getMonthLabel(timeMonth);
+  renderTimeSummary();
+
+  const mk = getMonthKey(timeMonth);
+  const monthEntries = timeEntries.filter(e => e.date && e.date.startsWith(mk));
+  // Group by date, newest first
+  const byDate = {};
+  monthEntries.forEach(e => { (byDate[e.date] = byDate[e.date] || []).push(e); });
+  const sortedDates = Object.keys(byDate).sort().reverse();
+
+  const listEl = document.getElementById('timeEntriesList');
+  if (!sortedDates.length) {
+    listEl.innerHTML = '<div class="empty-msg">Keine Zeiteinträge in diesem Monat.</div>';
+    return;
+  }
+
+  listEl.innerHTML = sortedDates.map(date => {
+    const entries = byDate[date].sort((a, b) => (a.clockIn || '').localeCompare(b.clockIn || ''));
+    const dayTotal = entries.reduce((sum, e) => {
+      if (e.clockOut) return sum + (e.duration || 0);
+      // Running entry: calc live duration
+      return sum + Math.round((Date.now() - new Date(e.clockIn).getTime()) / 60000);
+    }, 0);
+    const d = new Date(date + 'T12:00:00');
+    const dayLabel = d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: '2-digit' });
+
+    const entryRows = entries.map(e => {
+      const isRunning = !e.clockOut;
+      const inTime = timeOfDay(e.clockIn);
+      const outTime = isRunning ? 'läuft…' : timeOfDay(e.clockOut);
+      const dur = isRunning
+        ? Math.round((Date.now() - new Date(e.clockIn).getTime()) / 60000)
+        : (e.duration || 0);
+      const breakHtml = e.breakMin ? `<span class="te-break">(${e.breakMin}min Pause)</span>` : '';
+      const noteHtml = e.note ? `<span class="te-note">${escapeHtml(e.note)}</span>` : '';
+      return `<div class="time-entry${isRunning ? ' running' : ''}">
+        <span class="te-times">${inTime} – ${outTime} ${breakHtml}</span>
+        ${noteHtml}
+        <span class="te-duration${isRunning ? ' running' : ''}">${formatDurationHM(dur)}h</span>
+        <span class="te-actions">
+          <button onclick="openTimeEdit('${e.id}')">&#9998;</button>
+          <button class="te-del" onclick="deleteTimeEntryDirect('${e.id}')">&#10005;</button>
+        </span>
+      </div>`;
+    }).join('');
+
+    return `<div class="time-day-group">
+      <div class="time-day-header">
+        <span>${dayLabel}</span>
+        <span class="day-total">${formatDurationHM(dayTotal)}h</span>
+      </div>
+      ${entryRows}
+    </div>`;
+  }).join('');
+}
+
+// ---- Edit / Delete entries ----
+function openTimeEdit(id) {
+  const entry = timeEntries.find(e => e.id === id);
+  if (!entry) return;
+  document.getElementById('timeEditId').value = id;
+  document.getElementById('timeEditDate').value = entry.date || '';
+  document.getElementById('timeEditIn').value = entry.clockIn ? timeOfDay(entry.clockIn) : '';
+  document.getElementById('timeEditOut').value = entry.clockOut ? timeOfDay(entry.clockOut) : '';
+  document.getElementById('timeEditBreak').value = entry.breakMin || '';
+  document.getElementById('timeEditNote').value = entry.note || '';
+  document.getElementById('timeEditTitle').textContent = 'Zeiteintrag bearbeiten';
+  document.getElementById('timeEditDeleteBtn').style.display = '';
+  document.getElementById('timeEditOverlay').classList.add('active');
+}
+
+function closeTimeEdit() {
+  document.getElementById('timeEditOverlay').classList.remove('active');
+}
+
+function saveTimeEdit() {
+  if (!currentUser) return;
+  const id = document.getElementById('timeEditId').value;
+  const date = document.getElementById('timeEditDate').value;
+  const inTime = document.getElementById('timeEditIn').value;
+  const outTime = document.getElementById('timeEditOut').value;
+  const breakMin = parseInt(document.getElementById('timeEditBreak').value) || 0;
+  const note = document.getElementById('timeEditNote').value.trim();
+
+  if (!date || !inTime) { notify('Datum und Kommen-Zeit erforderlich.', 'error'); return; }
+
+  const clockIn = new Date(date + 'T' + inTime + ':00').toISOString();
+  const clockOut = outTime ? new Date(date + 'T' + outTime + ':00').toISOString() : null;
+  const grossDuration = clockOut ? Math.round((new Date(clockOut) - new Date(clockIn)) / 60000) : 0;
+  const duration = Math.max(0, grossDuration - breakMin);
+
+  if (clockOut && grossDuration <= 0) { notify('Gehen-Zeit muss nach Kommen-Zeit liegen.', 'error'); return; }
+
+  if (id && timeEntries.find(e => e.id === id)) {
+    // Update existing
+    db.ref('timeEntries/' + currentUser.id + '/' + id).update({
+      date, clockIn, clockOut, duration, breakMin, note
+    });
+    notify('Eintrag aktualisiert.', 'success');
+  } else {
+    // New manual entry
+    const newId = 'te' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+    db.ref('timeEntries/' + currentUser.id + '/' + newId).set({
+      id: newId,
+      userId: currentUser.id,
+      userName: currentUser.name,
+      date, clockIn, clockOut, duration, breakMin, note
+    });
+    notify('Eintrag angelegt.', 'success');
+  }
+  closeTimeEdit();
+}
+
+function deleteTimeEntry() {
+  if (!currentUser) return;
+  const id = document.getElementById('timeEditId').value;
+  if (!id) return;
+  if (!confirm('Zeiteintrag wirklich löschen?')) return;
+  db.ref('timeEntries/' + currentUser.id + '/' + id).remove();
+  notify('Eintrag gelöscht.', 'info');
+  closeTimeEdit();
+}
+
+function deleteTimeEntryDirect(id) {
+  if (!currentUser) return;
+  if (!confirm('Zeiteintrag wirklich löschen?')) return;
+  db.ref('timeEntries/' + currentUser.id + '/' + id).remove();
+  notify('Eintrag gelöscht.', 'info');
+}
+
+// ---- Excel Export (formatted .xlsx) ----
+function exportTimeExcel() {
+  const mk = getMonthKey(timeMonth);
+  const monthEntries = timeEntries.filter(e => e.date && e.date.startsWith(mk) && e.clockOut);
+  monthEntries.sort((a, b) => (a.date + a.clockIn).localeCompare(b.date + b.clockIn));
+
+  if (!monthEntries.length) { notify('Keine abgeschlossenen Einträge in diesem Monat.', 'error'); return; }
+
+  const wb = XLSX.utils.book_new();
+  const monthLabel = getMonthLabel(timeMonth);
+  const userName = currentUser ? currentUser.name : '';
+
+  // Header row
+  const headers = ['Datum', 'Wochentag', 'Kommen', 'Gehen', 'Pause (min)', 'Netto (h)', 'Netto (min)', 'Notiz'];
+  const data = [headers];
+
+  monthEntries.forEach(e => {
+    const d = new Date(e.date + 'T12:00:00');
+    const wday = d.toLocaleDateString('de-DE', { weekday: 'long' });
+    data.push([
+      e.date,
+      wday,
+      timeOfDay(e.clockIn),
+      timeOfDay(e.clockOut),
+      e.breakMin || 0,
+      parseFloat(formatDurationDecimal(e.duration)),
+      e.duration || 0,
+      e.note || ''
+    ]);
+  });
+
+  // Summary rows
+  const totalMin = monthEntries.reduce((s, e) => s + (e.duration || 0), 0);
+  const totalBreak = monthEntries.reduce((s, e) => s + (e.breakMin || 0), 0);
+  const sollMin = getSollMinutesForMonth(timeMonth.getFullYear(), timeMonth.getMonth());
+  data.push([]);
+  data.push(['Gesamt', '', '', '', totalBreak, parseFloat(formatDurationDecimal(totalMin)), totalMin, '']);
+  if (sollMin) {
+    data.push(['Soll', '', '', '', '', parseFloat(formatDurationDecimal(sollMin)), sollMin, '']);
+    const diff = totalMin - sollMin;
+    data.push(['Differenz', '', '', '', '', parseFloat(formatDurationDecimal(diff)), diff, '']);
+  }
+
+  const ws = XLSX.utils.aoa_to_sheet(data);
+
+  // Column widths
+  ws['!cols'] = [
+    { wch: 12 }, { wch: 12 }, { wch: 8 }, { wch: 8 },
+    { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 24 }
+  ];
+
+  // Style header row (SheetJS community only supports basic styling via cell objects)
+  for (let c = 0; c < headers.length; c++) {
+    const cellRef = XLSX.utils.encode_cell({ r: 0, c });
+    if (ws[cellRef]) {
+      ws[cellRef].s = {
+        font: { bold: true, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: '1B3A5C' } },
+        alignment: { horizontal: 'center' }
+      };
+    }
+  }
+
+  // Style summary rows
+  const summaryStart = monthEntries.length + 2; // +1 header, +1 empty row
+  for (let r = summaryStart; r < data.length; r++) {
+    for (let c = 0; c < headers.length; c++) {
+      const cellRef = XLSX.utils.encode_cell({ r, c });
+      if (ws[cellRef]) {
+        ws[cellRef].s = {
+          font: { bold: true },
+          fill: { fgColor: { rgb: 'F0F4F8' } }
+        };
+      }
+    }
+  }
+
+  XLSX.utils.book_append_sheet(wb, ws, monthLabel);
+  const filename = 'Zeiterfassung_' + userName.replace(/\s+/g, '_') + '_' + monthLabel.replace(' ', '_') + '.xlsx';
+  XLSX.writeFile(wb, filename);
+  notify('Excel-Export heruntergeladen.', 'success');
+}
+
+// ---- Admin: all employees time tracking ----
+let timeAdminMode = 'mine'; // 'mine' | 'all'
+let allTimeEntries = {}; // { userId: [entries] }
+let allTimeSettings = {}; // { userId: {sollHours, sollDays} }
+let expandedStaffTime = new Set();
+let allTimeListenerAttached = false;
+
+function setTimeMode(mode) {
+  timeAdminMode = mode;
+  document.getElementById('timeToggleMine').classList.toggle('active', mode === 'mine');
+  document.getElementById('timeToggleAll').classList.toggle('active', mode === 'all');
+  document.getElementById('timePersonalView').style.display = mode === 'mine' ? '' : 'none';
+  document.getElementById('timeAdminView').style.display = mode === 'all' ? '' : 'none';
+  if (mode === 'all') {
+    attachAllTimeListener();
+    renderAdminTimeView();
+  }
+}
+
+function attachAllTimeListener() {
+  if (allTimeListenerAttached) return;
+  allTimeListenerAttached = true;
+  db.ref('timeEntries').on('value', snap => {
+    const data = snap.val() || {};
+    allTimeEntries = {};
+    Object.keys(data).forEach(uid => {
+      allTimeEntries[uid] = data[uid] ? Object.values(data[uid]) : [];
+    });
+    if (currentView === 'time' && timeAdminMode === 'all') renderAdminTimeView();
+  });
+  db.ref('timeSettings').on('value', snap => {
+    allTimeSettings = snap.val() || {};
+    if (currentView === 'time' && timeAdminMode === 'all') renderAdminTimeView();
+  });
+}
+
+function toggleStaffTimeCard(uid) {
+  if (expandedStaffTime.has(uid)) expandedStaffTime.delete(uid);
+  else expandedStaffTime.add(uid);
+  renderAdminTimeView();
+}
+
+function renderAdminTimeView() {
+  document.getElementById('timeAdminMonthDisplay').textContent = getMonthLabel(timeMonth);
+  const listEl = document.getElementById('timeStaffList');
+  if (!listEl) return;
+
+  const mk = getMonthKey(timeMonth);
+
+  // Build per-user summaries
+  const userSummaries = staffUsers.map(u => {
+    const entries = (allTimeEntries[u.id] || []).filter(e => e.date && e.date.startsWith(mk));
+    const completed = entries.filter(e => e.clockOut);
+    const istMin = completed.reduce((s, e) => s + (e.duration || 0), 0);
+    const running = entries.find(e => !e.clockOut);
+    const settings = allTimeSettings[u.id] || {};
+    const sollHours = settings.sollHours || 0;
+    const sollDays = settings.sollDays || 5;
+    let sollMin = 0;
+    if (sollHours) {
+      const dailyMin = (sollHours * 60) / sollDays;
+      const daysInMonth = new Date(timeMonth.getFullYear(), timeMonth.getMonth() + 1, 0).getDate();
+      let workDays = 0;
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dow = new Date(timeMonth.getFullYear(), timeMonth.getMonth(), d).getDay();
+        if (sollDays >= 7) workDays++;
+        else if (sollDays >= 6 && dow >= 1 && dow <= 6) workDays++;
+        else if (dow >= 1 && dow <= sollDays) workDays++;
+      }
+      sollMin = Math.round(workDays * dailyMin);
+    }
+    return { user: u, entries, completed, istMin, sollMin, running, settings };
+  }).filter(s => s.entries.length > 0 || s.sollMin > 0)
+    .sort((a, b) => b.istMin - a.istMin);
+
+  if (!userSummaries.length) {
+    listEl.innerHTML = '<div class="empty-msg">Keine Zeiteinträge in diesem Monat.</div>';
+    return;
+  }
+
+  listEl.innerHTML = userSummaries.map(s => {
+    const u = s.user;
+    const expanded = expandedStaffTime.has(u.id);
+    const diff = s.istMin - s.sollMin;
+    const diffClass = diff >= 0 ? 'positive' : 'negative';
+    const diffSign = diff >= 0 ? '+' : '';
+    const avatarCls = u.role === 'admin' ? 'background:var(--accent);color:var(--navy);' : '';
+
+    // Detail entries sorted by date
+    const sorted = s.entries.slice().sort((a, b) => (a.date + (a.clockIn || '')).localeCompare(b.date + (b.clockIn || '')));
+    const entryRows = sorted.map(e => {
+      const isRunning = !e.clockOut;
+      const d = new Date(e.date + 'T12:00:00');
+      const dayLabel = d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
+      const inT = timeOfDay(e.clockIn);
+      const outT = isRunning ? 'läuft…' : timeOfDay(e.clockOut);
+      const dur = isRunning ? '—' : formatDurationHM(e.duration || 0) + 'h';
+      const brk = e.breakMin ? `<span class="tse-break">(${e.breakMin}′)</span>` : '';
+      const note = e.note ? escapeHtml(e.note) : '';
+      return `<div class="time-staff-entry">
+        <span class="tse-date">${dayLabel}</span>
+        <span class="tse-times">${inT} – ${outT} ${brk}</span>
+        <span class="tse-note">${note}</span>
+        <span class="tse-dur">${dur}</span>
+      </div>`;
+    }).join('');
+
+    const bodyHtml = expanded ? `<div class="time-staff-body">
+      <div class="time-staff-summary">
+        <div class="tss-item"><div class="tss-label">Ist</div><div class="tss-val">${formatDurationHM(s.istMin)}h</div></div>
+        ${s.sollMin ? `<div class="tss-item"><div class="tss-label">Soll</div><div class="tss-val">${formatDurationHM(s.sollMin)}h</div></div>` : ''}
+        ${s.sollMin ? `<div class="tss-item"><div class="tss-label">Diff</div><div class="tss-val ${diffClass}">${diffSign}${formatDurationHM(Math.abs(diff))}h</div></div>` : ''}
+        <div class="tss-item"><div class="tss-label">Tage</div><div class="tss-val">${s.completed.length}</div></div>
+      </div>
+      <div class="time-staff-entries">${entryRows || '<div style="font-size:12px;color:var(--gray-500);font-style:italic;padding:8px 0;">Keine Einträge</div>'}</div>
+    </div>` : '';
+
+    return `<div class="time-staff-card${expanded ? ' expanded' : ''}">
+      <div class="time-staff-header" onclick="toggleStaffTimeCard('${u.id}')">
+        <div class="time-staff-status ${s.running ? 'online' : 'offline'}"></div>
+        <div class="time-staff-avatar" style="${avatarCls}">${(u.name || '?').charAt(0).toUpperCase()}</div>
+        <div class="time-staff-name">${escapeHtml(u.name)}${s.running ? '<small>aktiv</small>' : ''}</div>
+        <div class="time-staff-hours">${formatDurationHM(s.istMin)}h</div>
+        <div class="time-staff-chevron">\u25BC</div>
+      </div>
+      ${bodyHtml}
+    </div>`;
+  }).join('');
+}
+
+// ---- Admin: export all employees as formatted .xlsx ----
+function exportAllTimeExcel() {
+  const mk = getMonthKey(timeMonth);
+  const monthLabel = getMonthLabel(timeMonth);
+  const wb = XLSX.utils.book_new();
+  const headers = ['Mitarbeiter', 'Datum', 'Wochentag', 'Kommen', 'Gehen', 'Pause (min)', 'Netto (h)', 'Netto (min)', 'Notiz'];
+  const data = [headers];
+  let hasData = false;
+
+  staffUsers.forEach(u => {
+    const entries = (allTimeEntries[u.id] || []).filter(e => e.date && e.date.startsWith(mk) && e.clockOut);
+    entries.sort((a, b) => (a.date + a.clockIn).localeCompare(b.date + b.clockIn));
+    const settings = allTimeSettings[u.id] || {};
+
+    entries.forEach(e => {
+      hasData = true;
+      const d = new Date(e.date + 'T12:00:00');
+      const wday = d.toLocaleDateString('de-DE', { weekday: 'long' });
+      data.push([
+        u.name,
+        e.date,
+        wday,
+        timeOfDay(e.clockIn),
+        timeOfDay(e.clockOut),
+        e.breakMin || 0,
+        parseFloat(formatDurationDecimal(e.duration)),
+        e.duration || 0,
+        e.note || ''
+      ]);
+    });
+
+    if (entries.length) {
+      const totalMin = entries.reduce((s, e) => s + (e.duration || 0), 0);
+      const totalBreak = entries.reduce((s, e) => s + (e.breakMin || 0), 0);
+      const sollHours = settings.sollHours || 0;
+      const sollDays = settings.sollDays || 5;
+      let sollMin = 0;
+      if (sollHours) {
+        const dailyMin = (sollHours * 60) / sollDays;
+        const daysInMonth = new Date(timeMonth.getFullYear(), timeMonth.getMonth() + 1, 0).getDate();
+        let workDays = 0;
+        for (let dd = 1; dd <= daysInMonth; dd++) {
+          const dow = new Date(timeMonth.getFullYear(), timeMonth.getMonth(), dd).getDay();
+          if (sollDays >= 7) workDays++;
+          else if (sollDays >= 6 && dow >= 1 && dow <= 6) workDays++;
+          else if (dow >= 1 && dow <= sollDays) workDays++;
+        }
+        sollMin = Math.round(workDays * dailyMin);
+      }
+      data.push([u.name + ' — Gesamt', '', '', '', '', totalBreak, parseFloat(formatDurationDecimal(totalMin)), totalMin, '']);
+      if (sollMin) {
+        data.push([u.name + ' — Soll', '', '', '', '', '', parseFloat(formatDurationDecimal(sollMin)), sollMin, '']);
+        data.push([u.name + ' — Differenz', '', '', '', '', '', parseFloat(formatDurationDecimal(totalMin - sollMin)), totalMin - sollMin, '']);
+      }
+      data.push([]);
+    }
+  });
+
+  if (!hasData) { notify('Keine Daten zum Exportieren.', 'error'); return; }
+
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  ws['!cols'] = [
+    { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 8 }, { wch: 8 },
+    { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 24 }
+  ];
+
+  // Style header
+  for (let c = 0; c < headers.length; c++) {
+    const cellRef = XLSX.utils.encode_cell({ r: 0, c });
+    if (ws[cellRef]) {
+      ws[cellRef].s = {
+        font: { bold: true, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: '1B3A5C' } },
+        alignment: { horizontal: 'center' }
+      };
+    }
+  }
+
+  XLSX.utils.book_append_sheet(wb, ws, monthLabel);
+  const filename = 'Arbeitszeit_Alle_' + monthLabel.replace(' ', '_') + '.xlsx';
+  XLSX.writeFile(wb, filename);
+  notify('Gesamt-Export heruntergeladen.', 'success');
+}
+
+// ============================================================
+// STATISTICS
+// ============================================================
+let statsDate = new Date();
+
+function updateStatsTabVisibility() {
+  const tab = document.getElementById('tabStats');
+  if (!tab) return;
+  tab.style.display = currentUserHas('manageUsers') ? '' : 'none';
+  if (!currentUserHas('manageUsers') && currentView === 'stats') switchView('overview');
+}
+
+function changeStatsPeriod(dir) {
+  const range = document.getElementById('statsRange').value;
+  if (range === 'month') statsDate.setMonth(statsDate.getMonth() + dir);
+  else if (range === 'quarter') statsDate.setMonth(statsDate.getMonth() + dir * 3);
+  else if (range === 'year') statsDate.setFullYear(statsDate.getFullYear() + dir);
+  renderStats();
+}
+
+function getStatsBookings() {
+  const range = document.getElementById('statsRange').value;
+  const y = statsDate.getFullYear();
+  const m = statsDate.getMonth();
+
+  if (range === 'all') return bookings.filter(b => b.status === 'approved');
+
+  let startDate, endDate;
+  if (range === 'month') {
+    startDate = `${y}-${String(m + 1).padStart(2, '0')}-01`;
+    const lastDay = new Date(y, m + 1, 0).getDate();
+    endDate = `${y}-${String(m + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  } else if (range === 'quarter') {
+    const qStart = Math.floor(m / 3) * 3;
+    startDate = `${y}-${String(qStart + 1).padStart(2, '0')}-01`;
+    const qEnd = qStart + 2;
+    const lastDay = new Date(y, qEnd + 1, 0).getDate();
+    endDate = `${y}-${String(qEnd + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  } else {
+    startDate = `${y}-01-01`;
+    endDate = `${y}-12-31`;
+  }
+
+  return bookings.filter(b => b.status === 'approved' && b.date >= startDate && b.date <= endDate);
+}
+
+function getStatsPeriodLabel() {
+  const range = document.getElementById('statsRange').value;
+  const y = statsDate.getFullYear();
+  const m = statsDate.getMonth();
+  if (range === 'month') return new Date(y, m).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
+  if (range === 'quarter') return `Q${Math.floor(m / 3) + 1} ${y}`;
+  if (range === 'year') return String(y);
+  return 'Gesamtzeitraum';
+}
+
+function renderStats() {
+  const label = document.getElementById('statsPeriodLabel');
+  const content = document.getElementById('statsContent');
+  if (!label || !content) return;
+
+  label.textContent = getStatsPeriodLabel();
+  const range = document.getElementById('statsRange').value;
+  // Hide arrows for "all"
+  const btns = document.querySelectorAll('.stats-period button');
+  btns.forEach(b => b.style.visibility = range === 'all' ? 'hidden' : '');
+
+  const filtered = getStatsBookings();
+  if (!filtered.length) {
+    content.innerHTML = '<div class="empty-msg">Keine Buchungen in diesem Zeitraum.</div>';
+    return;
+  }
+
+  // ---- KPIs ----
+  const totalBookings = filtered.length;
+  const uniqueDates = new Set(filtered.map(b => b.date));
+  const uniqueCustomers = new Set(filtered.map(b => b.name.toLowerCase().trim()));
+  const withInstructor = filtered.filter(b => b.instructor === 'ja').length;
+
+  // Calculate total booked minutes
+  let totalMinutes = 0;
+  filtered.forEach(b => {
+    if (b.startTime && b.endTime) {
+      const s = parseInt(b.startTime.split(':')[0]) * 60 + parseInt(b.startTime.split(':')[1]);
+      const e = parseInt(b.endTime.split(':')[0]) * 60 + parseInt(b.endTime.split(':')[1]);
+      if (e > s) totalMinutes += (e - s);
+    }
+  });
+
+  // ---- Aircraft utilization ----
+  const byAircraft = {};
+  AIRCRAFT.forEach(a => { byAircraft[a] = { count: 0, minutes: 0 }; });
+  filtered.forEach(b => {
+    if (byAircraft[b.aircraft]) {
+      byAircraft[b.aircraft].count++;
+      if (b.startTime && b.endTime) {
+        const s = parseInt(b.startTime.split(':')[0]) * 60 + parseInt(b.startTime.split(':')[1]);
+        const e = parseInt(b.endTime.split(':')[0]) * 60 + parseInt(b.endTime.split(':')[1]);
+        if (e > s) byAircraft[b.aircraft].minutes += (e - s);
+      }
+    }
+  });
+  const maxMin = Math.max(...Object.values(byAircraft).map(v => v.minutes), 1);
+  const acColors = ['#3D9991', '#1B3A5C', '#F5A623', '#E74C3C', '#8E44AD'];
+
+  const acBars = AIRCRAFT.map((a, i) => {
+    const d = byAircraft[a];
+    const pct = Math.round((d.minutes / maxMin) * 100);
+    const hrs = formatDurationHM(d.minutes);
+    return `<div class="stats-bar-row">
+      <span class="stats-bar-label">${a}</span>
+      <div class="stats-bar-track">
+        <div class="stats-bar-fill" style="width:${pct}%;background:${acColors[i % acColors.length]}"></div>
+        <span class="stats-bar-val">${hrs}h (${d.count})</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  // ---- Popular time slots ----
+  const slotCounts = {};
+  filtered.forEach(b => {
+    if (b.startTime) {
+      const hour = b.startTime.split(':')[0] + ':00';
+      slotCounts[hour] = (slotCounts[hour] || 0) + 1;
+    }
+  });
+  const sortedSlots = Object.entries(slotCounts).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const maxSlot = sortedSlots.length ? sortedSlots[0][1] : 1;
+  const slotBars = sortedSlots.map(([slot, count]) => {
+    const pct = Math.round((count / maxSlot) * 100);
+    return `<div class="stats-bar-row">
+      <span class="stats-bar-label">${slot}</span>
+      <div class="stats-bar-track">
+        <div class="stats-bar-fill" style="width:${pct}%;background:var(--accent)"></div>
+        <span class="stats-bar-val">${count}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  // ---- Weekday distribution (heatmap style) ----
+  const dayNames = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+  const dayCounts = [0, 0, 0, 0, 0, 0, 0];
+  filtered.forEach(b => {
+    const d = new Date(b.date + 'T12:00:00');
+    const dow = (d.getDay() + 6) % 7; // Mon=0
+    dayCounts[dow]++;
+  });
+  const maxDay = Math.max(...dayCounts, 1);
+  const dayHeat = dayNames.map((name, i) => {
+    const intensity = dayCounts[i] / maxDay;
+    const bg = `rgba(61,153,145,${0.1 + intensity * 0.7})`;
+    const textColor = intensity > 0.5 ? 'white' : 'var(--navy)';
+    return `<div class="stats-heat-cell" style="background:${bg};color:${textColor}">${name}<br>${dayCounts[i]}</div>`;
+  }).join('');
+
+  // ---- Top customers ----
+  const custCounts = {};
+  filtered.forEach(b => {
+    const n = b.name.trim();
+    custCounts[n] = (custCounts[n] || 0) + 1;
+  });
+  const topCust = Object.entries(custCounts).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const custRows = topCust.map(([name, count], i) =>
+    `<tr><td style="font-weight:600">${i + 1}.</td><td>${escapeHtml(name)}</td><td style="text-align:right;font-weight:700;color:var(--primary)">${count}</td></tr>`
+  ).join('');
+
+  // ---- Bookings per month (if range > month) ----
+  let monthlyHtml = '';
+  if (range !== 'month') {
+    const monthly = {};
+    filtered.forEach(b => {
+      const mk = b.date.substring(0, 7);
+      monthly[mk] = (monthly[mk] || 0) + 1;
+    });
+    const sortedMonths = Object.entries(monthly).sort((a, b) => a[0].localeCompare(b[0]));
+    const maxMonth = Math.max(...sortedMonths.map(m => m[1]), 1);
+    const monthBars = sortedMonths.map(([mk, count]) => {
+      const [yy, mm] = mk.split('-');
+      const label = new Date(parseInt(yy), parseInt(mm) - 1).toLocaleDateString('de-DE', { month: 'short', year: '2-digit' });
+      const pct = Math.round((count / maxMonth) * 100);
+      return `<div class="stats-bar-row">
+        <span class="stats-bar-label">${label}</span>
+        <div class="stats-bar-track">
+          <div class="stats-bar-fill" style="width:${pct}%;background:var(--primary)"></div>
+          <span class="stats-bar-val">${count}</span>
+        </div>
+      </div>`;
+    }).join('');
+    monthlyHtml = `<div class="stats-card">
+      <h4>Buchungen pro Monat</h4>
+      <div class="stats-bar-chart">${monthBars}</div>
+    </div>`;
+  }
+
+  content.innerHTML = `
+    <div class="stats-kpi-row">
+      <div class="stats-kpi"><div class="kpi-val">${totalBookings}</div><div class="kpi-label">Buchungen</div></div>
+      <div class="stats-kpi"><div class="kpi-val">${uniqueDates.size}</div><div class="kpi-label">Flugtage</div></div>
+      <div class="stats-kpi"><div class="kpi-val">${formatDurationHM(totalMinutes)}h</div><div class="kpi-label">Flugstunden</div></div>
+      <div class="stats-kpi"><div class="kpi-val">${uniqueCustomers.size}</div><div class="kpi-label">Kunden</div></div>
+      <div class="stats-kpi"><div class="kpi-val">${Math.round(withInstructor / totalBookings * 100)}%</div><div class="kpi-label">mit Fluglehrer</div></div>
+    </div>
+
+    <div class="stats-card">
+      <h4>Auslastung nach Flugzeug</h4>
+      <div class="stats-bar-chart">${acBars}</div>
+    </div>
+
+    ${monthlyHtml}
+
+    <div class="stats-card">
+      <h4>Beliebte Startzeiten</h4>
+      <div class="stats-bar-chart">${slotBars}</div>
+    </div>
+
+    <div class="stats-card">
+      <h4>Buchungen nach Wochentag</h4>
+      <div class="stats-heatmap">${dayHeat}</div>
+    </div>
+
+    <div class="stats-card">
+      <h4>Häufigste Kunden</h4>
+      <table class="stats-table">
+        <thead><tr><th>#</th><th>Name</th><th style="text-align:right">Buchungen</th></tr></thead>
+        <tbody>${custRows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ============================================================
 // MAIN RENDER
 // ============================================================
 function render() {
   document.getElementById('dateDisplay').textContent = formatDate(currentDate);
   renderDailyNotes();
-  if (currentView === 'overview') renderOverview();
+  if (currentView === 'overview') { if (ovMode === 'week') renderWeekOverview(); else renderOverview(); }
   else if (currentView === 'book') renderBook();
   else if (currentView === 'manage') renderManage();
   else if (currentView === 'theory') renderTheory();
+  else if (currentView === 'team') renderTeamView();
+  else if (currentView === 'time') renderTimeView();
+  else if (currentView === 'stats') renderStats();
 }
 
 // ============================================================
@@ -1637,6 +3663,7 @@ function submitQuick() {
 
   db.ref('bookings/' + booking.id).set(booking);
   addAuditEntry(booking.id, 'erstellt', `${name}, ${selectedAircraft}, ${startTime}–${endTime}`);
+  logActivity('create', `Buchung erstellt: ${name}, ${selectedAircraft}, ${startTime}–${endTime}`, booking.id);
   closeQuick();
   notify(`${name} gebucht: ${startTime}–${endTime}`, 'success');
 }
@@ -1737,7 +3764,10 @@ function submitEdit() {
   };
 
   db.ref('bookings/' + id).set(updated);
-  if (changes.length) addAuditEntry(id, 'bearbeitet', changes.join('; '));
+  if (changes.length) {
+    addAuditEntry(id, 'bearbeitet', changes.join('; '));
+    logActivity('edit', `Buchung bearbeitet: ${name} (${b.aircraft})`, id);
+  }
   closeEdit();
   notify('Buchung aktualisiert.', 'success');
 }
@@ -1841,9 +3871,40 @@ function setStatus(id, status) {
   const b = bookings.find(x => x.id === id);
   db.ref('bookings/' + id + '/status').set(status);
   const labels = { approved: 'freigegeben', rejected: 'abgelehnt' };
+  const logType = status === 'approved' ? 'approve' : 'reject';
   addAuditEntry(id, labels[status] || status);
+  logActivity(logType, `Buchung ${labels[status]}: ${b ? b.name + ', ' + b.aircraft : id}`, id);
+  // Email-Benachrichtigung an Kunden
+  if (b && b.email) sendStatusEmail(b, status);
   closeDetail();
   notify(`Buchung ${labels[status]}.`, 'success');
+}
+
+async function sendStatusEmail(booking, status) {
+  if (!appSettings.emailServiceId || !appSettings.emailTemplateId || !appSettings.emailPublicKey) return;
+  const statusText = status === 'approved'
+    ? 'Deine Buchung wurde bestätigt! Wir freuen uns auf deinen Besuch.'
+    : 'Deine Buchung wurde leider abgelehnt. Bitte kontaktiere uns bei Fragen: +49 8641 698787 oder info@dassu.de';
+  const statusLabel = status === 'approved' ? 'Bestätigt' : 'Abgelehnt';
+  const time = (booking.startTime && booking.endTime) ? `${booking.startTime}–${booking.endTime}` : (booking.slot || '');
+  try {
+    emailjs.init(appSettings.emailPublicKey);
+    await emailjs.send(appSettings.emailServiceId, appSettings.emailTemplateId, {
+      to_name: booking.name || '',
+      to_email: booking.email,
+      subject: `DASSU Buchung ${statusLabel}: ${booking.aircraft}, ${booking.date}`,
+      aircraft: booking.aircraft,
+      date: booking.date,
+      time: time,
+      status: statusLabel,
+      message: statusText,
+      reply_to: 'info@dassu.de'
+    });
+    notify(`Status-Mail an ${booking.email} gesendet.`, 'info');
+  } catch (e) {
+    console.warn('Status-Mail fehlgeschlagen:', e);
+    // Kein Error-Notify — Status wurde trotzdem gesetzt
+  }
 }
 
 function deleteBooking(id) {
@@ -1851,6 +3912,7 @@ function deleteBooking(id) {
   if (!confirm('Buchung wirklich löschen?')) return;
   const b = bookings.find(x => x.id === id);
   addAuditEntry(id, 'gelöscht', b ? `${b.name}, ${b.aircraft}, ${b.startTime || ''}–${b.endTime || ''}` : '');
+  logActivity('delete', `Buchung gelöscht: ${b ? b.name + ', ' + b.aircraft + ', ' + (b.startTime || '') + '–' + (b.endTime || '') : id}`, id);
   db.ref('bookings/' + id).remove();
   closeDetail();
   notify('Buchung gelöscht.', 'success');
@@ -1997,6 +4059,14 @@ if ('serviceWorker' in navigator) {
 showSplash('Prüfe Anmeldung…');
 // Firebase Auth übernimmt: meldet an, lädt staffUsers-Profil, zeigt UI – oder redirect auf welcome.html
 setupAuthGuard();
+
+// Enter-Taste im Einladungsformular
+['appInvName', 'appInvEmail'].forEach(id => {
+  const inp = document.getElementById(id);
+  if (inp) inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); appCreateInvitation(); }
+  });
+});
 </script>
 </body>
 </html>
