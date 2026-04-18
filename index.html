@@ -904,6 +904,7 @@
     <button class="btn btn-sm" onclick="document.getElementById('cancelInputModal').classList.add('active')" style="color:rgba(255,255,255,0.6); background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.15); font-size:11px; letter-spacing:0.04em; text-transform:uppercase;">Stornieren</button>
     <div class="view-tabs">
       <button class="view-tab active" onclick="showView('calendar')">Kalender</button>
+      <a href="staff.html" class="view-tab" style="text-decoration:none;">Fluglehrer</a>
       <button class="view-tab" onclick="showView('admin')">Admin</button>
     </div>
   </div>
@@ -997,6 +998,7 @@
     </table>
   </div>
 </div>
+
 
 <!-- Booking Modal -->
 <div class="modal-overlay" id="bookingModal">
@@ -1592,6 +1594,12 @@ function loadData() {
       }
     } catch(e) {}
   });
+
+  // Invitations listener (für Mitarbeiterverwaltung)
+  db.ref('invitations').on('value', (snapshot) => {
+    const data = snapshot.val();
+    appInvitations = data ? Object.values(data) : [];
+  }, () => {});
 }
 
 function saveData() {
@@ -1684,17 +1692,12 @@ function renderView() {
 // VIEWS
 // ============================================================
 function showView(view) {
-  document.querySelectorAll('.view-tab').forEach(t => t.classList.remove('active'));
-  if (view === 'calendar') {
-    document.getElementById('calendarView').style.display = 'block';
-    document.getElementById('adminView').classList.remove('active');
-    document.querySelectorAll('.view-tab')[0].classList.add('active');
-  } else {
-    document.getElementById('calendarView').style.display = 'none';
-    document.getElementById('adminView').classList.add('active');
-    document.querySelectorAll('.view-tab')[1].classList.add('active');
-    if (adminLoggedIn) renderAdminTable();
-  }
+  document.getElementById('calendarView').style.display = view === 'calendar' ? 'block' : 'none';
+  document.getElementById('adminView').classList.toggle('active', view === 'admin');
+  document.querySelectorAll('.header-actions .view-tabs > button.view-tab').forEach(t => t.classList.remove('active'));
+  if (view === 'calendar') document.querySelectorAll('.header-actions .view-tabs > button.view-tab')[0].classList.add('active');
+  else if (view === 'admin') document.querySelectorAll('.header-actions .view-tabs > button.view-tab')[1].classList.add('active');
+  if (view === 'admin' && adminLoggedIn) renderAdminTable();
 }
 
 // ============================================================
@@ -3748,6 +3751,7 @@ document.addEventListener('click', (e) => {
     closeQuickBook();
   }
 });
+
 </script>
 </body>
 </html>

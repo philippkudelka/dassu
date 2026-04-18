@@ -637,6 +637,29 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
 .stats-table td { padding: 6px 8px; border-bottom: 1px solid #f0f0f0; }
 .stats-table tr:last-child td { border-bottom: none; }
 
+/* ===== VEREINSFLIEGER COMPARE ===== */
+.vf-compare-note { font-size:11px; color:var(--gray-500); margin-bottom:12px; text-align:right; }
+.vf-kpi-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px; margin-bottom:16px; }
+.vf-kpi-card { background:white; border-radius:var(--radius); border:1px solid #e8eaed; padding:14px 16px; }
+.vf-kpi-title { font-size:11px; font-weight:700; color:var(--gray-500); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px; }
+.vf-kpi-row { display:flex; align-items:baseline; gap:16px; }
+.vf-kpi-col { flex:1; }
+.vf-kpi-year { font-size:10px; color:var(--gray-400); font-weight:600; }
+.vf-kpi-val { font-size:26px; font-weight:800; color:var(--navy); line-height:1.1; }
+.vf-kpi-prev { color:var(--gray-400) !important; font-size:22px !important; }
+.vf-kpi-trend { font-size:13px; font-weight:700; }
+.vf-kpi-sub { font-size:10px; color:var(--gray-400); margin-top:6px; }
+.vf-month-chart { display:flex; flex-direction:column; gap:4px; }
+.vf-month-row { display:flex; align-items:center; gap:8px; }
+.vf-month-row.vf-future { opacity:0.35; }
+.vf-month-label { width:32px; font-size:11px; font-weight:700; color:var(--gray-500); text-align:right; flex-shrink:0; }
+.vf-month-bars { flex:1; display:flex; flex-direction:column; gap:2px; }
+.vf-month-bar-wrap { display:flex; align-items:center; gap:4px; height:14px; }
+.vf-month-bar { height:100%; border-radius:3px; transition:width 0.4s ease; min-width:2px; }
+.vf-bar-this { background:var(--primary); }
+.vf-bar-last { background:var(--gray-300); }
+.vf-month-val { font-size:10px; font-weight:600; color:var(--gray-500); }
+
 /* ===== ACTIVITY LOG (Protokoll) ===== */
 .activity-item { background: white; border-radius: var(--radius); border: 1px solid #e8eaed; padding: 10px 14px; margin-bottom: 6px; display: flex; gap: 10px; align-items: flex-start; }
 .activity-icon { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
@@ -992,6 +1015,17 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
     </div>
   </div>
   <div id="statsContent"></div>
+
+  <!-- Vereinsflieger Jahresvergleich -->
+  <div class="stats-header" style="margin-top:32px;">
+    <h3>Vereinsflieger — Jahresvergleich</h3>
+    <button class="btn-book" onclick="syncVereinsflieger()" id="vfSyncBtn" style="padding:8px 16px;font-size:13px;">
+      <span id="vfSyncLabel">Daten laden</span>
+    </button>
+  </div>
+  <div id="vfCompareContent">
+    <div class="empty-msg">Klicke "Daten laden" um Flugdaten aus Vereinsflieger abzurufen.</div>
+  </div>
 </div>
 
 <!-- Quick Book Sheet -->
@@ -1783,6 +1817,7 @@ function switchView(view) {
     tab.classList.toggle('active', isActive);
     cont.style.display = isActive ? '' : 'none';
   });
+  if (view === 'stats') loadVfCache();
   render();
 }
 
@@ -2843,8 +2878,12 @@ function toggleClock() {
     db.ref('timeEntries/' + currentUser.id + '/' + running.id).update({
       clockOut: now.toISOString(),
       duration: duration
+    }).then(() => {
+      notify('Ausgestempelt. ' + formatDurationHM(duration), 'success');
+    }).catch(err => {
+      console.error('Clock-out Fehler:', err);
+      notify('Fehler beim Ausstempeln: ' + err.message, 'error');
     });
-    notify('Ausgestempelt. ' + formatDurationHM(duration), 'success');
   } else {
     // Clock IN
     const now = new Date();
@@ -2858,8 +2897,12 @@ function toggleClock() {
       clockOut: null,
       duration: 0,
       note: ''
+    }).then(() => {
+      notify('Eingestempelt!', 'success');
+    }).catch(err => {
+      console.error('Clock-in Fehler:', err);
+      notify('Fehler beim Einstempeln: ' + err.message, 'error');
     });
-    notify('Eingestempelt!', 'success');
   }
 }
 
@@ -2949,8 +2992,12 @@ function saveTimeSettings() {
   db.ref('timeSettings/' + currentUser.id).set({
     sollHours: sollHours,
     sollDays: Math.min(7, Math.max(1, sollDays))
+  }).then(() => {
+    notify('Soll-Stunden gespeichert.', 'success');
+  }).catch(err => {
+    console.error('TimeSettings Fehler:', err);
+    notify('Fehler beim Speichern: ' + err.message, 'error');
   });
-  notify('Soll-Stunden gespeichert.', 'success');
 }
 
 function getSollMinutesForMonth(year, month) {
@@ -3121,8 +3168,13 @@ function saveTimeEdit() {
     // Update existing
     db.ref('timeEntries/' + currentUser.id + '/' + id).update({
       date, clockIn, clockOut, duration, breakMin, note
+    }).then(() => {
+      notify('Eintrag aktualisiert.', 'success');
+      closeTimeEdit();
+    }).catch(err => {
+      console.error('TimeEdit update Fehler:', err);
+      notify('Fehler beim Speichern: ' + err.message, 'error');
     });
-    notify('Eintrag aktualisiert.', 'success');
   } else {
     // New manual entry
     const newId = 'te' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
@@ -3131,10 +3183,14 @@ function saveTimeEdit() {
       userId: currentUser.id,
       userName: currentUser.name,
       date, clockIn, clockOut, duration, breakMin, note
+    }).then(() => {
+      notify('Eintrag angelegt.', 'success');
+      closeTimeEdit();
+    }).catch(err => {
+      console.error('TimeEdit create Fehler:', err);
+      notify('Fehler beim Anlegen: ' + err.message, 'error');
     });
-    notify('Eintrag angelegt.', 'success');
   }
-  closeTimeEdit();
 }
 
 function deleteTimeEntry() {
@@ -3142,16 +3198,17 @@ function deleteTimeEntry() {
   const id = document.getElementById('timeEditId').value;
   if (!id) return;
   if (!confirm('Zeiteintrag wirklich löschen?')) return;
-  db.ref('timeEntries/' + currentUser.id + '/' + id).remove();
-  notify('Eintrag gelöscht.', 'info');
-  closeTimeEdit();
+  db.ref('timeEntries/' + currentUser.id + '/' + id).remove()
+    .then(() => { notify('Eintrag gelöscht.', 'info'); closeTimeEdit(); })
+    .catch(err => { console.error('Delete Fehler:', err); notify('Fehler beim Löschen: ' + err.message, 'error'); });
 }
 
 function deleteTimeEntryDirect(id) {
   if (!currentUser) return;
   if (!confirm('Zeiteintrag wirklich löschen?')) return;
-  db.ref('timeEntries/' + currentUser.id + '/' + id).remove();
-  notify('Eintrag gelöscht.', 'info');
+  db.ref('timeEntries/' + currentUser.id + '/' + id).remove()
+    .then(() => notify('Eintrag gelöscht.', 'info'))
+    .catch(err => { console.error('Delete Fehler:', err); notify('Fehler beim Löschen: ' + err.message, 'error'); });
 }
 
 // ---- Excel Export (formatted .xlsx) ----
@@ -3676,6 +3733,264 @@ function renderStats() {
       <table class="stats-table">
         <thead><tr><th>#</th><th>Name</th><th style="text-align:right">Buchungen</th></tr></thead>
         <tbody>${custRows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ============================================================
+// VEREINSFLIEGER JAHRESVERGLEICH
+// ============================================================
+let vfData = null;
+
+async function syncVereinsflieger() {
+  const btn = document.getElementById('vfSyncBtn');
+  const label = document.getElementById('vfSyncLabel');
+  const content = document.getElementById('vfCompareContent');
+  if (!btn) return;
+
+  btn.disabled = true;
+  label.textContent = 'Lade…';
+
+  try {
+    const res = await fetch('/.netlify/functions/vereinsflieger-sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'yearCompare' })
+    });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'Unbekannter Fehler');
+
+    vfData = json.data;
+
+    // Cache in Firebase
+    if (db && currentUser) {
+      db.ref('vereinsflieger/lastSync').set({
+        data: JSON.stringify(vfData),
+        fetchedAt: vfData.fetchedAt,
+        fetchedBy: currentUser.name
+      });
+    }
+
+    renderVfCompare();
+    label.textContent = 'Aktualisieren';
+  } catch (err) {
+    content.innerHTML = `<div class="empty-msg" style="color:var(--danger);">Fehler: ${err.message}</div>`;
+    label.textContent = 'Erneut versuchen';
+  }
+  btn.disabled = false;
+}
+
+// Load cached data on tab switch
+function loadVfCache() {
+  if (vfData) { renderVfCompare(); return; }
+  db.ref('vereinsflieger/lastSync').once('value', snap => {
+    const cached = snap.val();
+    if (cached && cached.data) {
+      try {
+        vfData = JSON.parse(cached.data);
+        renderVfCompare();
+      } catch (_) {}
+    }
+  });
+}
+
+function vfParseDuration(flight) {
+  // Vereinsflieger duration can be in minutes or HH:MM format
+  if (flight.flighttime) {
+    const t = String(flight.flighttime);
+    if (t.includes(':')) {
+      const [h, m] = t.split(':').map(Number);
+      return (h || 0) * 60 + (m || 0);
+    }
+    return parseInt(t) || 0;
+  }
+  // Fallback: calculate from departure/arrival
+  if (flight.departuretime && flight.arrivaltime) {
+    const dep = flight.departuretime.split(':').map(Number);
+    const arr = flight.arrivaltime.split(':').map(Number);
+    return ((arr[0] || 0) * 60 + (arr[1] || 0)) - ((dep[0] || 0) * 60 + (dep[1] || 0));
+  }
+  return 0;
+}
+
+function vfAggregateFlights(flights) {
+  const totalFlights = flights.length;
+  let totalMinutes = 0;
+  const byAircraft = {};
+  const byMonth = {};
+  const uniqueDates = new Set();
+
+  flights.forEach(f => {
+    const dur = vfParseDuration(f);
+    totalMinutes += dur;
+
+    const cs = f.callsign || f.lfz || 'Unbekannt';
+    if (!byAircraft[cs]) byAircraft[cs] = { count: 0, minutes: 0 };
+    byAircraft[cs].count++;
+    byAircraft[cs].minutes += dur;
+
+    const date = f.datelocal || f.datum || '';
+    if (date) {
+      uniqueDates.add(date);
+      const mk = date.substring(0, 7);
+      if (!byMonth[mk]) byMonth[mk] = { count: 0, minutes: 0 };
+      byMonth[mk].count++;
+      byMonth[mk].minutes += dur;
+    }
+  });
+
+  return { totalFlights, totalMinutes, byAircraft, byMonth, flyingDays: uniqueDates.size };
+}
+
+function fmtH(minutes) {
+  if (!minutes || minutes <= 0) return '0:00';
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return h + ':' + String(m).padStart(2, '0');
+}
+
+function renderVfCompare() {
+  const content = document.getElementById('vfCompareContent');
+  if (!content || !vfData) return;
+
+  const thisYear = vfAggregateFlights(vfData.thisYear.flights);
+  const lastSame = vfAggregateFlights(vfData.lastYearSameDay.flights);
+  const lastFull = vfAggregateFlights(vfData.lastYearFull.flights);
+
+  const now = new Date();
+  const curYear = now.getFullYear();
+  const prevYear = curYear - 1;
+  const todayLabel = now.toLocaleDateString('de-DE', { day: 'numeric', month: 'long' });
+
+  // Trend arrows
+  function trend(curr, prev) {
+    if (prev === 0) return curr > 0 ? '<span style="color:var(--success);">&#9650; neu</span>' : '—';
+    const pct = Math.round((curr - prev) / prev * 100);
+    if (pct > 0) return `<span style="color:var(--success);">&#9650; +${pct}%</span>`;
+    if (pct < 0) return `<span style="color:var(--danger);">&#9660; ${pct}%</span>`;
+    return '<span style="color:var(--gray-500);">&#9656; 0%</span>';
+  }
+
+  // KPI comparison cards
+  const kpiHtml = `
+    <div class="vf-kpi-grid">
+      <div class="vf-kpi-card">
+        <div class="vf-kpi-title">Starts</div>
+        <div class="vf-kpi-row">
+          <div class="vf-kpi-col"><div class="vf-kpi-year">${curYear}</div><div class="vf-kpi-val">${thisYear.totalFlights}</div></div>
+          <div class="vf-kpi-col"><div class="vf-kpi-year">${prevYear}</div><div class="vf-kpi-val vf-kpi-prev">${lastSame.totalFlights}</div></div>
+          <div class="vf-kpi-trend">${trend(thisYear.totalFlights, lastSame.totalFlights)}</div>
+        </div>
+        <div class="vf-kpi-sub">Vorjahr gesamt: ${lastFull.totalFlights}</div>
+      </div>
+      <div class="vf-kpi-card">
+        <div class="vf-kpi-title">Flugstunden</div>
+        <div class="vf-kpi-row">
+          <div class="vf-kpi-col"><div class="vf-kpi-year">${curYear}</div><div class="vf-kpi-val">${fmtH(thisYear.totalMinutes)}</div></div>
+          <div class="vf-kpi-col"><div class="vf-kpi-year">${prevYear}</div><div class="vf-kpi-val vf-kpi-prev">${fmtH(lastSame.totalMinutes)}</div></div>
+          <div class="vf-kpi-trend">${trend(thisYear.totalMinutes, lastSame.totalMinutes)}</div>
+        </div>
+        <div class="vf-kpi-sub">Vorjahr gesamt: ${fmtH(lastFull.totalMinutes)}</div>
+      </div>
+      <div class="vf-kpi-card">
+        <div class="vf-kpi-title">Flugtage</div>
+        <div class="vf-kpi-row">
+          <div class="vf-kpi-col"><div class="vf-kpi-year">${curYear}</div><div class="vf-kpi-val">${thisYear.flyingDays}</div></div>
+          <div class="vf-kpi-col"><div class="vf-kpi-year">${prevYear}</div><div class="vf-kpi-val vf-kpi-prev">${lastSame.flyingDays}</div></div>
+          <div class="vf-kpi-trend">${trend(thisYear.flyingDays, lastSame.flyingDays)}</div>
+        </div>
+        <div class="vf-kpi-sub">Vorjahr gesamt: ${lastFull.flyingDays}</div>
+      </div>
+    </div>
+  `;
+
+  // Monthly comparison bars
+  const allMonthKeys = new Set();
+  for (let m = 1; m <= 12; m++) {
+    allMonthKeys.add(String(m).padStart(2, '0'));
+  }
+  const monthNames = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+
+  let maxMonthFlights = 1;
+  allMonthKeys.forEach(mm => {
+    const thisKey = `${curYear}-${mm}`;
+    const lastKey = `${prevYear}-${mm}`;
+    const a = (thisYear.byMonth[thisKey] || {}).count || 0;
+    const b = (lastFull.byMonth[lastKey] || {}).count || 0;
+    maxMonthFlights = Math.max(maxMonthFlights, a, b);
+  });
+
+  let monthBarsHtml = '';
+  allMonthKeys.forEach(mm => {
+    const idx = parseInt(mm) - 1;
+    const thisKey = `${curYear}-${mm}`;
+    const lastKey = `${prevYear}-${mm}`;
+    const a = (thisYear.byMonth[thisKey] || {}).count || 0;
+    const b = (lastFull.byMonth[lastKey] || {}).count || 0;
+    const pctA = Math.round(a / maxMonthFlights * 100);
+    const pctB = Math.round(b / maxMonthFlights * 100);
+    const isFuture = idx > now.getMonth();
+    monthBarsHtml += `
+      <div class="vf-month-row ${isFuture ? 'vf-future' : ''}">
+        <span class="vf-month-label">${monthNames[idx]}</span>
+        <div class="vf-month-bars">
+          <div class="vf-month-bar-wrap">
+            <div class="vf-month-bar vf-bar-this" style="width:${pctA}%"></div>
+            <span class="vf-month-val">${a || ''}</span>
+          </div>
+          <div class="vf-month-bar-wrap">
+            <div class="vf-month-bar vf-bar-last" style="width:${pctB}%"></div>
+            <span class="vf-month-val">${b || ''}</span>
+          </div>
+        </div>
+      </div>`;
+  });
+
+  // Aircraft comparison
+  const allCallsigns = new Set([...Object.keys(thisYear.byAircraft), ...Object.keys(lastSame.byAircraft)]);
+  let acHtml = '';
+  const sortedAc = [...allCallsigns].sort((a, b) => {
+    return ((thisYear.byAircraft[b] || {}).count || 0) - ((thisYear.byAircraft[a] || {}).count || 0);
+  });
+
+  sortedAc.forEach(cs => {
+    const a = thisYear.byAircraft[cs] || { count: 0, minutes: 0 };
+    const b = lastSame.byAircraft[cs] || { count: 0, minutes: 0 };
+    acHtml += `<tr>
+      <td style="font-weight:600">${cs}</td>
+      <td style="text-align:right">${a.count}</td>
+      <td style="text-align:right">${fmtH(a.minutes)}</td>
+      <td style="text-align:right;color:var(--gray-500)">${b.count}</td>
+      <td style="text-align:right;color:var(--gray-500)">${fmtH(b.minutes)}</td>
+      <td style="text-align:right">${trend(a.count, b.count)}</td>
+    </tr>`;
+  });
+
+  const fetchedAt = vfData.fetchedAt ? new Date(vfData.fetchedAt).toLocaleString('de-DE') : '—';
+
+  content.innerHTML = `
+    <div class="vf-compare-note">Stand: ${fetchedAt} · Vergleich bis ${todayLabel}</div>
+
+    ${kpiHtml}
+
+    <div class="stats-card">
+      <h4>Starts pro Monat — <span style="color:var(--primary)">${curYear}</span> vs. <span style="color:var(--gray-400)">${prevYear}</span></h4>
+      <div class="vf-month-chart">${monthBarsHtml}</div>
+    </div>
+
+    <div class="stats-card">
+      <h4>Flugzeuge im Vergleich</h4>
+      <table class="stats-table" style="width:100%">
+        <thead><tr>
+          <th>Kennzeichen</th>
+          <th style="text-align:right">${curYear}</th>
+          <th style="text-align:right">Stunden</th>
+          <th style="text-align:right;color:var(--gray-400)">${prevYear}</th>
+          <th style="text-align:right;color:var(--gray-400)">Stunden</th>
+          <th style="text-align:right">Trend</th>
+        </tr></thead>
+        <tbody>${acHtml}</tbody>
       </table>
     </div>
   `;
