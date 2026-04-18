@@ -3762,16 +3762,6 @@ async function syncVereinsflieger() {
     if (!json.ok) throw new Error(json.error || 'Unbekannter Fehler');
 
     vfData = json.data;
-
-    // Cache in Firebase
-    if (db && currentUser) {
-      db.ref('vereinsflieger/lastSync').set({
-        data: JSON.stringify(vfData),
-        fetchedAt: vfData.fetchedAt,
-        fetchedBy: currentUser.name
-      });
-    }
-
     renderVfCompare();
     label.textContent = 'Aktualisieren';
   } catch (err) {
@@ -3784,18 +3774,8 @@ async function syncVereinsflieger() {
 // Load data on tab switch — show cache immediately, then auto-refresh from API
 function loadVfCache() {
   if (vfData) { renderVfCompare(); return; }
-  // Try cache first for instant display, then always fetch fresh data
-  db.ref('vereinsflieger/lastSync').once('value', snap => {
-    const cached = snap.val();
-    if (cached && cached.data) {
-      try {
-        vfData = JSON.parse(cached.data);
-        renderVfCompare();
-      } catch (_) {}
-    }
-    // Always fetch fresh data from API
-    syncVereinsflieger();
-  });
+  // Load fresh data directly from API
+  syncVereinsflieger();
 }
 
 function vfParseDuration(flight) {
