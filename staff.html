@@ -1020,11 +1020,11 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
   <div class="stats-header" style="margin-top:32px;">
     <h3>Vereinsflieger — Jahresvergleich</h3>
     <button class="btn-book" onclick="syncVereinsflieger()" id="vfSyncBtn" style="padding:8px 16px;font-size:13px;">
-      <span id="vfSyncLabel">Daten laden</span>
+      <span id="vfSyncLabel">Aktualisieren</span>
     </button>
   </div>
   <div id="vfCompareContent">
-    <div class="empty-msg">Klicke "Daten laden" um Flugdaten aus Vereinsflieger abzurufen.</div>
+    <div class="empty-msg">Lade Flugdaten…</div>
   </div>
 </div>
 
@@ -3781,9 +3781,10 @@ async function syncVereinsflieger() {
   btn.disabled = false;
 }
 
-// Load cached data on tab switch
+// Load data on tab switch — show cache immediately, then auto-refresh from API
 function loadVfCache() {
   if (vfData) { renderVfCompare(); return; }
+  // Try cache first for instant display, then always fetch fresh data
   db.ref('vereinsflieger/lastSync').once('value', snap => {
     const cached = snap.val();
     if (cached && cached.data) {
@@ -3792,6 +3793,8 @@ function loadVfCache() {
         renderVfCompare();
       } catch (_) {}
     }
+    // Always fetch fresh data from API
+    syncVereinsflieger();
   });
 }
 
