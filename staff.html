@@ -652,7 +652,7 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
 .vf-month-chart { display:flex; flex-direction:column; gap:4px; }
 .vf-month-row { display:flex; align-items:center; gap:8px; }
 .vf-month-row.vf-future { opacity:0.35; }
-.vf-month-label { width:32px; font-size:11px; font-weight:700; color:var(--gray-500); text-align:right; flex-shrink:0; }
+.vf-month-label { min-width:32px; font-size:11px; font-weight:700; color:var(--gray-500); text-align:right; flex-shrink:0; white-space:nowrap; }
 .vf-month-bars { flex:1; display:flex; flex-direction:column; gap:2px; }
 .vf-month-bar-wrap { display:flex; align-items:center; gap:4px; height:14px; }
 .vf-month-bar { height:100%; border-radius:3px; transition:width 0.4s ease; min-width:2px; }
@@ -3913,12 +3913,18 @@ function renderVfCompare() {
   }
   const monthNames = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
 
+  const curMonthIdx = now.getMonth(); // 0-based
+
   let maxMonthFlights = 1;
   allMonthKeys.forEach(mm => {
+    const idx = parseInt(mm) - 1;
     const thisKey = `${curYear}-${mm}`;
     const lastKey = `${prevYear}-${mm}`;
     const a = (thisYear.byMonth[thisKey] || {}).count || 0;
-    const b = (lastFull.byMonth[lastKey] || {}).count || 0;
+    // For current month: use lastSame (same cut-off date) for fair comparison
+    // For past months: use lastFull (complete month)
+    const prevSource = idx === curMonthIdx ? lastSame : lastFull;
+    const b = (prevSource.byMonth[lastKey] || {}).count || 0;
     maxMonthFlights = Math.max(maxMonthFlights, a, b);
   });
 
@@ -3928,13 +3934,16 @@ function renderVfCompare() {
     const thisKey = `${curYear}-${mm}`;
     const lastKey = `${prevYear}-${mm}`;
     const a = (thisYear.byMonth[thisKey] || {}).count || 0;
-    const b = (lastFull.byMonth[lastKey] || {}).count || 0;
+    const isCurrent = idx === curMonthIdx;
+    const prevSource = isCurrent ? lastSame : lastFull;
+    const b = (prevSource.byMonth[lastKey] || {}).count || 0;
     const pctA = Math.round(a / maxMonthFlights * 100);
     const pctB = Math.round(b / maxMonthFlights * 100);
-    const isFuture = idx > now.getMonth();
+    const isFuture = idx > curMonthIdx;
+    const stichtagHint = isCurrent ? ` <span style="font-size:9px;color:var(--gray-400);">(bis ${now.getDate()}.)</span>` : '';
     monthBarsHtml += `
       <div class="vf-month-row ${isFuture ? 'vf-future' : ''}">
-        <span class="vf-month-label">${monthNames[idx]}</span>
+        <span class="vf-month-label">${monthNames[idx]}${stichtagHint}</span>
         <div class="vf-month-bars">
           <div class="vf-month-bar-wrap">
             <div class="vf-month-bar vf-bar-this" style="width:${pctA}%"></div>
