@@ -73,7 +73,7 @@ async function vfGetFlightsDateRange(accesstoken, dateFrom, dateTo) {
     if (data.error_code && data.error_code !== '0') {
       throw new Error('API Fehler: ' + (data.error_msg || JSON.stringify(data)));
     }
-    return Object.values(data).filter(v => typeof v === 'object' && v !== null && v.flightid);
+    return Object.values(data).filter(v => typeof v === 'object' && v !== null && v.flid);
   }
   return Array.isArray(data) ? data : [];
 }
@@ -165,30 +165,6 @@ exports.handler = async (event) => {
           lastYearSameDay: { flights: lastYearSameDay, from: lastYearFrom, to: lastYearTo },
           lastYearFull: { flights: lastYearFull, from: lastYearFrom, to: lastYearFullTo },
           fetchedAt: new Date().toISOString()
-        };
-        break;
-      }
-      case 'debug': {
-        // Raw-Antworten zum Debuggen zurückgeben
-        const signinRes = await fetch(`${VF_BASE}/auth/getuser`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({ accesstoken }).toString()
-        });
-        const userInfo = await signinRes.json();
-
-        const flightRes = await fetch(`${VF_BASE}/flight/list/daterange`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({ accesstoken, datefrom: '2025-06-01', dateto: '2025-06-30' }).toString()
-        });
-        const rawFlightText = await flightRes.text();
-
-        result = {
-          userInfo,
-          flightStatus: flightRes.status,
-          flightRaw: rawFlightText.substring(0, 2000),
-          accesstoken: accesstoken.substring(0, 8) + '...'
         };
         break;
       }

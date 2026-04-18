@@ -3830,7 +3830,7 @@ function vfAggregateFlights(flights) {
     byAircraft[cs].count++;
     byAircraft[cs].minutes += dur;
 
-    const date = f.datelocal || f.datum || '';
+    const date = f.dateofflight || f.datelocal || f.datum || '';
     if (date) {
       uniqueDates.add(date);
       const mk = date.substring(0, 7);
