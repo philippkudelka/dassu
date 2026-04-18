@@ -3957,23 +3957,42 @@ function renderVfCompare() {
       </div>`;
   });
 
-  // Aircraft comparison
-  const allCallsigns = new Set([...Object.keys(thisYear.byAircraft), ...Object.keys(lastSame.byAircraft)]);
+  // Aircraft comparison — use all three datasets to avoid false "neu" labels
+  const allCallsigns = new Set([
+    ...Object.keys(thisYear.byAircraft),
+    ...Object.keys(lastSame.byAircraft),
+    ...Object.keys(lastFull.byAircraft)
+  ]);
   let acHtml = '';
   const sortedAc = [...allCallsigns].sort((a, b) => {
     return ((thisYear.byAircraft[b] || {}).count || 0) - ((thisYear.byAircraft[a] || {}).count || 0);
   });
 
+  // Smart trend: compare thisYear vs lastSame (fair stichtag comparison),
+  // but only show "neu" if the aircraft also had 0 flights in lastFull
+  function acTrend(curr, prevSame, prevFull) {
+    if (prevSame === 0) {
+      if (curr > 0 && prevFull === 0) return '<span style="color:var(--success);">&#9650; neu</span>';
+      if (curr > 0 && prevFull > 0) return '<span style="color:var(--success);">&#9650;</span>';
+      return '—';
+    }
+    const pct = Math.round((curr - prevSame) / prevSame * 100);
+    if (pct > 0) return `<span style="color:var(--success);">&#9650; +${pct}%</span>`;
+    if (pct < 0) return `<span style="color:var(--danger);">&#9660; ${pct}%</span>`;
+    return '<span style="color:var(--gray-500);">&#9656; 0%</span>';
+  }
+
   sortedAc.forEach(cs => {
     const a = thisYear.byAircraft[cs] || { count: 0, minutes: 0 };
-    const b = lastSame.byAircraft[cs] || { count: 0, minutes: 0 };
+    const bSame = lastSame.byAircraft[cs] || { count: 0, minutes: 0 };
+    const bFull = lastFull.byAircraft[cs] || { count: 0, minutes: 0 };
     acHtml += `<tr>
       <td style="font-weight:600">${cs}</td>
       <td style="text-align:right">${a.count}</td>
       <td style="text-align:right">${fmtH(a.minutes)}</td>
-      <td style="text-align:right;color:var(--gray-500)">${b.count}</td>
-      <td style="text-align:right;color:var(--gray-500)">${fmtH(b.minutes)}</td>
-      <td style="text-align:right">${trend(a.count, b.count)}</td>
+      <td style="text-align:right;color:var(--gray-500)">${bFull.count}</td>
+      <td style="text-align:right;color:var(--gray-500)">${fmtH(bFull.minutes)}</td>
+      <td style="text-align:right">${acTrend(a.count, bSame.count, bFull.count)}</td>
     </tr>`;
   });
 
@@ -3990,7 +4009,7 @@ function renderVfCompare() {
     </div>
 
     <div class="stats-card">
-      <h4>Flugzeuge im Vergleich</h4>
+      <h4>Flugzeuge im Vergleich — ${prevYear} gesamt</h4>
       <table class="stats-table" style="width:100%">
         <thead><tr>
           <th>Kennzeichen</th>
@@ -4002,6 +4021,7 @@ function renderVfCompare() {
         </tr></thead>
         <tbody>${acHtml}</tbody>
       </table>
+      <div style="font-size:10px;color:var(--gray-400);margin-top:6px;">Trend: ${curYear} (bis ${todayLabel}) vs. ${prevYear} (bis ${todayLabel})</div>
     </div>
   `;
 }
