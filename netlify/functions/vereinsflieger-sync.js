@@ -53,9 +53,8 @@ async function vfSignIn(accesstoken) {
 
 async function vfSignOut(accesstoken) {
   try {
-    await fetch(`${VF_BASE}/auth/signout`, {
-      method: 'DELETE',
-      headers: { accesstoken }
+    await fetch(`${VF_BASE}/auth/signout/${accesstoken}`, {
+      method: 'DELETE'
     });
   } catch (_) { /* ignore */ }
 }
@@ -64,10 +63,9 @@ async function vfGetFlightsDateRange(accesstoken, dateFrom, dateTo) {
   const res = await fetch(`${VF_BASE}/flight/list/daterange`, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      accesstoken
+      'Content-Type': 'application/x-www-form-urlencoded'
     },
-    body: new URLSearchParams({ dateFrom, dateTo }).toString()
+    body: new URLSearchParams({ accesstoken, datefrom: dateFrom, dateto: dateTo }).toString()
   });
   const data = await res.json();
   // API returns object with numeric keys → convert to array
@@ -82,8 +80,11 @@ async function vfGetFlightsDateRange(accesstoken, dateFrom, dateTo) {
 
 async function vfGetAircraftList(accesstoken) {
   const res = await fetch(`${VF_BASE}/aircraft/list`, {
-    method: 'GET',
-    headers: { accesstoken }
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: new URLSearchParams({ accesstoken }).toString()
   });
   const data = await res.json();
   if (data && typeof data === 'object' && !Array.isArray(data)) {
