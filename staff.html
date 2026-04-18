@@ -1871,11 +1871,20 @@ function mergeGSheetIntoLookup(lookup, sheetBookings) {
   sheetBookings.forEach(sb => {
     const ac = sb.aircraft;
     if (!lookup[ac]) return; // skip Theorie or unknown aircraft
-    const tp = sb.time; // already "08:00" format
-    if (!lookup[ac][tp]) {
-      lookup[ac][tp] = { name: sb.name, isFirst: true, isSheet: true, id: 'gsheet' };
+
+    // Each booking has startTime + endTime (e.g. "10:00" to "12:00")
+    const si = slotIndex(sb.startTime);
+    const ei = slotIndex(sb.endTime);
+    if (si < 0) return;
+    const end = ei > si ? ei : si + 1; // fallback: at least 1 slot
+
+    for (let i = si; i < end; i++) {
+      const tp = TIME_POINTS[i];
+      if (!tp) continue;
+      if (!lookup[ac][tp]) { // Don't overwrite Firebase bookings
+        lookup[ac][tp] = { name: sb.name, isFirst: i === si, isSheet: true, id: 'gsheet' };
+      }
     }
-    // Don't overwrite Firebase bookings — Firebase takes priority
   });
 }
 
