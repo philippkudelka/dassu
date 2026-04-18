@@ -104,6 +104,7 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
 .ov-cell.ov-booked.ov-pending { background: #f0d87a !important; }
 .ov-cell.ov-booked.ov-instructor { background: #ffb870 !important; }
 .ov-cell.ov-booked.ov-pending.ov-instructor { background: #f5c44e !important; }
+.ov-cell.ov-booked.ov-sheet { background: #b8d4f0 !important; cursor: default; }
 .ov-cell.ov-towing { background: #ececec !important; cursor: default; }
 .ov-cell.ov-towing.ov-bookable { cursor: pointer; background: repeating-linear-gradient(-45deg, #ececec, #ececec 4px, #e2e2e2 4px, #e2e2e2 5px) !important; }
 .ov-cell.ov-towing.ov-bookable:active { background: #ddd !important; }
@@ -121,6 +122,7 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
 .ov-legend-swatch.sw-booked { background: #a8deb0; }
 .ov-legend-swatch.sw-pending { background: #f0d87a; }
 .ov-legend-swatch.sw-instructor { background: #ffb870; }
+.ov-legend-swatch.sw-sheet { background: #b8d4f0; }
 .ov-legend-info { font-size: 10px; color: var(--gray-500); padding: 4px 16px 8px; background: white; line-height: 1.5; }
 
 /* Day/Week toggle */
@@ -1127,6 +1129,8 @@ let currentView = 'overview';
 let currentEditId = null;
 let manageFilter = 'today';
 let firstLoad = true;
+// Google Sheet bookings cache: { "YYYY-MM-DD": { bookings: [...], ts: timestamp } }
+let gsheetCache = {};
 let knownBookingIds = new Set();
 let pendingOpenBookingId = (new URLSearchParams(window.location.search)).get('booking') || '';
 
@@ -1841,14 +1845,53 @@ function updatePendingBadge() {
 }
 
 // ============================================================
+// GOOGLE SHEET BOOKINGS
+// ============================================================
+async function fetchGSheetBookings(dateStr) {
+  // Cache: reuse if < 5 min old
+  const cached = gsheetCache[dateStr];
+  if (cached && (Date.now() - cached.ts) < 300000) return cached.bookings;
+
+  try {
+    const res = await fetch('/.netlify/functions/google-sheet-bookings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date: dateStr })
+    });
+    const json = await res.json();
+    if (json.ok) {
+      gsheetCache[dateStr] = { bookings: json.bookings || [], ts: Date.now() };
+      return json.bookings || [];
+    }
+  } catch (_) {}
+  return gsheetCache[dateStr]?.bookings || [];
+}
+
+function mergeGSheetIntoLookup(lookup, sheetBookings) {
+  sheetBookings.forEach(sb => {
+    const ac = sb.aircraft;
+    if (!lookup[ac]) return; // skip Theorie or unknown aircraft
+    const tp = sb.time; // already "08:00" format
+    if (!lookup[ac][tp]) {
+      lookup[ac][tp] = { name: sb.name, isFirst: true, isSheet: true, id: 'gsheet' };
+    }
+    // Don't overwrite Firebase bookings — Firebase takes priority
+  });
+}
+
+// ============================================================
 // OVERVIEW RENDER
 // ============================================================
-function renderOverview() {
-  const dk = dateKey(currentDate);
-  const grid = document.getElementById('overviewGrid');
-
+function buildOverviewLookup(dk, sheetBookings) {
   const lookup = {};
   AIRCRAFT.forEach(a => { lookup[a] = {}; });
+
+  // Google Sheet bookings first (lower priority)
+  if (sheetBookings && sheetBookings.length) {
+    mergeGSheetIntoLookup(lookup, sheetBookings);
+  }
+
+  // Firebase bookings overwrite sheet bookings (higher priority)
   bookings.filter(b => b.date === dk).forEach(b => {
     if (!lookup[b.aircraft]) return;
     if (b.startTime && b.endTime) {
@@ -1863,13 +1906,17 @@ function renderOverview() {
     }
   });
 
+  return lookup;
+}
+
+function paintOverviewGrid(dk, lookup) {
+  const grid = document.getElementById('overviewGrid');
   let html = `<div class="ov-corner"></div>`;
   AIRCRAFT.forEach(a => {
     const img = AIRCRAFT_IMAGES[a] ? `<img src="${AIRCRAFT_IMAGES[a]}?format=60w" alt="${a}">` : '';
     html += `<div class="ov-aircraft-header">${img}<div class="ov-reg">${a}</div></div>`;
   });
 
-  const restricted = isPlatzrundenRestricted(dk, '12:00'); // check if any restriction today
   TIME_POINTS.slice(0, -1).forEach(tp => {
     const isHour = tp.endsWith(':00');
     const rowCls = isHour ? 'ov-hour' : 'ov-half';
@@ -1879,11 +1926,13 @@ function renderOverview() {
       const entry = lookup[a][tp];
       const restrictedCls = slotRestricted ? ' ov-restricted' : '';
       if (entry) {
+        const sheetCls = entry.isSheet ? ' ov-sheet' : '';
         const instrCls = entry.instructor === 'ja' ? ' ov-instructor' : '';
         const pendingCls = entry.status === 'pending' ? ' ov-pending' : '';
         const nameHtml = entry.isFirst ? `<span class="ov-name">${entry.name}</span>` : '';
         const metaHtml = entry.isFirst && entry.instructorName ? `<span class="ov-meta">${entry.instructorName}</span>` : '';
-        html += `<div class="ov-cell ${rowCls} ov-booked${instrCls}${pendingCls}${restrictedCls}" onclick="showDetail('${entry.id}')">${nameHtml}${metaHtml}</div>`;
+        const onclick = entry.isSheet ? '' : `onclick="showDetail('${entry.id}')"`;
+        html += `<div class="ov-cell ${rowCls} ov-booked${instrCls}${pendingCls}${sheetCls}${restrictedCls}" ${onclick}>${nameHtml}${metaHtml}</div>`;
       } else if (isSundayBlocked(dk, tp)) {
         html += `<div class="ov-cell ${rowCls} ov-towing"></div>`;
       } else if (isTowingBlocked(a, tp)) {
@@ -1896,7 +1945,7 @@ function renderOverview() {
 
   grid.innerHTML = html;
 
-  // Legend (rendered outside the grid)
+  // Legend
   const infoText = getPlatzrundenInfo(dk);
   let legendEl = document.getElementById('ovLegend');
   if (!legendEl) {
@@ -1908,10 +1957,28 @@ function renderOverview() {
     <div class="ov-legend-item"><div class="ov-legend-swatch sw-booked"></div> Bestätigt</div>
     <div class="ov-legend-item"><div class="ov-legend-swatch sw-pending"></div> Angefragt</div>
     <div class="ov-legend-item"><div class="ov-legend-swatch sw-instructor"></div> Mit Fluglehrer</div>
+    <div class="ov-legend-item"><div class="ov-legend-swatch sw-sheet"></div> Buchungsliste</div>
     <div class="ov-legend-item"><div class="ov-legend-swatch sw-towing"></div> Schleppbetrieb</div>
     <div class="ov-legend-item"><div class="ov-legend-swatch sw-restricted"></div> Keine Platzrunden</div>
   </div>
   <div class="ov-legend-info"><strong>${infoText}</strong><br>Mo–Fr: Platzrunden 08:00–12:00 &amp; 15:00–18:00 · Sa: Platzrunden 08:00–12:00 · So: keine Platzrunden, buchbar ab 09:00<br>Platzrunden an umliegenden Plätzen (EDPK, EDNV, EDMY, EDME) jederzeit möglich.</div>`;
+}
+
+function renderOverview() {
+  const dk = dateKey(currentDate);
+
+  // Render immediately with cached sheet data (if any)
+  const cachedSheet = gsheetCache[dk]?.bookings || [];
+  const lookup = buildOverviewLookup(dk, cachedSheet);
+  paintOverviewGrid(dk, lookup);
+
+  // Fetch fresh sheet data in background, re-render if changed
+  fetchGSheetBookings(dk).then(sheetBookings => {
+    if (sheetBookings.length !== cachedSheet.length || JSON.stringify(sheetBookings) !== JSON.stringify(cachedSheet)) {
+      const freshLookup = buildOverviewLookup(dk, sheetBookings);
+      paintOverviewGrid(dk, freshLookup);
+    }
+  });
 }
 
 // ============================================================
