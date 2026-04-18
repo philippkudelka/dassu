@@ -93,6 +93,55 @@ async function vfGetAircraftList(accesstoken) {
   return Array.isArray(data) ? data : [];
 }
 
+// ---- Server-side Aggregation ----
+
+function parseDuration(flight) {
+  // flighttime is "HH:MM" or minutes
+  if (flight.flighttime) {
+    const t = String(flight.flighttime);
+    if (t.includes(':')) {
+      const [h, m] = t.split(':').map(Number);
+      return (h || 0) * 60 + (m || 0);
+    }
+    return parseInt(t, 10) || 0;
+  }
+  if (flight.departuretime && flight.arrivaltime) {
+    const dep = flight.departuretime.split(':').map(Number);
+    const arr = flight.arrivaltime.split(':').map(Number);
+    return Math.max(0, (arr[0] * 60 + arr[1]) - (dep[0] * 60 + dep[1]));
+  }
+  return 0;
+}
+
+function aggregateFlights(flights) {
+  let totalFlights = flights.length;
+  let totalMinutes = 0;
+  const byAircraft = {};
+  const byMonth = {};
+  const uniqueDates = new Set();
+
+  flights.forEach(f => {
+    const dur = parseDuration(f);
+    totalMinutes += dur;
+
+    const cs = f.callsign || 'Unbekannt';
+    if (!byAircraft[cs]) byAircraft[cs] = { count: 0, minutes: 0 };
+    byAircraft[cs].count++;
+    byAircraft[cs].minutes += dur;
+
+    const date = f.dateofflight || '';
+    if (date) {
+      uniqueDates.add(date);
+      const mk = date.substring(0, 7); // YYYY-MM
+      if (!byMonth[mk]) byMonth[mk] = { count: 0, minutes: 0 };
+      byMonth[mk].count++;
+      byMonth[mk].minutes += dur;
+    }
+  });
+
+  return { totalFlights, totalMinutes, byAircraft, byMonth, flyingDays: uniqueDates.size };
+}
+
 // ---- Handler ----
 
 exports.handler = async (event) => {
@@ -160,10 +209,11 @@ exports.handler = async (event) => {
           vfGetFlightsDateRange(accesstoken, lastYearFrom, lastYearFullTo)
         ]);
 
+        // Aggregate server-side to keep response small
         result = {
-          thisYear: { flights: thisYear, from: thisYearFrom, to: thisYearTo },
-          lastYearSameDay: { flights: lastYearSameDay, from: lastYearFrom, to: lastYearTo },
-          lastYearFull: { flights: lastYearFull, from: lastYearFrom, to: lastYearFullTo },
+          thisYear: { ...aggregateFlights(thisYear), from: thisYearFrom, to: thisYearTo },
+          lastYearSameDay: { ...aggregateFlights(lastYearSameDay), from: lastYearFrom, to: lastYearTo },
+          lastYearFull: { ...aggregateFlights(lastYearFull), from: lastYearFrom, to: lastYearFullTo },
           fetchedAt: new Date().toISOString()
         };
         break;

@@ -3854,9 +3854,10 @@ function renderVfCompare() {
   const content = document.getElementById('vfCompareContent');
   if (!content || !vfData) return;
 
-  const thisYear = vfAggregateFlights(vfData.thisYear.flights);
-  const lastSame = vfAggregateFlights(vfData.lastYearSameDay.flights);
-  const lastFull = vfAggregateFlights(vfData.lastYearFull.flights);
+  // Data is already aggregated server-side (or client-side fallback)
+  const thisYear = vfData.thisYear.totalFlights !== undefined ? vfData.thisYear : vfAggregateFlights(vfData.thisYear.flights || []);
+  const lastSame = vfData.lastYearSameDay.totalFlights !== undefined ? vfData.lastYearSameDay : vfAggregateFlights(vfData.lastYearSameDay.flights || []);
+  const lastFull = vfData.lastYearFull.totalFlights !== undefined ? vfData.lastYearFull : vfAggregateFlights(vfData.lastYearFull.flights || []);
 
   const now = new Date();
   const curYear = now.getFullYear();
