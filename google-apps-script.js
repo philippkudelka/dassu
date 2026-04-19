@@ -8,7 +8,24 @@
  *    - "Ausführen als": Ich
  *    - "Zugriff": Jeder
  * 4. URL kopieren und als GSHEET_SCRIPT_URL in Netlify eintragen
+ *
+ * WICHTIG: Bei Code-Aenderungen muss eine NEUE VERSION erstellt werden:
+ *   Bereitstellen > Bereitstellungen verwalten > Bearbeiten (Stift-Icon)
+ *   > Version: "Neue Version" auswaehlen > Bereitstellen
+ *
+ * Sheet-Struktur:
+ *   Zeile 2: Datumsangaben (merged, Format "18.04.2026")
+ *   Zeile 4: Flugzeug-Header (D-KYGL, D-KYCK, etc.)
+ *   Zeilen 5+: Zeitslots (30-Min-Intervalle, 08:00-18:00)
+ *   Jeder Tagesblock: 7 Spalten (Zeit + 6 Flugzeuge/Theorie)
+ *
+ * Buchungserkennung:
+ *   - Name in einer Zelle = Buchungsstart
+ *   - Farbiger Hintergrund (nicht weiss) in leerer Zelle = Fortsetzung
+ *   - Leere Zelle ohne Farbe = Buchungsende
  */
+
+var SHEET_ID = '1VpkL3crn8yXq-fbGtONrLqx4BBiU_7yWPHIokyPIDVc';
 
 function doGet(e) {
   try {
@@ -17,26 +34,51 @@ function doGet(e) {
       return jsonResponse({ error: 'date parameter required' });
     }
 
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Tabelle1');
+    var ss = SpreadsheetApp.openById(SHEET_ID);
+    var sheet = ss.getSheetByName('Tabelle1');
     if (!sheet) {
-      return jsonResponse({ error: 'Sheet "Tabelle1" not found' });
+      // Fallback: erstes Sheet verwenden
+      sheet = ss.getSheets()[0];
+      if (!sheet) {
+        return jsonResponse({ error: 'No sheets found' });
+      }
     }
 
-    // Find the column for the given date by searching row 2
     var lastCol = sheet.getLastColumn();
-    var row2 = sheet.getRange(2, 1, 1, lastCol).getValues()[0];
-    var startCol = -1;
+    var lastRow = sheet.getLastRow();
 
-    for (var i = 0; i < row2.length; i++) {
-      var cell = row2[i];
-      if (cell instanceof Date) {
-        var y = cell.getFullYear();
-        var m = String(cell.getMonth() + 1).padStart(2, '0');
-        var d = String(cell.getDate()).padStart(2, '0');
-        if (y + '-' + m + '-' + d === date) {
-          startCol = i + 1; // 1-based
-          break;
-        }
+    // Datum in Zeile 2 suchen (getDisplayValues vermeidet Zeitzonen-Probleme)
+    var row2Range = sheet.getRange(2, 1, 1, lastCol);
+    var row2Vals = row2Range.getDisplayValues()[0];
+
+    var startCol = -1;
+    var dateParts = date.split('-');
+    // Format 1: "DD.MM.YYYY" (z.B. "19.04.2026")
+    var targetShort = dateParts[2] + '.' + dateParts[1] + '.' + dateParts[0];
+    // Format 2: Langes deutsches Format "19. April 2026" (Teil von "Sonntag, 19. April 2026")
+    var monthNames = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+    var targetLong = parseInt(dateParts[2], 10) + '. ' + monthNames[parseInt(dateParts[1], 10) - 1] + ' ' + dateParts[0];
+
+    for (var i = 0; i < row2Vals.length; i++) {
+      var cellText = String(row2Vals[i]).trim();
+      if (!cellText) continue;
+
+      // Match kurzes Format "DD.MM.YYYY"
+      if (cellText === targetShort) {
+        startCol = i + 1; // 1-based
+        break;
+      }
+
+      // Match langes deutsches Format "Sonntag, 19. April 2026"
+      if (cellText.indexOf(targetLong) >= 0) {
+        startCol = i + 1;
+        break;
+      }
+
+      // Fallback: "YYYY-MM-DD"
+      if (cellText === date) {
+        startCol = i + 1;
+        break;
       }
     }
 
@@ -44,38 +86,57 @@ function doGet(e) {
       return jsonResponse({ ok: true, date: date, bookings: [], msg: 'date not in sheet' });
     }
 
-    // Each day block: 7 columns (time + 6 aircraft/theorie)
+    // Jeder Tagesblock: 7 Spalten (Zeit + 6 Flugzeuge/Theorie)
     var numCols = 7;
-    var numRows = 22; // rows 4-25 (covers 8:00-18:30)
+    var numRows = 22; // Zeilen 4-25 (deckt 08:00-18:30 ab)
 
-    // Aircraft headers from row 3
-    var headerRange = sheet.getRange(3, startCol, 1, numCols);
-    var headers = headerRange.getValues()[0];
+    // Flugzeug-Header aus Zeile 4 (im deployed code: row 4)
+    var headerRange = sheet.getRange(4, startCol, 1, numCols);
+    var headers = headerRange.getDisplayValues()[0];
     var aircraft = [];
     for (var h = 1; h < numCols; h++) {
       aircraft.push(headers[h] ? String(headers[h]).trim() : '');
     }
 
-    // Booking data: values + background colors
-    var dataRange = sheet.getRange(4, startCol, numRows, numCols);
-    var values = dataRange.getValues();
+    // Buchungsdaten: Werte + Hintergrundfarben
+    var dataRange = sheet.getRange(5, startCol, numRows, numCols);
+    var values = dataRange.getDisplayValues();
     var backgrounds = dataRange.getBackgrounds();
 
-    // Parse time strings from column 0
+    // Zeitstrings aus Spalte 0 parsen
     var times = [];
     for (var r = 0; r < numRows; r++) {
       var t = values[r][0];
-      if (t instanceof Date) {
-        times.push(pad2(t.getHours()) + ':' + pad2(t.getMinutes()));
-      } else if (t) {
+      if (t) {
         var ts = String(t).trim();
-        times.push(ts.length === 4 ? '0' + ts : ts);
+        // Sicherstellen dass Format HH:MM ist
+        if (ts.length === 4 && ts.indexOf(':') === -1) {
+          ts = '0' + ts;
+        }
+        // Nur gueltige Zeitwerte akzeptieren (HH:MM)
+        if (/^\d{1,2}:\d{2}$/.test(ts)) {
+          times.push(ts);
+        } else {
+          times.push('');
+        }
       } else {
         times.push('');
       }
     }
 
-    // Build bookings per aircraft column
+    // Letzte gueltige Zeit finden fuer Tagesende-Berechnung
+    var lastValidTime = '';
+    for (var tv = numRows - 1; tv >= 0; tv--) {
+      if (times[tv]) { lastValidTime = times[tv]; break; }
+    }
+    var dayEndTime = '';
+    if (lastValidTime) {
+      var ep = lastValidTime.split(':');
+      var em = parseInt(ep[0]) * 60 + parseInt(ep[1]) + 30;
+      dayEndTime = pad2(Math.floor(em / 60)) + ':' + pad2(em % 60);
+    }
+
+    // Buchungen pro Flugzeug-Spalte aufbauen
     var bookings = [];
     for (var col = 1; col < numCols; col++) {
       var ac = aircraft[col - 1];
@@ -83,6 +144,8 @@ function doGet(e) {
 
       var currentName = '';
       var currentStart = '';
+      var currentColor = '';
+      var prevTime = '';
 
       for (var row = 0; row < numRows; row++) {
         var cellValue = values[row][col] ? String(values[row][col]).trim() : '';
@@ -90,35 +153,35 @@ function doGet(e) {
         var isColored = cellBg !== '#ffffff' && cellBg !== 'white';
         var time = times[row];
 
+        // Zeilen ohne gueltige Zeit ueberspringen (z.B. "Bemerkungen:")
+        if (!time) continue;
+
         if (cellValue) {
-          // Close previous booking if any
+          // Vorherige Buchung abschliessen falls vorhanden
           if (currentName && currentStart) {
-            bookings.push({ aircraft: ac, name: currentName, startTime: currentStart, endTime: time });
+            bookings.push({ aircraft: ac, name: currentName, startTime: currentStart, endTime: time, color: currentColor });
           }
-          // Start new booking
+          // Neue Buchung starten
           currentName = cellValue;
           currentStart = time;
+          currentColor = isColored ? cellBg : '';
         } else if (isColored && currentName) {
-          // Colored empty cell = continuation of current booking
+          // Farbige leere Zelle = Fortsetzung der aktuellen Buchung
         } else {
-          // Truly empty = end current booking
+          // Wirklich leer = aktuelle Buchung beenden
           if (currentName && currentStart) {
-            bookings.push({ aircraft: ac, name: currentName, startTime: currentStart, endTime: time });
+            bookings.push({ aircraft: ac, name: currentName, startTime: currentStart, endTime: time, color: currentColor });
             currentName = '';
             currentStart = '';
+            currentColor = '';
           }
         }
+        prevTime = time;
       }
 
-      // Close booking at end of day
-      if (currentName && currentStart) {
-        var lastIdx = numRows - 1;
-        var endTime = times[lastIdx] || '18:00';
-        // Add 30 min to last slot
-        var parts = endTime.split(':');
-        var mins = parseInt(parts[0]) * 60 + parseInt(parts[1]) + 30;
-        endTime = pad2(Math.floor(mins / 60)) + ':' + pad2(mins % 60);
-        bookings.push({ aircraft: ac, name: currentName, startTime: currentStart, endTime: endTime });
+      // Buchung am Tagesende abschliessen
+      if (currentName && currentStart && dayEndTime) {
+        bookings.push({ aircraft: ac, name: currentName, startTime: currentStart, endTime: dayEndTime, color: currentColor });
       }
     }
 
