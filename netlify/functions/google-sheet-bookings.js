@@ -1,9 +1,13 @@
 /**
  * Netlify Function: Google Sheet Booking Proxy
  *
- * Ruft Buchungsdaten vom Google Apps Script Endpoint ab.
- * Das Apps Script liest Zellwerte UND Hintergrundfarben, um
- * Buchungsdauer korrekt zu erkennen.
+ * Liest und schreibt Buchungsdaten ueber den Google Apps Script Endpoint.
+ *
+ * Lese-Anfrage (action fehlt oder 'read'):
+ *   { date: "YYYY-MM-DD" }
+ *
+ * Schreib-Anfrage (action: 'write' oder 'delete'):
+ *   { action: "write", date, aircraft, startTime, endTime, name, status }
  *
  * Umgebungsvariable:
  *   GSHEET_SCRIPT_URL – Web-App URL des Google Apps Scripts
@@ -30,20 +34,37 @@ exports.handler = async (event) => {
     return { statusCode: 400, headers, body: JSON.stringify({ error: 'Invalid JSON' }) };
   }
 
-  const { date } = body; // "YYYY-MM-DD"
-  if (!date) return { statusCode: 400, headers, body: JSON.stringify({ error: 'date required' }) };
+  const action = body.action || 'read';
 
   try {
-    const url = `${SCRIPT_URL}?date=${encodeURIComponent(date)}`;
-    const res = await fetch(url, { redirect: 'follow' });
-    if (!res.ok) throw new Error(`Apps Script error: ${res.status}`);
+    if (action === 'read') {
+      // Lese-Anfrage: GET an Apps Script
+      const { date } = body;
+      if (!date) return { statusCode: 400, headers, body: JSON.stringify({ error: 'date required' }) };
 
-    const data = await res.json();
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify(data)
-    };
+      const url = `${SCRIPT_URL}?date=${encodeURIComponent(date)}`;
+      const res = await fetch(url, { redirect: 'follow' });
+      if (!res.ok) throw new Error(`Apps Script error: ${res.status}`);
+
+      const data = await res.json();
+      return { statusCode: 200, headers, body: JSON.stringify(data) };
+
+    } else if (action === 'write' || action === 'delete') {
+      // Schreib-Anfrage: POST an Apps Script
+      const res = await fetch(SCRIPT_URL, {
+        method: 'POST',
+        redirect: 'follow',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (!res.ok) throw new Error(`Apps Script error: ${res.status}`);
+
+      const data = await res.json();
+      return { statusCode: 200, headers, body: JSON.stringify(data) };
+
+    } else {
+      return { statusCode: 400, headers, body: JSON.stringify({ error: 'Unknown action: ' + action }) };
+    }
   } catch (err) {
     return {
       statusCode: 500,

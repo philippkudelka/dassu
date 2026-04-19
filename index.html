@@ -2196,6 +2196,37 @@ function submitBooking() {
   sendAdminNotification(booking);
   sendBookingReceivedEmail(booking);
   sendStaffPushNotification(booking);
+
+  // Buchung ins Google Sheet schreiben (pending = gelbe Farbe)
+  syncBookingToSheet(booking).catch(err => console.warn('Sheet-Sync fehlgeschlagen:', err));
+}
+
+/**
+ * Buchung ins Google Sheet schreiben oder loeschen.
+ * Status-Farben: pending=gelb, approved=gruen, rejected=loeschen
+ */
+async function syncBookingToSheet(booking, action) {
+  try {
+    const res = await fetch('/.netlify/functions/google-sheet-bookings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: action || (booking.status === 'rejected' ? 'delete' : 'write'),
+        date: booking.date,
+        aircraft: booking.aircraft,
+        startTime: booking.startTime,
+        endTime: booking.endTime,
+        name: booking.name,
+        status: booking.status || 'pending'
+      })
+    });
+    const json = await res.json();
+    if (!json.ok) console.warn('Sheet-Sync Antwort:', json.error);
+    return json;
+  } catch (err) {
+    console.warn('Sheet-Sync Fehler:', err);
+    return { ok: false, error: err.message };
+  }
 }
 
 function sendStaffPushNotification(booking) {
@@ -2381,6 +2412,9 @@ function updateStatus(id, status) {
     if (status === 'approved' || status === 'rejected') {
       sendStatusEmail(b);
     }
+
+    // Google Sheet aktualisieren (Farbe aendern oder loeschen)
+    syncBookingToSheet(b).catch(err => console.warn('Sheet-Sync (Status) fehlgeschlagen:', err));
   }
 }
 

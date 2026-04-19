@@ -1876,6 +1876,36 @@ async function fetchGSheetBookings(dateStr) {
   return gsheetCache[dateStr]?.bookings || [];
 }
 
+/**
+ * Buchung ins Google Sheet schreiben (oder loeschen).
+ * Wird async aufgerufen und blockiert die UI nicht.
+ */
+async function syncBookingToSheet(booking, action) {
+  try {
+    const res = await fetch('/.netlify/functions/google-sheet-bookings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: action || 'write',
+        date: booking.date,
+        aircraft: booking.aircraft,
+        startTime: booking.startTime,
+        endTime: booking.endTime,
+        name: booking.name,
+        status: booking.status || 'approved'
+      })
+    });
+    const json = await res.json();
+    if (!json.ok) console.warn('Sheet-Sync Antwort:', json.error);
+    // Cache invalidieren damit nächster Ladevorgang frische Daten holt
+    delete gsheetCache[booking.date];
+    return json;
+  } catch (err) {
+    console.warn('Sheet-Sync Fehler:', err);
+    return { ok: false, error: err.message };
+  }
+}
+
 function mergeGSheetIntoLookup(lookup, sheetBookings) {
   sheetBookings.forEach(sb => {
     const ac = sb.aircraft;
@@ -4204,6 +4234,10 @@ function submitQuick() {
   db.ref('bookings/' + booking.id).set(booking);
   addAuditEntry(booking.id, 'erstellt', `${name}, ${selectedAircraft}, ${startTime}–${endTime}`);
   logActivity('create', `Buchung erstellt: ${name}, ${selectedAircraft}, ${startTime}–${endTime}`, booking.id);
+
+  // Buchung ins Google Sheet schreiben (async, blockiert UI nicht)
+  syncBookingToSheet(booking).catch(err => console.warn('Sheet-Sync fehlgeschlagen:', err));
+
   closeQuick();
   notify(`${name} gebucht: ${startTime}–${endTime}`, 'success');
 }
@@ -4308,6 +4342,13 @@ function submitEdit() {
     addAuditEntry(id, 'bearbeitet', changes.join('; '));
     logActivity('edit', `Buchung bearbeitet: ${name} (${b.aircraft})`, id);
   }
+
+  // Alte Buchung im Sheet loeschen, neue schreiben
+  if (b.startTime !== startTime || b.endTime !== endTime || b.name !== name) {
+    syncBookingToSheet(b, 'delete').then(() => syncBookingToSheet(updated))
+      .catch(err => console.warn('Sheet-Sync (edit) fehlgeschlagen:', err));
+  }
+
   closeEdit();
   notify('Buchung aktualisiert.', 'success');
 }
@@ -4454,6 +4495,12 @@ function deleteBooking(id) {
   addAuditEntry(id, 'gelöscht', b ? `${b.name}, ${b.aircraft}, ${b.startTime || ''}–${b.endTime || ''}` : '');
   logActivity('delete', `Buchung gelöscht: ${b ? b.name + ', ' + b.aircraft + ', ' + (b.startTime || '') + '–' + (b.endTime || '') : id}`, id);
   db.ref('bookings/' + id).remove();
+
+  // Auch aus dem Google Sheet entfernen
+  if (b && b.aircraft && b.startTime && b.endTime) {
+    syncBookingToSheet(b, 'delete').catch(err => console.warn('Sheet-Sync (delete) fehlgeschlagen:', err));
+  }
+
   closeDetail();
   notify('Buchung gelöscht.', 'success');
 }
