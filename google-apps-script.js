@@ -86,8 +86,23 @@ function doGet(e) {
       return jsonResponse({ ok: true, date: date, bookings: [], msg: 'date not in sheet' });
     }
 
-    // Jeder Tagesblock: 7 Spalten (Zeit + 6 Flugzeuge/Theorie)
-    var numCols = 7;
+    // Dynamisch Tagesblock-Breite bestimmen:
+    // Ab startCol in Zeile 2 die naechste nicht-leere Zelle finden = naechster Tag
+    var numCols = 0;
+    for (var nc = startCol; nc <= lastCol; nc++) {
+      if (nc > startCol && row2Vals[nc - 1] && String(row2Vals[nc - 1]).trim() !== '') {
+        // Naechstes Datum gefunden
+        numCols = nc - startCol;
+        break;
+      }
+    }
+    if (numCols === 0) {
+      // Kein naechstes Datum gefunden — bis zur letzten Spalte gehen
+      numCols = lastCol - startCol + 1;
+    }
+    // Sicherheitslimit
+    if (numCols > 20) numCols = 20;
+
     var numRows = 22; // Zeilen 4-25 (deckt 08:00-18:30 ab)
 
     // Flugzeug-Header aus Zeile 4 (im deployed code: row 4)
@@ -132,6 +147,16 @@ function doGet(e) {
       var ep = lastValidTime.split(':');
       var em = parseInt(ep[0]) * 60 + parseInt(ep[1]) + 30;
       dayEndTime = pad2(Math.floor(em / 60)) + ':' + pad2(em % 60);
+    }
+
+    // Debug-Modus: Rohdaten zurueckgeben
+    if (e.parameter.debug === '1') {
+      return jsonResponse({
+        ok: true, date: date, startCol: startCol, numCols: numCols,
+        aircraft: aircraft, times: times,
+        sampleValues: values.slice(0, 5).map(function(r) { return r.slice(0, numCols); }),
+        sampleBgs: backgrounds.slice(0, 5).map(function(r) { return r.slice(0, numCols); })
+      });
     }
 
     // Buchungen pro Flugzeug-Spalte aufbauen
@@ -253,8 +278,17 @@ function doPost(e) {
       return jsonResponse({ ok: false, error: 'Date ' + date + ' not found in sheet' });
     }
 
-    // Flugzeug-Spalte finden
-    var numCols = 7;
+    // Dynamisch Tagesblock-Breite bestimmen
+    var numCols = 0;
+    for (var nc = startCol; nc <= lastCol; nc++) {
+      if (nc > startCol && row2Vals[nc - 1] && String(row2Vals[nc - 1]).trim() !== '') {
+        numCols = nc - startCol;
+        break;
+      }
+    }
+    if (numCols === 0) numCols = lastCol - startCol + 1;
+    if (numCols > 20) numCols = 20;
+
     var headerRange = sheet.getRange(4, startCol, 1, numCols);
     var headers = headerRange.getDisplayValues()[0];
     var acCol = -1;
