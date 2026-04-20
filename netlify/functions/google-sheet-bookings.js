@@ -42,7 +42,8 @@ exports.handler = async (event) => {
       const { date } = body;
       if (!date) return { statusCode: 400, headers, body: JSON.stringify({ error: 'date required' }) };
 
-      const url = `${SCRIPT_URL}?date=${encodeURIComponent(date)}`;
+      const debug = body.debug ? `&debug=${encodeURIComponent(body.debug)}` : '';
+      const url = `${SCRIPT_URL}?date=${encodeURIComponent(date)}${debug}`;
       const res = await fetch(url, { redirect: 'follow' });
       if (!res.ok) throw new Error(`Apps Script error: ${res.status}`);
 
