@@ -1134,7 +1134,7 @@ let manageFilter = 'today';
 let firstLoad = true;
 // Google Sheet sync tracking: { "YYYY-MM-DD": timestamp }
 let gsheetLastSync = JSON.parse(localStorage.getItem('gsheetLastSync') || '{}');
-let gsheetSyncing = false; // prevent parallel syncs
+let gsheetSyncingDates = new Set(); // track which dates are currently syncing
 let knownBookingIds = new Set();
 let pendingOpenBookingId = (new URLSearchParams(window.location.search)).get('booking') || '';
 
@@ -1895,8 +1895,8 @@ async function syncBookingToSheet(booking, action) {
  * Importierte Buchungen sind danach voll bearbeitbar.
  */
 async function importSheetBookings(dateStr, force) {
-  // Nicht parallel ausfuehren
-  if (gsheetSyncing) return { imported: 0, skipped: 0 };
+  // Nicht parallel fuer das gleiche Datum
+  if (gsheetSyncingDates.has(dateStr)) return { imported: 0, skipped: 0 };
 
   // Cooldown: max alle 2 Minuten pro Datum (ausser force)
   if (!force) {
@@ -1906,7 +1906,7 @@ async function importSheetBookings(dateStr, force) {
     }
   }
 
-  gsheetSyncing = true;
+  gsheetSyncingDates.add(dateStr);
   try {
     const res = await fetch('/.netlify/functions/google-sheet-bookings', {
       method: 'POST',
@@ -1915,7 +1915,7 @@ async function importSheetBookings(dateStr, force) {
     });
     const json = await res.json();
     if (!json.ok || !json.bookings) {
-      gsheetSyncing = false;
+      gsheetSyncingDates.delete(dateStr);
       return { imported: 0, skipped: 0, error: json.error || 'no data' };
     }
 
@@ -1966,12 +1966,12 @@ async function importSheetBookings(dateStr, force) {
     gsheetLastSync[dateStr] = Date.now();
     localStorage.setItem('gsheetLastSync', JSON.stringify(gsheetLastSync));
 
-    gsheetSyncing = false;
+    gsheetSyncingDates.delete(dateStr);
     return { imported, skipped };
 
   } catch (err) {
     console.warn('Sheet-Import Fehler:', err);
-    gsheetSyncing = false;
+    gsheetSyncingDates.delete(dateStr);
     return { imported: 0, skipped: 0, error: err.message };
   }
 }
