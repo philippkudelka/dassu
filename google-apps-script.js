@@ -19,16 +19,61 @@
  *   Zeilen 5+: Zeitslots (30-Min-Intervalle, 08:00-18:00)
  *   Jeder Tagesblock: 7 Spalten (Zeit + 6 Flugzeuge/Theorie)
  *
- * Buchungserkennung:
- *   - Name in einer Zelle = Buchungsstart
- *   - Farbiger Hintergrund (nicht weiss) in leerer Zelle = Fortsetzung
- *   - Leere Zelle ohne Farbe = Buchungsende
+ * Buchungserkennung (ExcelJS-Modus, NEU):
+ *   - Die Netlify-Funktion laedt die xlsx direkt und parst sie mit ExcelJS
+ *   - Dadurch bleiben alle Hintergrundfarben erhalten (kein Datenverlust)
+ *   - action=download liefert die xlsx als Base64 an die Netlify-Funktion
+ *
+ * Legacy-Modus (Fallback):
+ *   - action=read liest aus dem Mirror-Sheet (kann Farben verlieren)
  */
 
 var SHEET_ID = '1dBD5jZSZAHe6-Pnf8gVTWMpPblDR2abnSWfJdxX43IA';
 
+/**
+ * Findet die "Buch Mose" xlsx-Datei auf Google Drive.
+ * Sucht nach dem exakten Namen; falls nicht gefunden, nach Dateien die "Buch Mose" enthalten.
+ */
+function findXlsxFile() {
+  // Erst exakte Suche
+  var files = DriveApp.getFilesByName('Buch Mose.xlsx');
+  if (files.hasNext()) return files.next();
+
+  // Fallback: Suche nach Dateien die "Buch Mose" im Namen haben
+  files = DriveApp.searchFiles('title contains "Buch Mose" and mimeType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"');
+  if (files.hasNext()) return files.next();
+
+  // Zweiter Fallback: beliebige xlsx mit "Buch" im Namen
+  files = DriveApp.searchFiles('title contains "Buch" and mimeType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"');
+  if (files.hasNext()) return files.next();
+
+  return null;
+}
+
 function doGet(e) {
   try {
+    var action = e.parameter.action || 'read';
+
+    // === DOWNLOAD: xlsx als Base64 zurueckgeben ===
+    if (action === 'download') {
+      var file = findXlsxFile();
+      if (!file) {
+        return jsonResponse({ ok: false, error: 'Buch Mose xlsx not found on Drive' });
+      }
+      var blob = file.getBlob();
+      var base64 = Utilities.base64Encode(blob.getBytes());
+      return ContentService
+        .createTextOutput(JSON.stringify({
+          ok: true,
+          fileName: file.getName(),
+          fileId: file.getId(),
+          size: blob.getBytes().length,
+          base64: base64
+        }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // === READ: Legacy-Modus (Mirror-Sheet) ===
     var date = e.parameter.date; // "YYYY-MM-DD"
     if (!date) {
       return jsonResponse({ error: 'date parameter required' });
