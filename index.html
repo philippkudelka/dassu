@@ -904,6 +904,7 @@
     <button class="btn btn-sm" onclick="document.getElementById('cancelInputModal').classList.add('active')" style="color:rgba(255,255,255,0.6); background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.15); font-size:11px; letter-spacing:0.04em; text-transform:uppercase;">Stornieren</button>
     <div class="view-tabs">
       <button class="view-tab active" onclick="showView('calendar')">Kalender</button>
+      <button class="view-tab" onclick="showView('sheet')">Buchungsplan</button>
       <a href="staff.html" class="view-tab" style="text-decoration:none;">Fluglehrer</a>
       <button class="view-tab" onclick="showView('admin')">Admin</button>
     </div>
@@ -944,6 +945,19 @@
     <div class="calendar-grid" id="calendarGrid"></div>
     <div id="weekGrid" style="display:none;"></div>
   </div>
+</div>
+
+<!-- Sheet iframe View -->
+<div id="sheetView" style="display:none; padding:0;">
+  <div style="background:var(--navy); padding:12px 36px; display:flex; align-items:center; gap:10px; font-size:12px; color:rgba(255,255,255,0.6); line-height:1.6; border-bottom:1px solid rgba(201,168,76,0.1);">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(201,168,76,0.6)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+    <span>Original-Buchungsplan aus dem Vereins-Sheet. Zum Scrollen und Zoomen direkt im Sheet arbeiten.</span>
+  </div>
+  <iframe id="sheetIframe"
+    src=""
+    style="width:100%; height:calc(100vh - 120px); border:none; background:#fff;"
+    loading="lazy">
+  </iframe>
 </div>
 
 <!-- Admin View -->
@@ -1693,11 +1707,20 @@ function renderView() {
 // ============================================================
 function showView(view) {
   document.getElementById('calendarView').style.display = view === 'calendar' ? 'block' : 'none';
+  document.getElementById('sheetView').style.display = view === 'sheet' ? 'block' : 'none';
   document.getElementById('adminView').classList.toggle('active', view === 'admin');
   document.querySelectorAll('.header-actions .view-tabs > button.view-tab').forEach(t => t.classList.remove('active'));
   if (view === 'calendar') document.querySelectorAll('.header-actions .view-tabs > button.view-tab')[0].classList.add('active');
-  else if (view === 'admin') document.querySelectorAll('.header-actions .view-tabs > button.view-tab')[1].classList.add('active');
+  else if (view === 'sheet') document.querySelectorAll('.header-actions .view-tabs > button.view-tab')[1].classList.add('active');
+  else if (view === 'admin') document.querySelectorAll('.header-actions .view-tabs > button.view-tab')[2].classList.add('active');
   if (view === 'admin' && adminLoggedIn) renderAdminTable();
+  // Iframe erst beim ersten Klick laden (spart Bandbreite)
+  if (view === 'sheet') {
+    var iframe = document.getElementById('sheetIframe');
+    if (!iframe.src || iframe.src === '' || iframe.src === window.location.href) {
+      iframe.src = 'https://docs.google.com/spreadsheets/d/1dBD5jZSZAHe6-Pnf8gVTWMpPblDR2abnSWfJdxX43IA/edit?rm=minimal';
+    }
+  }
 }
 
 // ============================================================
