@@ -25,7 +25,7 @@
  *   - Leere Zelle ohne Farbe = Buchungsende
  */
 
-var SHEET_ID = '1VpkL3crn8yXq-fbGtONrLqx4BBiU_7yWPHIokyPIDVc';
+var SHEET_ID = '1SanxAMschcXgYc-tgtVz-TbTjkLAoeba';
 
 function doGet(e) {
   try {
