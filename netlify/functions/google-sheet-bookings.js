@@ -50,12 +50,24 @@ exports.handler = async (event) => {
       const debug = body.debug === '1' || body.debug === 1;
 
       // 1. xlsx von Apps Script herunterladen (als Base64)
-      const downloadUrl = `${SCRIPT_URL}?action=download`;
-      const dlRes = await fetch(downloadUrl, { redirect: 'follow' });
-      if (!dlRes.ok) throw new Error(`Apps Script download error: ${dlRes.status}`);
-
-      const dlData = await dlRes.json();
-      if (!dlData.ok) throw new Error(dlData.error || 'Download failed');
+      let dlData;
+      try {
+        const downloadUrl = `${SCRIPT_URL}?action=download`;
+        const dlRes = await fetch(downloadUrl, { redirect: 'follow' });
+        if (!dlRes.ok) throw new Error(`HTTP ${dlRes.status}`);
+        dlData = await dlRes.json();
+        if (!dlData.ok || !dlData.base64) throw new Error(dlData.error || 'No base64 data');
+      } catch (dlErr) {
+        // Fallback: Legacy-Modus (Apps Script liest aus Mirror-Sheet)
+        console.log('ExcelJS download failed, falling back to legacy mode:', dlErr.message);
+        const legacyDebug = debug ? `&debug=1` : '';
+        const legacyUrl = `${SCRIPT_URL}?date=${encodeURIComponent(date)}${legacyDebug}`;
+        const legacyRes = await fetch(legacyUrl, { redirect: 'follow' });
+        if (!legacyRes.ok) throw new Error(`Legacy Apps Script error: ${legacyRes.status}`);
+        const legacyData = await legacyRes.json();
+        legacyData.source = 'legacy-mirror';
+        return { statusCode: 200, headers, body: JSON.stringify(legacyData) };
+      }
 
       // 2. Base64 → Buffer → ExcelJS Workbook
       const buffer = Buffer.from(dlData.base64, 'base64');
