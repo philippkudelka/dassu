@@ -25,7 +25,7 @@
  *   - Leere Zelle ohne Farbe = Buchungsende
  */
 
-var SHEET_ID = '1SanxAMschcXgYc-tgtVz-TbTjkLAoeba';
+var SHEET_ID = '1dBD5jZSZAHe6-Pnf8gVTWMpPblDR2abnSWfJdxX43IA';
 
 function doGet(e) {
   try {
@@ -263,7 +263,7 @@ function doPost(e) {
     var startCol = -1;
     var dateParts = date.split('-');
     var targetShort = dateParts[2] + '.' + dateParts[1] + '.' + dateParts[0];
-    var monthNames = ['Januar','Februar','Maerz','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+    var monthNames = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
     var targetLong = parseInt(dateParts[2], 10) + '. ' + monthNames[parseInt(dateParts[1], 10) - 1] + ' ' + dateParts[0];
 
     for (var i = 0; i < row2Vals.length; i++) {
