@@ -1714,12 +1714,27 @@ function showView(view) {
   else if (view === 'sheet') document.querySelectorAll('.header-actions .view-tabs > button.view-tab')[1].classList.add('active');
   else if (view === 'admin') document.querySelectorAll('.header-actions .view-tabs > button.view-tab')[2].classList.add('active');
   if (view === 'admin' && adminLoggedIn) renderAdminTable();
-  // Iframe erst beim ersten Klick laden (spart Bandbreite)
+  // Iframe laden und zum heutigen Datum scrollen
   if (view === 'sheet') {
     var iframe = document.getElementById('sheetIframe');
-    if (!iframe.src || iframe.src === '' || iframe.src === window.location.href) {
-      iframe.src = 'https://docs.google.com/spreadsheets/d/1dBD5jZSZAHe6-Pnf8gVTWMpPblDR2abnSWfJdxX43IA/edit?rm=minimal';
+    // Spalte fuer heute berechnen (Anker: 21.04.2026 = Spalte 1143, 7 Spalten pro Tag)
+    var anchorDate = new Date(2026, 3, 21); // April 21, 2026
+    var anchorCol = 1143;
+    var today = new Date();
+    today.setHours(0,0,0,0);
+    var daysDiff = Math.round((today - anchorDate) / (1000*60*60*24));
+    var todayCol = anchorCol + (daysDiff * 7);
+    if (todayCol < 1) todayCol = 1;
+    // Spaltennummer in Buchstaben umrechnen (1=A, 27=AA, etc.)
+    var colLetters = '';
+    var n = todayCol;
+    while (n > 0) {
+      n--;
+      colLetters = String.fromCharCode(65 + (n % 26)) + colLetters;
+      n = Math.floor(n / 26);
     }
+    var range = colLetters + '1';
+    iframe.src = 'https://docs.google.com/spreadsheets/d/1dBD5jZSZAHe6-Pnf8gVTWMpPblDR2abnSWfJdxX43IA/edit?rm=minimal&range=' + range;
   }
 }
 
