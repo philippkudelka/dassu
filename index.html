@@ -3580,6 +3580,28 @@ loadData();
 checkCancelToken();
 renderView();
 
+// Firebase Auth: Admin-Status automatisch setzen wenn eingeloggt
+firebase.auth().onAuthStateChanged(async (user) => {
+  if (user) {
+    try {
+      const snap = await db.ref('staffUsers/' + user.uid).once('value');
+      const profile = snap.val();
+      if (profile && profile.role === 'admin') {
+        adminLoggedIn = true;
+        renderView();
+        if (document.getElementById('adminDashboard')) {
+          document.getElementById('adminLogin').style.display = 'none';
+          document.getElementById('adminDashboard').style.display = 'block';
+          renderAdminTable();
+        }
+      }
+    } catch (e) { console.warn('Auth-Check fehlgeschlagen:', e); }
+  } else {
+    adminLoggedIn = false;
+    renderView();
+  }
+});
+
 // Open admin view if #admin hash is in URL
 if (window.location.hash === '#admin') {
   showView('admin');
