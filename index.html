@@ -904,7 +904,6 @@
     <button class="btn btn-sm" onclick="document.getElementById('cancelInputModal').classList.add('active')" style="color:rgba(255,255,255,0.6); background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.15); font-size:11px; letter-spacing:0.04em; text-transform:uppercase;">Stornieren</button>
     <div class="view-tabs">
       <button class="view-tab active" onclick="showView('calendar')">Kalender</button>
-      <button class="view-tab" onclick="showView('sheet')">Buchungsplan</button>
       <a href="staff.html" class="view-tab" style="text-decoration:none;">Fluglehrer</a>
       <button class="view-tab" onclick="showView('admin')">Admin</button>
     </div>
@@ -944,28 +943,6 @@
   <div class="calendar-container">
     <div class="calendar-grid" id="calendarGrid"></div>
     <div id="weekGrid" style="display:none;"></div>
-  </div>
-</div>
-
-<!-- Sheet View -->
-<div id="sheetView" style="display:none; padding:0;">
-  <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:calc(100vh - 200px); padding:40px 20px; text-align:center;">
-    <div style="background:rgba(255,255,255,0.04); border:1px solid rgba(201,168,76,0.15); border-radius:16px; padding:48px 40px; max-width:480px;">
-      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="rgba(201,168,76,0.6)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:20px;"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
-      <h2 style="color:white; font-size:20px; font-weight:600; margin:0 0 12px;">Buchungsplan</h2>
-      <p style="color:rgba(255,255,255,0.5); font-size:14px; line-height:1.6; margin:0 0 28px;">
-        Der Original-Buchungsplan wird direkt im Google Sheet angezeigt &mdash; mit allen Farben und aktuellen Buchungen.
-      </p>
-      <a id="sheetLink" href="#" target="_blank" rel="noopener"
-         style="display:inline-flex; align-items:center; gap:8px; background:var(--primary); color:white; padding:14px 32px; border-radius:8px; font-size:15px; font-weight:600; text-decoration:none; letter-spacing:0.02em; transition:opacity 0.2s;"
-         onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-        Buchungsplan &ouml;ffnen
-      </a>
-      <p style="color:rgba(255,255,255,0.3); font-size:11px; margin:20px 0 0; line-height:1.5;">
-        &Ouml;ffnet das Google Sheet in einem neuen Tab. Scrollt automatisch zum heutigen Datum.
-      </p>
-    </div>
   </div>
 </div>
 
@@ -1716,35 +1693,11 @@ function renderView() {
 // ============================================================
 function showView(view) {
   document.getElementById('calendarView').style.display = view === 'calendar' ? 'block' : 'none';
-  document.getElementById('sheetView').style.display = view === 'sheet' ? 'block' : 'none';
   document.getElementById('adminView').classList.toggle('active', view === 'admin');
   document.querySelectorAll('.header-actions .view-tabs > button.view-tab').forEach(t => t.classList.remove('active'));
   if (view === 'calendar') document.querySelectorAll('.header-actions .view-tabs > button.view-tab')[0].classList.add('active');
-  else if (view === 'sheet') document.querySelectorAll('.header-actions .view-tabs > button.view-tab')[1].classList.add('active');
-  else if (view === 'admin') document.querySelectorAll('.header-actions .view-tabs > button.view-tab')[2].classList.add('active');
+  else if (view === 'admin') document.querySelectorAll('.header-actions .view-tabs > button.view-tab')[1].classList.add('active');
   if (view === 'admin' && adminLoggedIn) renderAdminTable();
-  // Sheet-Link mit heutigem Datum setzen
-  if (view === 'sheet') {
-    var link = document.getElementById('sheetLink');
-    // Spalte fuer heute berechnen (Anker: 21.04.2026 = Spalte 1143, 7 Spalten pro Tag)
-    var anchorDate = new Date(2026, 3, 21); // April 21, 2026
-    var anchorCol = 1143;
-    var today = new Date();
-    today.setHours(0,0,0,0);
-    var daysDiff = Math.round((today - anchorDate) / (1000*60*60*24));
-    var todayCol = anchorCol + (daysDiff * 7);
-    if (todayCol < 1) todayCol = 1;
-    // Spaltennummer in Buchstaben umrechnen (1=A, 27=AA, etc.)
-    var colLetters = '';
-    var n = todayCol;
-    while (n > 0) {
-      n--;
-      colLetters = String.fromCharCode(65 + (n % 26)) + colLetters;
-      n = Math.floor(n / 26);
-    }
-    var range = colLetters + '1';
-    link.href = 'https://docs.google.com/spreadsheets/d/1SanxAMschcXgYc-tgtVz-TbTjkLAoeba/edit#gid=0&range=' + range;
-  }
 }
 
 // ============================================================
@@ -2244,36 +2197,6 @@ function submitBooking() {
   sendBookingReceivedEmail(booking);
   sendStaffPushNotification(booking);
 
-  // Buchung ins Google Sheet schreiben (pending = gelbe Farbe)
-  syncBookingToSheet(booking).catch(err => console.warn('Sheet-Sync fehlgeschlagen:', err));
-}
-
-/**
- * Buchung ins Google Sheet schreiben oder loeschen.
- * Status-Farben: pending=gelb, approved=gruen, rejected=loeschen
- */
-async function syncBookingToSheet(booking, action) {
-  try {
-    const res = await fetch('/.netlify/functions/google-sheet-bookings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: action || (booking.status === 'rejected' ? 'delete' : 'write'),
-        date: booking.date,
-        aircraft: booking.aircraft,
-        startTime: booking.startTime,
-        endTime: booking.endTime,
-        name: booking.name,
-        status: booking.status || 'pending'
-      })
-    });
-    const json = await res.json();
-    if (!json.ok) console.warn('Sheet-Sync Antwort:', json.error);
-    return json;
-  } catch (err) {
-    console.warn('Sheet-Sync Fehler:', err);
-    return { ok: false, error: err.message };
-  }
 }
 
 function sendStaffPushNotification(booking) {
@@ -2460,8 +2383,6 @@ function updateStatus(id, status) {
       sendStatusEmail(b);
     }
 
-    // Google Sheet aktualisieren (Farbe aendern oder loeschen)
-    syncBookingToSheet(b).catch(err => console.warn('Sheet-Sync (Status) fehlgeschlagen:', err));
   }
 }
 

@@ -104,7 +104,6 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
 .ov-cell.ov-booked.ov-pending { background: #f0d87a !important; }
 .ov-cell.ov-booked.ov-instructor { background: #ffb870 !important; }
 .ov-cell.ov-booked.ov-pending.ov-instructor { background: #f5c44e !important; }
-.ov-cell.ov-booked.ov-sheet { background: #b8d4f0; }
 .ov-cell.ov-towing { background: #ececec !important; cursor: default; }
 .ov-cell.ov-towing.ov-bookable { cursor: pointer; background: repeating-linear-gradient(-45deg, #ececec, #ececec 4px, #e2e2e2 4px, #e2e2e2 5px) !important; }
 .ov-cell.ov-towing.ov-bookable:active { background: #ddd !important; }
@@ -796,7 +795,6 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
       <button class="active" id="ovModeDay" onclick="setOvMode('day')">Tag</button>
       <button id="ovModeWeek" onclick="setOvMode('week')">Woche</button>
     </div>
-    <button id="btnSheetSync" onclick="manualSheetSync()" title="Buchungsliste synchronisieren" style="padding:6px 12px; border:1px solid var(--gray-200); border-radius:8px; background:white; font-size:12px; font-weight:600; font-family:var(--font); cursor:pointer; color:var(--gray-500); white-space:nowrap;">&#x21bb; Sync</button>
   </div>
   <div id="ovDayView">
     <div class="overview-grid" id="overviewGrid"></div>
@@ -1132,9 +1130,6 @@ let currentView = 'overview';
 let currentEditId = null;
 let manageFilter = 'today';
 let firstLoad = true;
-// Google Sheet sync tracking: { "YYYY-MM-DD": timestamp }
-let gsheetLastSync = JSON.parse(localStorage.getItem('gsheetLastSync') || '{}');
-let gsheetSyncingDates = new Set(); // track which dates are currently syncing
 let knownBookingIds = new Set();
 let pendingOpenBookingId = (new URLSearchParams(window.location.search)).get('booking') || '';
 
@@ -1857,150 +1852,6 @@ function updatePendingBadge() {
   }
 }
 
-// ============================================================
-// GOOGLE SHEET SYNC
-// ============================================================
-
-/**
- * Buchung ins Google Sheet schreiben (oder loeschen).
- * Wird async aufgerufen und blockiert die UI nicht.
- */
-async function syncBookingToSheet(booking, action) {
-  try {
-    const res = await fetch('/.netlify/functions/google-sheet-bookings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: action || 'write',
-        date: booking.date,
-        aircraft: booking.aircraft,
-        startTime: booking.startTime,
-        endTime: booking.endTime,
-        name: booking.name,
-        status: booking.status || 'approved'
-      })
-    });
-    const json = await res.json();
-    if (!json.ok) console.warn('Sheet-Sync Antwort:', json.error);
-    return json;
-  } catch (err) {
-    console.warn('Sheet-Sync Fehler:', err);
-    return { ok: false, error: err.message };
-  }
-}
-
-/**
- * Sheet-Buchungen als regulaere Firebase-Buchungen importieren.
- * Vergleicht mit vorhandenen Buchungen und importiert nur neue.
- * Importierte Buchungen sind danach voll bearbeitbar.
- */
-async function importSheetBookings(dateStr, force) {
-  // Nicht parallel fuer das gleiche Datum
-  if (gsheetSyncingDates.has(dateStr)) return { imported: 0, skipped: 0 };
-
-  // Cooldown: max alle 2 Minuten pro Datum (ausser force)
-  if (!force) {
-    const lastSync = gsheetLastSync[dateStr];
-    if (lastSync && (Date.now() - lastSync) < 120000) {
-      return { imported: 0, skipped: 0, cached: true };
-    }
-  }
-
-  gsheetSyncingDates.add(dateStr);
-  try {
-    const res = await fetch('/.netlify/functions/google-sheet-bookings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ date: dateStr })
-    });
-    const json = await res.json();
-    if (!json.ok || !json.bookings) {
-      gsheetSyncingDates.delete(dateStr);
-      return { imported: 0, skipped: 0, error: json.error || 'no data' };
-    }
-
-    const sheetBookings = json.bookings;
-    let imported = 0, skipped = 0;
-
-    // Vorhandene Firebase-Buchungen fuer dieses Datum
-    const existingForDate = bookings.filter(b => b.date === dateStr);
-
-    for (const sb of sheetBookings) {
-      // Pruefen ob diese Buchung schon in Firebase existiert
-      // Match: gleicher Tag + gleiches Flugzeug + gleiche Startzeit
-      const exists = existingForDate.some(fb =>
-        fb.aircraft === sb.aircraft &&
-        fb.startTime === sb.startTime
-      );
-
-      if (exists) {
-        skipped++;
-        continue;
-      }
-
-      // Neue Buchung in Firebase anlegen
-      const newId = 'gs_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 4);
-      const newBooking = {
-        id: newId,
-        aircraft: sb.aircraft,
-        date: dateStr,
-        startTime: sb.startTime,
-        endTime: sb.endTime,
-        name: sb.name,
-        email: '',
-        phone: '',
-        instructor: 'nein',
-        instructorName: '',
-        status: 'approved',
-        quickBook: true,
-        source: 'gsheet',
-        createdBy: 'Google Sheet Import',
-        createdAt: new Date().toISOString()
-      };
-
-      await db.ref('bookings/' + newId).set(newBooking);
-      imported++;
-    }
-
-    // Sync-Zeitstempel speichern
-    gsheetLastSync[dateStr] = Date.now();
-    localStorage.setItem('gsheetLastSync', JSON.stringify(gsheetLastSync));
-
-    gsheetSyncingDates.delete(dateStr);
-    return { imported, skipped };
-
-  } catch (err) {
-    console.warn('Sheet-Import Fehler:', err);
-    gsheetSyncingDates.delete(dateStr);
-    return { imported: 0, skipped: 0, error: err.message };
-  }
-}
-
-/** Manueller Sync-Button: erzwingt Sheet-Import fuer aktuellen Tag */
-async function manualSheetSync() {
-  const btn = document.getElementById('btnSheetSync');
-  const dk = dateKey(currentDate);
-  btn.textContent = '⟳ ...';
-  btn.disabled = true;
-  btn.style.opacity = '0.5';
-
-  try {
-    const result = await importSheetBookings(dk, true); // force=true
-    if (result.error) {
-      btn.textContent = '✗ Fehler';
-      setTimeout(() => { btn.innerHTML = '&#x21bb; Sync'; btn.disabled = false; btn.style.opacity = ''; }, 2000);
-    } else if (result.imported > 0) {
-      btn.textContent = `✓ ${result.imported} neu`;
-      setTimeout(() => { btn.innerHTML = '&#x21bb; Sync'; btn.disabled = false; btn.style.opacity = ''; }, 2000);
-    } else {
-      btn.textContent = '✓ Aktuell';
-      setTimeout(() => { btn.innerHTML = '&#x21bb; Sync'; btn.disabled = false; btn.style.opacity = ''; }, 1500);
-    }
-  } catch (err) {
-    btn.textContent = '✗ Fehler';
-    setTimeout(() => { btn.innerHTML = '&#x21bb; Sync'; btn.disabled = false; btn.style.opacity = ''; }, 2000);
-  }
-}
 
 // ============================================================
 // OVERVIEW RENDER
@@ -2009,7 +1860,6 @@ function buildOverviewLookup(dk) {
   const lookup = {};
   AIRCRAFT.forEach(a => { lookup[a] = {}; });
 
-  // Alle Buchungen kommen jetzt aus Firebase (inkl. importierter Sheet-Buchungen)
   bookings.filter(b => b.date === dk).forEach(b => {
     if (!lookup[b.aircraft]) return;
     if (b.startTime && b.endTime) {
@@ -2044,14 +1894,13 @@ function paintOverviewGrid(dk, lookup) {
       const entry = lookup[a][tp];
       const restrictedCls = slotRestricted ? ' ov-restricted' : '';
       if (entry) {
-        const sheetCls = entry.source === 'gsheet' ? ' ov-sheet' : '';
         const instrCls = entry.instructor === 'ja' ? ' ov-instructor' : '';
         const pendingCls = entry.status === 'pending' ? ' ov-pending' : '';
         const nameHtml = entry.isFirst ? `<span class="ov-name">${entry.name}</span>` : '';
         const metaHtml = entry.isFirst && entry.instructorName ? `<span class="ov-meta">${entry.instructorName}</span>` : '';
         const onclick = `onclick="showDetail('${entry.id}')"`;
         const colorStyle = entry.color ? `style="background:${entry.color} !important;${isDarkColor(entry.color) ? 'color:#fff;' : ''}"` : '';
-        html += `<div class="ov-cell ${rowCls} ov-booked${instrCls}${pendingCls}${sheetCls}${restrictedCls}" ${onclick} ${colorStyle}>${nameHtml}${metaHtml}</div>`;
+        html += `<div class="ov-cell ${rowCls} ov-booked${instrCls}${pendingCls}${restrictedCls}" ${onclick} ${colorStyle}>${nameHtml}${metaHtml}</div>`;
       } else if (isSundayBlocked(dk, tp)) {
         html += `<div class="ov-cell ${rowCls} ov-towing"></div>`;
       } else if (isTowingBlocked(a, tp)) {
@@ -2086,17 +1935,8 @@ function paintOverviewGrid(dk, lookup) {
 function renderOverview() {
   const dk = dateKey(currentDate);
 
-  // Sofort rendern aus Firebase (schnell!)
   const lookup = buildOverviewLookup(dk);
   paintOverviewGrid(dk, lookup);
-
-  // Im Hintergrund neue Sheet-Buchungen importieren (mit Cooldown)
-  importSheetBookings(dk).then(result => {
-    if (result.imported > 0) {
-      // Firebase-Listener rendert automatisch neu
-      console.log(`Sheet-Import: ${result.imported} neue Buchungen fuer ${dk}`);
-    }
-  });
 }
 
 // ============================================================
@@ -4303,9 +4143,6 @@ function submitQuick() {
   addAuditEntry(booking.id, 'erstellt', `${name}, ${selectedAircraft}, ${startTime}–${endTime}`);
   logActivity('create', `Buchung erstellt: ${name}, ${selectedAircraft}, ${startTime}–${endTime}`, booking.id);
 
-  // Buchung ins Google Sheet schreiben (async, blockiert UI nicht)
-  syncBookingToSheet(booking).catch(err => console.warn('Sheet-Sync fehlgeschlagen:', err));
-
   closeQuick();
   notify(`${name} gebucht: ${startTime}–${endTime}`, 'success');
 }
@@ -4409,12 +4246,6 @@ function submitEdit() {
   if (changes.length) {
     addAuditEntry(id, 'bearbeitet', changes.join('; '));
     logActivity('edit', `Buchung bearbeitet: ${name} (${b.aircraft})`, id);
-  }
-
-  // Alte Buchung im Sheet loeschen, neue schreiben
-  if (b.startTime !== startTime || b.endTime !== endTime || b.name !== name) {
-    syncBookingToSheet(b, 'delete').then(() => syncBookingToSheet(updated))
-      .catch(err => console.warn('Sheet-Sync (edit) fehlgeschlagen:', err));
   }
 
   closeEdit();
@@ -4563,11 +4394,6 @@ function deleteBooking(id) {
   addAuditEntry(id, 'gelöscht', b ? `${b.name}, ${b.aircraft}, ${b.startTime || ''}–${b.endTime || ''}` : '');
   logActivity('delete', `Buchung gelöscht: ${b ? b.name + ', ' + b.aircraft + ', ' + (b.startTime || '') + '–' + (b.endTime || '') : id}`, id);
   db.ref('bookings/' + id).remove();
-
-  // Auch aus dem Google Sheet entfernen
-  if (b && b.aircraft && b.startTime && b.endTime) {
-    syncBookingToSheet(b, 'delete').catch(err => console.warn('Sheet-Sync (delete) fehlgeschlagen:', err));
-  }
 
   closeDetail();
   notify('Buchung gelöscht.', 'success');
