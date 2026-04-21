@@ -915,9 +915,9 @@
     <h1>DASSU <span style="color:rgba(201,168,76,0.7); font-weight:300; font-size:11px; font-family:var(--font-ui); letter-spacing:0.12em; text-transform:uppercase; margin-left:4px;">Buchungskalender</span></h1>
   </div>
   <div class="header-actions">
-    <button class="btn btn-sm" onclick="document.getElementById('cancelInputModal').classList.add('active')" style="color:rgba(255,255,255,0.6); background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.15); font-size:11px; letter-spacing:0.04em; text-transform:uppercase;">Stornieren</button>
-    <button id="customerAuthBtn" class="btn btn-sm" onclick="openCustomerAuth()" style="color:rgba(255,255,255,0.6); background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.15); font-size:11px; letter-spacing:0.04em; text-transform:uppercase;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span id="custAuthLabel">Login</span></button>
-    <a href="welcome.html" id="btnLogin" class="btn btn-sm" style="display:none; color:rgba(255,255,255,0.6); background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.15); font-size:11px; letter-spacing:0.04em; text-transform:uppercase; text-decoration:none;">Staff</a>
+    <button id="btnStornieren" class="btn btn-sm" onclick="document.getElementById('cancelInputModal').classList.add('active')" style="color:rgba(255,255,255,0.6); background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.15); font-size:11px; letter-spacing:0.04em; text-transform:uppercase;">Stornieren</button>
+    <button id="customerAuthBtn" class="btn btn-sm" onclick="openCustomerAuth()" style="color:rgba(255,255,255,0.6); background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.15); font-size:11px; letter-spacing:0.04em; text-transform:uppercase;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span id="custAuthLabel">Login</span></button>
+    <a href="staff.html" id="btnStaff" class="btn btn-sm" style="display:none; color:rgba(255,255,255,0.6); background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.15); font-size:11px; letter-spacing:0.04em; text-transform:uppercase; text-decoration:none;">Staff</a>
     <div class="view-tabs" id="mainViewTabs">
       <button class="view-tab active" onclick="showView('calendar')">Kalender</button>
       <a href="staff.html" class="view-tab" id="tabFluglehrer" style="text-decoration:none; display:none;">Fluglehrer</a>
@@ -3893,7 +3893,7 @@ async function changeCustomerPassword() {
 function updateCustomerButton() {
   const label = document.getElementById('custAuthLabel');
   if (customerProfile) {
-    label.textContent = customerProfile.name.split(' ')[0] || 'Konto';
+    label.textContent = 'Konto';
   } else {
     label.textContent = 'Login';
   }
@@ -3911,15 +3911,19 @@ function autofillBookingForm() {
 
 // Firebase Auth: Rolle erkennen, Tabs + Admin-Status setzen
 firebase.auth().onAuthStateChanged(async (user) => {
-  const staffLoginBtn = document.getElementById('btnLogin');
+  const btnStaff = document.getElementById('btnStaff');
+  const btnStornieren = document.getElementById('btnStornieren');
+  const customerAuthBtn = document.getElementById('customerAuthBtn');
   if (user) {
     try {
       // 1. Staff-Check
       const snap = await db.ref('staffUsers/' + user.uid).once('value');
       const staffProfile = snap.val();
       if (staffProfile) {
-        // Staff/Admin eingeloggt
-        if (staffLoginBtn) staffLoginBtn.style.display = '';
+        // Staff/Admin eingeloggt → Staff-Button zeigen, Kunden-Buttons ausblenden
+        if (btnStaff) btnStaff.style.display = '';
+        if (btnStornieren) btnStornieren.style.display = 'none';
+        if (customerAuthBtn) customerAuthBtn.style.display = 'none';
         const role = staffProfile.role || 'team';
         // Admin: alles sichtbar
         if (role === 'admin') {
@@ -3932,37 +3936,37 @@ firebase.auth().onAuthStateChanged(async (user) => {
             renderAdminTable();
           }
         }
-        // Team: Fluglehrer-Tab
-        else if (role === 'team' || role === 'staff') {
-          if (document.getElementById('tabFluglehrer')) document.getElementById('tabFluglehrer').style.display = '';
-        }
-        // Gastfluglehrer: Fluglehrer-Tab
-        else if (role === 'guestGlider' || role === 'guestMotor') {
+        // Team/Fluglehrer: Fluglehrer-Tab
+        else if (role === 'team' || role === 'staff' || role === 'guestGlider' || role === 'guestMotor') {
           if (document.getElementById('tabFluglehrer')) document.getElementById('tabFluglehrer').style.display = '';
         }
         // Staff ist auch Kunde: Autofill mit Staff-Daten
         customerProfile = { name: staffProfile.name, email: staffProfile.email, phone: staffProfile.phone || '', birthdate: '', photoURL: staffProfile.photoURL || '' };
-        updateCustomerButton();
         renderView();
         return;
       }
-      // 2. Kunden-Check
+      // 2. Kunden-Check → Kunden-Buttons zeigen, Staff-Button ausblenden
+      if (btnStaff) btnStaff.style.display = 'none';
+      if (btnStornieren) btnStornieren.style.display = '';
+      if (customerAuthBtn) customerAuthBtn.style.display = '';
       const custSnap = await db.ref('customers/' + user.uid).once('value');
       const custData = custSnap.val();
       if (custData) {
         customerProfile = custData;
         updateCustomerButton();
       } else {
-        // Auth-Account ohne Profil? Ignorieren.
         customerProfile = null;
       }
     } catch (e) { console.warn('Auth-Check fehlgeschlagen:', e); }
     renderView();
   } else {
+    // Nicht eingeloggt: Stornieren + Login zeigen, Staff/Tabs ausblenden
     adminLoggedIn = false;
     customerProfile = null;
     updateCustomerButton();
-    if (staffLoginBtn) staffLoginBtn.style.display = 'none';
+    if (btnStaff) btnStaff.style.display = 'none';
+    if (btnStornieren) btnStornieren.style.display = '';
+    if (customerAuthBtn) customerAuthBtn.style.display = '';
     if (document.getElementById('tabAdmin')) document.getElementById('tabAdmin').style.display = 'none';
     if (document.getElementById('tabFluglehrer')) document.getElementById('tabFluglehrer').style.display = 'none';
     renderView();
