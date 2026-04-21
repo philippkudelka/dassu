@@ -3731,7 +3731,26 @@ async function customerRegister() {
   const btn = document.getElementById('caRegBtn');
   btn.disabled = true; btn.textContent = 'Registriere...';
   try {
-    const cred = await firebase.auth().createUserWithEmailAndPassword(email, pw);
+    let cred;
+    try {
+      cred = await firebase.auth().createUserWithEmailAndPassword(email, pw);
+    } catch (createErr) {
+      if (createErr.code === 'auth/email-already-in-use') {
+        // Account existiert schon → einloggen und Kundenprofil anlegen/aktualisieren
+        try {
+          cred = await firebase.auth().signInWithEmailAndPassword(email, pw);
+        } catch (loginErr) {
+          const lm = loginErr.code === 'auth/wrong-password' || loginErr.code === 'auth/invalid-credential'
+            ? 'F\u00fcr diese E-Mail gibt es schon einen Account, aber das Passwort stimmt nicht. Bitte \u00fcber "Anmelden" einloggen.'
+            : loginErr.message;
+          caMsg('caRegMsg', 'error', lm);
+          btn.disabled = false; btn.textContent = 'Registrieren';
+          return;
+        }
+      } else {
+        throw createErr;
+      }
+    }
     const uid = cred.user.uid;
     const profile = { name, email, phone: phone || '', birthdate: birth || '', createdAt: Date.now() };
     await db.ref('customers/' + uid).set(profile);
@@ -3739,9 +3758,7 @@ async function customerRegister() {
     closeModal('customerAuthModal');
     notify('Willkommen, ' + name + '! Deine Daten werden ab jetzt automatisch ausgef\u00fcllt.', 'success');
   } catch (e) {
-    const msg = e.code === 'auth/email-already-in-use' ? 'F\u00fcr diese E-Mail gibt es bereits einen Account. Bitte anmelden.'
-      : e.code === 'auth/weak-password' ? 'Passwort zu schwach.'
-      : e.message;
+    const msg = e.code === 'auth/weak-password' ? 'Passwort zu schwach.' : e.message;
     caMsg('caRegMsg', 'error', msg);
   }
   btn.disabled = false; btn.textContent = 'Registrieren';
