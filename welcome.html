@@ -98,9 +98,9 @@ details .body code { background: var(--gray-100); padding: 1px 6px; border-radiu
 
   <!-- Auth-Formulare -->
   <div class="card" id="authBox">
-    <div class="tab-row">
+    <div class="tab-row" id="tabRow">
       <button id="tabLogin" class="active" onclick="showTab('login')">Anmelden</button>
-      <button id="tabRegister" onclick="showTab('register')">Registrieren</button>
+      <button id="tabRegister" class="hidden" onclick="showTab('register')">Registrieren</button>
     </div>
 
     <!-- Login -->
@@ -249,16 +249,22 @@ function showMsg(id, kind, text) {
 }
 
 // Pre-fill E-Mail aus ?email=... Query und automatisch auf Registrieren wechseln
+// Registrieren-Tab ist standardmäßig versteckt – nur mit Einladungslink sichtbar
 (function prefillFromQuery() {
   const params = new URLSearchParams(window.location.search);
   const email = params.get('email');
-  if (email) {
-    document.getElementById('regEmail').value = email;
-    document.getElementById('loginEmail').value = email;
+  const invite = params.has('invite') || params.has('register');
+  if (email || invite) {
+    // Einladungslink → Registrieren-Tab einblenden
+    document.getElementById('tabRegister').classList.remove('hidden');
+    if (email) {
+      document.getElementById('regEmail').value = email;
+      document.getElementById('loginEmail').value = email;
+    }
     // Direkt auf Registrieren-Tab wechseln
     showTab('register');
     // Willkommens-Hinweis anzeigen
-    showMsg('regMsg', 'success', 'Willkommen bei DASSU Staff! Erstelle hier deinen Account, um loszulegen. Deine E-Mail wurde bereits eingetragen — wähle noch einen Namen und ein Passwort.');
+    showMsg('regMsg', 'success', 'Willkommen bei DASSU Staff! Erstelle hier deinen Account, um loszulegen.' + (email ? ' Deine E-Mail wurde bereits eingetragen — wähle noch einen Namen und ein Passwort.' : ''));
   }
 })();
 

@@ -864,6 +864,20 @@
     box-sizing: border-box;
   }
   .edit-field:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px rgba(61,153,145,0.15); }
+
+  /* Kunden-Auth */
+  #customerAuthBtn { display:inline-flex; align-items:center; gap:5px; cursor:pointer; }
+  #customerAuthBtn svg { width:14px; height:14px; }
+  .cauth-tabs { display:flex; gap:4px; background:var(--gray-50); padding:3px; border-radius:8px; margin-bottom:16px; }
+  .cauth-tabs button { flex:1; padding:8px; background:transparent; border:none; border-radius:6px; font-family:var(--font-ui); font-size:13px; font-weight:600; color:var(--gray-500); cursor:pointer; }
+  .cauth-tabs button.active { background:white; color:var(--dark); box-shadow:0 1px 3px rgba(0,0,0,0.08); }
+  .cauth-msg { padding:8px 12px; border-radius:8px; font-size:12px; margin-bottom:10px; line-height:1.4; }
+  .cauth-msg.error { background:#fdecec; color:#b83232; border:1px solid #f5c2c2; }
+  .cauth-msg.success { background:#e8f5ee; color:#1e7b4e; border:1px solid #b5dfc5; }
+  .cauth-logged-in { text-align:center; padding:8px 0; }
+  .cauth-logged-in .name { font-weight:600; font-size:15px; color:var(--dark); }
+  .cauth-logged-in .email { font-size:12px; color:var(--gray-500); margin-top:2px; }
+  .cauth-logged-in .actions { margin-top:14px; display:flex; gap:8px; justify-content:center; }
 </style>
 </head>
 <body>
@@ -902,7 +916,8 @@
   </div>
   <div class="header-actions">
     <button class="btn btn-sm" onclick="document.getElementById('cancelInputModal').classList.add('active')" style="color:rgba(255,255,255,0.6); background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.15); font-size:11px; letter-spacing:0.04em; text-transform:uppercase;">Stornieren</button>
-    <a href="welcome.html" id="btnLogin" class="btn btn-sm" style="color:rgba(255,255,255,0.6); background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.15); font-size:11px; letter-spacing:0.04em; text-transform:uppercase; text-decoration:none;">Login</a>
+    <button id="customerAuthBtn" class="btn btn-sm" onclick="openCustomerAuth()" style="color:rgba(255,255,255,0.6); background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.15); font-size:11px; letter-spacing:0.04em; text-transform:uppercase;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span id="custAuthLabel">Login</span></button>
+    <a href="welcome.html" id="btnLogin" class="btn btn-sm" style="display:none; color:rgba(255,255,255,0.6); background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.15); font-size:11px; letter-spacing:0.04em; text-transform:uppercase; text-decoration:none;">Staff</a>
     <div class="view-tabs" id="mainViewTabs">
       <button class="view-tab active" onclick="showView('calendar')">Kalender</button>
       <a href="staff.html" class="view-tab" id="tabFluglehrer" style="text-decoration:none; display:none;">Fluglehrer</a>
@@ -1002,6 +1017,69 @@
 
 
 <!-- Booking Modal -->
+<!-- Kunden-Auth Modal -->
+<div class="modal-overlay" id="customerAuthModal">
+  <div class="modal" style="max-width:400px;">
+    <!-- Eingeloggt-Ansicht -->
+    <div id="caLoggedIn" style="display:none;">
+      <h3>Mein Konto</h3>
+      <div class="cauth-logged-in">
+        <div class="name" id="caDisplayName"></div>
+        <div class="email" id="caDisplayEmail"></div>
+      </div>
+      <div style="margin-top:16px;">
+        <div class="form-group"><label>Name</label><input type="text" id="caEditName"></div>
+        <div class="form-group"><label>E-Mail</label><input type="email" id="caEditEmail" readonly style="background:var(--gray-50);"></div>
+        <div class="form-group"><label>Telefon</label><input type="tel" id="caEditPhone" placeholder="+49 123 456789"></div>
+        <div class="form-group"><label>Geburtsdatum</label><input type="date" id="caEditBirth"></div>
+      </div>
+      <div id="caEditMsg"></div>
+      <div class="modal-actions">
+        <button class="btn" onclick="closeModal('customerAuthModal')">Schliessen</button>
+        <button class="btn btn-primary" onclick="saveCustomerProfile()">Speichern</button>
+      </div>
+      <div style="text-align:center; margin-top:12px;">
+        <button onclick="customerSignOut()" style="background:none; border:none; color:var(--gray-500); font-size:12px; cursor:pointer; text-decoration:underline; font-family:var(--font-ui);">Abmelden</button>
+      </div>
+    </div>
+    <!-- Login/Register-Ansicht -->
+    <div id="caAuthForms">
+      <h3>Kundenkonto</h3>
+      <div class="cauth-tabs">
+        <button id="caTabLogin" class="active" onclick="showCaTab('login')">Anmelden</button>
+        <button id="caTabRegister" onclick="showCaTab('register')">Registrieren</button>
+      </div>
+      <!-- Login -->
+      <div id="caLoginForm">
+        <div id="caLoginMsg"></div>
+        <div class="form-group"><label>E-Mail</label><input type="email" id="caLoginEmail"></div>
+        <div class="form-group"><label>Passwort</label><input type="password" id="caLoginPw"></div>
+        <div class="modal-actions">
+          <button class="btn" onclick="closeModal('customerAuthModal')">Abbrechen</button>
+          <button class="btn btn-primary" id="caLoginBtn" onclick="customerLogin()">Anmelden</button>
+        </div>
+        <div style="text-align:center; margin-top:8px;">
+          <button onclick="customerResetPw()" style="background:none; border:none; color:var(--primary); font-size:12px; cursor:pointer; text-decoration:underline; font-family:var(--font-ui);">Passwort vergessen?</button>
+        </div>
+      </div>
+      <!-- Register -->
+      <div id="caRegForm" style="display:none;">
+        <div id="caRegMsg"></div>
+        <div class="form-group"><label>Name *</label><input type="text" id="caRegName" placeholder="Vor- und Nachname"></div>
+        <div class="form-group"><label>E-Mail *</label><input type="email" id="caRegEmail" placeholder="deine@email.de"></div>
+        <div class="form-group"><label>Telefon</label><input type="tel" id="caRegPhone" placeholder="+49 123 456789"></div>
+        <div class="form-group"><label>Geburtsdatum</label><input type="date" id="caRegBirth"></div>
+        <div class="form-group"><label>Passwort *</label><input type="password" id="caRegPw" minlength="6" placeholder="Mind. 6 Zeichen"></div>
+        <div class="form-group"><label>Passwort best&auml;tigen *</label><input type="password" id="caRegPw2" minlength="6"></div>
+        <div class="modal-actions">
+          <button class="btn" onclick="closeModal('customerAuthModal')">Abbrechen</button>
+          <button class="btn btn-primary" id="caRegBtn" onclick="customerRegister()">Registrieren</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="bookingModal">
   <div class="modal">
     <!-- Step 1: Form -->
@@ -1501,6 +1579,7 @@ function getPlatzrundenInfo(date) {
 let currentDate = new Date();
 let bookings = [];
 let adminLoggedIn = false;
+let customerProfile = null; // { name, email, phone, birthdate }
 let currentFilter = 'all';
 let detailBookingId = null;
 let viewMode = 'day'; // 'day' or 'week'
@@ -2106,6 +2185,8 @@ function openBooking(aircraft, slot, date, evt) {
   document.getElementById('bookingPhone').value = '';
   document.getElementById('bookingInstructor').value = 'nein';
   document.getElementById('bookingConsent').checked = false;
+  // Kunden-Autofill
+  autofillBookingForm();
   document.getElementById('bookingModal').classList.add('active');
   document.getElementById('bookingModal')._date = date;
   document.getElementById('bookingModal')._aircraft = aircraft;
@@ -3581,17 +3662,159 @@ loadData();
 checkCancelToken();
 renderView();
 
+// ============================================================
+// KUNDEN-AUTH (optional, für Autofill)
+// ============================================================
+function openCustomerAuth() {
+  const modal = document.getElementById('customerAuthModal');
+  if (customerProfile) {
+    // Eingeloggt: Profil anzeigen
+    document.getElementById('caLoggedIn').style.display = '';
+    document.getElementById('caAuthForms').style.display = 'none';
+    document.getElementById('caDisplayName').textContent = customerProfile.name || '';
+    document.getElementById('caDisplayEmail').textContent = customerProfile.email || '';
+    document.getElementById('caEditName').value = customerProfile.name || '';
+    document.getElementById('caEditEmail').value = customerProfile.email || '';
+    document.getElementById('caEditPhone').value = customerProfile.phone || '';
+    document.getElementById('caEditBirth').value = customerProfile.birthdate || '';
+    document.getElementById('caEditMsg').innerHTML = '';
+  } else {
+    document.getElementById('caLoggedIn').style.display = 'none';
+    document.getElementById('caAuthForms').style.display = '';
+    showCaTab('login');
+  }
+  modal.classList.add('active');
+}
+
+function showCaTab(which) {
+  document.getElementById('caTabLogin').classList.toggle('active', which === 'login');
+  document.getElementById('caTabRegister').classList.toggle('active', which === 'register');
+  document.getElementById('caLoginForm').style.display = which === 'login' ? '' : 'none';
+  document.getElementById('caRegForm').style.display = which === 'register' ? '' : 'none';
+  document.getElementById('caLoginMsg').innerHTML = '';
+  document.getElementById('caRegMsg').innerHTML = '';
+}
+
+function caMsg(id, type, text) {
+  document.getElementById(id).innerHTML = '<div class="cauth-msg ' + type + '">' + text + '</div>';
+}
+
+async function customerLogin() {
+  const email = document.getElementById('caLoginEmail').value.trim();
+  const pw = document.getElementById('caLoginPw').value;
+  if (!email || !pw) { caMsg('caLoginMsg', 'error', 'E-Mail und Passwort eingeben.'); return; }
+  const btn = document.getElementById('caLoginBtn');
+  btn.disabled = true; btn.textContent = 'Moment...';
+  try {
+    await firebase.auth().signInWithEmailAndPassword(email, pw);
+    closeModal('customerAuthModal');
+  } catch (e) {
+    const msg = e.code === 'auth/user-not-found' ? 'Kein Account gefunden. Bitte zuerst registrieren.'
+      : e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential' ? 'Falsches Passwort.'
+      : e.code === 'auth/too-many-requests' ? 'Zu viele Versuche. Bitte warten.'
+      : e.message;
+    caMsg('caLoginMsg', 'error', msg);
+  }
+  btn.disabled = false; btn.textContent = 'Anmelden';
+}
+
+async function customerRegister() {
+  const name = document.getElementById('caRegName').value.trim();
+  const email = document.getElementById('caRegEmail').value.trim();
+  const phone = document.getElementById('caRegPhone').value.trim();
+  const birth = document.getElementById('caRegBirth').value;
+  const pw = document.getElementById('caRegPw').value;
+  const pw2 = document.getElementById('caRegPw2').value;
+  if (!name || !email) { caMsg('caRegMsg', 'error', 'Name und E-Mail sind Pflicht.'); return; }
+  if (!pw || pw.length < 6) { caMsg('caRegMsg', 'error', 'Passwort muss mindestens 6 Zeichen haben.'); return; }
+  if (pw !== pw2) { caMsg('caRegMsg', 'error', 'Passw&ouml;rter stimmen nicht &uuml;berein.'); return; }
+  const btn = document.getElementById('caRegBtn');
+  btn.disabled = true; btn.textContent = 'Registriere...';
+  try {
+    const cred = await firebase.auth().createUserWithEmailAndPassword(email, pw);
+    const uid = cred.user.uid;
+    const profile = { name, email, phone: phone || '', birthdate: birth || '', createdAt: Date.now() };
+    await db.ref('customers/' + uid).set(profile);
+    try { await cred.user.updateProfile({ displayName: name }); } catch (_) {}
+    closeModal('customerAuthModal');
+    notify('Willkommen, ' + name + '! Deine Daten werden ab jetzt automatisch ausgef\u00fcllt.', 'success');
+  } catch (e) {
+    const msg = e.code === 'auth/email-already-in-use' ? 'F\u00fcr diese E-Mail gibt es bereits einen Account. Bitte anmelden.'
+      : e.code === 'auth/weak-password' ? 'Passwort zu schwach.'
+      : e.message;
+    caMsg('caRegMsg', 'error', msg);
+  }
+  btn.disabled = false; btn.textContent = 'Registrieren';
+}
+
+async function saveCustomerProfile() {
+  const user = firebase.auth().currentUser;
+  if (!user) return;
+  const name = document.getElementById('caEditName').value.trim();
+  const phone = document.getElementById('caEditPhone').value.trim();
+  const birth = document.getElementById('caEditBirth').value;
+  if (!name) { caMsg('caEditMsg', 'error', 'Name darf nicht leer sein.'); return; }
+  try {
+    await db.ref('customers/' + user.uid).update({ name, phone, birthdate: birth });
+    customerProfile.name = name;
+    customerProfile.phone = phone;
+    customerProfile.birthdate = birth;
+    document.getElementById('caDisplayName').textContent = name;
+    caMsg('caEditMsg', 'success', 'Gespeichert!');
+    updateCustomerButton();
+    setTimeout(() => closeModal('customerAuthModal'), 800);
+  } catch (e) {
+    caMsg('caEditMsg', 'error', 'Fehler: ' + e.message);
+  }
+}
+
+async function customerSignOut() {
+  await firebase.auth().signOut();
+  closeModal('customerAuthModal');
+}
+
+async function customerResetPw() {
+  const email = document.getElementById('caLoginEmail').value.trim();
+  if (!email) { caMsg('caLoginMsg', 'error', 'Bitte E-Mail eingeben.'); return; }
+  try {
+    await firebase.auth().sendPasswordResetEmail(email);
+    caMsg('caLoginMsg', 'success', 'Reset-Link wurde gesendet. Bitte Posteingang pr\u00fcfen.');
+  } catch (_) {
+    caMsg('caLoginMsg', 'success', 'Falls ein Account existiert, wurde ein Reset-Link gesendet.');
+  }
+}
+
+function updateCustomerButton() {
+  const label = document.getElementById('custAuthLabel');
+  if (customerProfile) {
+    label.textContent = customerProfile.name.split(' ')[0] || 'Konto';
+  } else {
+    label.textContent = 'Login';
+  }
+}
+
+function autofillBookingForm() {
+  if (!customerProfile) return;
+  const n = document.getElementById('bookingName');
+  const e = document.getElementById('bookingEmail');
+  const p = document.getElementById('bookingPhone');
+  if (n && !n.value) n.value = customerProfile.name || '';
+  if (e && !e.value) e.value = customerProfile.email || '';
+  if (p && !p.value) p.value = customerProfile.phone || '';
+}
+
 // Firebase Auth: Rolle erkennen, Tabs + Admin-Status setzen
 firebase.auth().onAuthStateChanged(async (user) => {
-  const loginBtn = document.getElementById('btnLogin');
+  const staffLoginBtn = document.getElementById('btnLogin');
   if (user) {
     try {
-      // Login-Button verstecken wenn eingeloggt
-      if (loginBtn) loginBtn.style.display = 'none';
+      // 1. Staff-Check
       const snap = await db.ref('staffUsers/' + user.uid).once('value');
-      const profile = snap.val();
-      if (profile) {
-        const role = profile.role || 'team';
+      const staffProfile = snap.val();
+      if (staffProfile) {
+        // Staff/Admin eingeloggt
+        if (staffLoginBtn) staffLoginBtn.style.display = '';
+        const role = staffProfile.role || 'team';
         // Admin: alles sichtbar
         if (role === 'admin') {
           adminLoggedIn = true;
@@ -3603,22 +3826,37 @@ firebase.auth().onAuthStateChanged(async (user) => {
             renderAdminTable();
           }
         }
-        // Team/Vorstand: Fluglehrer-Tab sichtbar, kein Admin
+        // Team: Fluglehrer-Tab
         else if (role === 'team' || role === 'staff') {
           if (document.getElementById('tabFluglehrer')) document.getElementById('tabFluglehrer').style.display = '';
         }
-        // Gastfluglehrer: Fluglehrer-Tab sichtbar
+        // Gastfluglehrer: Fluglehrer-Tab
         else if (role === 'guestGlider' || role === 'guestMotor') {
           if (document.getElementById('tabFluglehrer')) document.getElementById('tabFluglehrer').style.display = '';
         }
-        // Alle anderen (z.B. member): nur Kalender
+        // Staff ist auch Kunde: Autofill mit Staff-Daten
+        customerProfile = { name: staffProfile.name, email: staffProfile.email, phone: staffProfile.phone || '', birthdate: '' };
+        updateCustomerButton();
         renderView();
+        return;
+      }
+      // 2. Kunden-Check
+      const custSnap = await db.ref('customers/' + user.uid).once('value');
+      const custData = custSnap.val();
+      if (custData) {
+        customerProfile = custData;
+        updateCustomerButton();
+      } else {
+        // Auth-Account ohne Profil? Ignorieren.
+        customerProfile = null;
       }
     } catch (e) { console.warn('Auth-Check fehlgeschlagen:', e); }
+    renderView();
   } else {
     adminLoggedIn = false;
-    // Login-Button zeigen, Tabs verstecken
-    if (loginBtn) loginBtn.style.display = '';
+    customerProfile = null;
+    updateCustomerButton();
+    if (staffLoginBtn) staffLoginBtn.style.display = 'none';
     if (document.getElementById('tabAdmin')) document.getElementById('tabAdmin').style.display = 'none';
     if (document.getElementById('tabFluglehrer')) document.getElementById('tabFluglehrer').style.display = 'none';
     renderView();
