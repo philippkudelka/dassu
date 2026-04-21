@@ -902,6 +902,7 @@
   </div>
   <div class="header-actions">
     <button class="btn btn-sm" onclick="document.getElementById('cancelInputModal').classList.add('active')" style="color:rgba(255,255,255,0.6); background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.15); font-size:11px; letter-spacing:0.04em; text-transform:uppercase;">Stornieren</button>
+    <a href="welcome.html" id="btnLogin" class="btn btn-sm" style="color:rgba(255,255,255,0.6); background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.15); font-size:11px; letter-spacing:0.04em; text-transform:uppercase; text-decoration:none;">Login</a>
     <div class="view-tabs" id="mainViewTabs">
       <button class="view-tab active" onclick="showView('calendar')">Kalender</button>
       <a href="staff.html" class="view-tab" id="tabFluglehrer" style="text-decoration:none; display:none;">Fluglehrer</a>
@@ -3582,8 +3583,11 @@ renderView();
 
 // Firebase Auth: Rolle erkennen, Tabs + Admin-Status setzen
 firebase.auth().onAuthStateChanged(async (user) => {
+  const loginBtn = document.getElementById('btnLogin');
   if (user) {
     try {
+      // Login-Button verstecken wenn eingeloggt
+      if (loginBtn) loginBtn.style.display = 'none';
       const snap = await db.ref('staffUsers/' + user.uid).once('value');
       const profile = snap.val();
       if (profile) {
@@ -3613,7 +3617,8 @@ firebase.auth().onAuthStateChanged(async (user) => {
     } catch (e) { console.warn('Auth-Check fehlgeschlagen:', e); }
   } else {
     adminLoggedIn = false;
-    // Tabs verstecken
+    // Login-Button zeigen, Tabs verstecken
+    if (loginBtn) loginBtn.style.display = '';
     if (document.getElementById('tabAdmin')) document.getElementById('tabAdmin').style.display = 'none';
     if (document.getElementById('tabFluglehrer')) document.getElementById('tabFluglehrer').style.display = 'none';
     renderView();
