@@ -902,10 +902,10 @@
   </div>
   <div class="header-actions">
     <button class="btn btn-sm" onclick="document.getElementById('cancelInputModal').classList.add('active')" style="color:rgba(255,255,255,0.6); background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.15); font-size:11px; letter-spacing:0.04em; text-transform:uppercase;">Stornieren</button>
-    <div class="view-tabs">
+    <div class="view-tabs" id="mainViewTabs">
       <button class="view-tab active" onclick="showView('calendar')">Kalender</button>
-      <a href="staff.html" class="view-tab" style="text-decoration:none;">Fluglehrer</a>
-      <button class="view-tab" onclick="showView('admin')">Admin</button>
+      <a href="staff.html" class="view-tab" id="tabFluglehrer" style="text-decoration:none; display:none;">Fluglehrer</a>
+      <button class="view-tab" id="tabAdmin" onclick="showView('admin')" style="display:none;">Admin</button>
     </div>
   </div>
 </div>
@@ -3580,24 +3580,42 @@ loadData();
 checkCancelToken();
 renderView();
 
-// Firebase Auth: Admin-Status automatisch setzen wenn eingeloggt
+// Firebase Auth: Rolle erkennen, Tabs + Admin-Status setzen
 firebase.auth().onAuthStateChanged(async (user) => {
   if (user) {
     try {
       const snap = await db.ref('staffUsers/' + user.uid).once('value');
       const profile = snap.val();
-      if (profile && profile.role === 'admin') {
-        adminLoggedIn = true;
-        renderView();
-        if (document.getElementById('adminDashboard')) {
-          document.getElementById('adminLogin').style.display = 'none';
-          document.getElementById('adminDashboard').style.display = 'block';
-          renderAdminTable();
+      if (profile) {
+        const role = profile.role || 'team';
+        // Admin: alles sichtbar
+        if (role === 'admin') {
+          adminLoggedIn = true;
+          if (document.getElementById('tabAdmin')) document.getElementById('tabAdmin').style.display = '';
+          if (document.getElementById('tabFluglehrer')) document.getElementById('tabFluglehrer').style.display = '';
+          if (document.getElementById('adminDashboard')) {
+            document.getElementById('adminLogin').style.display = 'none';
+            document.getElementById('adminDashboard').style.display = 'block';
+            renderAdminTable();
+          }
         }
+        // Team/Vorstand: Fluglehrer-Tab sichtbar, kein Admin
+        else if (role === 'team' || role === 'staff') {
+          if (document.getElementById('tabFluglehrer')) document.getElementById('tabFluglehrer').style.display = '';
+        }
+        // Gastfluglehrer: Fluglehrer-Tab sichtbar
+        else if (role === 'guestGlider' || role === 'guestMotor') {
+          if (document.getElementById('tabFluglehrer')) document.getElementById('tabFluglehrer').style.display = '';
+        }
+        // Alle anderen (z.B. member): nur Kalender
+        renderView();
       }
     } catch (e) { console.warn('Auth-Check fehlgeschlagen:', e); }
   } else {
     adminLoggedIn = false;
+    // Tabs verstecken
+    if (document.getElementById('tabAdmin')) document.getElementById('tabAdmin').style.display = 'none';
+    if (document.getElementById('tabFluglehrer')) document.getElementById('tabFluglehrer').style.display = 'none';
     renderView();
   }
 });
