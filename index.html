@@ -1084,7 +1084,7 @@
         <div id="caRegMsg"></div>
         <div class="form-group"><label>Name *</label><input type="text" id="caRegName" placeholder="Vor- und Nachname"></div>
         <div class="form-group"><label>E-Mail *</label><input type="email" id="caRegEmail" placeholder="deine@email.de"></div>
-        <div class="form-group"><label>Telefon</label><input type="tel" id="caRegPhone" placeholder="+49 123 456789"></div>
+        <div class="form-group"><label>Telefon *</label><input type="tel" id="caRegPhone" placeholder="+49 123 456789"></div>
         <div class="form-group"><label>Geburtsdatum</label><input type="date" id="caRegBirth"></div>
         <div class="form-group"><label>Passwort *</label><input type="password" id="caRegPw" minlength="6" placeholder="Mind. 6 Zeichen"></div>
         <div class="form-group"><label>Passwort best&auml;tigen *</label><input type="password" id="caRegPw2" minlength="6"></div>
@@ -3751,7 +3751,7 @@ async function customerRegister() {
   const birth = document.getElementById('caRegBirth').value;
   const pw = document.getElementById('caRegPw').value;
   const pw2 = document.getElementById('caRegPw2').value;
-  if (!name || !email) { caMsg('caRegMsg', 'error', 'Name und E-Mail sind Pflicht.'); return; }
+  if (!name || !email || !phone) { caMsg('caRegMsg', 'error', 'Name, E-Mail und Telefon sind Pflicht.'); return; }
   if (!pw || pw.length < 6) { caMsg('caRegMsg', 'error', 'Passwort muss mindestens 6 Zeichen haben.'); return; }
   if (pw !== pw2) { caMsg('caRegMsg', 'error', 'Passw&ouml;rter stimmen nicht &uuml;berein.'); return; }
   const btn = document.getElementById('caRegBtn');
