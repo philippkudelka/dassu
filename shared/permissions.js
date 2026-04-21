@@ -30,7 +30,7 @@
     {
       key: 'manageUsers',
       label: 'Nutzerverwaltung',
-      desc: 'Darf Mitarbeiter anlegen, Rollen & Rechte ändern.',
+      desc: 'Darf Benutzer anlegen, Rollen & Rechte ändern.',
       defaults: { admin: true, team: false, guestGlider: false, guestMotor: false },
     },
     {

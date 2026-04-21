@@ -747,7 +747,7 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
 <div class="quick-overlay" id="userMgmtOverlay" onclick="if(event.target===this)closeUserMgmt()">
   <div class="quick-sheet">
     <h3>Nutzerverwaltung</h3>
-    <div class="um-intro">Rollen &amp; Rechte verwalten, Mitarbeiter einladen und Details bearbeiten.</div>
+    <div class="um-intro">Rollen &amp; Rechte verwalten, Benutzer einladen und Details bearbeiten.</div>
     <div id="userMgmtList"></div>
 
     <div class="inv-section" id="invSection">
@@ -864,7 +864,7 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
 <div id="viewTeam" class="team-view" style="display:none;">
   <!-- Toolbar: Suche + Filter + Einladen -->
   <div class="team-toolbar">
-    <input type="text" class="team-search" id="teamSearchInput" placeholder="Mitarbeiter suchen..." oninput="renderTeamView()">
+    <input type="text" class="team-search" id="teamSearchInput" placeholder="Benutzer suchen..." oninput="renderTeamView()">
     <div class="team-filter-chips" id="teamFilterChips"></div>
     <button class="team-invite-quick-btn" id="teamInviteToggle" onclick="toggleTeamInvite()" style="display:none;">+ Einladen</button>
   </div>
@@ -872,7 +872,7 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
   <!-- Einladungsformular (einklappbar) -->
   <div class="team-invite-panel" id="teamInvitePanel" style="display:none;">
     <div class="team-invite-card">
-      <h4>Neuen Mitarbeiter einladen</h4>
+      <h4>Neuen Benutzer einladen</h4>
       <div class="team-invite-form">
         <input type="text" class="team-invite-input" id="teamInvName" placeholder="Name" maxlength="40">
         <input type="email" class="team-invite-input" id="teamInvEmail" placeholder="E-Mail-Adresse">
@@ -886,7 +886,64 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
     <div id="teamInvitationsList" style="margin-top:8px;"></div>
   </div>
 
-  <!-- Kompakte Mitarbeiterliste -->
+  <!-- Rollen-Übersicht -->
+  <details style="margin:0 0 12px; background:white; border:1px solid var(--gray-200); border-radius:10px; overflow:hidden;">
+    <summary style="padding:12px 16px; font-size:13px; font-weight:600; color:var(--navy); cursor:pointer; list-style:none; display:flex; align-items:center; gap:8px;">
+      <span style="font-size:15px;">&#x1f6e1;</span> Rollen &amp; Rechte &Uuml;bersicht
+      <span style="margin-left:auto; font-size:11px; color:var(--gray-400); font-weight:400;">aufklappen</span>
+    </summary>
+    <div style="padding:0 16px 16px; font-size:12px; line-height:1.7; color:var(--gray-600);">
+      <table style="width:100%; border-collapse:collapse; margin-top:8px; font-size:12px;">
+        <thead>
+          <tr style="border-bottom:2px solid var(--gray-200); text-align:left;">
+            <th style="padding:6px 8px; font-weight:700; color:var(--navy);">Rolle</th>
+            <th style="padding:6px 8px; font-weight:700; color:var(--navy);">Kalender</th>
+            <th style="padding:6px 8px; font-weight:700; color:var(--navy);">Buchungen</th>
+            <th style="padding:6px 8px; font-weight:700; color:var(--navy);">Zeiterfassung</th>
+            <th style="padding:6px 8px; font-weight:700; color:var(--navy);">Vereinsflieger</th>
+            <th style="padding:6px 8px; font-weight:700; color:var(--navy);">Nutzerverwaltung</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid var(--gray-100);">
+            <td style="padding:6px 8px;"><span style="background:rgba(201,168,76,0.15); color:#8a6d10; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; text-transform:uppercase;">Admin</span></td>
+            <td style="padding:6px 8px; color:var(--success);">&#10003; Alles</td>
+            <td style="padding:6px 8px; color:var(--success);">&#10003; Verwalten + L&ouml;schen</td>
+            <td style="padding:6px 8px; color:var(--success);">&#10003; Alle sehen + erfassen</td>
+            <td style="padding:6px 8px; color:var(--success);">&#10003; Sync + Statistiken</td>
+            <td style="padding:6px 8px; color:var(--success);">&#10003; Einladen + Rollen &auml;ndern</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--gray-100);">
+            <td style="padding:6px 8px;"><span style="background:rgba(61,153,145,0.12); color:#2d7a73; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; text-transform:uppercase;">Team</span></td>
+            <td style="padding:6px 8px; color:var(--success);">&#10003; Sehen + Buchen</td>
+            <td style="padding:6px 8px; color:var(--success);">&#10003; Erstellen + Best&auml;tigen</td>
+            <td style="padding:6px 8px; color:var(--success);">&#10003; Eigene erfassen</td>
+            <td style="padding:6px 8px; color:var(--success);">&#10003; Schnellbuchung</td>
+            <td style="padding:6px 8px; color:var(--gray-400);">&#10007;</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--gray-100);">
+            <td style="padding:6px 8px;"><span style="background:var(--gray-100); color:var(--gray-500); padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; text-transform:uppercase;">Gast Segel</span></td>
+            <td style="padding:6px 8px; color:var(--success);">&#10003; Sehen + Buchen</td>
+            <td style="padding:6px 8px; color:var(--success);">&#10003; Erstellen + Best&auml;tigen</td>
+            <td style="padding:6px 8px; color:var(--success);">&#10003; Eigene erfassen</td>
+            <td style="padding:6px 8px; color:var(--success);">&#10003; Schnellbuchung</td>
+            <td style="padding:6px 8px; color:var(--gray-400);">&#10007;</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 8px;"><span style="background:var(--gray-100); color:var(--gray-500); padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; text-transform:uppercase;">Gast Motor</span></td>
+            <td style="padding:6px 8px; color:var(--success);">&#10003; Sehen + Buchen</td>
+            <td style="padding:6px 8px; color:var(--success);">&#10003; Erstellen + Best&auml;tigen</td>
+            <td style="padding:6px 8px; color:var(--success);">&#10003; Eigene erfassen</td>
+            <td style="padding:6px 8px; color:var(--success);">&#10003; Schnellbuchung</td>
+            <td style="padding:6px 8px; color:var(--gray-400);">&#10007;</td>
+          </tr>
+        </tbody>
+      </table>
+      <p style="margin-top:10px; font-size:11px; color:var(--gray-400);">Einzelrechte k&ouml;nnen pro Benutzer im Detailbereich angepasst werden.</p>
+    </div>
+  </details>
+
+  <!-- Kompakte Benutzerliste -->
   <div class="team-count-bar" id="teamCountBar"></div>
   <div id="teamMembersList"></div>
 
@@ -900,7 +957,7 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
 <div id="viewTime" class="time-view" style="display:none;">
   <div class="time-admin-toggle" id="timeAdminToggle" style="display:none;">
     <button class="active" id="timeToggleMine" onclick="setTimeMode('mine')">Meine Zeiten</button>
-    <button id="timeToggleAll" onclick="setTimeMode('all')">Alle Mitarbeiter</button>
+    <button id="timeToggleAll" onclick="setTimeMode('all')">Alle Benutzer</button>
   </div>
 
   <!-- Personal view -->
@@ -952,7 +1009,7 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
       <button class="nav-btn" onclick="navigateTimeMonth(1)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>
     </div>
     <div class="time-admin-export-row">
-      <button class="time-export-btn" onclick="exportAllTimeExcel()">&#128196; Gesamt-Export (alle Mitarbeiter)</button>
+      <button class="time-export-btn" onclick="exportAllTimeExcel()">&#128196; Gesamt-Export (alle Benutzer)</button>
     </div>
     <div id="timeStaffList"></div>
   </div>
@@ -1444,7 +1501,7 @@ async function deleteStaffUser(id) {
     const adminCount = staffUsers.filter(u => u.role === 'admin').length;
     if (adminCount <= 1) { notify('Mindestens ein Admin muss bleiben.', 'error'); return; }
   }
-  if (!confirm(`Mitarbeiter \u201e${user.name}\u201c wirklich l\u00f6schen?`)) return;
+  if (!confirm(`Benutzer \u201e${user.name}\u201c wirklich l\u00f6schen?`)) return;
 
   // 1. DB-Eintrag entfernen
   await db.ref('staffUsers/' + id).remove();
@@ -1461,7 +1518,7 @@ async function deleteStaffUser(id) {
     console.warn('Auth-Account konnte nicht gelöscht werden:', e);
   }
 
-  notify('Mitarbeiter entfernt.', 'success');
+  notify('Benutzer entfernt.', 'success');
 }
 
 // ============================================================
@@ -1565,7 +1622,7 @@ function appCreateInvitation() {
   if (!email || !/^\S+@\S+\.\S+$/.test(email)) return notify('Bitte g\u00fcltige E-Mail eintragen.', 'error');
   if (!role) return notify('Bitte Rolle w\u00e4hlen.', 'error');
   if (staffUsers.some(u => (u.email || '').toLowerCase() === email)) {
-    return notify('Es gibt bereits einen aktiven Mitarbeiter mit dieser E-Mail.', 'error');
+    return notify('Es gibt bereits einen aktiven Benutzer mit dieser E-Mail.', 'error');
   }
   const key = DASSU_AUTH.emailKey(email);
   db.ref('invitations/' + key).set({
@@ -2774,7 +2831,7 @@ function renderTeamView() {
   // Count bar
   const countBar = document.getElementById('teamCountBar');
   if (countBar) {
-    const showing = filtered.length === staffUsers.length ? `${staffUsers.length} Mitarbeiter` : `${filtered.length} von ${staffUsers.length}`;
+    const showing = filtered.length === staffUsers.length ? `${staffUsers.length} Benutzer` : `${filtered.length} von ${staffUsers.length}`;
     countBar.textContent = showing;
   }
 
@@ -2795,7 +2852,7 @@ function renderTeamView() {
       <span class="team-row-badge ${badgeCls}">${meta.short || meta.label}</span>
       <span class="team-row-chevron">\u203A</span>
     </div>`;
-  }).join('') || '<div style="text-align:center;padding:24px;color:var(--gray-500);font-size:13px;">Keine Mitarbeiter gefunden.</div>';
+  }).join('') || '<div style="text-align:center;padding:24px;color:var(--gray-500);font-size:13px;">Keine Benutzer gefunden.</div>';
 
   // Invitations
   renderTeamInvitations();
@@ -2881,7 +2938,7 @@ function openTeamDetail(uid) {
     </div>` : ''}
 
     ${canDelete && canEdit ? `<div class="td-section">
-      <button class="team-btn-delete" onclick="deleteStaffUser('${u.id}');closeTeamDetail();" style="width:100%;padding:10px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);background:#fdecec;color:var(--danger);">Mitarbeiter entfernen</button>
+      <button class="team-btn-delete" onclick="deleteStaffUser('${u.id}');closeTeamDetail();" style="width:100%;padding:10px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);background:#fdecec;color:var(--danger);">Benutzer entfernen</button>
     </div>` : ''}
   `;
 
@@ -2940,7 +2997,7 @@ function teamCreateInvitation() {
   if (!email || !/^\S+@\S+\.\S+$/.test(email)) return notify('Bitte g\u00fcltige E-Mail eintragen.', 'error');
   if (!role) return notify('Bitte Rolle w\u00e4hlen.', 'error');
   if (staffUsers.some(u => (u.email || '').toLowerCase() === email)) {
-    return notify('Es gibt bereits einen aktiven Mitarbeiter mit dieser E-Mail.', 'error');
+    return notify('Es gibt bereits einen aktiven Benutzer mit dieser E-Mail.', 'error');
   }
   const key = DASSU_AUTH.emailKey(email);
   db.ref('invitations/' + key).set({
@@ -3577,7 +3634,7 @@ function exportAllTimeExcel() {
   const mk = getMonthKey(timeMonth);
   const monthLabel = getMonthLabel(timeMonth);
   const wb = XLSX.utils.book_new();
-  const headers = ['Mitarbeiter', 'Datum', 'Wochentag', 'Kommen', 'Gehen', 'Pause (min)', 'Netto (h)', 'Netto (min)', 'Notiz'];
+  const headers = ['Benutzer', 'Datum', 'Wochentag', 'Kommen', 'Gehen', 'Pause (min)', 'Netto (h)', 'Netto (min)', 'Notiz'];
   const data = [headers];
   let hasData = false;
 
