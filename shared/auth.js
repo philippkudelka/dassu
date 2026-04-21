@@ -45,16 +45,39 @@
 
     // 1. Firebase Auth Account erstellen (User ist danach eingeloggt)
     let cred;
+    let reusedAuth = false;
     try {
       cred = await auth.createUserWithEmailAndPassword(email, password);
     } catch (e) {
       if (e.code === 'auth/email-already-in-use') {
-        return { ok: false, error: 'Für diese E-Mail gibt es bereits einen Account. Bitte einloggen oder Passwort zurücksetzen.' };
+        // Auth-Account existiert schon – versuche Login.
+        // Passiert z.B. wenn staffUsers-Eintrag gelöscht wurde aber Auth noch da ist.
+        try {
+          cred = await auth.signInWithEmailAndPassword(email, password);
+          reusedAuth = true;
+        } catch (e2) {
+          if (e2.code === 'auth/wrong-password' || e2.code === 'auth/invalid-credential') {
+            return { ok: false, error: 'Für diese E-Mail gibt es bereits einen Account mit einem anderen Passwort. Bitte einloggen oder Passwort zurücksetzen.' };
+          }
+          return { ok: false, error: mapAuthError(e2) };
+        }
+      } else {
+        return { ok: false, error: mapAuthError(e) };
       }
-      return { ok: false, error: mapAuthError(e) };
     }
 
     const uid = cred.user.uid;
+
+    // 1b. Bei wiederverwendetem Auth: prüfen ob staffUsers-Profil schon existiert
+    if (reusedAuth) {
+      try {
+        const existSnap = await db.ref('staffUsers/' + uid).once('value');
+        if (existSnap.val()) {
+          // Profil existiert bereits – einfach einloggen reicht
+          return { ok: true, profile: existSnap.val() };
+        }
+      } catch (_) { /* weiter mit Einladungs-Check */ }
+    }
 
     // 2. Einladung prüfen (jetzt authed, Rules können auth != null verlangen)
     let inv;
@@ -62,14 +85,19 @@
       const invSnap = await db.ref('invitations/' + emailKey(email)).once('value');
       inv = invSnap.val();
     } catch (e) {
-      // Zugriff verweigert – Auth-Account wieder löschen
-      try { await cred.user.delete(); } catch (_) {}
+      // Zugriff verweigert – bei neuem Account Auth wieder löschen
+      if (!reusedAuth) { try { await cred.user.delete(); } catch (_) {} }
+      else { try { await auth.signOut(); } catch (_) {} }
       return { ok: false, error: 'Einladung konnte nicht geprüft werden: ' + e.message };
     }
 
     if (!inv) {
-      // Keine Einladung – Auth-Account wieder löschen
-      try { await cred.user.delete(); } catch (_) {
+      // Keine Einladung – bei neuem Account Auth wieder löschen
+      if (!reusedAuth) {
+        try { await cred.user.delete(); } catch (_) {
+          try { await auth.signOut(); } catch (_) {}
+        }
+      } else {
         try { await auth.signOut(); } catch (_) {}
       }
       return { ok: false, error: 'Keine Einladung für diese E-Mail gefunden. Bitte wende dich an den Admin.' };
@@ -87,7 +115,7 @@
       await db.ref('staffUsers/' + uid).set(profile);
       await db.ref('invitations/' + emailKey(email)).remove();
     } catch (e) {
-      try { await cred.user.delete(); } catch (_) {}
+      if (!reusedAuth) { try { await cred.user.delete(); } catch (_) {} }
       return { ok: false, error: 'Profil konnte nicht gespeichert werden: ' + e.message };
     }
 
