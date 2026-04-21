@@ -3769,7 +3769,21 @@ async function customerLogin() {
   const btn = document.getElementById('caLoginBtn');
   btn.disabled = true; btn.textContent = 'Moment...';
   try {
-    await firebase.auth().signInWithEmailAndPassword(email, pw);
+    const cred = await firebase.auth().signInWithEmailAndPassword(email, pw);
+    // Staff-User d\u00fcrfen immer rein (haben keine E-Mail-Verifizierung)
+    const staffSnap = await db.ref('staffUsers/' + cred.user.uid).once('value');
+    if (staffSnap.val()) {
+      closeModal('customerAuthModal');
+      btn.disabled = false; btn.textContent = 'Anmelden';
+      return;
+    }
+    // Kunden: E-Mail muss verifiziert sein
+    if (!cred.user.emailVerified) {
+      await firebase.auth().signOut();
+      caMsg('caLoginMsg', 'error', 'Bitte best\u00e4tige zuerst deine E-Mail-Adresse. Wir haben dir einen Best\u00e4tigungslink geschickt.<br><button onclick="resendVerifFromLogin()" style="margin-top:8px; background:none; border:1px solid var(--danger); color:var(--danger); border-radius:var(--radius-xs); padding:4px 12px; font-size:12px; cursor:pointer; font-family:var(--font-ui);">Best\u00e4tigungs-E-Mail erneut senden</button><input type="hidden" id="caLoginPendingEmail" value="' + email + '"><input type="hidden" id="caLoginPendingPw" value="' + pw + '">');
+      btn.disabled = false; btn.textContent = 'Anmelden';
+      return;
+    }
     closeModal('customerAuthModal');
   } catch (e) {
     const msg = e.code === 'auth/user-not-found' ? 'Kein Account gefunden. Bitte zuerst registrieren.'
@@ -3779,6 +3793,24 @@ async function customerLogin() {
     caMsg('caLoginMsg', 'error', msg);
   }
   btn.disabled = false; btn.textContent = 'Anmelden';
+}
+
+async function resendVerifFromLogin() {
+  try {
+    const em = document.getElementById('caLoginPendingEmail');
+    const pw = document.getElementById('caLoginPendingPw');
+    if (!em || !pw) return;
+    const cred = await firebase.auth().signInWithEmailAndPassword(em.value, pw.value);
+    await cred.user.sendEmailVerification();
+    await firebase.auth().signOut();
+    caMsg('caLoginMsg', 'success', 'Best\u00e4tigungs-E-Mail wurde erneut gesendet! Bitte pr\u00fcfe deinen Posteingang.');
+  } catch (e) {
+    if (e.code === 'auth/too-many-requests') {
+      caMsg('caLoginMsg', 'error', 'Bitte warte einen Moment, bevor du es erneut versuchst.');
+    } else {
+      caMsg('caLoginMsg', 'error', 'Fehler: ' + e.message);
+    }
+  }
 }
 
 async function customerRegister() {
@@ -3820,14 +3852,15 @@ async function customerRegister() {
     const profile = { name, email, phone: phone || '', birthdate: birth || '', consentAt: Date.now(), createdAt: Date.now() };
     await db.ref('customers/' + uid).set(profile);
     try { await cred.user.updateProfile({ displayName: name }); } catch (_) {}
-    // E-Mail-Verifizierung senden
-    if (isNewAccount || !cred.user.emailVerified) {
-      try { await cred.user.sendEmailVerification(); } catch (_) {}
-    }
-    closeModal('customerAuthModal');
+    // E-Mail-Verifizierung senden + sofort abmelden bis bestätigt
     if (!cred.user.emailVerified) {
-      notify('Willkommen, ' + name + '! Bitte best\u00e4tige deine E-Mail-Adresse \u2014 wir haben dir einen Link geschickt.', 'success', 8000);
+      try { await cred.user.sendEmailVerification(); } catch (_) {}
+      await firebase.auth().signOut();
+      caMsg('caRegMsg', 'success', 'Fast geschafft! Wir haben dir eine Best\u00e4tigungs-E-Mail an <strong>' + email + '</strong> geschickt. Bitte klicke auf den Link in der E-Mail, um dein Konto zu aktivieren. Danach kannst du dich anmelden.');
+      btn.disabled = false; btn.textContent = 'Registrieren';
+      return;
     } else {
+      closeModal('customerAuthModal');
       notify('Willkommen, ' + name + '! Deine Daten werden ab jetzt automatisch ausgef\u00fcllt.', 'success');
     }
   } catch (e) {
@@ -4008,7 +4041,12 @@ firebase.auth().onAuthStateChanged(async (user) => {
         renderView();
         return;
       }
-      // 2. Kunden-Check → Kunden-Buttons zeigen, Staff-Button ausblenden
+      // 2. Kunden-Check → E-Mail muss verifiziert sein
+      if (!user.emailVerified) {
+        // Nicht verifiziert → abmelden, als Gast behandeln
+        await firebase.auth().signOut();
+        return; // onAuthStateChanged wird erneut mit user=null getriggert
+      }
       if (btnStaff) btnStaff.style.display = 'none';
       if (btnStornieren) btnStornieren.style.display = '';
       if (customerAuthBtn) customerAuthBtn.style.display = '';
@@ -4017,7 +4055,6 @@ firebase.auth().onAuthStateChanged(async (user) => {
       if (custData) {
         customerProfile = custData;
       } else {
-        // Auth-Account ohne DB-Profil → Basisdaten aus Auth nehmen
         customerProfile = { name: user.displayName || '', email: user.email || '' };
       }
       updateCustomerButton();
