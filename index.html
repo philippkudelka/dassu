@@ -1034,6 +1034,12 @@
         <div class="name" id="caDisplayName"></div>
         <div class="email" id="caDisplayEmail"></div>
       </div>
+      <div id="caVerifyBanner" style="display:none; background:#fff8e6; border:1px solid #f0d060; border-radius:var(--radius-sm); padding:12px; margin-top:12px; font-size:13px; line-height:1.5; color:#7a6200;">
+        <strong>E-Mail noch nicht best&auml;tigt.</strong><br>
+        Bitte klicke auf den Link in der Best&auml;tigungs-E-Mail. Buchungen sind erst danach m&ouml;glich.<br>
+        <button onclick="resendVerificationEmail()" style="margin-top:8px; background:none; border:1px solid #d4a800; color:#7a6200; border-radius:var(--radius-xs); padding:4px 12px; font-size:12px; cursor:pointer; font-family:var(--font-ui);">Best&auml;tigungs-E-Mail erneut senden</button>
+        <div id="caVerifyMsg" style="margin-top:6px;"></div>
+      </div>
       <div style="margin-top:16px;">
         <div class="form-group"><label>Name</label><input type="text" id="caEditName"></div>
         <div class="form-group"><label>E-Mail</label><input type="email" id="caEditEmail" readonly style="background:var(--gray-50);"></div>
@@ -1088,6 +1094,13 @@
         <div class="form-group"><label>Geburtsdatum</label><input type="date" id="caRegBirth"></div>
         <div class="form-group"><label>Passwort *</label><input type="password" id="caRegPw" minlength="6" placeholder="Mind. 6 Zeichen"></div>
         <div class="form-group"><label>Passwort best&auml;tigen *</label><input type="password" id="caRegPw2" minlength="6"></div>
+        <div style="margin:12px 0 16px;">
+          <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer; font-size:12px; color:var(--gray-600); line-height:1.5; text-transform:none; letter-spacing:0; font-weight:400;">
+            <input type="checkbox" id="caRegConsent" style="margin-top:3px; flex-shrink:0; width:16px; height:16px; accent-color:var(--primary);">
+            <span>Ich bin damit einverstanden, dass meine Angaben zur Erstellung und Verwaltung meines Kundenkontos gespeichert und verarbeitet werden. Eine Abmeldung und L&ouml;schung ist jederzeit m&ouml;glich. Weitere Informationen in der <a href="https://www.dassu.de/datenschutz" target="_blank" style="color:var(--primary); text-decoration:underline;">Datenschutzerkl&auml;rung</a>. *</span>
+          </label>
+        </div>
+        <p style="font-size:11px; color:var(--gray-400); line-height:1.5; margin-bottom:12px;">Nach der Registrierung erh&auml;ltst du eine Best&auml;tigungs-E-Mail. Buchungen sind erst nach Best&auml;tigung deiner E-Mail-Adresse m&ouml;glich.</p>
         <div class="modal-actions">
           <button class="btn" onclick="closeModal('customerAuthModal')">Abbrechen</button>
           <button class="btn btn-primary" id="caRegBtn" onclick="customerRegister()">Registrieren</button>
@@ -2259,6 +2272,15 @@ function showBookingConfirmation() {
 }
 
 function submitBooking() {
+  // E-Mail-Verifizierung prüfen (nur für eingeloggte Kunden, nicht für Staff)
+  const currentUser = firebase.auth().currentUser;
+  if (currentUser && !currentUser.emailVerified) {
+    // Prüfen ob es ein Staff-User ist (Staff überspringt die Prüfung)
+    if (customerProfile && !adminLoggedIn) {
+      notify('Bitte bestätige zuerst deine E-Mail-Adresse. Prüfe deinen Posteingang.', 'error', 5000);
+      return;
+    }
+  }
   const name = document.getElementById('bookingName').value.trim();
   const email = document.getElementById('bookingEmail').value.trim();
   const phone = document.getElementById('bookingPhone').value.trim();
@@ -3658,11 +3680,11 @@ function closeModal(id) {
   document.getElementById(id).classList.remove('active');
 }
 
-function notify(msg, type) {
+function notify(msg, type, duration) {
   const el = document.getElementById('notification');
   el.textContent = msg;
   el.className = `notification ${type} show`;
-  setTimeout(() => el.classList.remove('show'), 3000);
+  setTimeout(() => el.classList.remove('show'), duration || 3000);
 }
 
 // Close modals on overlay click
@@ -3695,6 +3717,21 @@ function openCustomerAuth() {
     document.getElementById('caEditPhone').value = customerProfile.phone || '';
     document.getElementById('caEditBirth').value = customerProfile.birthdate || '';
     document.getElementById('caEditMsg').innerHTML = '';
+    // E-Mail-Verifizierung prüfen
+    const user = firebase.auth().currentUser;
+    const verifyBanner = document.getElementById('caVerifyBanner');
+    if (user && !user.emailVerified) {
+      // Token aktualisieren um neuesten Status zu holen
+      user.reload().then(() => {
+        if (user.emailVerified) {
+          verifyBanner.style.display = 'none';
+        } else {
+          verifyBanner.style.display = '';
+        }
+      }).catch(() => { verifyBanner.style.display = ''; });
+    } else {
+      verifyBanner.style.display = 'none';
+    }
     // Avatar anzeigen
     const avatarCircle = document.getElementById('caAvatarCircle');
     const avatarInitial = document.getElementById('caAvatarInitial');
@@ -3753,16 +3790,18 @@ async function customerRegister() {
   const pw2 = document.getElementById('caRegPw2').value;
   if (!name || !email || !phone) { caMsg('caRegMsg', 'error', 'Name, E-Mail und Telefon sind Pflicht.'); return; }
   if (!pw || pw.length < 6) { caMsg('caRegMsg', 'error', 'Passwort muss mindestens 6 Zeichen haben.'); return; }
-  if (pw !== pw2) { caMsg('caRegMsg', 'error', 'Passw&ouml;rter stimmen nicht &uuml;berein.'); return; }
+  if (pw !== pw2) { caMsg('caRegMsg', 'error', 'Passw\u00f6rter stimmen nicht \u00fcberein.'); return; }
+  if (!document.getElementById('caRegConsent').checked) { caMsg('caRegMsg', 'error', 'Bitte stimme der Datenschutzerkl\u00e4rung zu.'); return; }
   const btn = document.getElementById('caRegBtn');
   btn.disabled = true; btn.textContent = 'Registriere...';
   try {
     let cred;
+    let isNewAccount = false;
     try {
       cred = await firebase.auth().createUserWithEmailAndPassword(email, pw);
+      isNewAccount = true;
     } catch (createErr) {
       if (createErr.code === 'auth/email-already-in-use') {
-        // Account existiert schon → einloggen und Kundenprofil anlegen/aktualisieren
         try {
           cred = await firebase.auth().signInWithEmailAndPassword(email, pw);
         } catch (loginErr) {
@@ -3778,11 +3817,19 @@ async function customerRegister() {
       }
     }
     const uid = cred.user.uid;
-    const profile = { name, email, phone: phone || '', birthdate: birth || '', createdAt: Date.now() };
+    const profile = { name, email, phone: phone || '', birthdate: birth || '', consentAt: Date.now(), createdAt: Date.now() };
     await db.ref('customers/' + uid).set(profile);
     try { await cred.user.updateProfile({ displayName: name }); } catch (_) {}
+    // E-Mail-Verifizierung senden
+    if (isNewAccount || !cred.user.emailVerified) {
+      try { await cred.user.sendEmailVerification(); } catch (_) {}
+    }
     closeModal('customerAuthModal');
-    notify('Willkommen, ' + name + '! Deine Daten werden ab jetzt automatisch ausgef\u00fcllt.', 'success');
+    if (!cred.user.emailVerified) {
+      notify('Willkommen, ' + name + '! Bitte best\u00e4tige deine E-Mail-Adresse \u2014 wir haben dir einen Link geschickt.', 'success', 8000);
+    } else {
+      notify('Willkommen, ' + name + '! Deine Daten werden ab jetzt automatisch ausgef\u00fcllt.', 'success');
+    }
   } catch (e) {
     const msg = e.code === 'auth/weak-password' ? 'Passwort zu schwach.' : e.message;
     caMsg('caRegMsg', 'error', msg);
@@ -3825,6 +3872,22 @@ async function customerResetPw() {
     caMsg('caLoginMsg', 'success', 'Reset-Link wurde gesendet. Bitte Posteingang pr\u00fcfen.');
   } catch (_) {
     caMsg('caLoginMsg', 'success', 'Falls ein Account existiert, wurde ein Reset-Link gesendet.');
+  }
+}
+
+async function resendVerificationEmail() {
+  const user = firebase.auth().currentUser;
+  const msgEl = document.getElementById('caVerifyMsg');
+  if (!user) return;
+  try {
+    await user.sendEmailVerification();
+    msgEl.innerHTML = '<span style="color:#2d7a4a; font-size:12px;">Best\u00e4tigungs-E-Mail wurde erneut gesendet!</span>';
+  } catch (e) {
+    if (e.code === 'auth/too-many-requests') {
+      msgEl.innerHTML = '<span style="color:#b83232; font-size:12px;">Bitte warte einen Moment, bevor du es erneut versuchst.</span>';
+    } else {
+      msgEl.innerHTML = '<span style="color:#b83232; font-size:12px;">Fehler: ' + e.message + '</span>';
+    }
   }
 }
 
