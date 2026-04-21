@@ -685,6 +685,33 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
 .activity-load-more { text-align: center; padding: 10px; }
 .activity-load-more button { padding: 8px 20px; background: var(--gray-100); border: 1px solid #e8eaed; border-radius: 8px; font-size: 12px; font-weight: 600; color: var(--navy); cursor: pointer; font-family: var(--font); }
 .activity-load-more button:active { background: #e8eaed; }
+
+/* Mein Konto */
+.account-card { background: #fff; border-radius: 14px; padding: 20px; margin: 12px 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+.account-card h3 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gray-500); margin: 0 0 14px; }
+.account-avatar-section { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+.account-avatar { width: 72px; height: 72px; border-radius: 50%; background: var(--primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 700; overflow: hidden; position: relative; cursor: pointer; flex-shrink: 0; }
+.account-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.account-avatar-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; font-size: 20px; }
+.account-avatar:hover .account-avatar-overlay { opacity: 1; }
+.account-avatar-info { flex: 1; }
+.account-avatar-info .acc-name { font-size: 18px; font-weight: 700; color: var(--navy); }
+.account-avatar-info .acc-role { font-size: 13px; color: var(--gray-500); margin-top: 2px; }
+.account-field { margin-bottom: 14px; }
+.account-field label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--gray-500); margin-bottom: 4px; }
+.account-field input { width: 100%; padding: 10px 12px; border: 1.5px solid #e0e0e0; border-radius: 8px; font-size: 14px; font-family: var(--font); color: var(--navy); background: #fff; box-sizing: border-box; transition: border-color 0.2s; }
+.account-field input:focus { border-color: var(--primary); outline: none; }
+.account-field input:disabled { background: #f7f7f7; color: #999; }
+.account-field .field-hint { font-size: 11px; color: var(--gray-500); margin-top: 3px; }
+.account-actions { display: flex; gap: 8px; margin-top: 16px; }
+.account-actions button { padding: 10px 18px; border-radius: 8px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; font-family: var(--font); }
+.acc-btn-primary { background: var(--primary); color: #fff; }
+.acc-btn-primary:active { opacity: 0.85; }
+.acc-btn-secondary { background: var(--gray-100); color: var(--navy); border: 1px solid #e0e0e0 !important; }
+.acc-btn-danger { background: #fdecec; color: var(--danger); }
+.account-msg { padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; display: none; }
+.account-msg.success { display: block; background: #edf7ed; color: #2e7d32; }
+.account-msg.error { display: block; background: #fdecea; color: var(--danger); }
 </style>
 </head>
 <body>
@@ -793,6 +820,7 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
   <button class="view-tab" id="tabTeam" onclick="switchView('team')" style="display:none;">Team</button>
   <button class="view-tab" id="tabTime" onclick="switchView('time')" style="display:none;">Arbeitszeit</button>
   <button class="view-tab" id="tabStats" onclick="switchView('stats')" style="display:none;">Statistik</button>
+  <button class="view-tab" id="tabAccount" onclick="switchView('account')">Mein Konto</button>
 </div>
 
 <div id="viewOverview" class="overview">
@@ -1034,6 +1062,71 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
   </div>
   <div id="vfCompareContent">
     <div class="empty-msg">Lade Flugdaten…</div>
+  </div>
+</div>
+
+<!-- Mein Konto -->
+<div id="viewAccount" style="display:none;">
+  <div id="accountMsg" class="account-msg" style="margin:12px 16px 0;"></div>
+
+  <div class="account-card">
+    <div class="account-avatar-section">
+      <div class="account-avatar" id="accAvatar" onclick="document.getElementById('accAvatarInput').click()">
+        <span id="accAvatarInitial">?</span>
+        <div class="account-avatar-overlay">&#128247;</div>
+      </div>
+      <input type="file" id="accAvatarInput" accept="image/*" style="display:none;" onchange="handleAvatarUpload(event)">
+      <div class="account-avatar-info">
+        <div class="acc-name" id="accDisplayName">—</div>
+        <div class="acc-role" id="accDisplayRole">—</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="account-card">
+    <h3>Persönliche Daten</h3>
+    <div class="account-field">
+      <label>Name</label>
+      <input type="text" id="accName" placeholder="Dein Name">
+    </div>
+    <div class="account-field">
+      <label>E-Mail</label>
+      <input type="email" id="accEmail" disabled>
+      <div class="field-hint">E-Mail kann nicht geändert werden</div>
+    </div>
+    <div class="account-field">
+      <label>Telefon</label>
+      <input type="tel" id="accPhone" placeholder="+49 123 456789">
+    </div>
+    <div class="account-field">
+      <label>Geburtsdatum</label>
+      <input type="date" id="accBirthdate">
+    </div>
+    <div class="account-actions">
+      <button class="acc-btn-primary" onclick="saveAccountProfile()">Speichern</button>
+    </div>
+  </div>
+
+  <div class="account-card">
+    <h3>Passwort ändern</h3>
+    <div class="account-field">
+      <label>Neues Passwort</label>
+      <input type="password" id="accNewPw" placeholder="Mindestens 6 Zeichen">
+    </div>
+    <div class="account-field">
+      <label>Passwort bestätigen</label>
+      <input type="password" id="accNewPw2" placeholder="Passwort wiederholen">
+    </div>
+    <div class="account-actions">
+      <button class="acc-btn-secondary" onclick="changeAccountPassword()">Passwort ändern</button>
+    </div>
+  </div>
+
+  <div class="account-card" style="margin-bottom:80px;">
+    <h3>Konto</h3>
+    <div class="account-actions">
+      <button class="acc-btn-danger" onclick="switchUser()">Abmelden</button>
+    </div>
   </div>
 </div>
 
@@ -1850,7 +1943,7 @@ function goToday() { currentDate = new Date(); render(); }
 // ============================================================
 function switchView(view) {
   currentView = view;
-  ['Overview','Book','Manage','Theory','Team','Time','Stats'].forEach(v => {
+  ['Overview','Book','Manage','Theory','Team','Time','Stats','Account'].forEach(v => {
     const tab = document.getElementById('tab' + v);
     const cont = document.getElementById('view' + v);
     if (!tab || !cont) return;
@@ -1859,6 +1952,7 @@ function switchView(view) {
     cont.style.display = isActive ? '' : 'none';
   });
   if (view === 'stats') loadVfCache();
+  if (view === 'account') renderAccountTab();
   render();
 }
 
@@ -4681,6 +4775,151 @@ document.addEventListener('click', (e) => {
 showSplash('Prüfe Anmeldung…');
 // Firebase Auth übernimmt: meldet an, lädt staffUsers-Profil, zeigt UI – oder redirect auf welcome.html
 setupAuthGuard();
+// ============================================================
+// MEIN KONTO
+// ============================================================
+function renderAccountTab() {
+  if (!currentUser) return;
+  const user = currentUser;
+  const auth = firebase.auth().currentUser;
+
+  // Avatar
+  const avatarEl = document.getElementById('accAvatar');
+  const initialEl = document.getElementById('accAvatarInitial');
+  if (user.photoURL) {
+    avatarEl.innerHTML = `<img src="${user.photoURL}"><div class="account-avatar-overlay">&#128247;</div>`;
+  } else {
+    const initials = (user.name || '?').split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
+    initialEl.textContent = initials;
+  }
+
+  // Display
+  document.getElementById('accDisplayName').textContent = user.name || '—';
+  const roleNames = { admin: 'Administrator', vorstand: 'Vorstand', flugleiter: 'Flugleiter', team: 'Teammitglied', member: 'Mitglied', guest: 'Gast' };
+  document.getElementById('accDisplayRole').textContent = roleNames[user.role] || user.role || '—';
+
+  // Form fields
+  document.getElementById('accName').value = user.name || '';
+  document.getElementById('accEmail').value = auth ? auth.email : (user.email || '');
+  document.getElementById('accPhone').value = user.phone || '';
+  document.getElementById('accBirthdate').value = user.birthdate || '';
+
+  // Clear password fields
+  document.getElementById('accNewPw').value = '';
+  document.getElementById('accNewPw2').value = '';
+
+  // Clear message
+  const msg = document.getElementById('accountMsg');
+  msg.className = 'account-msg';
+  msg.style.display = 'none';
+}
+
+function accMsg(text, type) {
+  const msg = document.getElementById('accountMsg');
+  msg.textContent = text;
+  msg.className = 'account-msg ' + type;
+  msg.style.display = 'block';
+  msg.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  if (type === 'success') setTimeout(() => { msg.style.display = 'none'; }, 4000);
+}
+
+async function saveAccountProfile() {
+  if (!currentUser) return;
+  const name = document.getElementById('accName').value.trim();
+  const phone = document.getElementById('accPhone').value.trim();
+  const birthdate = document.getElementById('accBirthdate').value;
+
+  if (!name) { accMsg('Name darf nicht leer sein.', 'error'); return; }
+
+  const updates = { name };
+  if (phone) updates.phone = phone; else updates.phone = null;
+  if (birthdate) updates.birthdate = birthdate; else updates.birthdate = null;
+
+  try {
+    await db.ref('staffUsers/' + currentUser.id).update(updates);
+    // Update Firebase Auth displayName
+    const auth = firebase.auth().currentUser;
+    if (auth && name !== auth.displayName) {
+      await auth.updateProfile({ displayName: name });
+    }
+    accMsg('Profil gespeichert.', 'success');
+    // Update header
+    document.getElementById('headerUserName').textContent = name;
+    const initials = name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
+    const headerAv = document.getElementById('headerAvatar');
+    if (headerAv && !headerAv.querySelector('img')) headerAv.textContent = initials;
+  } catch (e) {
+    accMsg('Fehler beim Speichern: ' + e.message, 'error');
+  }
+}
+
+async function changeAccountPassword() {
+  const pw1 = document.getElementById('accNewPw').value;
+  const pw2 = document.getElementById('accNewPw2').value;
+  if (!pw1 || pw1.length < 6) { accMsg('Passwort muss mindestens 6 Zeichen haben.', 'error'); return; }
+  if (pw1 !== pw2) { accMsg('Passwörter stimmen nicht überein.', 'error'); return; }
+
+  try {
+    await firebase.auth().currentUser.updatePassword(pw1);
+    accMsg('Passwort geändert.', 'success');
+    document.getElementById('accNewPw').value = '';
+    document.getElementById('accNewPw2').value = '';
+  } catch (e) {
+    if (e.code === 'auth/requires-recent-login') {
+      accMsg('Bitte melde dich neu an, um das Passwort zu ändern.', 'error');
+    } else {
+      accMsg('Fehler: ' + (e.message || e.code), 'error');
+    }
+  }
+}
+
+async function handleAvatarUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) { accMsg('Bitte ein Bild auswählen.', 'error'); return; }
+  if (file.size > 5 * 1024 * 1024) { accMsg('Bild zu groß (max. 5 MB).', 'error'); return; }
+
+  try {
+    // Resize image to max 200x200 and convert to Base64
+    const dataUrl = await resizeImage(file, 200);
+
+    await db.ref('staffUsers/' + currentUser.id).update({ photoURL: dataUrl });
+    // Update Firebase Auth
+    try { await firebase.auth().currentUser.updateProfile({ photoURL: dataUrl }); } catch (_) {}
+
+    accMsg('Profilbild gespeichert.', 'success');
+    renderAccountTab();
+    // Update header avatar
+    const headerAv = document.getElementById('headerAvatar');
+    if (headerAv) headerAv.innerHTML = `<img src="${dataUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+  } catch (e) {
+    accMsg('Fehler beim Hochladen: ' + e.message, 'error');
+  }
+}
+
+function resizeImage(file, maxSize) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let w = img.width, h = img.height;
+        if (w > h) { if (w > maxSize) { h = h * maxSize / w; w = maxSize; } }
+        else { if (h > maxSize) { w = w * maxSize / h; h = maxSize; } }
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.8));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 // Vereinsflieger-Mitglieder im Hintergrund laden
 loadVfMembers();
 

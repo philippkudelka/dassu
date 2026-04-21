@@ -1024,6 +1024,13 @@
     <div id="caLoggedIn" style="display:none;">
       <h3>Mein Konto</h3>
       <div class="cauth-logged-in">
+        <div style="position:relative;width:64px;height:64px;margin:0 auto 8px;cursor:pointer;" onclick="document.getElementById('caAvatarInput').click()">
+          <div id="caAvatarCircle" style="width:64px;height:64px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;overflow:hidden;">
+            <span id="caAvatarInitial">?</span>
+          </div>
+          <div style="position:absolute;inset:0;border-radius:50%;background:rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.2s;font-size:18px;color:#fff;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0'">&#128247;</div>
+        </div>
+        <input type="file" id="caAvatarInput" accept="image/*" style="display:none;" onchange="handleCustomerAvatarUpload(event)">
         <div class="name" id="caDisplayName"></div>
         <div class="email" id="caDisplayEmail"></div>
       </div>
@@ -1038,7 +1045,17 @@
         <button class="btn" onclick="closeModal('customerAuthModal')">Schliessen</button>
         <button class="btn btn-primary" onclick="saveCustomerProfile()">Speichern</button>
       </div>
-      <div style="text-align:center; margin-top:12px;">
+      <hr style="margin:16px 0;border:none;border-top:1px solid var(--gray-50);">
+      <details style="margin-bottom:12px;">
+        <summary style="font-size:13px;font-weight:600;color:var(--dark);cursor:pointer;">Passwort ändern</summary>
+        <div style="margin-top:10px;">
+          <div class="form-group"><label>Neues Passwort</label><input type="password" id="caPwNew" placeholder="Mind. 6 Zeichen"></div>
+          <div class="form-group"><label>Bestätigen</label><input type="password" id="caPwNew2" placeholder="Passwort wiederholen"></div>
+          <div id="caPwMsg"></div>
+          <button class="btn" onclick="changeCustomerPassword()" style="width:100%;margin-top:4px;">Passwort ändern</button>
+        </div>
+      </details>
+      <div style="text-align:center; margin-top:8px;">
         <button onclick="customerSignOut()" style="background:none; border:none; color:var(--gray-500); font-size:12px; cursor:pointer; text-decoration:underline; font-family:var(--font-ui);">Abmelden</button>
       </div>
     </div>
@@ -3678,6 +3695,15 @@ function openCustomerAuth() {
     document.getElementById('caEditPhone').value = customerProfile.phone || '';
     document.getElementById('caEditBirth').value = customerProfile.birthdate || '';
     document.getElementById('caEditMsg').innerHTML = '';
+    // Avatar anzeigen
+    const avatarCircle = document.getElementById('caAvatarCircle');
+    const avatarInitial = document.getElementById('caAvatarInitial');
+    if (customerProfile.photoURL) {
+      avatarCircle.innerHTML = '<img src="' + customerProfile.photoURL + '" style="width:100%;height:100%;object-fit:cover;">';
+    } else {
+      const initials = (customerProfile.name || '?').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+      avatarCircle.innerHTML = '<span id="caAvatarInitial">' + initials + '</span>';
+    }
   } else {
     document.getElementById('caLoggedIn').style.display = 'none';
     document.getElementById('caAuthForms').style.display = '';
@@ -3773,6 +3799,7 @@ async function saveCustomerProfile() {
   if (!name) { caMsg('caEditMsg', 'error', 'Name darf nicht leer sein.'); return; }
   try {
     await db.ref('customers/' + user.uid).update({ name, phone, birthdate: birth });
+    try { await user.updateProfile({ displayName: name }); } catch (_) {}
     customerProfile.name = name;
     customerProfile.phone = phone;
     customerProfile.birthdate = birth;
@@ -3798,6 +3825,68 @@ async function customerResetPw() {
     caMsg('caLoginMsg', 'success', 'Reset-Link wurde gesendet. Bitte Posteingang pr\u00fcfen.');
   } catch (_) {
     caMsg('caLoginMsg', 'success', 'Falls ein Account existiert, wurde ein Reset-Link gesendet.');
+  }
+}
+
+function resizeImageCustomer(file, maxSize) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let w = img.width, h = img.height;
+        if (w > h) { if (w > maxSize) { h = h * maxSize / w; w = maxSize; } }
+        else { if (h > maxSize) { w = w * maxSize / h; h = maxSize; } }
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.8));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function handleCustomerAvatarUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const user = firebase.auth().currentUser;
+  if (!user) return;
+  try {
+    const dataUrl = await resizeImageCustomer(file, 200);
+    await db.ref('customers/' + user.uid + '/photoURL').set(dataUrl);
+    if (customerProfile) customerProfile.photoURL = dataUrl;
+    // Avatar im Modal aktualisieren
+    const avatarCircle = document.getElementById('caAvatarCircle');
+    avatarCircle.innerHTML = '<img src="' + dataUrl + '" style="width:100%;height:100%;object-fit:cover;">';
+    caMsg('caEditMsg', 'success', 'Profilbild gespeichert!');
+    setTimeout(() => { document.getElementById('caEditMsg').innerHTML = ''; }, 2000);
+  } catch (e) {
+    caMsg('caEditMsg', 'error', 'Bild-Upload fehlgeschlagen: ' + e.message);
+  }
+}
+
+async function changeCustomerPassword() {
+  const pw1 = document.getElementById('caPwNew').value;
+  const pw2 = document.getElementById('caPwNew2').value;
+  if (!pw1 || pw1.length < 6) { caMsg('caPwMsg', 'error', 'Passwort muss mindestens 6 Zeichen haben.'); return; }
+  if (pw1 !== pw2) { caMsg('caPwMsg', 'error', 'Passwörter stimmen nicht überein.'); return; }
+  const user = firebase.auth().currentUser;
+  if (!user) return;
+  try {
+    await user.updatePassword(pw1);
+    caMsg('caPwMsg', 'success', 'Passwort geändert!');
+    document.getElementById('caPwNew').value = '';
+    document.getElementById('caPwNew2').value = '';
+  } catch (e) {
+    const msg = e.code === 'auth/requires-recent-login'
+      ? 'Bitte erst abmelden und neu anmelden, dann erneut versuchen.'
+      : e.message;
+    caMsg('caPwMsg', 'error', msg);
   }
 }
 
@@ -3852,7 +3941,7 @@ firebase.auth().onAuthStateChanged(async (user) => {
           if (document.getElementById('tabFluglehrer')) document.getElementById('tabFluglehrer').style.display = '';
         }
         // Staff ist auch Kunde: Autofill mit Staff-Daten
-        customerProfile = { name: staffProfile.name, email: staffProfile.email, phone: staffProfile.phone || '', birthdate: '' };
+        customerProfile = { name: staffProfile.name, email: staffProfile.email, phone: staffProfile.phone || '', birthdate: '', photoURL: staffProfile.photoURL || '' };
         updateCustomerButton();
         renderView();
         return;
