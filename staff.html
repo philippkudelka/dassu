@@ -1342,7 +1342,7 @@ function setUserRole(id, role) {
   notify('Rolle aktualisiert.', 'success');
 }
 
-function deleteStaffUser(id) {
+async function deleteStaffUser(id) {
   if (!isAdmin()) return;
   if (currentUser && id === currentUser.id) { notify('Dich selbst kannst du nicht l\u00f6schen.', 'error'); return; }
   const user = staffUsers.find(u => u.id === id);
@@ -1352,7 +1352,22 @@ function deleteStaffUser(id) {
     if (adminCount <= 1) { notify('Mindestens ein Admin muss bleiben.', 'error'); return; }
   }
   if (!confirm(`Mitarbeiter \u201e${user.name}\u201c wirklich l\u00f6schen?`)) return;
-  db.ref('staffUsers/' + id).remove();
+
+  // 1. DB-Eintrag entfernen
+  await db.ref('staffUsers/' + id).remove();
+
+  // 2. Firebase Auth Account via Netlify Function löschen
+  try {
+    const token = await firebase.auth().currentUser.getIdToken();
+    await fetch('/.netlify/functions/delete-auth-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ uid: id })
+    });
+  } catch (e) {
+    console.warn('Auth-Account konnte nicht gelöscht werden:', e);
+  }
+
   notify('Mitarbeiter entfernt.', 'success');
 }
 
