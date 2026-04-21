@@ -78,6 +78,24 @@ async function vfGetFlightsDateRange(accesstoken, dateFrom, dateTo) {
   return Array.isArray(data) ? data : [];
 }
 
+async function vfGetUserList(accesstoken) {
+  const res = await fetch(`${VF_BASE}/user/list`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: new URLSearchParams({ accesstoken }).toString()
+  });
+  const data = await res.json();
+  if (data && typeof data === 'object' && !Array.isArray(data)) {
+    if (data.error_code && data.error_code !== '0') {
+      throw new Error('API Fehler: ' + (data.error_msg || JSON.stringify(data)));
+    }
+    return Object.values(data).filter(v => typeof v === 'object' && v !== null && (v.firstname || v.lastname));
+  }
+  return Array.isArray(data) ? data : [];
+}
+
 async function vfGetAircraftList(accesstoken) {
   const res = await fetch(`${VF_BASE}/aircraft/list`, {
     method: 'POST',
@@ -188,6 +206,17 @@ exports.handler = async (event) => {
       }
       case 'aircraft': {
         result = await vfGetAircraftList(accesstoken);
+        break;
+      }
+      case 'members': {
+        // Mitgliederliste holen, nur Namen zurückgeben (Datensparsamkeit)
+        const users = await vfGetUserList(accesstoken);
+        result = users.map(u => ({
+          firstname: u.firstname || '',
+          lastname: u.lastname || '',
+          memberid: u.memberid || u.uid || ''
+        })).filter(u => u.firstname || u.lastname)
+          .sort((a, b) => (a.lastname || '').localeCompare(b.lastname || ''));
         break;
       }
       case 'yearCompare': {

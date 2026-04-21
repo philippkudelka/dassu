@@ -249,6 +249,12 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
 .quick-input { width: 100%; padding: 14px; font-size: 16px; border: 2px solid #e8eaed; border-radius: var(--radius); font-family: var(--font); outline: none; transition: border-color 0.2s; }
 .quick-input:focus { border-color: var(--primary); }
 .quick-input::placeholder { color: #bbb; }
+.ac-wrap { position: relative; }
+.ac-list { position: absolute; top: 100%; left: 0; right: 0; max-height: 200px; overflow-y: auto; background: white; border: 2px solid var(--primary); border-top: none; border-radius: 0 0 var(--radius) var(--radius); z-index: 1000; display: none; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
+.ac-list.open { display: block; }
+.ac-item { padding: 10px 14px; font-size: 15px; cursor: pointer; font-family: var(--font); }
+.ac-item:hover, .ac-item.active { background: var(--primary); color: white; }
+.ac-item small { font-size: 11px; opacity: 0.7; margin-left: 6px; }
 .quick-row { display: flex; gap: 8px; margin-top: 10px; }
 .quick-select { flex: 1; padding: 12px; font-size: 14px; border: 2px solid #e8eaed; border-radius: var(--radius); font-family: var(--font); background: white; }
 .btn-book { padding: 14px; background: var(--primary); color: white; border: none; border-radius: var(--radius); font-size: 15px; font-weight: 600; cursor: pointer; font-family: var(--font); }
@@ -1039,7 +1045,10 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
       <div class="info-chip" id="quickAircraft"></div>
       <div class="info-chip" id="quickDate"></div>
     </div>
-    <input class="quick-input" id="qbName" type="text" placeholder="Name eingeben..." autocomplete="off">
+    <div class="ac-wrap">
+      <input class="quick-input" id="qbName" type="text" placeholder="Name eingeben..." autocomplete="off" oninput="acFilter('qbName')" onfocus="acFilter('qbName')" onkeydown="acKeydown(event,'qbName')">
+      <div class="ac-list" id="qbName-ac"></div>
+    </div>
     <div class="quick-row" style="margin-top:8px;">
       <input class="quick-input" id="qbInstructor" type="text" placeholder="Fluglehrer (optional)" autocomplete="off" style="flex:1;">
     </div>
@@ -1060,7 +1069,10 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
       <div class="info-chip" id="editAircraft"></div>
       <div class="info-chip" id="editDate"></div>
     </div>
-    <input class="quick-input" id="ebName" type="text" placeholder="Name" autocomplete="off">
+    <div class="ac-wrap">
+      <input class="quick-input" id="ebName" type="text" placeholder="Name" autocomplete="off" oninput="acFilter('ebName')" onfocus="acFilter('ebName')" onkeydown="acKeydown(event,'ebName')">
+      <div class="ac-list" id="ebName-ac"></div>
+    </div>
     <div class="quick-row" style="margin-top:8px;">
       <input class="quick-input" id="ebInstructor" type="text" placeholder="Fluglehrer (optional)" autocomplete="off" style="flex:1;">
     </div>
@@ -1130,6 +1142,8 @@ let currentView = 'overview';
 let currentEditId = null;
 let manageFilter = 'today';
 let firstLoad = true;
+let vfMembers = []; // Vereinsflieger-Mitgliedernamen für Autocomplete
+let acActiveIdx = -1; // Aktuell markierter Autocomplete-Eintrag
 let knownBookingIds = new Set();
 let pendingOpenBookingId = (new URLSearchParams(window.location.search)).get('booking') || '';
 
@@ -4534,12 +4548,126 @@ if ('serviceWorker' in navigator) {
 }
 
 // ============================================================
+// VEREINSFLIEGER MITGLIEDER-AUTOCOMPLETE
+// ============================================================
+async function loadVfMembers() {
+  // Cache prüfen (max 24h)
+  try {
+    const cached = localStorage.getItem('vfMembers');
+    const cachedAt = parseInt(localStorage.getItem('vfMembersCachedAt') || '0');
+    if (cached && (Date.now() - cachedAt) < 86400000) {
+      vfMembers = JSON.parse(cached);
+      console.log(`VF-Mitglieder aus Cache: ${vfMembers.length}`);
+      return;
+    }
+  } catch (_) {}
+
+  try {
+    const res = await fetch('/.netlify/functions/vereinsflieger-sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'members' })
+    });
+    const json = await res.json();
+    if (json.ok && json.data) {
+      vfMembers = json.data.map(m => {
+        const name = [m.firstname, m.lastname].filter(Boolean).join(' ');
+        return name;
+      }).filter(Boolean);
+      // Im Cache speichern
+      localStorage.setItem('vfMembers', JSON.stringify(vfMembers));
+      localStorage.setItem('vfMembersCachedAt', String(Date.now()));
+      console.log(`VF-Mitglieder geladen: ${vfMembers.length}`);
+    }
+  } catch (err) {
+    console.warn('VF-Mitglieder laden fehlgeschlagen:', err);
+  }
+}
+
+function acFilter(inputId) {
+  const input = document.getElementById(inputId);
+  const list = document.getElementById(inputId + '-ac');
+  if (!input || !list) return;
+
+  const q = input.value.trim().toLowerCase();
+  if (!q || q.length < 1 || vfMembers.length === 0) {
+    list.classList.remove('open');
+    acActiveIdx = -1;
+    return;
+  }
+
+  // Auch aus vergangenen Buchungen Namen sammeln
+  const bookingNames = [...new Set(bookings.map(b => b.name).filter(Boolean))];
+  const allNames = [...new Set([...vfMembers, ...bookingNames])];
+
+  const matches = allNames.filter(n => n.toLowerCase().includes(q)).slice(0, 8);
+  if (matches.length === 0) {
+    list.classList.remove('open');
+    acActiveIdx = -1;
+    return;
+  }
+
+  acActiveIdx = -1;
+  list.innerHTML = matches.map((name, i) =>
+    `<div class="ac-item" onmousedown="acSelect('${inputId}','${name.replace(/'/g, "\\'")}')">${name}</div>`
+  ).join('');
+  list.classList.add('open');
+}
+
+function acSelect(inputId, name) {
+  const input = document.getElementById(inputId);
+  const list = document.getElementById(inputId + '-ac');
+  if (input) input.value = name;
+  if (list) list.classList.remove('open');
+  acActiveIdx = -1;
+}
+
+function acKeydown(e, inputId) {
+  const list = document.getElementById(inputId + '-ac');
+  if (!list || !list.classList.contains('open')) return;
+  const items = list.querySelectorAll('.ac-item');
+  if (items.length === 0) return;
+
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    acActiveIdx = Math.min(acActiveIdx + 1, items.length - 1);
+    items.forEach((el, i) => el.classList.toggle('active', i === acActiveIdx));
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    acActiveIdx = Math.max(acActiveIdx - 1, 0);
+    items.forEach((el, i) => el.classList.toggle('active', i === acActiveIdx));
+  } else if (e.key === 'Enter' && acActiveIdx >= 0) {
+    e.preventDefault();
+    const selected = items[acActiveIdx];
+    if (selected) {
+      document.getElementById(inputId).value = selected.textContent;
+      list.classList.remove('open');
+      acActiveIdx = -1;
+    }
+  } else if (e.key === 'Escape') {
+    list.classList.remove('open');
+    acActiveIdx = -1;
+  }
+}
+
+// Autocomplete schließen bei Klick außerhalb
+document.addEventListener('click', (e) => {
+  document.querySelectorAll('.ac-list.open').forEach(list => {
+    if (!list.parentElement.contains(e.target)) {
+      list.classList.remove('open');
+    }
+  });
+});
+
+// ============================================================
 // INIT
 // ============================================================
 // Während Auth-Prüfung: Splash zeigen
 showSplash('Prüfe Anmeldung…');
 // Firebase Auth übernimmt: meldet an, lädt staffUsers-Profil, zeigt UI – oder redirect auf welcome.html
 setupAuthGuard();
+// Vereinsflieger-Mitglieder im Hintergrund laden
+loadVfMembers();
 
 // Enter-Taste im Einladungsformular
 ['appInvName', 'appInvEmail'].forEach(id => {
