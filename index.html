@@ -3953,10 +3953,11 @@ firebase.auth().onAuthStateChanged(async (user) => {
       const custData = custSnap.val();
       if (custData) {
         customerProfile = custData;
-        updateCustomerButton();
       } else {
-        customerProfile = null;
+        // Auth-Account ohne DB-Profil → Basisdaten aus Auth nehmen
+        customerProfile = { name: user.displayName || '', email: user.email || '' };
       }
+      updateCustomerButton();
     } catch (e) { console.warn('Auth-Check fehlgeschlagen:', e); }
     renderView();
   } else {
