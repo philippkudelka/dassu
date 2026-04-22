@@ -3906,7 +3906,11 @@ async function customerResetPw() {
     return;
   }
   try {
-    await firebase.auth().sendPasswordResetEmail(email);
+    await fetch('/.netlify/functions/send-reset-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
   } catch (_) {
     // Zeige immer die gleiche Nachricht (Sicherheit)
   }
