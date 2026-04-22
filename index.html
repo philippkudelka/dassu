@@ -378,6 +378,13 @@
   .quick-book-actions { display: flex; gap: 6px; justify-content: flex-end; margin-top: 4px; }
   .quick-book-actions button { font-size: 12px; padding: 5px 14px; }
 
+  /* Autocomplete */
+  .qb-ac-wrap { position: relative; }
+  .qb-ac-list { position: absolute; top: 100%; left: 0; right: 0; max-height: 180px; overflow-y: auto; background: white; border: 2px solid var(--navy); border-top: none; border-radius: 0 0 var(--radius-xs) var(--radius-xs); z-index: 1000; display: none; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
+  .qb-ac-list.open { display: block; }
+  .qb-ac-list .ac-item { padding: 7px 10px; font-size: 13px; cursor: pointer; }
+  .qb-ac-list .ac-item:hover, .qb-ac-list .ac-item.active { background: var(--navy); color: white; }
+
   .booking-tag {
     font-size: 9px;
     padding: 2px 6px;
@@ -4170,7 +4177,11 @@ function openQuickBook(aircraft, slot, date, event) {
 
   popup.innerHTML = `
     <h4>Schnellbuchung · ${aircraft}</h4>
-    <input type="text" id="qbName" placeholder="Name eingeben" autofocus>
+    <div class="qb-ac-wrap">
+      <input type="text" id="qbName" placeholder="Name eingeben" autocomplete="off" autofocus
+             oninput="qbAcFilter()" onfocus="qbAcFilter()" onkeydown="qbAcKeydown(event)">
+      <div class="qb-ac-list" id="qbName-ac"></div>
+    </div>
     <input type="text" id="qbInstructor" placeholder="Fluglehrer (optional)" style="margin-top:4px;">
     <div class="quick-book-row">
       <select id="qbFrom" onchange="updateQbTo()">${fromOptions}</select>
@@ -4193,10 +4204,12 @@ function openQuickBook(aircraft, slot, date, event) {
     updateQbTo();
   }, 50);
 
-  // Enter = submit, Escape = close
+  // Enter = submit, Escape = close (but not when autocomplete is handling it)
   popup.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); submitQuickBook(); }
-    if (e.key === 'Escape') { closeQuickBook(); }
+    const acList = document.getElementById('qbName-ac');
+    const acOpen = acList && acList.classList.contains('open');
+    if (e.key === 'Enter' && !acOpen) { e.preventDefault(); submitQuickBook(); }
+    if (e.key === 'Escape' && !acOpen) { closeQuickBook(); }
   });
 }
 
@@ -4279,6 +4292,77 @@ document.addEventListener('click', (e) => {
     closeQuickBook();
   }
 });
+
+// ── Schnellbuchung Autocomplete ──
+let qbAcIdx = -1;
+
+function qbAcFilter() {
+  const input = document.getElementById('qbName');
+  const list = document.getElementById('qbName-ac');
+  if (!input || !list) return;
+
+  const q = input.value.trim().toLowerCase();
+  if (!q || q.length < 1) {
+    list.classList.remove('open');
+    qbAcIdx = -1;
+    return;
+  }
+
+  // Collect unique names from all bookings
+  const allNames = [...new Set(bookings.map(b => b.name).filter(Boolean))];
+  const matches = allNames.filter(n => n.toLowerCase().includes(q)).sort().slice(0, 8);
+
+  if (matches.length === 0) {
+    list.classList.remove('open');
+    qbAcIdx = -1;
+    return;
+  }
+
+  qbAcIdx = -1;
+  list.innerHTML = matches.map(name =>
+    `<div class="ac-item" onmousedown="qbAcSelect('${name.replace(/'/g, "\\'")}')">${name}</div>`
+  ).join('');
+  list.classList.add('open');
+}
+
+function qbAcSelect(name) {
+  const input = document.getElementById('qbName');
+  const list = document.getElementById('qbName-ac');
+  if (input) input.value = name;
+  if (list) list.classList.remove('open');
+  qbAcIdx = -1;
+}
+
+function qbAcKeydown(e) {
+  const list = document.getElementById('qbName-ac');
+  if (!list || !list.classList.contains('open')) return;
+  const items = list.querySelectorAll('.ac-item');
+  if (items.length === 0) return;
+
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    qbAcIdx = Math.min(qbAcIdx + 1, items.length - 1);
+    items.forEach((el, i) => el.classList.toggle('active', i === qbAcIdx));
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    qbAcIdx = Math.max(qbAcIdx - 1, 0);
+    items.forEach((el, i) => el.classList.toggle('active', i === qbAcIdx));
+  } else if (e.key === 'Enter' && qbAcIdx >= 0) {
+    e.preventDefault();
+    e.stopPropagation();
+    const selected = items[qbAcIdx];
+    if (selected) {
+      document.getElementById('qbName').value = selected.textContent;
+      list.classList.remove('open');
+      qbAcIdx = -1;
+    }
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    e.stopPropagation();
+    list.classList.remove('open');
+    qbAcIdx = -1;
+  }
+}
 
 </script>
 </body>
