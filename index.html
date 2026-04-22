@@ -4293,6 +4293,44 @@ document.addEventListener('click', (e) => {
   }
 });
 
+// ── Vereinsflieger-Mitglieder laden (für Autocomplete) ──
+let vfMembers = [];
+
+async function loadVfMembers() {
+  try {
+    const cached = localStorage.getItem('vfMembers');
+    const cachedAt = parseInt(localStorage.getItem('vfMembersCachedAt') || '0');
+    if (cached && (Date.now() - cachedAt) < 86400000) {
+      vfMembers = JSON.parse(cached);
+      console.log(`VF-Mitglieder aus Cache: ${vfMembers.length}`);
+      return;
+    }
+  } catch (_) {}
+
+  try {
+    const res = await fetch('/.netlify/functions/vereinsflieger-sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'members' })
+    });
+    const json = await res.json();
+    if (json.ok && json.data) {
+      vfMembers = json.data.map(m => {
+        const name = [m.firstname, m.lastname].filter(Boolean).join(' ');
+        return name;
+      }).filter(Boolean);
+      localStorage.setItem('vfMembers', JSON.stringify(vfMembers));
+      localStorage.setItem('vfMembersCachedAt', String(Date.now()));
+      console.log(`VF-Mitglieder geladen: ${vfMembers.length}`);
+    }
+  } catch (err) {
+    console.warn('VF-Mitglieder laden fehlgeschlagen:', err);
+  }
+}
+
+// Mitglieder beim Laden der Seite holen
+loadVfMembers();
+
 // ── Schnellbuchung Autocomplete ──
 let qbAcIdx = -1;
 
@@ -4308,8 +4346,9 @@ function qbAcFilter() {
     return;
   }
 
-  // Collect unique names from all bookings
-  const allNames = [...new Set(bookings.map(b => b.name).filter(Boolean))];
+  // Collect unique names from VF members + bookings
+  const bookingNames = [...new Set(bookings.map(b => b.name).filter(Boolean))];
+  const allNames = [...new Set([...vfMembers, ...bookingNames])];
   const matches = allNames.filter(n => n.toLowerCase().includes(q)).sort().slice(0, 8);
 
   if (matches.length === 0) {
