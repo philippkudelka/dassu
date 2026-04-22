@@ -3898,13 +3898,18 @@ async function customerSignOut() {
 }
 
 async function customerResetPw() {
-  const email = document.getElementById('caLoginEmail').value.trim();
-  if (!email) { caMsg('caLoginMsg', 'error', 'Bitte E-Mail eingeben.'); return; }
+  const emailField = document.getElementById('caLoginEmail');
+  const email = emailField.value.trim();
+  if (!email) {
+    caMsg('caLoginMsg', 'error', 'Bitte gib zuerst deine E-Mail-Adresse oben ein.');
+    emailField.focus();
+    return;
+  }
   try {
     await firebase.auth().sendPasswordResetEmail(email);
-    caMsg('caLoginMsg', 'success', 'Reset-Link wurde gesendet. Bitte Posteingang pr\u00fcfen.');
+    caMsg('caLoginMsg', 'success', 'Ein Link zum Zur\u00fccksetzen wurde an ' + email + ' gesendet. Bitte pr\u00fcfe deinen Posteingang.');
   } catch (_) {
-    caMsg('caLoginMsg', 'success', 'Falls ein Account existiert, wurde ein Reset-Link gesendet.');
+    caMsg('caLoginMsg', 'success', 'Falls ein Account mit dieser Adresse existiert, wurde ein Reset-Link gesendet.');
   }
 }
 
