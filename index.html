@@ -675,6 +675,12 @@
   }
   .view-tab.active { background: rgba(255,255,255,0.12); color: white; }
 
+  /* Staff-only elements: hidden until JS adds .auth-revealed */
+  .staff-only { display: none !important; }
+  .staff-only.auth-revealed { display: inline-flex !important; }
+  /* Hide entire tab bar when no staff tabs are visible (customer view) */
+  .view-tabs:not(.has-staff-tabs) { display: none !important; }
+
   /* Responsive Tablet */
   @media (max-width: 768px) {
     .calendar-grid { font-size: 11px; }
@@ -924,11 +930,11 @@
   <div class="header-actions">
     <button id="btnStornieren" class="btn btn-sm" onclick="document.getElementById('cancelInputModal').classList.add('active')" style="color:rgba(255,255,255,0.6); background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.15); font-size:11px; letter-spacing:0.04em; text-transform:uppercase;">Stornieren</button>
     <button id="customerAuthBtn" class="btn btn-sm" onclick="openCustomerAuth()" style="color:rgba(255,255,255,0.6); background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.15); font-size:11px; letter-spacing:0.04em; text-transform:uppercase;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span id="custAuthLabel">Login</span></button>
-    <a href="staff.html" id="btnStaff" class="btn btn-sm" style="display:none; color:rgba(255,255,255,0.6); background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.15); font-size:11px; letter-spacing:0.04em; text-transform:uppercase; text-decoration:none;">Staff</a>
+    <a href="staff.html" id="btnStaff" class="btn btn-sm staff-only" style="color:rgba(255,255,255,0.6); background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.15); font-size:11px; letter-spacing:0.04em; text-transform:uppercase; text-decoration:none;">Staff</a>
     <div class="view-tabs" id="mainViewTabs">
       <button class="view-tab active" onclick="showView('calendar')">Kalender</button>
-      <a href="staff.html" class="view-tab" id="tabFluglehrer" style="text-decoration:none; display:none;">Fluglehrer</a>
-      <button class="view-tab" id="tabAdmin" onclick="showView('admin')" style="display:none;">Admin</button>
+      <a href="staff.html" class="view-tab staff-only" id="tabFluglehrer" style="text-decoration:none;">Fluglehrer</a>
+      <button class="view-tab staff-only" id="tabAdmin" onclick="showView('admin')">Admin</button>
     </div>
   </div>
 </div>
@@ -4056,15 +4062,16 @@ firebase.auth().onAuthStateChanged(async (user) => {
       const staffProfile = snap.val();
       if (staffProfile) {
         // Staff/Admin eingeloggt → Staff-Button zeigen, Kunden-Buttons ausblenden
-        if (btnStaff) btnStaff.style.display = '';
+        if (btnStaff) btnStaff.classList.add('auth-revealed');
+        document.getElementById('mainViewTabs')?.classList.add('has-staff-tabs');
         if (btnStornieren) btnStornieren.style.display = 'none';
         if (customerAuthBtn) customerAuthBtn.style.display = 'none';
         const role = staffProfile.role || 'team';
         // Admin: alles sichtbar
         if (role === 'admin') {
           adminLoggedIn = true;
-          if (document.getElementById('tabAdmin')) document.getElementById('tabAdmin').style.display = '';
-          if (document.getElementById('tabFluglehrer')) document.getElementById('tabFluglehrer').style.display = '';
+          if (document.getElementById('tabAdmin')) document.getElementById('tabAdmin').classList.add('auth-revealed');
+          if (document.getElementById('tabFluglehrer')) document.getElementById('tabFluglehrer').classList.add('auth-revealed');
           if (document.getElementById('adminDashboard')) {
             document.getElementById('adminLogin').style.display = 'none';
             document.getElementById('adminDashboard').style.display = 'block';
@@ -4073,7 +4080,7 @@ firebase.auth().onAuthStateChanged(async (user) => {
         }
         // Team/Fluglehrer: Fluglehrer-Tab
         else if (role === 'team' || role === 'staff' || role === 'guestGlider' || role === 'guestMotor') {
-          if (document.getElementById('tabFluglehrer')) document.getElementById('tabFluglehrer').style.display = '';
+          if (document.getElementById('tabFluglehrer')) document.getElementById('tabFluglehrer').classList.add('auth-revealed');
         }
         // Staff ist auch Kunde: Autofill mit Staff-Daten
         customerProfile = { name: staffProfile.name, email: staffProfile.email, phone: staffProfile.phone || '', birthdate: '', photoURL: staffProfile.photoURL || '' };
@@ -4086,7 +4093,8 @@ firebase.auth().onAuthStateChanged(async (user) => {
         await firebase.auth().signOut();
         return; // onAuthStateChanged wird erneut mit user=null getriggert
       }
-      if (btnStaff) btnStaff.style.display = 'none';
+      if (btnStaff) btnStaff.classList.remove('auth-revealed');
+      document.getElementById('mainViewTabs')?.classList.remove('has-staff-tabs');
       if (btnStornieren) btnStornieren.style.display = '';
       if (customerAuthBtn) customerAuthBtn.style.display = '';
       const custSnap = await db.ref('customers/' + user.uid).once('value');
@@ -4104,11 +4112,11 @@ firebase.auth().onAuthStateChanged(async (user) => {
     adminLoggedIn = false;
     customerProfile = null;
     updateCustomerButton();
-    if (btnStaff) btnStaff.style.display = 'none';
+    // Staff-Elemente verstecken (auth-revealed entfernen)
+    document.querySelectorAll('.staff-only').forEach(el => el.classList.remove('auth-revealed'));
+    document.getElementById('mainViewTabs')?.classList.remove('has-staff-tabs');
     if (btnStornieren) btnStornieren.style.display = '';
     if (customerAuthBtn) customerAuthBtn.style.display = '';
-    if (document.getElementById('tabAdmin')) document.getElementById('tabAdmin').style.display = 'none';
-    if (document.getElementById('tabFluglehrer')) document.getElementById('tabFluglehrer').style.display = 'none';
     renderView();
   }
 });

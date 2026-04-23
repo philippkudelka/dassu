@@ -14,6 +14,12 @@ echo ""
 rm -f .git/index.lock .git/HEAD.lock 2>/dev/null
 find .git/objects -name "tmp_obj_*" -delete 2>/dev/null
 
+# Einmalig: fehlgeschlagenen Commit (mit großer PDF) zurücksetzen
+if git log --oneline -1 | grep -q "Update 2026-04-23 18:15"; then
+  echo "🔄 Setze fehlgeschlagenen PDF-Commit zurück..."
+  git reset --soft HEAD~1
+fi
+
 # Gibt es Änderungen?
 if [ -z "$(git status --porcelain)" ] && [ "$(git rev-list @{u}..HEAD --count 2>/dev/null)" = "0" ]; then
   echo "✅ Keine Änderungen zu deployen."
