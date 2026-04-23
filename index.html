@@ -4548,6 +4548,7 @@ firebase.auth().onAuthStateChanged(async (user) => {
         // Staff ist auch Kunde: Autofill mit Staff-Daten + Meine Buchungen Tab
         customerProfile = { name: staffProfile.name, email: staffProfile.email, phone: staffProfile.phone || '', birthdate: '', photoURL: staffProfile.photoURL || '' };
         document.getElementById('tabMyBookings')?.classList.add('auth-revealed');
+        document.getElementById('tabFlugbuch')?.classList.add('auth-revealed');
         document.getElementById('mainViewTabs')?.classList.add('has-customer-tabs');
         renderView();
         return;
@@ -4569,8 +4570,9 @@ firebase.auth().onAuthStateChanged(async (user) => {
       } else {
         customerProfile = { name: user.displayName || '', email: user.email || '' };
       }
-      // Meine Buchungen Tab sichtbar machen
+      // Meine Buchungen + Flugbuch Tab sichtbar machen
       document.getElementById('tabMyBookings')?.classList.add('auth-revealed');
+      document.getElementById('tabFlugbuch')?.classList.add('auth-revealed');
       document.getElementById('mainViewTabs')?.classList.add('has-customer-tabs');
       updateCustomerButton();
     } catch (e) { console.warn('Auth-Check fehlgeschlagen:', e); }
