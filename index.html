@@ -678,8 +678,44 @@
   /* Staff-only elements: hidden until JS adds .auth-revealed */
   .staff-only { display: none !important; }
   .staff-only.auth-revealed { display: inline-flex !important; }
-  /* Hide entire tab bar when no staff tabs are visible (customer view) */
-  .view-tabs:not(.has-staff-tabs) { display: none !important; }
+  /* Customer-only elements: hidden until JS adds .auth-revealed */
+  .customer-only { display: none !important; }
+  .customer-only.auth-revealed { display: inline-flex !important; }
+  /* Hide entire tab bar when no extra tabs are visible */
+  .view-tabs:not(.has-staff-tabs):not(.has-customer-tabs) { display: none !important; }
+
+  /* Meine Buchungen */
+  .my-bookings-panel { padding: 24px 20px; max-width: 900px; margin: 0 auto; }
+  .my-bookings-panel h2 { font-size: 20px; font-weight: 700; font-family: var(--font-ui); margin-bottom: 4px; }
+  .my-bookings-panel .mb-subtitle { color: var(--gray-500); font-size: 13px; margin-bottom: 20px; }
+  .mb-stats { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+  .mb-stat-card { background: var(--gray-50); border-radius: var(--radius-sm); padding: 14px 18px; flex: 1; min-width: 120px; }
+  .mb-stat-card .mb-stat-num { font-size: 24px; font-weight: 700; font-family: var(--font-ui); color: var(--dark); }
+  .mb-stat-card .mb-stat-label { font-size: 11px; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 2px; }
+  .mb-filter-tabs { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+  .mb-filter-tab { padding: 6px 14px; border-radius: var(--radius-xs); font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid var(--gray-100); background: white; color: var(--gray-500); transition: all 0.15s; font-family: var(--font-ui); }
+  .mb-filter-tab:hover { border-color: var(--primary); color: var(--primary); }
+  .mb-filter-tab.active { background: var(--navy); color: white; border-color: var(--navy); }
+  .mb-card { background: white; border: 1px solid var(--gray-100); border-radius: var(--radius-sm); padding: 16px; margin-bottom: 10px; transition: box-shadow 0.15s; }
+  .mb-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.06); }
+  .mb-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .mb-card-aircraft { font-weight: 700; font-size: 15px; color: var(--dark); font-family: var(--font-ui); }
+  .mb-card-date { font-size: 13px; color: var(--gray-600); margin-top: 2px; }
+  .mb-card-time { font-size: 13px; color: var(--dark); font-weight: 600; }
+  .mb-card-status { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; white-space: nowrap; }
+  .mb-card-status.pending { background: #fff8e6; color: #b8860b; }
+  .mb-card-status.approved { background: #e8f5e9; color: #2e7d32; }
+  .mb-card-status.rejected { background: #fce4ec; color: #c62828; }
+  .mb-card-status.cancelled { background: var(--gray-50); color: var(--gray-500); }
+  .mb-card-details { display: flex; gap: 16px; margin-top: 10px; font-size: 12px; color: var(--gray-500); flex-wrap: wrap; }
+  .mb-card-actions { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--gray-50); display: flex; gap: 8px; }
+  .mb-card-actions button { font-size: 12px; padding: 5px 14px; border-radius: var(--radius-xs); cursor: pointer; font-family: var(--font-ui); font-weight: 500; border: 1px solid var(--gray-200); background: white; color: var(--gray-600); transition: all 0.15s; }
+  .mb-card-actions button:hover { border-color: var(--danger); color: var(--danger); }
+  .mb-card-actions .btn-calendar { border-color: var(--primary); color: var(--primary); }
+  .mb-card-actions .btn-calendar:hover { background: var(--primary); color: white; }
+  .mb-empty { text-align: center; padding: 48px 20px; color: var(--gray-400); }
+  .mb-empty svg { margin-bottom: 12px; }
+  .mb-empty p { font-size: 14px; margin-bottom: 16px; }
 
   /* Responsive Tablet */
   @media (max-width: 768px) {
@@ -933,6 +969,7 @@
     <a href="staff.html" id="btnStaff" class="btn btn-sm staff-only" style="color:rgba(255,255,255,0.6); background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.15); font-size:11px; letter-spacing:0.04em; text-transform:uppercase; text-decoration:none;">Staff</a>
     <div class="view-tabs" id="mainViewTabs">
       <button class="view-tab active" onclick="showView('calendar')">Kalender</button>
+      <button class="view-tab customer-only" id="tabMyBookings" onclick="showView('myBookings')">Meine Buchungen</button>
       <a href="staff.html" class="view-tab staff-only" id="tabFluglehrer" style="text-decoration:none;">Fluglehrer</a>
       <button class="view-tab staff-only" id="tabAdmin" onclick="showView('admin')">Admin</button>
     </div>
@@ -972,6 +1009,23 @@
   <div class="calendar-container">
     <div class="calendar-grid" id="calendarGrid"></div>
     <div id="weekGrid" style="display:none;"></div>
+  </div>
+</div>
+
+<!-- Meine Buchungen View -->
+<div id="myBookingsView" style="display:none;">
+  <div class="my-bookings-panel">
+    <h2>Meine Buchungen</h2>
+    <p class="mb-subtitle" id="mbSubtitle">Deine Buchungen im &Uuml;berblick</p>
+    <div class="mb-stats" id="mbStats"></div>
+    <div class="mb-filter-tabs" id="mbFilterTabs">
+      <button class="mb-filter-tab active" onclick="filterMyBookings('all', this)">Alle</button>
+      <button class="mb-filter-tab" onclick="filterMyBookings('upcoming', this)">Anstehend</button>
+      <button class="mb-filter-tab" onclick="filterMyBookings('pending', this)">Ausstehend</button>
+      <button class="mb-filter-tab" onclick="filterMyBookings('approved', this)">Best&auml;tigt</button>
+      <button class="mb-filter-tab" onclick="filterMyBookings('past', this)">Vergangen</button>
+    </div>
+    <div id="mbList"></div>
   </div>
 </div>
 
@@ -1816,11 +1870,16 @@ function renderView() {
 // ============================================================
 function showView(view) {
   document.getElementById('calendarView').style.display = view === 'calendar' ? 'block' : 'none';
+  document.getElementById('myBookingsView').style.display = view === 'myBookings' ? 'block' : 'none';
   document.getElementById('adminView').classList.toggle('active', view === 'admin');
-  document.querySelectorAll('.header-actions .view-tabs > button.view-tab').forEach(t => t.classList.remove('active'));
-  if (view === 'calendar') document.querySelectorAll('.header-actions .view-tabs > button.view-tab')[0].classList.add('active');
-  else if (view === 'admin') document.querySelectorAll('.header-actions .view-tabs > button.view-tab')[1].classList.add('active');
+  // Tab-Buttons aktiv markieren
+  document.querySelectorAll('#mainViewTabs > .view-tab').forEach(t => t.classList.remove('active'));
+  const tabMap = { calendar: 0, myBookings: 1, admin: -1 };
+  if (view === 'calendar') document.querySelector('#mainViewTabs > .view-tab:first-child')?.classList.add('active');
+  else if (view === 'myBookings') document.getElementById('tabMyBookings')?.classList.add('active');
+  else if (view === 'admin') document.getElementById('tabAdmin')?.classList.add('active');
   if (view === 'admin' && adminLoggedIn) renderAdminTable();
+  if (view === 'myBookings') renderMyBookings();
 }
 
 // ============================================================
@@ -2949,6 +3008,169 @@ function testEmail() {
     statusEl.textContent = 'Fehler: ' + e.message;
     statusEl.style.color = 'var(--danger)';
   }
+}
+
+// ============================================================
+// MEINE BUCHUNGEN (Kundenbereich)
+// ============================================================
+let myBookingsFilter = 'all';
+
+function filterMyBookings(filter, el) {
+  myBookingsFilter = filter;
+  document.querySelectorAll('.mb-filter-tab').forEach(t => t.classList.remove('active'));
+  if (el) el.classList.add('active');
+  renderMyBookings();
+}
+
+function getMyBookings() {
+  if (!customerProfile) return [];
+  const email = (customerProfile.email || '').toLowerCase().trim();
+  const name = (customerProfile.name || '').toLowerCase().trim();
+  if (!email && !name) return [];
+  return bookings.filter(b => {
+    const bEmail = (b.email || '').toLowerCase().trim();
+    const bName = (b.name || '').toLowerCase().trim();
+    return (email && bEmail === email) || (name && bName === name);
+  });
+}
+
+function renderMyBookings() {
+  const list = document.getElementById('mbList');
+  const statsEl = document.getElementById('mbStats');
+  if (!list) return;
+
+  const myAll = getMyBookings().sort((a, b) => {
+    // Sortiere nach Datum absteigend, neueste zuerst
+    const da = new Date(a.date + 'T' + (a.startTime || '00:00'));
+    const db2 = new Date(b.date + 'T' + (b.startTime || '00:00'));
+    return db2 - da;
+  });
+
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  // Stats
+  const upcoming = myAll.filter(b => new Date(b.date) >= today && b.status !== 'rejected' && b.status !== 'cancelled');
+  const pendingCount = myAll.filter(b => b.status === 'pending').length;
+  const approvedCount = myAll.filter(b => b.status === 'approved').length;
+  const totalCount = myAll.length;
+
+  statsEl.innerHTML = `
+    <div class="mb-stat-card">
+      <div class="mb-stat-num">${upcoming.length}</div>
+      <div class="mb-stat-label">Anstehend</div>
+    </div>
+    <div class="mb-stat-card">
+      <div class="mb-stat-num" style="color:${pendingCount > 0 ? '#b8860b' : 'var(--dark)'}">${pendingCount}</div>
+      <div class="mb-stat-label">Ausstehend</div>
+    </div>
+    <div class="mb-stat-card">
+      <div class="mb-stat-num" style="color:#2e7d32">${approvedCount}</div>
+      <div class="mb-stat-label">Best&auml;tigt</div>
+    </div>
+    <div class="mb-stat-card">
+      <div class="mb-stat-num">${totalCount}</div>
+      <div class="mb-stat-label">Gesamt</div>
+    </div>
+  `;
+
+  // Filter anwenden
+  let filtered = myAll;
+  if (myBookingsFilter === 'upcoming') {
+    filtered = myAll.filter(b => new Date(b.date) >= today && b.status !== 'rejected' && b.status !== 'cancelled');
+  } else if (myBookingsFilter === 'pending') {
+    filtered = myAll.filter(b => b.status === 'pending');
+  } else if (myBookingsFilter === 'approved') {
+    filtered = myAll.filter(b => b.status === 'approved');
+  } else if (myBookingsFilter === 'past') {
+    filtered = myAll.filter(b => new Date(b.date) < today || b.status === 'rejected' || b.status === 'cancelled');
+  }
+
+  if (filtered.length === 0) {
+    const msgs = {
+      all: 'Du hast noch keine Buchungen.',
+      upcoming: 'Keine anstehenden Buchungen.',
+      pending: 'Keine ausstehenden Buchungen.',
+      approved: 'Keine best&auml;tigten Buchungen.',
+      past: 'Keine vergangenen Buchungen.'
+    };
+    list.innerHTML = `
+      <div class="mb-empty">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--gray-300)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+        </svg>
+        <p>${msgs[myBookingsFilter] || msgs.all}</p>
+        <button class="btn btn-primary btn-sm" onclick="showView('calendar')">Zum Kalender</button>
+      </div>
+    `;
+    return;
+  }
+
+  const statusLabels = { pending: 'Ausstehend', approved: 'Best\u00e4tigt', rejected: 'Abgelehnt', cancelled: 'Storniert' };
+  const weekdays = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+  const months = ['Januar', 'Februar', 'M\u00e4rz', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+
+  list.innerHTML = filtered.map(b => {
+    const d = new Date(b.date + 'T00:00:00');
+    const dateStr = `${weekdays[d.getDay()]}, ${d.getDate()}. ${months[d.getMonth()]} ${d.getFullYear()}`;
+    const time = (b.startTime && b.endTime) ? `${b.startTime} \u2013 ${b.endTime}` : (b.slot || '');
+    const isPast = d < today;
+    const status = b.status || 'pending';
+    const canCancel = (status === 'pending' || status === 'approved') && !isPast;
+    const instructor = b.instructor ? `<span>\u2708 ${b.instructor}</span>` : '';
+    const createdDate = b.createdAt ? new Date(b.createdAt) : null;
+    const createdStr = createdDate ? `Gebucht am ${createdDate.getDate()}.${createdDate.getMonth()+1}.${createdDate.getFullYear()}` : '';
+
+    return `
+      <div class="mb-card" style="${isPast && status !== 'cancelled' && status !== 'rejected' ? 'opacity:0.7;' : ''}">
+        <div class="mb-card-header">
+          <div>
+            <div class="mb-card-aircraft">${b.aircraft || ''}</div>
+            <div class="mb-card-date">${dateStr}</div>
+          </div>
+          <div style="text-align:right;">
+            <span class="mb-card-status ${status}">${statusLabels[status] || status}</span>
+            <div class="mb-card-time" style="margin-top:4px;">${time}</div>
+          </div>
+        </div>
+        <div class="mb-card-details">
+          ${instructor}
+          ${createdStr ? `<span>${createdStr}</span>` : ''}
+        </div>
+        ${canCancel ? `
+          <div class="mb-card-actions">
+            <button onclick="myBookingCancel('${b.id}')" title="Buchung stornieren">Stornieren</button>
+            <button class="btn-calendar" onclick="myBookingShowInCalendar('${b.date}')">Im Kalender zeigen</button>
+          </div>
+        ` : `
+          <div class="mb-card-actions">
+            <button class="btn-calendar" onclick="myBookingShowInCalendar('${b.date}')">Im Kalender zeigen</button>
+          </div>
+        `}
+      </div>
+    `;
+  }).join('');
+}
+
+function myBookingCancel(bookingId) {
+  const booking = bookings.find(b => b.id === bookingId);
+  if (!booking) { notify('Buchung nicht gefunden.', 'error'); return; }
+  if (booking.cancelToken) {
+    cancelBookingByToken(booking.cancelToken);
+  } else {
+    // Fallback: direkte Stornierung für eigene Buchungen
+    if (!confirm('M\u00f6chtest du diese Buchung wirklich stornieren?')) return;
+    booking.status = 'cancelled';
+    saveData();
+    renderMyBookings();
+    renderView();
+    notify('Buchung wurde storniert.', 'success');
+  }
+}
+
+function myBookingShowInCalendar(dateStr) {
+  currentDate = new Date(dateStr + 'T00:00:00');
+  showView('calendar');
 }
 
 // ============================================================
@@ -4104,6 +4326,9 @@ firebase.auth().onAuthStateChanged(async (user) => {
       } else {
         customerProfile = { name: user.displayName || '', email: user.email || '' };
       }
+      // Meine Buchungen Tab sichtbar machen
+      document.getElementById('tabMyBookings')?.classList.add('auth-revealed');
+      document.getElementById('mainViewTabs')?.classList.add('has-customer-tabs');
       updateCustomerButton();
     } catch (e) { console.warn('Auth-Check fehlgeschlagen:', e); }
     renderView();
@@ -4112,11 +4337,15 @@ firebase.auth().onAuthStateChanged(async (user) => {
     adminLoggedIn = false;
     customerProfile = null;
     updateCustomerButton();
-    // Staff-Elemente verstecken (auth-revealed entfernen)
+    // Staff- und Kunden-Elemente verstecken (auth-revealed entfernen)
     document.querySelectorAll('.staff-only').forEach(el => el.classList.remove('auth-revealed'));
+    document.querySelectorAll('.customer-only').forEach(el => el.classList.remove('auth-revealed'));
     document.getElementById('mainViewTabs')?.classList.remove('has-staff-tabs');
+    document.getElementById('mainViewTabs')?.classList.remove('has-customer-tabs');
     if (btnStornieren) btnStornieren.style.display = '';
     if (customerAuthBtn) customerAuthBtn.style.display = '';
+    // Falls auf Meine Buchungen, zurück zum Kalender
+    if (document.getElementById('myBookingsView')?.style.display !== 'none') showView('calendar');
     renderView();
   }
 });
