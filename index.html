@@ -717,6 +717,48 @@
   .mb-empty svg { margin-bottom: 12px; }
   .mb-empty p { font-size: 14px; margin-bottom: 16px; }
 
+  /* Flugbuch */
+  .flugbuch-panel { padding: 24px 20px; max-width: 960px; margin: 0 auto; }
+  .flugbuch-panel h2 { font-size: 20px; font-weight: 700; font-family: var(--font-ui); margin-bottom: 4px; }
+  .flugbuch-panel .fb-subtitle { color: var(--gray-500); font-size: 13px; margin-bottom: 20px; }
+  .fb-kpi-row { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+  .fb-kpi { background: var(--gray-50); border-radius: var(--radius-sm); padding: 16px 18px; flex: 1; min-width: 100px; }
+  .fb-kpi .fb-kpi-num { font-size: 26px; font-weight: 700; font-family: var(--font-ui); color: var(--dark); }
+  .fb-kpi .fb-kpi-unit { font-size: 12px; color: var(--gray-500); }
+  .fb-kpi .fb-kpi-label { font-size: 11px; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 2px; }
+  .fb-section { margin-bottom: 24px; }
+  .fb-section h3 { font-size: 14px; font-weight: 700; font-family: var(--font-ui); color: var(--dark); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .fb-aircraft-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+  .fb-aircraft-card { background: white; border: 1px solid var(--gray-100); border-radius: var(--radius-sm); padding: 14px; transition: box-shadow 0.15s; }
+  .fb-aircraft-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.06); }
+  .fb-aircraft-card .fb-ac-reg { font-weight: 700; font-size: 15px; color: var(--dark); font-family: var(--font-ui); }
+  .fb-aircraft-card .fb-ac-type { font-size: 12px; color: var(--gray-500); margin-bottom: 8px; }
+  .fb-aircraft-card .fb-ac-stats { display: flex; gap: 12px; font-size: 12px; color: var(--gray-600); }
+  .fb-aircraft-card .fb-ac-last { font-size: 11px; color: var(--gray-400); margin-top: 6px; }
+  .fb-currency { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+  .fb-currency.green { background: #2e7d32; }
+  .fb-currency.yellow { background: #f9a825; }
+  .fb-currency.red { background: #c62828; }
+  .fb-chart-container { background: white; border: 1px solid var(--gray-100); border-radius: var(--radius-sm); padding: 16px; }
+  .fb-chart-bars { display: flex; align-items: flex-end; gap: 4px; height: 120px; }
+  .fb-chart-bar { flex: 1; background: var(--navy); border-radius: 3px 3px 0 0; min-width: 20px; position: relative; transition: height 0.3s; }
+  .fb-chart-bar:hover { opacity: 0.8; }
+  .fb-chart-bar .fb-bar-tooltip { display: none; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background: var(--dark); color: white; padding: 4px 8px; border-radius: 4px; font-size: 10px; white-space: nowrap; margin-bottom: 4px; }
+  .fb-chart-bar:hover .fb-bar-tooltip { display: block; }
+  .fb-chart-labels { display: flex; gap: 4px; margin-top: 4px; }
+  .fb-chart-labels span { flex: 1; text-align: center; font-size: 9px; color: var(--gray-400); min-width: 20px; }
+  .fb-flight-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .fb-flight-table th { text-align: left; padding: 8px 10px; border-bottom: 2px solid var(--gray-100); color: var(--gray-500); text-transform: uppercase; font-size: 10px; letter-spacing: 0.05em; font-weight: 600; }
+  .fb-flight-table td { padding: 8px 10px; border-bottom: 1px solid var(--gray-50); color: var(--gray-700); }
+  .fb-flight-table tr:hover td { background: var(--gray-50); }
+  .fb-role-badge { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: 600; }
+  .fb-role-badge.PIC { background: #e8f5e9; color: #2e7d32; }
+  .fb-role-badge.PAX { background: #e3f2fd; color: #1565c0; }
+  .fb-role-badge.FI { background: #fff8e1; color: #f57f17; }
+  .fb-loading { text-align: center; padding: 48px; color: var(--gray-400); }
+  .fb-loading .spinner { display: inline-block; width: 24px; height: 24px; border: 3px solid var(--gray-200); border-top-color: var(--navy); border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 12px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
   /* Responsive Tablet */
   @media (max-width: 768px) {
     .calendar-grid { font-size: 11px; }
@@ -970,6 +1012,7 @@
     <div class="view-tabs" id="mainViewTabs">
       <button class="view-tab active" onclick="showView('calendar')">Kalender</button>
       <button class="view-tab customer-only" id="tabMyBookings" onclick="showView('myBookings')">Meine Buchungen</button>
+      <button class="view-tab customer-only" id="tabFlugbuch" onclick="showView('flugbuch')">Flugbuch</button>
       <a href="staff.html" class="view-tab staff-only" id="tabFluglehrer" style="text-decoration:none;">Fluglehrer</a>
       <button class="view-tab staff-only" id="tabAdmin" onclick="showView('admin')">Admin</button>
     </div>
@@ -1009,6 +1052,20 @@
   <div class="calendar-container">
     <div class="calendar-grid" id="calendarGrid"></div>
     <div id="weekGrid" style="display:none;"></div>
+  </div>
+</div>
+
+<!-- Mein Flugbuch View -->
+<div id="flugbuchView" style="display:none;">
+  <div class="flugbuch-panel">
+    <h2>Mein Flugbuch</h2>
+    <p class="fb-subtitle" id="fbSubtitle">Deine Flugstatistik aus Vereinsflieger</p>
+    <div id="fbContent">
+      <div class="fb-loading">
+        <div class="spinner"></div>
+        <p>Flugdaten werden geladen...</p>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1871,15 +1928,17 @@ function renderView() {
 function showView(view) {
   document.getElementById('calendarView').style.display = view === 'calendar' ? 'block' : 'none';
   document.getElementById('myBookingsView').style.display = view === 'myBookings' ? 'block' : 'none';
+  document.getElementById('flugbuchView').style.display = view === 'flugbuch' ? 'block' : 'none';
   document.getElementById('adminView').classList.toggle('active', view === 'admin');
   // Tab-Buttons aktiv markieren
   document.querySelectorAll('#mainViewTabs > .view-tab').forEach(t => t.classList.remove('active'));
-  const tabMap = { calendar: 0, myBookings: 1, admin: -1 };
   if (view === 'calendar') document.querySelector('#mainViewTabs > .view-tab:first-child')?.classList.add('active');
   else if (view === 'myBookings') document.getElementById('tabMyBookings')?.classList.add('active');
+  else if (view === 'flugbuch') document.getElementById('tabFlugbuch')?.classList.add('active');
   else if (view === 'admin') document.getElementById('tabAdmin')?.classList.add('active');
   if (view === 'admin' && adminLoggedIn) renderAdminTable();
   if (view === 'myBookings') renderMyBookings();
+  if (view === 'flugbuch') loadFlugbuch();
 }
 
 // ============================================================
@@ -3008,6 +3067,188 @@ function testEmail() {
     statusEl.textContent = 'Fehler: ' + e.message;
     statusEl.style.color = 'var(--danger)';
   }
+}
+
+// ============================================================
+// MEIN FLUGBUCH (Vereinsflieger)
+// ============================================================
+let flugbuchData = null;
+let flugbuchLoading = false;
+
+async function loadFlugbuch() {
+  if (flugbuchData || flugbuchLoading) {
+    if (flugbuchData) renderFlugbuch(flugbuchData);
+    return;
+  }
+  if (!customerProfile || !customerProfile.name) {
+    document.getElementById('fbContent').innerHTML = '<div class="fb-loading"><p>Bitte melde dich an, um dein Flugbuch zu sehen.</p></div>';
+    return;
+  }
+  flugbuchLoading = true;
+  document.getElementById('fbContent').innerHTML = '<div class="fb-loading"><div class="spinner"></div><p>Flugdaten werden aus Vereinsflieger geladen...</p></div>';
+
+  try {
+    const res = await fetch('/.netlify/functions/vereinsflieger-sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'memberFlights', memberName: customerProfile.name })
+    });
+    const json = await res.json();
+    if (json.ok && json.data) {
+      flugbuchData = json.data;
+      renderFlugbuch(flugbuchData);
+    } else {
+      document.getElementById('fbContent').innerHTML = '<div class="fb-loading"><p>Fehler beim Laden: ' + (json.error || 'Unbekannt') + '</p></div>';
+    }
+  } catch (err) {
+    document.getElementById('fbContent').innerHTML = '<div class="fb-loading"><p>Verbindungsfehler: ' + err.message + '</p></div>';
+  }
+  flugbuchLoading = false;
+}
+
+function formatFlugbuchMinutes(min) {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+function getCurrencyClass(lastFlightDate) {
+  if (!lastFlightDate) return 'red';
+  const diff = (new Date() - new Date(lastFlightDate)) / (1000 * 60 * 60 * 24);
+  if (diff <= 30) return 'green';
+  if (diff <= 90) return 'yellow';
+  return 'red';
+}
+
+function renderFlugbuch(data) {
+  const el = document.getElementById('fbContent');
+  const months = ['Jan', 'Feb', 'M\u00e4r', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+  const weekdays = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+  const longMonths = ['Januar', 'Februar', 'M\u00e4rz', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+
+  // KPI Row
+  const totalHours = (data.totalMinutes / 60).toFixed(1);
+  const picHours = (data.minutesPIC / 60).toFixed(1);
+
+  // Monthly chart data (last 12 months)
+  const chartMonths = [];
+  const now = new Date();
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const label = months[d.getMonth()];
+    const val = data.byMonth[key] || { count: 0, minutes: 0 };
+    chartMonths.push({ key, label, ...val });
+  }
+  const maxMin = Math.max(...chartMonths.map(m => m.minutes), 1);
+
+  // Aircraft sorted by hours desc
+  const aircraftList = Object.entries(data.byAircraft)
+    .map(([cs, v]) => ({ callsign: cs, ...v }))
+    .sort((a, b) => b.minutes - a.minutes);
+
+  let html = `
+    <div class="fb-kpi-row">
+      <div class="fb-kpi">
+        <div class="fb-kpi-num">${totalHours} <span class="fb-kpi-unit">h</span></div>
+        <div class="fb-kpi-label">Gesamtflugzeit</div>
+      </div>
+      <div class="fb-kpi">
+        <div class="fb-kpi-num">${data.totalFlights}</div>
+        <div class="fb-kpi-label">Fl\u00fcge gesamt</div>
+      </div>
+      <div class="fb-kpi">
+        <div class="fb-kpi-num">${data.totalPIC}</div>
+        <div class="fb-kpi-label">Davon als PIC</div>
+      </div>
+      <div class="fb-kpi">
+        <div class="fb-kpi-num">${data.flyingDays}</div>
+        <div class="fb-kpi-label">Flugtage</div>
+      </div>
+    </div>
+
+    <div class="fb-section">
+      <h3>Flugstunden pro Monat</h3>
+      <div class="fb-chart-container">
+        <div class="fb-chart-bars">
+          ${chartMonths.map(m => {
+            const pct = Math.max((m.minutes / maxMin) * 100, m.minutes > 0 ? 4 : 0);
+            const h = (m.minutes / 60).toFixed(1);
+            return `<div class="fb-chart-bar" style="height:${pct}%">
+              <div class="fb-bar-tooltip">${m.label}: ${h}h (${m.count} Fl\u00fcge)</div>
+            </div>`;
+          }).join('')}
+        </div>
+        <div class="fb-chart-labels">
+          ${chartMonths.map(m => `<span>${m.label}</span>`).join('')}
+        </div>
+      </div>
+    </div>
+
+    <div class="fb-section">
+      <h3>Flugzeuge &amp; W\u00e4hrung</h3>
+      <div class="fb-aircraft-grid">
+        ${aircraftList.map(ac => {
+          const cc = getCurrencyClass(ac.lastFlight);
+          const lastD = ac.lastFlight ? new Date(ac.lastFlight + 'T00:00:00') : null;
+          const lastStr = lastD ? `${lastD.getDate()}. ${longMonths[lastD.getMonth()]} ${lastD.getFullYear()}` : 'Nie';
+          const h = (ac.minutes / 60).toFixed(1);
+          return `
+            <div class="fb-aircraft-card">
+              <div class="fb-ac-reg">${ac.callsign}</div>
+              <div class="fb-ac-type">${ac.type || ac.planetype || ''}</div>
+              <div class="fb-ac-stats">
+                <span>${h}h</span>
+                <span>${ac.count} Fl\u00fcge</span>
+              </div>
+              <div class="fb-ac-last"><span class="fb-currency ${cc}"></span>Letzter Flug: ${lastStr}</div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+
+    <div class="fb-section">
+      <h3>Letzte Fl\u00fcge</h3>
+      <div style="overflow-x:auto;">
+        <table class="fb-flight-table">
+          <thead>
+            <tr>
+              <th>Datum</th>
+              <th>Flugzeug</th>
+              <th>Von / Nach</th>
+              <th>Zeit</th>
+              <th>Dauer</th>
+              <th>Rolle</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${(data.recentFlights || []).map(f => {
+              const d = new Date(f.date + 'T00:00:00');
+              const dateStr = `${weekdays[d.getDay()]} ${d.getDate()}.${d.getMonth()+1}.${d.getFullYear()}`;
+              const dep = f.departuretime ? f.departuretime.substring(0, 5) : '';
+              const arr = f.arrivaltime ? f.arrivaltime.substring(0, 5) : '';
+              const loc = f.departurelocation === f.arrivallocation ? f.departurelocation : `${f.departurelocation} \u2192 ${f.arrivallocation}`;
+              return `<tr>
+                <td>${dateStr}</td>
+                <td><strong>${f.callsign}</strong> <span style="color:var(--gray-400);font-size:11px;">${f.planedesignation || ''}</span></td>
+                <td style="font-size:11px;">${loc}</td>
+                <td>${dep}\u2013${arr}</td>
+                <td>${formatFlugbuchMinutes(f.flighttime)}</td>
+                <td><span class="fb-role-badge ${f.role}">${f.role}</span></td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <p style="font-size:11px; color:var(--gray-400); text-align:center; margin-top:8px;">
+      Daten: ${data.years ? data.years.join(' &amp; ') : ''} &middot; Aktualisiert: ${data.fetchedAt ? new Date(data.fetchedAt).toLocaleString('de-DE') : ''}
+    </p>
+  `;
+
+  el.innerHTML = html;
 }
 
 // ============================================================

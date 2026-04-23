@@ -219,6 +219,98 @@ exports.handler = async (event) => {
           .sort((a, b) => (a.lastname || '').localeCompare(b.lastname || ''));
         break;
       }
+      case 'memberFlights': {
+        // Persönliches Flugbuch: Flüge eines Members (als PIC oder Begleiter)
+        const { memberName } = body;
+        if (!memberName) throw new Error('memberName erforderlich');
+        const nameLower = memberName.toLowerCase();
+        // Nachname extrahieren für zuverlässigeres Matching
+        const lastName = nameLower.split(' ').pop();
+
+        const now = new Date();
+        const thisY = now.getFullYear();
+        // Dieses + letztes Jahr holen
+        const [flightsThisYear, flightsLastYear] = await Promise.all([
+          vfGetFlightsDateRange(accesstoken, `${thisY}-01-01`, `${thisY}-12-31`),
+          vfGetFlightsDateRange(accesstoken, `${thisY - 1}-01-01`, `${thisY - 1}-12-31`)
+        ]);
+
+        const allFlights = [...flightsThisYear, ...flightsLastYear];
+
+        // Filter: Pilot ODER Begleiter enthält den Namen
+        const memberFlights = allFlights.filter(f => {
+          const pn = (f.pilotname || '').toLowerCase();
+          const an = (f.attendantname || '').toLowerCase();
+          const an2 = (f.attendantname2 || '').toLowerCase();
+          const an3 = (f.attendantname3 || '').toLowerCase();
+          return pn.includes(lastName) || an.includes(lastName) || an2.includes(lastName) || an3.includes(lastName);
+        });
+
+        // Für jeden Flug: Rolle bestimmen
+        const enriched = memberFlights.map(f => {
+          const pn = (f.pilotname || '').toLowerCase();
+          let role = 'PAX';
+          if (pn.includes(lastName)) role = 'PIC';
+          if (f.finame && (f.finame || '').toLowerCase().includes(lastName)) role = 'FI';
+          return {
+            date: f.dateofflight,
+            callsign: f.callsign || '',
+            planedesignation: f.planedesignation || '',
+            planetype: f.planetype || '',
+            departuretime: f.departuretime || '',
+            arrivaltime: f.arrivaltime || '',
+            flighttime: parseDuration(f),
+            departurelocation: f.departurelocation || '',
+            arrivallocation: f.arrivallocation || '',
+            landingcount: parseInt(f.landingcount) || 0,
+            starttype: f.starttype || '',
+            pilotname: f.pilotname || '',
+            attendantname: f.attendantname || '',
+            finame: f.finame || '',
+            role: role
+          };
+        }).sort((a, b) => b.date.localeCompare(a.date) || (b.departuretime || '').localeCompare(a.departuretime || ''));
+
+        // Aggregation
+        let totalPIC = 0, totalPAX = 0, totalFI = 0;
+        let minutesPIC = 0, minutesPAX = 0;
+        const byAircraft = {};
+        const byMonth = {};
+        const uniqueDates = new Set();
+
+        enriched.forEach(f => {
+          if (f.role === 'PIC') { totalPIC++; minutesPIC += f.flighttime; }
+          else if (f.role === 'FI') { totalFI++; minutesPIC += f.flighttime; }
+          else { totalPAX++; minutesPAX += f.flighttime; }
+
+          const cs = f.callsign;
+          if (!byAircraft[cs]) byAircraft[cs] = { count: 0, minutes: 0, type: f.planedesignation, planetype: f.planetype, lastFlight: '' };
+          byAircraft[cs].count++;
+          byAircraft[cs].minutes += f.flighttime;
+          if (!byAircraft[cs].lastFlight || f.date > byAircraft[cs].lastFlight) byAircraft[cs].lastFlight = f.date;
+
+          if (f.date) {
+            uniqueDates.add(f.date);
+            const mk = f.date.substring(0, 7);
+            if (!byMonth[mk]) byMonth[mk] = { count: 0, minutes: 0 };
+            byMonth[mk].count++;
+            byMonth[mk].minutes += f.flighttime;
+          }
+        });
+
+        result = {
+          totalFlights: enriched.length,
+          totalPIC, totalPAX, totalFI,
+          minutesPIC, minutesPAX,
+          totalMinutes: minutesPIC + minutesPAX,
+          flyingDays: uniqueDates.size,
+          byAircraft, byMonth,
+          recentFlights: enriched.slice(0, 30), // Letzte 30 Flüge
+          years: [thisY, thisY - 1],
+          fetchedAt: new Date().toISOString()
+        };
+        break;
+      }
       case 'yearCompare': {
         // Flüge für aktuelles Jahr + Vorjahr abrufen (bis zum heutigen Tag)
         const today = new Date();
