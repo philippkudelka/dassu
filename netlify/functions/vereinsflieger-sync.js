@@ -273,8 +273,8 @@ exports.handler = async (event) => {
       const session = await vfSignIn(accesstoken, { username: vfUsername, password: vfPassword });
       accesstoken = session.accesstoken;
 
-      // VF-Userdaten holen um den Namen zu ermitteln
-      let vfDisplayName = '';
+      // VF-Userdaten holen: uid, memberid, Name
+      let vfDisplayName = '', vfUid = '', vfMemberid = '';
       try {
         const res = await fetch(`${VF_BASE}/user/get`, {
           method: 'POST',
@@ -282,10 +282,18 @@ exports.handler = async (event) => {
           body: new URLSearchParams({ accesstoken }).toString()
         });
         const userData = await res.json();
+        vfUid = String(userData.uid || '');
+        vfMemberid = String(userData.memberid || '');
         if (userData.firstname || userData.lastname) {
           vfDisplayName = ((userData.firstname || '') + ' ' + (userData.lastname || '')).trim();
         }
-      } catch (_) { /* Name optional */ }
+        console.log('VF User data:', JSON.stringify({ uid: vfUid, memberid: vfMemberid, name: vfDisplayName }));
+      } catch (e) { console.warn('VF user/get fehlgeschlagen:', e.message); }
+
+      if (!vfUid && !vfMemberid && !vfDisplayName) {
+        await vfSignOut(accesstoken);
+        throw new Error('Konnte VF-Benutzerdaten nicht abrufen. Bitte Zugangsdaten prüfen.');
+      }
 
       await vfSignOut(accesstoken);
 
@@ -297,6 +305,8 @@ exports.handler = async (event) => {
         username: encUsername,
         password: encPassword,
         displayName: vfDisplayName,
+        vfUid: vfUid,
+        vfMemberid: vfMemberid,
         connectedAt: new Date().toISOString()
       });
 
@@ -355,13 +365,12 @@ exports.handler = async (event) => {
       const vfUsername = decrypt(creds.username);
       const vfPassword = decrypt(creds.password);
       const memberName = creds.displayName || '';
+      const vfUid = creds.vfUid || '';
+      const vfMemberid = creds.vfMemberid || '';
 
       // Mit persönlichen Credentials einloggen
       accesstoken = await vfGetAccessToken();
       await vfSignIn(accesstoken, { username: vfUsername, password: vfPassword });
-
-      const nameLower = memberName.toLowerCase();
-      const lastName = nameLower.split(' ').pop();
 
       const now = new Date();
       const thisY = now.getFullYear();
@@ -372,19 +381,48 @@ exports.handler = async (event) => {
 
       const allFlights = [...flightsThisYear, ...flightsLastYear];
 
+      // Filtering: Primär über UID/MemberID, Fallback über Nachname
+      const nameLower = memberName.toLowerCase();
+      const lastName = nameLower.split(' ').pop();
+
       const memberFlights = allFlights.filter(f => {
-        const pn = (f.pilotname || '').toLowerCase();
-        const an = (f.attendantname || '').toLowerCase();
-        const an2 = (f.attendantname2 || '').toLowerCase();
-        const an3 = (f.attendantname3 || '').toLowerCase();
-        return pn.includes(lastName) || an.includes(lastName) || an2.includes(lastName) || an3.includes(lastName);
+        // 1. UID-Match (zuverlässigste Methode)
+        if (vfUid) {
+          const up = String(f.uidpilot || '');
+          const ua = String(f.uidattendant || '');
+          const ua2 = String(f.uidattendant2 || '');
+          const ua3 = String(f.uidattendant3 || '');
+          const ufi = String(f.uidfi || '');
+          if (up === vfUid || ua === vfUid || ua2 === vfUid || ua3 === vfUid || ufi === vfUid) return true;
+        }
+        // 2. MemberID-Match
+        if (vfMemberid) {
+          const pm = String(f.pilotmemberid || '');
+          const am = String(f.attendantmemberid || '');
+          if (pm === vfMemberid || am === vfMemberid) return true;
+        }
+        // 3. Fallback: Nachname (nur wenn UID/MemberID nicht verfügbar)
+        if (!vfUid && !vfMemberid && lastName) {
+          const pn = (f.pilotname || '').toLowerCase();
+          const an = (f.attendantname || '').toLowerCase();
+          return pn.includes(lastName) || an.includes(lastName);
+        }
+        return false;
       });
 
+      console.log(`memberFlights: ${allFlights.length} total, ${memberFlights.length} matched (uid=${vfUid}, memberid=${vfMemberid}, name=${memberName})`);
+
       const enriched = memberFlights.map(f => {
-        const pn = (f.pilotname || '').toLowerCase();
+        // Rolle bestimmen über UID
         let role = 'PAX';
-        if (pn.includes(lastName)) role = 'PIC';
-        if (f.finame && (f.finame || '').toLowerCase().includes(lastName)) role = 'FI';
+        if (vfUid) {
+          if (String(f.uidpilot || '') === vfUid) role = 'PIC';
+          if (String(f.uidfi || '') === vfUid) role = 'FI';
+        } else if (lastName) {
+          const pn = (f.pilotname || '').toLowerCase();
+          if (pn.includes(lastName)) role = 'PIC';
+          if (f.finame && (f.finame || '').toLowerCase().includes(lastName)) role = 'FI';
+        }
         return {
           date: f.dateofflight,
           callsign: f.callsign || '',
