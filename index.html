@@ -3593,11 +3593,13 @@ function adminLogin() {
   }
 }
 
-function adminLogout() {
+async function adminLogout() {
   adminLoggedIn = false;
   document.getElementById('adminLogin').style.display = 'block';
   document.getElementById('adminDashboard').style.display = 'none';
   document.getElementById('adminPassword').value = '';
+  // Komplett ausloggen (Firebase Auth + UI zurücksetzen)
+  await firebase.auth().signOut();
   showView('calendar');
 }
 
