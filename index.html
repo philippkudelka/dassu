@@ -4304,8 +4304,10 @@ firebase.auth().onAuthStateChanged(async (user) => {
         else if (role === 'team' || role === 'staff' || role === 'guestGlider' || role === 'guestMotor') {
           if (document.getElementById('tabFluglehrer')) document.getElementById('tabFluglehrer').classList.add('auth-revealed');
         }
-        // Staff ist auch Kunde: Autofill mit Staff-Daten
+        // Staff ist auch Kunde: Autofill mit Staff-Daten + Meine Buchungen Tab
         customerProfile = { name: staffProfile.name, email: staffProfile.email, phone: staffProfile.phone || '', birthdate: '', photoURL: staffProfile.photoURL || '' };
+        document.getElementById('tabMyBookings')?.classList.add('auth-revealed');
+        document.getElementById('mainViewTabs')?.classList.add('has-customer-tabs');
         renderView();
         return;
       }
