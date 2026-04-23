@@ -759,6 +759,25 @@
   .fb-loading .spinner { display: inline-block; width: 24px; height: 24px; border: 3px solid var(--gray-200); border-top-color: var(--navy); border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 12px; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
+  /* VF Connect Form */
+  .vf-connect-card { max-width: 440px; margin: 32px auto; background: #fff; border-radius: 16px; padding: 40px 32px; text-align: center; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+  .vf-connect-icon { font-size: 48px; margin-bottom: 12px; }
+  .vf-connect-card h3 { font-size: 20px; color: var(--navy); margin: 0 0 8px; }
+  .vf-connect-card p { font-size: 14px; color: var(--gray-400); margin: 0 0 8px; line-height: 1.5; }
+  .vf-connect-hint { font-size: 12px !important; color: var(--gray-300) !important; margin-top: 4px !important; }
+  .vf-connect-since { font-size: 12px !important; color: var(--gray-300) !important; }
+  .vf-form { margin-top: 20px; display: flex; flex-direction: column; gap: 12px; }
+  .vf-form input { padding: 12px 16px; border: 1px solid var(--gray-200); border-radius: 10px; font-size: 14px; outline: none; transition: border 0.2s; }
+  .vf-form input:focus { border-color: var(--navy); }
+  .vf-btn { padding: 12px 24px; border: none; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+  .vf-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+  .vf-btn-primary { background: var(--navy); color: #fff; }
+  .vf-btn-primary:hover:not(:disabled) { opacity: 0.9; }
+  .vf-btn-secondary { background: transparent; color: var(--gray-400); border: 1px solid var(--gray-200); }
+  .vf-btn-secondary:hover { background: var(--gray-100); }
+  .vf-connect-actions { display: flex; gap: 12px; justify-content: center; margin-top: 20px; }
+  .vf-connect-error { color: #dc3545; font-size: 13px; text-align: left; padding: 8px 12px; background: #fff5f5; border-radius: 8px; }
+
   /* Responsive Tablet */
   @media (max-width: 768px) {
     .calendar-grid { font-size: 11px; }
@@ -3075,30 +3094,174 @@ function testEmail() {
 let flugbuchData = null;
 let flugbuchLoading = false;
 
-async function loadFlugbuch() {
-  if (flugbuchData || flugbuchLoading) {
-    if (flugbuchData) renderFlugbuch(flugbuchData);
+let vfConnected = null; // null = unbekannt, true/false
+
+async function getFirebaseToken() {
+  const user = firebase.auth().currentUser;
+  if (!user) throw new Error('Nicht eingeloggt');
+  return user.getIdToken();
+}
+
+async function checkVfStatus() {
+  try {
+    const token = await getFirebaseToken();
+    const res = await fetch('/.netlify/functions/vereinsflieger-sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'getVfStatus', firebaseToken: token })
+    });
+    const json = await res.json();
+    if (json.ok) {
+      vfConnected = json.data.connected;
+      return json.data;
+    }
+  } catch (e) { console.warn('VF Status Check fehlgeschlagen:', e); }
+  vfConnected = false;
+  return { connected: false };
+}
+
+function renderVfConnectForm(statusData) {
+  const el = document.getElementById('fbContent');
+  if (statusData && statusData.connected) {
+    // Bereits verbunden — Anzeige mit Disconnect-Option
+    el.innerHTML = `
+      <div class="vf-connect-card">
+        <div class="vf-connect-icon">✅</div>
+        <h3>Vereinsflieger verbunden</h3>
+        <p>Dein Account <strong>${statusData.displayName || 'Verbunden'}</strong> ist verknüpft.</p>
+        <p class="vf-connect-since">Verbunden seit ${statusData.connectedAt ? new Date(statusData.connectedAt).toLocaleDateString('de-DE') : '—'}</p>
+        <div class="vf-connect-actions">
+          <button class="vf-btn vf-btn-primary" onclick="loadFlugbuchData()">Flugbuch laden</button>
+          <button class="vf-btn vf-btn-secondary" onclick="disconnectVf()">Verbindung trennen</button>
+        </div>
+      </div>`;
+    // Auto-laden
+    loadFlugbuchData();
     return;
   }
-  if (!customerProfile || !customerProfile.name) {
+  // Nicht verbunden — Verbindungsformular
+  el.innerHTML = `
+    <div class="vf-connect-card">
+      <div class="vf-connect-icon">🔗</div>
+      <h3>Mit Vereinsflieger verbinden</h3>
+      <p>Verknüpfe deinen persönlichen Vereinsflieger-Account, um dein Flugbuch zu sehen.</p>
+      <p class="vf-connect-hint">Deine Zugangsdaten werden verschlüsselt gespeichert und nur für den Abruf deiner eigenen Flugdaten verwendet.</p>
+      <div class="vf-form">
+        <input type="text" id="vfUsername" placeholder="Vereinsflieger Benutzername / E-Mail" autocomplete="username" />
+        <input type="password" id="vfPassword" placeholder="Vereinsflieger Passwort" autocomplete="current-password" />
+        <button class="vf-btn vf-btn-primary" id="vfConnectBtn" onclick="connectVf()">Verbinden</button>
+        <div id="vfConnectError" class="vf-connect-error" style="display:none;"></div>
+      </div>
+    </div>`;
+}
+
+async function connectVf() {
+  const username = document.getElementById('vfUsername').value.trim();
+  const password = document.getElementById('vfPassword').value;
+  const errEl = document.getElementById('vfConnectError');
+  const btn = document.getElementById('vfConnectBtn');
+  if (!username || !password) {
+    errEl.textContent = 'Bitte Benutzername und Passwort eingeben.';
+    errEl.style.display = 'block';
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = 'Verbinde...';
+  errEl.style.display = 'none';
+
+  try {
+    const token = await getFirebaseToken();
+    const res = await fetch('/.netlify/functions/vereinsflieger-sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'saveVfCredentials', firebaseToken: token, vfUsername: username, vfPassword: password })
+    });
+    const json = await res.json();
+    if (json.ok) {
+      vfConnected = true;
+      flugbuchData = null; // Cache leeren
+      loadFlugbuch();
+    } else {
+      errEl.textContent = json.error || 'Verbindung fehlgeschlagen. Bitte Zugangsdaten prüfen.';
+      errEl.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Verbinden';
+    }
+  } catch (err) {
+    errEl.textContent = 'Verbindungsfehler: ' + err.message;
+    errEl.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Verbinden';
+  }
+}
+
+async function disconnectVf() {
+  if (!confirm('Vereinsflieger-Verbindung wirklich trennen? Dein Flugbuch wird dann nicht mehr angezeigt.')) return;
+  try {
+    const token = await getFirebaseToken();
+    await fetch('/.netlify/functions/vereinsflieger-sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'deleteVfCredentials', firebaseToken: token })
+    });
+    vfConnected = false;
+    flugbuchData = null;
+    renderVfConnectForm({ connected: false });
+  } catch (err) {
+    alert('Fehler: ' + err.message);
+  }
+}
+
+async function loadFlugbuch() {
+  if (flugbuchData) {
+    renderFlugbuch(flugbuchData);
+    return;
+  }
+  if (!firebase.auth().currentUser) {
     document.getElementById('fbContent').innerHTML = '<div class="fb-loading"><p>Bitte melde dich an, um dein Flugbuch zu sehen.</p></div>';
     return;
   }
+
+  // VF-Status prüfen
+  if (vfConnected === null) {
+    document.getElementById('fbContent').innerHTML = '<div class="fb-loading"><div class="spinner"></div><p>Prüfe Vereinsflieger-Verbindung...</p></div>';
+    const status = await checkVfStatus();
+    renderVfConnectForm(status);
+    return;
+  }
+  if (!vfConnected) {
+    renderVfConnectForm({ connected: false });
+    return;
+  }
+  // Verbunden → Daten laden
+  loadFlugbuchData();
+}
+
+async function loadFlugbuchData() {
+  if (flugbuchData) { renderFlugbuch(flugbuchData); return; }
+  if (flugbuchLoading) return;
   flugbuchLoading = true;
   document.getElementById('fbContent').innerHTML = '<div class="fb-loading"><div class="spinner"></div><p>Flugdaten werden aus Vereinsflieger geladen...</p></div>';
 
   try {
+    const token = await getFirebaseToken();
     const res = await fetch('/.netlify/functions/vereinsflieger-sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'memberFlights', memberName: customerProfile.name })
+      body: JSON.stringify({ action: 'memberFlights', firebaseToken: token })
     });
     const json = await res.json();
     if (json.ok && json.data) {
       flugbuchData = json.data;
       renderFlugbuch(flugbuchData);
     } else {
-      document.getElementById('fbContent').innerHTML = '<div class="fb-loading"><p>Fehler beim Laden: ' + (json.error || 'Unbekannt') + '</p></div>';
+      const errMsg = json.error || 'Unbekannter Fehler';
+      if (errMsg.includes('Keine Vereinsflieger-Zugangsdaten')) {
+        vfConnected = false;
+        renderVfConnectForm({ connected: false });
+      } else {
+        document.getElementById('fbContent').innerHTML = '<div class="fb-loading"><p>Fehler beim Laden: ' + errMsg + '</p></div>';
+      }
     }
   } catch (err) {
     document.getElementById('fbContent').innerHTML = '<div class="fb-loading"><p>Verbindungsfehler: ' + err.message + '</p></div>';
@@ -4581,6 +4744,8 @@ firebase.auth().onAuthStateChanged(async (user) => {
     // Nicht eingeloggt: Stornieren + Login zeigen, Staff/Tabs ausblenden
     adminLoggedIn = false;
     customerProfile = null;
+    vfConnected = null;
+    flugbuchData = null;
     updateCustomerButton();
     // Staff- und Kunden-Elemente verstecken (auth-revealed entfernen)
     document.querySelectorAll('.staff-only').forEach(el => el.classList.remove('auth-revealed'));
@@ -4589,8 +4754,9 @@ firebase.auth().onAuthStateChanged(async (user) => {
     document.getElementById('mainViewTabs')?.classList.remove('has-customer-tabs');
     if (btnStornieren) btnStornieren.style.display = '';
     if (customerAuthBtn) customerAuthBtn.style.display = '';
-    // Falls auf Meine Buchungen, zurück zum Kalender
-    if (document.getElementById('myBookingsView')?.style.display !== 'none') showView('calendar');
+    // Falls auf Meine Buchungen oder Flugbuch, zurück zum Kalender
+    if (document.getElementById('myBookingsView')?.style.display !== 'none' ||
+        document.getElementById('flugbuchView')?.style.display !== 'none') showView('calendar');
     renderView();
   }
 });
