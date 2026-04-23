@@ -3212,6 +3212,22 @@ async function disconnectVf() {
   }
 }
 
+async function disconnectAndReconnectVf() {
+  try {
+    const token = await getFirebaseToken();
+    await fetch('/.netlify/functions/vereinsflieger-sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'deleteVfCredentials', firebaseToken: token })
+    });
+    vfConnected = false;
+    flugbuchData = null;
+    renderVfConnectForm({ connected: false });
+  } catch (err) {
+    alert('Fehler: ' + err.message);
+  }
+}
+
 async function loadFlugbuch() {
   if (flugbuchData) {
     renderFlugbuch(flugbuchData);
@@ -3259,6 +3275,14 @@ async function loadFlugbuchData() {
       if (errMsg.includes('Keine Vereinsflieger-Zugangsdaten')) {
         vfConnected = false;
         renderVfConnectForm({ connected: false });
+      } else if (errMsg.includes('nicht identifizieren') || errMsg.includes('trennen und neu')) {
+        // Verbindungsproblem → Trennen & Neu-Verbinden anbieten
+        document.getElementById('fbContent').innerHTML = '<div class="vf-connect-card">' +
+          '<div class="vf-connect-icon">⚠️</div>' +
+          '<h3 style="margin:0 0 8px; font-size:18px;">Verbindungsproblem</h3>' +
+          '<p style="color:var(--gray-600); font-size:14px; margin:0 0 20px;">Die Vereinsflieger-Verbindung muss neu eingerichtet werden.</p>' +
+          '<button onclick="disconnectAndReconnectVf()" class="btn btn-primary" style="width:100%; padding:12px;">Verbindung trennen & neu verbinden</button>' +
+          '</div>';
       } else {
         document.getElementById('fbContent').innerHTML = '<div class="fb-loading"><p>Fehler beim Laden: ' + errMsg + '</p></div>';
       }

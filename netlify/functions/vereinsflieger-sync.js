@@ -370,17 +370,23 @@ exports.handler = async (event) => {
 
       // Mit persönlichen Credentials einloggen
       accesstoken = await vfGetAccessToken();
-      await vfSignIn(accesstoken, { username: vfUsername, password: vfPassword });
+      const signInResult = await vfSignIn(accesstoken, { username: vfUsername, password: vfPassword });
+      accesstoken = signInResult.accesstoken;
+      console.log('memberFlights: VF login OK, accesstoken:', accesstoken ? accesstoken.substring(0, 8) + '...' : 'EMPTY');
+      console.log('memberFlights: stored creds -', JSON.stringify({ vfUid, vfMemberid, memberName }));
 
       // Auto-Reparatur: Wenn UID/Name fehlen, jetzt nachholen und speichern
       if (!vfUid || !memberName) {
+        console.log('memberFlights: Auto-repair triggered (missing uid or name)');
         try {
           const userRes = await fetch(`${VF_BASE}/user/get`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: new URLSearchParams({ accesstoken }).toString()
           });
-          const userData = await userRes.json();
+          const rawText = await userRes.text();
+          console.log('memberFlights: /user/get raw response:', rawText.substring(0, 500));
+          const userData = JSON.parse(rawText);
           vfUid = String(userData.uid || '');
           vfMemberid = String(userData.memberid || '');
           if (userData.firstname || userData.lastname) {
@@ -394,8 +400,9 @@ exports.handler = async (event) => {
           if (memberName) updates.displayName = memberName;
           if (Object.keys(updates).length > 0) {
             await admin.database().ref(`users/${uid}/vfCredentials`).update(updates);
+            console.log('Auto-repair: Firebase updated with', JSON.stringify(updates));
           }
-        } catch (e) { console.warn('Auto-repair fehlgeschlagen:', e.message); }
+        } catch (e) { console.warn('Auto-repair fehlgeschlagen:', e.message, e.stack); }
       }
 
       if (!vfUid && !vfMemberid && !memberName) {
