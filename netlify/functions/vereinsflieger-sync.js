@@ -364,13 +364,44 @@ exports.handler = async (event) => {
 
       const vfUsername = decrypt(creds.username);
       const vfPassword = decrypt(creds.password);
-      const memberName = creds.displayName || '';
-      const vfUid = creds.vfUid || '';
-      const vfMemberid = creds.vfMemberid || '';
+      let memberName = creds.displayName || '';
+      let vfUid = creds.vfUid || '';
+      let vfMemberid = creds.vfMemberid || '';
 
       // Mit persönlichen Credentials einloggen
       accesstoken = await vfGetAccessToken();
       await vfSignIn(accesstoken, { username: vfUsername, password: vfPassword });
+
+      // Auto-Reparatur: Wenn UID/Name fehlen, jetzt nachholen und speichern
+      if (!vfUid || !memberName) {
+        try {
+          const userRes = await fetch(`${VF_BASE}/user/get`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ accesstoken }).toString()
+          });
+          const userData = await userRes.json();
+          vfUid = String(userData.uid || '');
+          vfMemberid = String(userData.memberid || '');
+          if (userData.firstname || userData.lastname) {
+            memberName = ((userData.firstname || '') + ' ' + (userData.lastname || '')).trim();
+          }
+          console.log('Auto-repair VF credentials:', JSON.stringify({ uid: vfUid, memberid: vfMemberid, name: memberName }));
+          // In Firebase aktualisieren
+          const updates = {};
+          if (vfUid) updates.vfUid = vfUid;
+          if (vfMemberid) updates.vfMemberid = vfMemberid;
+          if (memberName) updates.displayName = memberName;
+          if (Object.keys(updates).length > 0) {
+            await admin.database().ref(`users/${uid}/vfCredentials`).update(updates);
+          }
+        } catch (e) { console.warn('Auto-repair fehlgeschlagen:', e.message); }
+      }
+
+      if (!vfUid && !vfMemberid && !memberName) {
+        await vfSignOut(accesstoken);
+        throw new Error('Konnte VF-Benutzer nicht identifizieren. Bitte VF-Verbindung trennen und neu verbinden.');
+      }
 
       const now = new Date();
       const thisY = now.getFullYear();

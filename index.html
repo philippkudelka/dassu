@@ -4754,9 +4754,13 @@ firebase.auth().onAuthStateChanged(async (user) => {
     document.getElementById('mainViewTabs')?.classList.remove('has-customer-tabs');
     if (btnStornieren) btnStornieren.style.display = '';
     if (customerAuthBtn) customerAuthBtn.style.display = '';
-    // Falls auf Meine Buchungen oder Flugbuch, zurück zum Kalender
-    if (document.getElementById('myBookingsView')?.style.display !== 'none' ||
-        document.getElementById('flugbuchView')?.style.display !== 'none') showView('calendar');
+    // Admin-Dashboard zurücksetzen
+    const adminLogin = document.getElementById('adminLogin');
+    const adminDashboard = document.getElementById('adminDashboard');
+    if (adminLogin) adminLogin.style.display = 'block';
+    if (adminDashboard) adminDashboard.style.display = 'none';
+    // Immer zurück zum Kalender nach Logout
+    showView('calendar');
     renderView();
   }
 });
