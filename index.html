@@ -3598,6 +3598,7 @@ function adminLogout() {
   document.getElementById('adminLogin').style.display = 'block';
   document.getElementById('adminDashboard').style.display = 'none';
   document.getElementById('adminPassword').value = '';
+  showView('calendar');
 }
 
 function filterBookings(filter, el) {
