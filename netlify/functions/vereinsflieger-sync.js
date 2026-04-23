@@ -78,6 +78,41 @@ async function vfGetAccessToken() {
 }
 
 /**
+ * Helper: Extrahiere VF-Userdaten aus der API-Response.
+ * Die API gibt manchmal direkte Properties zurück, manchmal ein verschachteltes Objekt mit numerischen Keys.
+ * @param {any} data — Raw response data
+ * @returns {{uid: string, memberid: string, displayName: string} | null}
+ */
+function extractVfUserData(data) {
+  if (!data || typeof data !== 'object') return null;
+
+  // Versuch 1: Direkte Properties (einfaches Objekt)
+  if (data.uid || data.firstname || data.lastname || data.memberid) {
+    const uid = String(data.uid || '').trim();
+    const memberid = String(data.memberid || '').trim();
+    const displayName = ((String(data.firstname || '') + ' ' + String(data.lastname || '')).trim());
+    if (uid || memberid || displayName) {
+      return { uid, memberid, displayName };
+    }
+  }
+
+  // Versuch 2: Verschachtelte Struktur mit numerischen Keys (wie bei /user/list)
+  const values = Object.values(data);
+  for (const v of values) {
+    if (v && typeof v === 'object' && (v.uid || v.firstname || v.lastname || v.memberid)) {
+      const uid = String(v.uid || '').trim();
+      const memberid = String(v.memberid || '').trim();
+      const displayName = ((String(v.firstname || '') + ' ' + String(v.lastname || '')).trim());
+      if (uid || memberid || displayName) {
+        return { uid, memberid, displayName };
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
  * VF Sign-In — entweder mit übergebenen Credentials oder mit Env-Vars (Staff).
  * @param {string} accesstoken
  * @param {{ username: string, password: string }} [credentials] — wenn null, werden Env-Vars genutzt
@@ -116,7 +151,7 @@ async function vfSignIn(accesstoken, credentials) {
   if (data.error_code && data.error_code !== '0') {
     throw new Error('Vereinsflieger Login fehlgeschlagen: ' + (data.error_msg || JSON.stringify(data)));
   }
-  return { accesstoken, httpheader: data.httpheader || accesstoken };
+  return { accesstoken, httpheader: data.httpheader || accesstoken, signinData: data };
 }
 
 async function vfSignOut(accesstoken) {
@@ -273,22 +308,33 @@ exports.handler = async (event) => {
       const session = await vfSignIn(accesstoken, { username: vfUsername, password: vfPassword });
       accesstoken = session.accesstoken;
 
-      // VF-Userdaten holen: uid, memberid, Name
+      // VF-Userdaten holen: Versuche zuerst die signin-Response, dann /user/get
+      let vfData = null;
       let vfDisplayName = '', vfUid = '', vfMemberid = '';
-      try {
-        const res = await fetch(`${VF_BASE}/user/get`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({ accesstoken }).toString()
-        });
-        const userData = await res.json();
-        vfUid = String(userData.uid || '');
-        vfMemberid = String(userData.memberid || '');
-        if (userData.firstname || userData.lastname) {
-          vfDisplayName = ((userData.firstname || '') + ' ' + (userData.lastname || '')).trim();
+
+      // Versuch 1: Userdaten aus der signin-Response extrahieren
+      vfData = extractVfUserData(session.signinData);
+
+      // Versuch 2: Falls signin keine kompletten Daten lieferte, /user/get aufrufen
+      if (!vfData || (!vfData.uid && !vfData.memberid)) {
+        try {
+          const res = await fetch(`${VF_BASE}/user/get`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ accesstoken }).toString()
+          });
+          const userData = await res.json();
+          vfData = extractVfUserData(userData);
+        } catch (e) {
+          // Falls /user/get fehlschlägt, weitermachen mit signin-Daten
         }
-        console.log('VF User data:', JSON.stringify({ uid: vfUid, memberid: vfMemberid, name: vfDisplayName }));
-      } catch (e) { console.warn('VF user/get fehlgeschlagen:', e.message); }
+      }
+
+      if (vfData) {
+        vfUid = vfData.uid;
+        vfMemberid = vfData.memberid;
+        vfDisplayName = vfData.displayName;
+      }
 
       if (!vfUid && !vfMemberid && !vfDisplayName) {
         await vfSignOut(accesstoken);
@@ -372,37 +418,40 @@ exports.handler = async (event) => {
       accesstoken = await vfGetAccessToken();
       const signInResult = await vfSignIn(accesstoken, { username: vfUsername, password: vfPassword });
       accesstoken = signInResult.accesstoken;
-      console.log('memberFlights: VF login OK, accesstoken:', accesstoken ? accesstoken.substring(0, 8) + '...' : 'EMPTY');
-      console.log('memberFlights: stored creds -', JSON.stringify({ vfUid, vfMemberid, memberName }));
 
       // Auto-Reparatur: Wenn UID/Name fehlen, jetzt nachholen und speichern
       if (!vfUid || !memberName) {
-        console.log('memberFlights: Auto-repair triggered (missing uid or name)');
         try {
-          const userRes = await fetch(`${VF_BASE}/user/get`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({ accesstoken }).toString()
-          });
-          const rawText = await userRes.text();
-          console.log('memberFlights: /user/get raw response:', rawText.substring(0, 500));
-          const userData = JSON.parse(rawText);
-          vfUid = String(userData.uid || '');
-          vfMemberid = String(userData.memberid || '');
-          if (userData.firstname || userData.lastname) {
-            memberName = ((userData.firstname || '') + ' ' + (userData.lastname || '')).trim();
+          // Versuch 1: Daten aus der signin-Response extrahieren
+          let vfData = extractVfUserData(signInResult.signinData);
+
+          // Versuch 2: Falls signin keine kompletten Daten lieferte, /user/get aufrufen
+          if (!vfData || (!vfData.uid && !vfData.memberid)) {
+            const userRes = await fetch(`${VF_BASE}/user/get`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: new URLSearchParams({ accesstoken }).toString()
+            });
+            const userData = await userRes.json();
+            vfData = extractVfUserData(userData);
           }
-          console.log('Auto-repair VF credentials:', JSON.stringify({ uid: vfUid, memberid: vfMemberid, name: memberName }));
-          // In Firebase aktualisieren
-          const updates = {};
-          if (vfUid) updates.vfUid = vfUid;
-          if (vfMemberid) updates.vfMemberid = vfMemberid;
-          if (memberName) updates.displayName = memberName;
-          if (Object.keys(updates).length > 0) {
-            await admin.database().ref(`users/${uid}/vfCredentials`).update(updates);
-            console.log('Auto-repair: Firebase updated with', JSON.stringify(updates));
+
+          if (vfData) {
+            if (vfData.uid) vfUid = vfData.uid;
+            if (vfData.memberid) vfMemberid = vfData.memberid;
+            if (vfData.displayName) memberName = vfData.displayName;
+            // In Firebase aktualisieren
+            const updates = {};
+            if (vfUid) updates.vfUid = vfUid;
+            if (vfMemberid) updates.vfMemberid = vfMemberid;
+            if (memberName) updates.displayName = memberName;
+            if (Object.keys(updates).length > 0) {
+              await admin.database().ref(`users/${uid}/vfCredentials`).update(updates);
+            }
           }
-        } catch (e) { console.warn('Auto-repair fehlgeschlagen:', e.message, e.stack); }
+        } catch (e) {
+          // Auto-repair fehlgeschlagen, weitermachen mit vorhandenen Daten
+        }
       }
 
       if (!vfUid && !vfMemberid && !memberName) {
@@ -447,8 +496,6 @@ exports.handler = async (event) => {
         }
         return false;
       });
-
-      console.log(`memberFlights: ${allFlights.length} total, ${memberFlights.length} matched (uid=${vfUid}, memberid=${vfMemberid}, name=${memberName})`);
 
       const enriched = memberFlights.map(f => {
         // Rolle bestimmen über UID
