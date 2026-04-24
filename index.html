@@ -1204,6 +1204,7 @@
   .gantt-timeline {
     flex: 1;
     display: flex;
+    flex-direction: column;
     position: relative;
     background: white;
     min-width: max-content;
@@ -1221,17 +1222,27 @@
     flex-shrink: 0;
   }
   .gantt-hour {
-    flex: 1;
-    min-width: 60px;
-    border-right: 1px dashed var(--c-line);
+    min-width: 80px;
+    border-right: 1px solid var(--c-line);
     display: flex;
     align-items: flex-end;
-    justify-content: center;
-    padding-bottom: 4px;
-    font-size: 9px;
-    font-weight: 600;
-    color: var(--c-ink-3);
+    justify-content: flex-start;
+    padding: 0 0 5px 6px;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--c-ink-2);
     font-family: var(--font-mono);
+    position: relative;
+    box-sizing: border-box;
+  }
+  .gantt-hour::after {
+    content: '';
+    position: absolute;
+    right: 50%;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    border-right: 1px dashed rgba(0,0,0,0.06);
   }
   .gantt-hour:last-child {
     border-right: none;
@@ -1239,9 +1250,14 @@
   .gantt-row-bars {
     position: relative;
     width: 100%;
-    height: 64px;
+    height: 56px;
     border-bottom: 1px solid var(--c-line);
     background: white;
+    display: flex;
+    align-items: center;
+  }
+  .gantt-row-bars:nth-child(even) {
+    background: #FAFAF8;
   }
   .gantt-row-bars:last-child {
     border-bottom: none;
@@ -1258,52 +1274,73 @@
   }
   .gantt-bar {
     position: absolute;
-    height: 32px;
+    height: 36px;
     top: 50%;
     transform: translateY(-50%);
-    border-radius: 999px;
-    padding: 0 12px;
+    border-radius: 6px;
+    padding: 0 10px;
     display: flex;
     align-items: center;
     gap: 6px;
     cursor: pointer;
-    border: 1px solid;
-    font-size: 10px;
+    border: 1.5px solid;
+    font-size: 11px;
     font-weight: 600;
-    font-family: var(--font-mono);
+    font-family: var(--font-ui);
     white-space: nowrap;
-    transition: all 0.12s;
+    transition: all 0.15s;
     overflow: hidden;
-    text-overflow: ellipsis;
+    min-width: 28px;
+    box-sizing: border-box;
+    z-index: 2;
   }
   .gantt-bar:hover {
-    transform: translateY(-50%) scale(1.02);
-    box-shadow: 0 4px 12px rgba(27,29,31,0.12);
+    transform: translateY(-50%) scale(1.03);
+    box-shadow: 0 4px 14px rgba(27,29,31,0.15);
+    z-index: 4;
+  }
+  .gantt-bar-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.2;
+  }
+  .gantt-bar-name {
+    font-weight: 700;
+    font-size: 11px;
+  }
+  .gantt-bar-time {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 500;
+    opacity: 0.75;
+    margin-left: 4px;
   }
   .gantt-bar-dot {
-    width: 8px;
-    height: 8px;
+    width: 7px;
+    height: 7px;
     border-radius: 50%;
     flex-shrink: 0;
   }
   .gantt-bar.pending {
-    background: #F2DFB7;
+    background: linear-gradient(135deg, #FBF0D5, #F2DFB7);
     border-color: #C08E36;
     color: #5B3F0F;
   }
   .gantt-bar.approved {
-    background: #D3E1D3;
+    background: linear-gradient(135deg, #E0EBE0, #C8DAC5);
     border-color: #789B6E;
     color: #2B3F24;
   }
   .gantt-bar.rejected {
-    background: #EDCDC4;
+    background: linear-gradient(135deg, #F2D5CC, #EDCDC4);
     border-color: #B36A5B;
     color: #5B251B;
-    opacity: 0.7;
+    opacity: 0.65;
+    text-decoration: line-through;
   }
   .gantt-bar.approved.with-instructor {
-    background: #FEF6F1;
+    background: linear-gradient(135deg, #FFF4EC, #FEE8D6);
     border-color: #C08E36;
     color: #5B3F0F;
   }
@@ -1528,7 +1565,8 @@
     .gantt-aircraft-thumb { width: 40px; height: 24px; }
     .gantt-aircraft-reg { font-size: 10px; }
     .gantt-hour { min-width: 45px; font-size: 8px; }
-    .gantt-bar { height: 28px; font-size: 9px; }
+    .gantt-bar { height: 30px; font-size: 10px; }
+    .gantt-bar-time { display: none; }
     .sidebar-card { padding: 16px; }
     .next-flight-time { font-size: 24px; }
     .flugbuch-hours { font-size: 24px; }
@@ -1673,6 +1711,13 @@
           <div class="gantt-timeline-scroll">
             <div class="gantt-ruler" id="ganttRuler"></div>
             <div class="gantt-timeline" id="ganttTimeline"></div>
+          </div>
+        </div>
+        <!-- Platzrunden-Legende -->
+        <div class="platzrunden-legend" id="ganttPlatzrundenLegend">
+          <div class="legend-item"><div class="legend-swatch swatch-open"></div> Platzrundenbetrieb MS/UL</div>
+          <div class="legend-item"><div class="legend-swatch swatch-restricted"></div> Keine Platzrunden in Unterwössen *</div>
+          <div class="legend-item" style="flex-basis: 100%; font-size: 10px; color: var(--c-ink-3);" id="ganttPlatzrundenDetail">
           </div>
         </div>
       </div>
@@ -2850,13 +2895,22 @@ function renderGanttCalendar(dk, aircraft) {
   const lastHour = 18;
   const hourCount = lastHour - firstHour;
 
-  // Render Ruler
-  const rulerHtml = TIME_POINTS.filter(t => {
-    const h = parseInt(t.split(':')[0]);
-    return h >= firstHour && h < lastHour;
-  }).map(t => `<div class="gantt-hour">${t}</div>`).join('');
+  // Render Ruler (full hours + half-hour ticks)
+  let rulerHtml = '';
+  for (let h = firstHour; h < lastHour; h++) {
+    const label = `${String(h).padStart(2, '0')}:00`;
+    rulerHtml += `<div class="gantt-hour">${label}</div>`;
+  }
 
   document.getElementById('ganttRuler').innerHTML = rulerHtml;
+
+  // Platzrunden-Legende aktualisieren
+  const legendDetail = document.getElementById('ganttPlatzrundenDetail');
+  if (legendDetail) {
+    const viewDate = new Date(dk.replace(/(\d{4})-(\d{2})-(\d{2})/, '$1/$2/$3'));
+    const prInfo = getPlatzrundenInfo(viewDate);
+    legendDetail.innerHTML = `<span>${prInfo}</span> · <span>* Sonn- & Feiertage: Flugbetrieb Motorsegler ab 09:00</span>`;
+  }
 
   // Render Aircraft Column & Timeline
   let aircraftHtml = '';
@@ -2906,14 +2960,21 @@ function renderGanttCalendar(dk, aircraft) {
       const durationPercent = ((endMinutes - startMinutes) / totalMinutes) * 100;
 
       const hasInstructor = booking.instructor === 'ja';
-      const statusDot = booking.status === 'approved' ? '●' : booking.status === 'pending' ? '◐' : '○';
+      const statusIcon = booking.status === 'approved' ? '✓' : booking.status === 'pending' ? '◐' : '✗';
+      const customerName = booking.customer || booking.name || '—';
+      const shortName = customerName.length > 14 ? customerName.substring(0, 13) + '…' : customerName;
+      const tooltipText = `${customerName} · ${booking.startTime}–${booking.endTime}${hasInstructor ? ' · Fluglehrer' : ''}`;
 
       const barHtml = `
         <div class="gantt-bar ${booking.status}${hasInstructor ? ' with-instructor' : ''}"
              style="left: ${startPercent}%; width: ${durationPercent}%;"
+             title="${tooltipText}"
              onclick="event.stopPropagation(); showDetail('${booking.id}')">
-          <span class="gantt-bar-dot">${statusDot}</span>
-          <span>${booking.startTime}–${booking.endTime}</span>
+          <span class="gantt-bar-dot">${statusIcon}</span>
+          <span class="gantt-bar-label">
+            <span class="gantt-bar-name">${shortName}</span>
+            <span class="gantt-bar-time">${booking.startTime}–${booking.endTime}</span>
+          </span>
         </div>
       `;
       rowEl.innerHTML += barHtml;
