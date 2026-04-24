@@ -1016,6 +1016,523 @@
   .cauth-logged-in .name { font-weight:600; font-size:15px; color:var(--c-ink); }
   .cauth-logged-in .email { font-size:12px; color:var(--c-ink-3); margin-top:2px; }
   .cauth-logged-in .actions { margin-top:14px; display:flex; gap:8px; justify-content:center; }
+
+  /* ===== HERO SECTION ===== */
+  .hero-band {
+    background: linear-gradient(to bottom, #BED3D6, #E4E0CB);
+    padding: 32px 36px;
+    position: relative;
+    overflow: hidden;
+    min-height: 210px;
+    display: flex;
+    align-items: center;
+    gap: 48px;
+    border-bottom: 1px solid var(--c-line);
+  }
+  .hero-topo {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0.15;
+    pointer-events: none;
+  }
+  .hero-content {
+    position: relative;
+    z-index: 1;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .hero-meta {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--c-alpine);
+  }
+  .hero-headline {
+    font-family: var(--font-brand);
+    font-size: 44px;
+    line-height: 1.2;
+    color: var(--c-ink);
+    font-weight: 400;
+    margin: 0;
+  }
+  .hero-headline em {
+    font-style: italic;
+    color: var(--c-amber);
+    font-weight: 500;
+  }
+  .hero-weather {
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    padding: 20px 24px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    min-width: 280px;
+    flex-shrink: 0;
+  }
+  .hero-weather h4 {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--c-ink-3);
+    margin-bottom: 12px;
+  }
+  .weather-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .weather-item {
+    font-size: 11px;
+  }
+  .weather-item .label {
+    color: var(--c-ink-3);
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 2px;
+  }
+  .weather-item .value {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    color: var(--c-ink);
+  }
+
+  /* ===== GANTT CALENDAR ===== */
+  .gantt-wrap {
+    background: var(--c-paper);
+    border-radius: var(--radius);
+    border: 1px solid var(--c-line);
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+  }
+  .gantt-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    background: var(--c-paper);
+    border-bottom: 1px solid var(--c-line);
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .gantt-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--c-ink);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-family: var(--font-ui);
+  }
+  .gantt-time-range {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--c-ink-3);
+    padding: 4px 10px;
+    background: white;
+    border-radius: 20px;
+    border: 1px solid var(--c-line);
+  }
+  .gantt-body {
+    display: flex;
+    overflow: hidden;
+    position: relative;
+    height: auto;
+  }
+  .gantt-aircraft-col {
+    width: 220px;
+    flex-shrink: 0;
+    background: var(--c-paper);
+    border-right: 1px solid var(--c-line);
+    position: sticky;
+    left: 0;
+    z-index: 10;
+  }
+  .gantt-aircraft-row {
+    display: flex;
+    align-items: center;
+    height: 64px;
+    padding: 0 12px;
+    border-bottom: 1px solid var(--c-line);
+    gap: 10px;
+    background: white;
+    cursor: pointer;
+    transition: background 0.12s;
+  }
+  .gantt-aircraft-row:hover {
+    background: #FAFAF8;
+  }
+  .gantt-aircraft-row:last-child {
+    border-bottom: none;
+  }
+  .gantt-aircraft-thumb {
+    width: 48px;
+    height: 30px;
+    object-fit: cover;
+    border-radius: 4px;
+    border: 1px solid var(--c-line);
+    flex-shrink: 0;
+  }
+  .gantt-aircraft-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .gantt-aircraft-reg {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--c-ink);
+    letter-spacing: 0.08em;
+  }
+  .gantt-aircraft-type {
+    font-size: 9px;
+    color: var(--c-ink-3);
+  }
+  .gantt-timeline {
+    flex: 1;
+    display: flex;
+    position: relative;
+    background: white;
+    min-width: max-content;
+  }
+  .gantt-ruler {
+    position: sticky;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 28px;
+    background: var(--c-paper);
+    border-bottom: 1px solid var(--c-line);
+    display: flex;
+    z-index: 5;
+    flex-shrink: 0;
+  }
+  .gantt-hour {
+    flex: 1;
+    min-width: 60px;
+    border-right: 1px dashed var(--c-line);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: 4px;
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--c-ink-3);
+    font-family: var(--font-mono);
+  }
+  .gantt-hour:last-child {
+    border-right: none;
+  }
+  .gantt-row-bars {
+    position: relative;
+    width: 100%;
+    height: 64px;
+    border-bottom: 1px solid var(--c-line);
+    background: white;
+  }
+  .gantt-row-bars:last-child {
+    border-bottom: none;
+  }
+  .gantt-row-bars.restricted-time {
+    background-color: rgba(245, 222, 195, 0.25);
+    background-image: repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 8px,
+      rgba(0,0,0,0.02) 8px,
+      rgba(0,0,0,0.02) 10px
+    );
+  }
+  .gantt-bar {
+    position: absolute;
+    height: 32px;
+    top: 50%;
+    transform: translateY(-50%);
+    border-radius: 999px;
+    padding: 0 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    border: 1px solid;
+    font-size: 10px;
+    font-weight: 600;
+    font-family: var(--font-mono);
+    white-space: nowrap;
+    transition: all 0.12s;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .gantt-bar:hover {
+    transform: translateY(-50%) scale(1.02);
+    box-shadow: 0 4px 12px rgba(27,29,31,0.12);
+  }
+  .gantt-bar-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .gantt-bar.pending {
+    background: #F2DFB7;
+    border-color: #C08E36;
+    color: #5B3F0F;
+  }
+  .gantt-bar.approved {
+    background: #D3E1D3;
+    border-color: #789B6E;
+    color: #2B3F24;
+  }
+  .gantt-bar.rejected {
+    background: #EDCDC4;
+    border-color: #B36A5B;
+    color: #5B251B;
+    opacity: 0.7;
+  }
+  .gantt-bar.approved.with-instructor {
+    background: #FEF6F1;
+    border-color: #C08E36;
+    color: #5B3F0F;
+  }
+  .gantt-nowline {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--c-amber);
+    z-index: 3;
+    opacity: 0.8;
+    pointer-events: none;
+  }
+  .gantt-nowline-label {
+    position: absolute;
+    top: 28px;
+    left: -32px;
+    width: 60px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--c-amber);
+    text-align: center;
+    background: var(--c-paper);
+    padding: 4px 0;
+    border-radius: 4px;
+  }
+
+  /* ===== SIDEBAR ===== */
+  .sidebar {
+    width: 340px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    overflow-y: auto;
+  }
+  .sidebar-card {
+    background: var(--c-paper);
+    border: 1px solid var(--c-line);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: var(--shadow-md);
+  }
+  .sidebar-card h3 {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--c-ink-3);
+    margin-bottom: 12px;
+    font-family: var(--font-ui);
+  }
+  .next-flight-card {
+    background: var(--c-alpine);
+    color: white;
+  }
+  .next-flight-card h3 {
+    color: rgba(255,255,255,0.8);
+  }
+  .next-flight-time {
+    font-family: var(--font-brand);
+    font-size: 32px;
+    font-weight: 400;
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+  .next-flight-aircraft {
+    font-size: 11px;
+    color: rgba(255,255,255,0.9);
+    margin-bottom: 12px;
+  }
+  .next-flight-aircraft .reg {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    display: block;
+  }
+  .next-flight-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .next-flight-actions .btn {
+    flex: 1;
+    font-size: 11px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.3);
+    background: transparent;
+    color: white;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.12s;
+  }
+  .next-flight-actions .btn:hover {
+    background: rgba(255,255,255,0.1);
+    border-color: rgba(255,255,255,0.6);
+  }
+  .next-flight-actions .btn-fill {
+    background: var(--c-amber);
+    border-color: var(--c-amber);
+  }
+  .next-flight-actions .btn-fill:hover {
+    opacity: 0.9;
+  }
+  .bookings-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 400px;
+    overflow-y: auto;
+  }
+  .booking-item {
+    background: white;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid var(--c-line);
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .booking-item:hover {
+    border-color: var(--c-alpine);
+    box-shadow: 0 2px 8px rgba(30,75,78,0.08);
+  }
+  .booking-date-block {
+    font-family: var(--font-brand);
+    font-size: 18px;
+    font-weight: 400;
+    color: var(--c-ink);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .booking-date-month {
+    font-size: 9px;
+    color: var(--c-ink-3);
+    font-family: var(--font-ui);
+  }
+  .booking-aircraft {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--c-ink);
+    margin-bottom: 4px;
+  }
+  .booking-time {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--c-ink-3);
+    font-family: var(--font-mono);
+  }
+  .flugbuch-card h3 {
+    color: var(--c-ink);
+  }
+  .flugbuch-hours {
+    font-family: var(--font-brand);
+    font-size: 32px;
+    font-weight: 400;
+    color: var(--c-ink);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .flugbuch-subtitle {
+    font-size: 11px;
+    color: var(--c-ink-3);
+  }
+  .sidebar-empty {
+    text-align: center;
+    padding: 20px;
+    color: var(--c-ink-3);
+    font-size: 12px;
+  }
+
+  /* ===== CONTENT LAYOUT (DAY VIEW) ===== */
+  .gantt-content {
+    display: flex;
+    gap: 22px;
+    padding: 24px 36px;
+    flex: 1;
+  }
+  .gantt-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .gantt-timeline-scroll {
+    flex: 1;
+    overflow-x: auto;
+    overflow-y: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 1200px) {
+    .hero-band { padding: 24px 24px; gap: 32px; }
+    .hero-headline { font-size: 36px; }
+    .hero-weather { min-width: 240px; }
+    .gantt-content { padding: 20px 24px; gap: 16px; }
+  }
+  @media (max-width: 768px) {
+    .hero-band { flex-direction: column; gap: 20px; padding: 20px 16px; min-height: auto; }
+    .hero-headline { font-size: 28px; }
+    .hero-weather { min-width: auto; width: 100%; }
+    .gantt-content { flex-direction: column; padding: 16px 12px; gap: 16px; }
+    .sidebar { width: 100%; }
+    .gantt-aircraft-col { width: 160px; }
+    .gantt-hour { min-width: 50px; }
+  }
+  @media (max-width: 480px) {
+    .hero-band { padding: 16px 12px; }
+    .hero-headline { font-size: 22px; }
+    .hero-meta { font-size: 9px; }
+    .hero-weather { padding: 14px 16px; }
+    .weather-grid { gap: 8px; }
+    .gantt-content { padding: 12px 8px; gap: 12px; }
+    .sidebar { width: 100%; }
+    .gantt-header { padding: 12px 16px; font-size: 12px; }
+    .gantt-aircraft-col { width: 140px; }
+    .gantt-aircraft-row { height: 56px; padding: 0 10px; }
+    .gantt-aircraft-thumb { width: 40px; height: 24px; }
+    .gantt-aircraft-reg { font-size: 10px; }
+    .gantt-hour { min-width: 45px; font-size: 8px; }
+    .gantt-bar { height: 28px; font-size: 9px; }
+    .sidebar-card { padding: 16px; }
+    .next-flight-time { font-size: 24px; }
+    .flugbuch-hours { font-size: 24px; }
+  }
 </style>
 </head>
 <body>
@@ -1073,7 +1590,8 @@
     <span>Dieser Kalender ist f&uuml;r <strong style="font-weight:600; color:rgba(255,255,255,0.85);">bestehende Charterkunden</strong> und <strong style="font-weight:600; color:rgba(255,255,255,0.85);">angemeldete Flugsch&uuml;ler</strong>. F&uuml;r Gastfl&uuml;ge und alle anderen Anfragen meldet euch bitte in unserem B&uuml;ro: <a href="tel:+498641698787" style="color:var(--accent); font-weight:500; text-decoration:none;">+49 8641 698787</a> oder <a href="mailto:info@dassu.de" style="color:var(--accent); font-weight:500; text-decoration:none;">info@dassu.de</a>. Bitte beachtet, dass eine Buchung erst g&uuml;ltig ist, wenn sie von uns per E-Mail best&auml;tigt wurde.</span>
   </div>
 
-  <div class="date-nav">
+  <!-- Date Navigation (for week view and future use) -->
+  <div class="date-nav" id="dateNav" style="display:none;">
     <button class="btn" onclick="navigateBack()" title="Zur&uuml;ck" style="padding:8px 12px;">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
     </button>
@@ -1082,13 +1600,10 @@
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
     </button>
     <button class="btn" onclick="goToToday()" style="background:var(--navy); color:white; border-color:var(--navy);">Heute</button>
-    <div class="mode-toggle" style="margin-left:12px;">
-      <button class="mode-btn active" id="modeDayBtn" onclick="setViewMode('day')">Tag</button>
-      <button class="mode-btn" id="modeWeekBtn" onclick="setViewMode('week')">Woche</button>
-    </div>
   </div>
 
-  <div class="legend">
+  <!-- Legend (for week view) -->
+  <div class="legend" id="legend" style="display:none;">
     <div class="legend-item"><div class="legend-dot free"></div> Frei</div>
     <div class="legend-item"><div class="legend-dot pending"></div> Angefragt</div>
     <div class="legend-item"><div class="legend-dot approved"></div> Best&auml;tigt</div>
@@ -1096,9 +1611,114 @@
   </div>
 
 
-  <div class="calendar-container">
+  <!-- Hero Band -->
+  <div class="hero-band" id="heroBand">
+    <svg class="hero-topo" id="heroTopo" viewBox="0 0 1200 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+      <!-- Topography contour lines will be generated here -->
+    </svg>
+    <div class="hero-content" id="heroContent">
+      <div class="hero-meta" id="heroMeta"></div>
+      <h2 class="hero-headline" id="heroHeadline"></h2>
+    </div>
+    <div class="hero-weather" id="heroWeather">
+      <h4>Wetter & Umgebung</h4>
+      <div class="weather-grid">
+        <div class="weather-item">
+          <div class="label">Sonnenaufgang</div>
+          <div class="value" id="weatherSunrise">—</div>
+        </div>
+        <div class="weather-item">
+          <div class="label">Sonnenuntergang</div>
+          <div class="value" id="weatherSunset">—</div>
+        </div>
+        <div class="weather-item">
+          <div class="label">Wind</div>
+          <div class="value" id="weatherWind">—</div>
+        </div>
+        <div class="weather-item">
+          <div class="label">QNH</div>
+          <div class="value" id="weatherQNH">—</div>
+        </div>
+        <div class="weather-item">
+          <div class="label">Basis</div>
+          <div class="value" id="weatherCeiling">—</div>
+        </div>
+        <div class="weather-item">
+          <div class="label">Temperatur</div>
+          <div class="value" id="weatherTemp">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content: Gantt + Sidebar -->
+  <div class="gantt-content" id="ganttContent">
+    <!-- Gantt Calendar -->
+    <div class="gantt-container">
+      <div class="gantt-wrap" id="ganttWrap">
+        <div class="gantt-header">
+          <div>
+            <span class="gantt-title">Tagesstrip — Flotte</span>
+            <span class="gantt-time-range" id="ganttTimeRange">06:00 – 18:00 LT</span>
+          </div>
+          <div class="mode-toggle" style="margin: 0;">
+            <button class="mode-btn active" id="modeDayBtn" onclick="setViewMode('day')">Tag</button>
+            <button class="mode-btn" id="modeWeekBtn" onclick="setViewMode('week')">Woche</button>
+          </div>
+        </div>
+        <div class="gantt-body" id="ganttBody">
+          <!-- Aircraft column (sticky left) -->
+          <div class="gantt-aircraft-col" id="ganttAircraftCol"></div>
+          <!-- Timeline (scrollable) -->
+          <div class="gantt-timeline-scroll">
+            <div class="gantt-ruler" id="ganttRuler"></div>
+            <div class="gantt-timeline" id="ganttTimeline"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+      <!-- Next Flight Card -->
+      <div class="sidebar-card next-flight-card" id="nextFlightCard">
+        <h3>Nächster Flug</h3>
+        <div class="next-flight-time" id="nextFlightTime">—</div>
+        <div class="next-flight-aircraft">
+          <span class="reg" id="nextFlightAircraft">—</span>
+          <span id="nextFlightType">—</span>
+        </div>
+        <div class="next-flight-actions">
+          <button class="btn" onclick="console.log('Details')">Details</button>
+          <button class="btn btn-fill" onclick="console.log('Briefing')">Briefing</button>
+        </div>
+      </div>
+
+      <!-- My Bookings Card -->
+      <div class="sidebar-card" id="myBookingsCard">
+        <h3>Meine Buchungen</h3>
+        <div class="bookings-list" id="bookingsList">
+          <div class="sidebar-empty">Keine anstehenden Buchungen</div>
+        </div>
+      </div>
+
+      <!-- Flugbuch Card -->
+      <div class="sidebar-card" id="flugbuchCard">
+        <h3>Flugbuch</h3>
+        <div class="flugbuch-hours" id="flugbuchHours">0.0</div>
+        <div class="flugbuch-subtitle" id="flugbuchSubtitle">Stunden aus Vereinsflieger</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Week View (hidden by default) -->
+  <div id="weekViewContainer" style="display:none; padding: 24px 36px;">
+    <div id="weekGrid"></div>
+  </div>
+
+  <!-- Legacy calendar grid (hidden, kept for compatibility) -->
+  <div class="calendar-container" style="display:none;">
     <div class="calendar-grid" id="calendarGrid"></div>
-    <div id="weekGrid" style="display:none;"></div>
   </div>
 </div>
 
@@ -1959,12 +2579,22 @@ function setViewMode(mode) {
 function renderView() {
   if (typeof renderDailyNotesBanner === 'function') try { renderDailyNotesBanner(); } catch(e){}
   if (viewMode === 'week') {
-    document.getElementById('calendarGrid').style.display = 'none';
-    document.getElementById('weekGrid').style.display = 'block';
+    // Hide day view (hero, gantt, sidebar)
+    document.getElementById('heroBand').style.display = 'none';
+    document.getElementById('ganttContent').style.display = 'none';
+    document.getElementById('dateNav').style.display = 'flex';
+    document.getElementById('legend').style.display = 'flex';
+    // Show week view
+    document.getElementById('weekViewContainer').style.display = 'block';
     renderWeekView();
   } else {
-    document.getElementById('calendarGrid').style.display = 'grid';
-    document.getElementById('weekGrid').style.display = 'none';
+    // Show day view (hero, gantt, sidebar)
+    document.getElementById('heroBand').style.display = 'flex';
+    document.getElementById('ganttContent').style.display = 'flex';
+    document.getElementById('dateNav').style.display = 'none';
+    document.getElementById('legend').style.display = 'none';
+    // Hide week view
+    document.getElementById('weekViewContainer').style.display = 'none';
     renderDayView();
   }
 }
@@ -2135,112 +2765,257 @@ function renderDailyNotesBanner() {
 }
 
 function renderDayView() {
-  document.getElementById('currentDateDisplay').textContent = formatDate(currentDate);
-  const grid = document.getElementById('calendarGrid');
   const dk = dateKey(currentDate);
   const aircraft = settings.aircraft;
 
-  const isMobile = window.innerWidth <= 480;
-  grid.style.gridTemplateColumns = `${isMobile ? '36px' : '54px'} repeat(${aircraft.length}, 1fr)`;
+  // ===== Render Hero Band =====
+  renderHeroBand(currentDate, dk);
 
-  let html = '<div class="grid-header">Uhrzeit</div>';
-  aircraft.forEach(a => {
-    const img = AIRCRAFT_IMAGES[a] ? `<img src="${AIRCRAFT_IMAGES[a]}?format=100w" alt="${a}" class="aircraft-thumb" />` : '';
-    const type = AIRCRAFT_TYPES[a] || '';
-    html += `<div class="grid-header aircraft-header">${img}<span class="aircraft-reg">${a}</span><span class="aircraft-type">${type}</span></div>`;
-  });
+  // ===== Render Gantt Calendar =====
+  renderGanttCalendar(dk, aircraft);
 
-  // Vergangene Slots erkennen (heute + Uhrzeit vorbei)
+  // ===== Render Sidebar =====
+  renderSidebar(dk);
+}
+
+// ===== HELPER: Generate Hero Section =====
+function renderHeroBand(date, dk) {
+  const now = new Date();
+  const isToday = dk === dateKey(now);
+
+  // Generate metadata
+  const dayName = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'][date.getDay()];
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const doy = Math.floor((date - new Date(date.getFullYear(), 0, 0)) / 86400000);
+  const doyStr = String(doy).padStart(3, '0');
+
+  document.getElementById('heroMeta').textContent = `${dayName.toUpperCase()} · ${day}. ${['JAN','FEB','MÄR','APR','MAI','JUN','JUL','AUG','SEP','OKT','NOV','DEZ'][date.getMonth()]} ${date.getFullYear()} · DOY ${doyStr}`;
+
+  // Random headline variants
+  const headlines = [
+    'Frisch, <em>blaue Thermik</em> über der Unterwössener Hochebene.',
+    'Steigt auf in <em>glatte Thermik</em> über den Bergen.',
+    '<em>Sonnige</em> Bedingungen für optimale Flugstunden.',
+    'Perfekte Sicht mit <em>stabiler Thermik</em> erwartet.',
+    '<em>Kristallklare Luft</em> über der Alpenlandschaft.'
+  ];
+  const seed = date.getDate() + date.getMonth() + date.getFullYear();
+  const headline = headlines[seed % headlines.length];
+  document.getElementById('heroHeadline').innerHTML = headline;
+
+  // Generate SVG topography (simple contour lines)
+  generateTopography();
+
+  // Placeholder weather data (in real implementation, fetch actual data)
+  document.getElementById('weatherSunrise').textContent = '06:45';
+  document.getElementById('weatherSunset').textContent = '20:15';
+  document.getElementById('weatherWind').textContent = '5-8 kt';
+  document.getElementById('weatherQNH').textContent = '1013 hPa';
+  document.getElementById('weatherCeiling').textContent = '4500 ft';
+  document.getElementById('weatherTemp').textContent = '18°C';
+}
+
+function generateTopography() {
+  const svg = document.getElementById('heroTopo');
+  svg.innerHTML = '';
+
+  // Generate simple wavy contour lines
+  for (let i = 0; i < 8; i++) {
+    const y = i * 25;
+    let path = `M 0 ${y}`;
+    for (let x = 0; x < 1200; x += 100) {
+      const offset = Math.sin(x / 200 + i) * 15;
+      path += ` Q ${x + 50} ${y - offset} ${x + 100} ${y}`;
+    }
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    line.setAttribute('d', path);
+    line.setAttribute('stroke', 'currentColor');
+    line.setAttribute('stroke-width', '1');
+    line.setAttribute('fill', 'none');
+    line.setAttribute('vector-effect', 'non-scaling-stroke');
+    svg.appendChild(line);
+  }
+}
+
+// ===== HELPER: Render Gantt Calendar =====
+function renderGanttCalendar(dk, aircraft) {
   const now = new Date();
   const todayKey = dateKey(now);
   const isToday = dk === todayKey;
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
-  TIME_SLOTS.forEach((slot, slotIdx) => {
-    const slotStart = slot.split(' - ')[0];
-    const slotHour = parseInt(slotStart.split(':')[0]);
-    const slotMin = parseInt(slotStart.split(':')[1]);
-    const slotMinutes = slotHour * 60 + slotMin;
-    const isPastSlot = isToday && slotMinutes < nowMinutes && !adminLoggedIn;
-    const restricted = isRestrictedSlot(dk, slotStart);
-    html += `<div class="grid-time${isPastSlot ? ' past-slot' : ''}">${slotStart}</div>`;
-    aircraft.forEach((a, aIdx) => {
-      const booking = findBookingForSlot(dk, slot, a);
-      const towBlocked = isTowingBlocked(a, slotStart);
-      let cellClass = 'grid-cell';
-      if (isPastSlot) cellClass += ' past-slot';
-      let content = '';
-      if (towBlocked && !booking) {
-        cellClass += ' towing-blocked';
-        if (slotStart === '10:00') {
-          content = '<div class="towing-label">Schleppbetrieb</div>';
-        }
-        html += `<div class="${cellClass}" onclick="openBooking('${a}','${slot}','${dk}', event)">${content}</div>`;
-      } else if (booking) {
-        const hasInstructor = booking.instructor === 'ja';
-        cellClass += ` booked-${booking.status}${hasInstructor ? ' with-instructor' : ''}`;
-        const statusLabels = { pending: 'Angefragt', approved: 'Belegt', rejected: 'Abgelehnt' };
-        const instructorClass = hasInstructor ? ' with-instructor' : '';
-        const isFirstSlot = booking.startTime ? (slotStart === booking.startTime) : true;
-        if (isFirstSlot) {
-          const timeLabel = booking.startTime ? `${booking.startTime}–${booking.endTime}` : '';
-          if (adminLoggedIn) {
-            const instrLabel = booking.instructor === 'ja' && booking.instructorName ? ` · ${booking.instructorName}` : '';
-            content = `<div class="booking-tag ${booking.status}${instructorClass}" onclick="event.stopPropagation(); showDetail('${booking.id}')">${booking.name}<br><small>${timeLabel}${instrLabel} ${statusLabels[booking.status]}</small></div>`;
-          } else {
-            content = `<div class="booking-tag ${booking.status}${instructorClass}" onclick="event.stopPropagation(); showDetail('${booking.id}')"><small>${statusLabels[booking.status]}</small></div>`;
-          }
-        } else {
-          content = `<div class="booking-tag ${booking.status}${instructorClass}" style="opacity:0.5;" onclick="event.stopPropagation(); showDetail('${booking.id}')">&nbsp;</div>`;
-        }
-        html += `<div class="${cellClass}" onclick="openBooking('${a}','${slot}','${dk}', event)">${content}</div>`;
-      } else {
-        if (restricted) {
-          cellClass += ' restricted';
-          if (aIdx === 0) {
-            content = '<div class="restricted-label" style="cursor:pointer;" onclick="event.stopPropagation(); document.getElementById(\'platzrundenFootnote\').scrollIntoView({behavior:\'smooth\'});">*</div>';
-          }
-        }
-        html += `<div class="${cellClass}" onclick="openBooking('${a}','${slot}','${dk}', event)">${content}</div>`;
-      }
+  // Get time range from TIME_POINTS (08:00 to 18:00)
+  const firstHour = 8;
+  const lastHour = 18;
+  const hourCount = lastHour - firstHour;
+
+  // Render Ruler
+  const rulerHtml = TIME_POINTS.filter(t => {
+    const h = parseInt(t.split(':')[0]);
+    return h >= firstHour && h < lastHour;
+  }).map(t => `<div class="gantt-hour">${t}</div>`).join('');
+
+  document.getElementById('ganttRuler').innerHTML = rulerHtml;
+
+  // Render Aircraft Column & Timeline
+  let aircraftHtml = '';
+  let timelineHtml = '';
+
+  aircraft.forEach((a, aIdx) => {
+    // Aircraft info row
+    const img = AIRCRAFT_IMAGES[a] ? `<img src="${AIRCRAFT_IMAGES[a]}?format=100w" alt="${a}" class="gantt-aircraft-thumb" />` : '';
+    const type = AIRCRAFT_TYPES[a] || '';
+    aircraftHtml += `
+      <div class="gantt-aircraft-row">
+        ${img}
+        <div class="gantt-aircraft-info">
+          <div class="gantt-aircraft-reg">${a}</div>
+          <div class="gantt-aircraft-type">${type}</div>
+        </div>
+      </div>
+    `;
+
+    // Timeline row for this aircraft
+    const restricted = isRestrictedSlot(dk, '12:00'); // Check middle of day for restricted times
+    let rowClass = 'gantt-row-bars';
+    if (restricted) rowClass += ' restricted-time';
+
+    timelineHtml += `<div class="${rowClass}" id="gantt-row-${aIdx}"></div>`;
+  });
+
+  document.getElementById('ganttAircraftCol').innerHTML = aircraftHtml;
+  document.getElementById('ganttTimeline').innerHTML = timelineHtml;
+
+  // Render booking bars
+  aircraft.forEach((a, aIdx) => {
+    const rowEl = document.getElementById(`gantt-row-${aIdx}`);
+    const bookingsForAircraft = bookings.filter(b => b.date === dk && b.aircraft === a);
+
+    bookingsForAircraft.forEach(booking => {
+      // Calculate position and width based on start/end times
+      const startH = parseInt(booking.startTime.split(':')[0]);
+      const startM = parseInt(booking.startTime.split(':')[1]);
+      const endH = parseInt(booking.endTime.split(':')[0]);
+      const endM = parseInt(booking.endTime.split(':')[1]);
+
+      const startMinutes = startH * 60 + startM;
+      const endMinutes = endH * 60 + endM;
+      const totalMinutes = (lastHour - firstHour) * 60;
+      const startPercent = ((startMinutes - firstHour * 60) / totalMinutes) * 100;
+      const durationPercent = ((endMinutes - startMinutes) / totalMinutes) * 100;
+
+      const hasInstructor = booking.instructor === 'ja';
+      const statusDot = booking.status === 'approved' ? '●' : booking.status === 'pending' ? '◐' : '○';
+
+      const barHtml = `
+        <div class="gantt-bar ${booking.status}${hasInstructor ? ' with-instructor' : ''}"
+             style="left: ${startPercent}%; width: ${durationPercent}%;"
+             onclick="event.stopPropagation(); showDetail('${booking.id}')">
+          <span class="gantt-bar-dot">${statusDot}</span>
+          <span>${booking.startTime}–${booking.endTime}</span>
+        </div>
+      `;
+      rowEl.innerHTML += barHtml;
     });
   });
 
-  grid.innerHTML = html;
-
-  // Platzrunden-Legende unter dem Kalender
-  let legendEl = document.getElementById('platzrundenLegend');
-  if (!legendEl) {
-    legendEl = document.createElement('div');
-    legendEl.id = 'platzrundenLegend';
-    legendEl.className = 'platzrunden-legend';
-    grid.parentNode.insertBefore(legendEl, grid.nextSibling);
+  // Draw "now" line if it's today
+  if (isToday) {
+    const nowPercent = ((nowMinutes - firstHour * 60) / ((lastHour - firstHour) * 60)) * 100;
+    const nowlineHtml = `
+      <div class="gantt-nowline" style="left: ${nowPercent}%;">
+        <div class="gantt-nowline-label">${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}</div>
+      </div>
+    `;
+    document.getElementById('ganttTimeline').innerHTML += nowlineHtml;
   }
-  const info = getPlatzrundenInfo(dk);
-  legendEl.innerHTML = `
-    <div class="legend-item"><div class="legend-swatch" style="background:#43a047;"></div> Ohne Fluglehrer</div>
-    <div class="legend-item"><div class="legend-swatch" style="background:#ef8c00;"></div> Mit Fluglehrer</div>
-    <span style="color: var(--gray-300);">|</span>
-    <div class="legend-item"><div class="legend-swatch swatch-open"></div> Platzrundenbetrieb MS/UL</div>
-    <div class="legend-item"><div class="legend-swatch swatch-restricted"></div> Keine Platzrunden in Unterwössen *</div>
-    <span style="color: var(--gray-300);">|</span>
-    <span>Mo–Fr: Platzrunden 08:00–12:00 &amp; 15:00–18:00</span>
-    <span style="color: var(--gray-300);">|</span>
-    <span>Sa: Platzrunden 08:00–12:00</span>
-    <span style="color: var(--gray-300);">|</span>
-    <span>So: ab 09:00, keine Platzrunden</span>
-  `;
 
-  // Fußnote
-  let footnoteEl = document.getElementById('platzrundenFootnote');
-  if (!footnoteEl) {
-    footnoteEl = document.createElement('div');
-    footnoteEl.id = 'platzrundenFootnote';
-    footnoteEl.style.cssText = 'padding: 8px 16px 12px; font-size: 12px; color: #999; line-height: 1.5;';
-    legendEl.parentNode.insertBefore(footnoteEl, legendEl.nextSibling);
+  // Add click handlers for empty space (open booking)
+  aircraft.forEach((a, aIdx) => {
+    const rowEl = document.getElementById(`gantt-row-${aIdx}`);
+    rowEl.addEventListener('click', (e) => {
+      // Only respond to clicks on empty space, not on booking bars
+      if (e.target === rowEl || e.target.parentElement === rowEl) {
+        // Calculate clicked time relative to the timeline
+        const timelineEl = document.querySelector('.gantt-timeline-scroll');
+        const timelineScrollWidth = timelineEl.scrollWidth - timelineEl.clientWidth;
+        const timelineClientWidth = timelineEl.clientWidth;
+
+        // Get position relative to timeline content (accounting for scroll)
+        const clickXInTimeline = e.clientX - timelineEl.getBoundingClientRect().left + timelineEl.scrollLeft;
+        const totalMinutes = (lastHour - firstHour) * 60;
+        const clickedMinutesFromStart = (clickXInTimeline / timelineEl.scrollWidth) * totalMinutes;
+        const clickedHour = Math.floor(clickedMinutesFromStart / 60) + firstHour;
+        const clickedMin = Math.floor(clickedMinutesFromStart % 60);
+
+        // Round to nearest 30-minute slot
+        const roundedMin = Math.floor(clickedMin / 30) * 30;
+        const clickedTime = `${String(clickedHour).padStart(2, '0')}:${String(roundedMin).padStart(2, '0')}`;
+
+        // Find matching slot
+        const slot = TIME_SLOTS.find(s => s.startsWith(clickedTime));
+        if (slot) {
+          openBooking(a, slot, dk, e);
+        }
+      }
+    });
+  });
+}
+
+// ===== HELPER: Render Sidebar =====
+function renderSidebar(dk) {
+  const currentUser = currentCustomer; // Global from auth.js
+
+  // === Next Flight Card ===
+  const nextFlightCard = document.getElementById('nextFlightCard');
+  const now = new Date();
+  const upcomingBookings = bookings.filter(b => {
+    if (currentUser && currentUser.email && b.email !== currentUser.email) return false;
+    const bDate = new Date(b.date + 'T' + b.startTime + ':00');
+    return bDate > now;
+  }).sort((a, b) => new Date(a.date + 'T' + a.startTime) - new Date(b.date + 'T' + b.startTime));
+
+  if (upcomingBookings.length > 0) {
+    const next = upcomingBookings[0];
+    const type = AIRCRAFT_TYPES[next.aircraft] || '';
+    nextFlightCard.style.display = 'block';
+    document.getElementById('nextFlightTime').textContent = next.startTime;
+    document.getElementById('nextFlightAircraft').textContent = next.aircraft;
+    document.getElementById('nextFlightType').textContent = type;
+  } else {
+    nextFlightCard.style.display = 'none';
   }
-  footnoteEl.innerHTML = '<span style="color: var(--primary);">*</span> Platzrunden können problemlos an den umliegenden Flugplätzen (EDPK, EDNV, EDMY, EDME u.&thinsp;a.) geflogen werden — der Shuttle dorthin ist kurz.'
-    + '<br>Für Buchungen, die über diesen Kalender nicht möglich sind (längere Flüge, Übernachtungen, Sonderwünsche), meldet euch bitte bei uns: <a href="tel:+498641698787" style="color:var(--primary);text-decoration:none;font-weight:500;">+49 8641 698787</a> oder <a href="mailto:info@dassu.de" style="color:var(--primary);text-decoration:none;font-weight:500;">info@dassu.de</a>';
+
+  // === My Bookings Card ===
+  const bookingsList = document.getElementById('bookingsList');
+  const myBookings = bookings.filter(b => {
+    if (currentUser && currentUser.email) return b.email === currentUser.email;
+    return false;
+  }).sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  if (myBookings.length > 0) {
+    const bookingsHtml = myBookings.slice(0, 5).map(b => {
+      const bDate = new Date(b.date + 'T12:00:00');
+      const dayNum = bDate.getDate();
+      const monthShort = ['J','F','M','A','M','J','J','A','S','O','N','D'][bDate.getMonth()];
+      return `
+        <div class="booking-item" onclick="showDetail('${b.id}')">
+          <div class="booking-date-block">${dayNum}<span class="booking-date-month">${monthShort}</span></div>
+          <div class="booking-aircraft">${b.aircraft}</div>
+          <div class="booking-time">${b.startTime}–${b.endTime}</div>
+        </div>
+      `;
+    }).join('');
+    bookingsList.innerHTML = bookingsHtml;
+  } else {
+    bookingsList.innerHTML = '<div class="sidebar-empty">Keine Buchungen</div>';
+  }
+
+  // === Flugbuch Card ===
+  // TODO: Pull from currentCustomer.flugbuchHours if available
+  const flugbuchHours = currentUser && currentUser.flugbuchHours ? currentUser.flugbuchHours : '0.0';
+  document.getElementById('flugbuchHours').textContent = flugbuchHours;
 }
 
 // Alias for backward compat
