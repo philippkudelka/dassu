@@ -388,6 +388,13 @@
     margin-bottom: 8px;
     color: var(--c-ink);
     background: white;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  .quick-book-popup input[type="search"]::-webkit-search-decoration,
+  .quick-book-popup input[type="search"]::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+    display: none;
   }
   .quick-book-popup input:focus, .quick-book-popup select:focus {
     outline: none;
@@ -5829,20 +5836,23 @@ function openQuickBook(aircraft, slot, date, event) {
 
   popup.innerHTML = `
     <h4>Schnellbuchung · ${aircraft}</h4>
+    <form autocomplete="off" onsubmit="event.preventDefault(); submitQuickBook();">
     <div class="qb-ac-wrap">
-      <input type="text" id="qbName" placeholder="Name eingeben" autocomplete="one-time-code" name="qb-x-${Date.now()}" autofocus
+      <input type="search" id="qbName" placeholder="Name eingeben" autocomplete="off" name="qb_${Date.now()}" autofocus
+             aria-autocomplete="list" role="combobox"
              oninput="qbAcFilter()" onfocus="qbAcFilter()" onkeydown="qbAcKeydown(event)">
       <div class="qb-ac-list" id="qbName-ac"></div>
     </div>
-    <input type="text" id="qbInstructor" placeholder="Fluglehrer (optional)" autocomplete="one-time-code" style="margin-top:4px;">
+    <input type="search" id="qbInstructor" placeholder="Fluglehrer (optional)" autocomplete="off" name="qbi_${Date.now()}" style="margin-top:4px;">
     <div class="quick-book-row">
       <select id="qbFrom" onchange="updateQbTo()">${fromOptions}</select>
       <select id="qbTo"></select>
     </div>
     <div class="quick-book-actions">
-      <button class="btn btn-sm" onclick="closeQuickBook()">Esc</button>
-      <button class="btn btn-primary btn-sm" onclick="submitQuickBook()">Buchen</button>
+      <button type="button" class="btn btn-sm" onclick="closeQuickBook()">Esc</button>
+      <button type="submit" class="btn btn-primary btn-sm">Buchen</button>
     </div>
+    </form>
   `;
   popup._aircraft = aircraft;
   popup._date = date;
