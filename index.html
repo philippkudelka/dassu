@@ -1267,7 +1267,7 @@
   .gantt-row-bars {
     position: relative;
     width: 100%;
-    height: 56px;
+    height: 64px;
     border-bottom: 1px solid var(--c-line);
     background-color: white;
     cursor: pointer;
@@ -5830,11 +5830,11 @@ function openQuickBook(aircraft, slot, date, event) {
   popup.innerHTML = `
     <h4>Schnellbuchung · ${aircraft}</h4>
     <div class="qb-ac-wrap">
-      <input type="text" id="qbName" placeholder="Name eingeben" autocomplete="off" autofocus
+      <input type="text" id="qbName" placeholder="Name eingeben" autocomplete="one-time-code" name="qb-x-${Date.now()}" autofocus
              oninput="qbAcFilter()" onfocus="qbAcFilter()" onkeydown="qbAcKeydown(event)">
       <div class="qb-ac-list" id="qbName-ac"></div>
     </div>
-    <input type="text" id="qbInstructor" placeholder="Fluglehrer (optional)" style="margin-top:4px;">
+    <input type="text" id="qbInstructor" placeholder="Fluglehrer (optional)" autocomplete="one-time-code" style="margin-top:4px;">
     <div class="quick-book-row">
       <select id="qbFrom" onchange="updateQbTo()">${fromOptions}</select>
       <select id="qbTo"></select>
