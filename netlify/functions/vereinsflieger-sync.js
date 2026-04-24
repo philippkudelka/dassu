@@ -308,14 +308,18 @@ exports.handler = async (event) => {
       const session = await vfSignIn(accesstoken, { username: vfUsername, password: vfPassword });
       accesstoken = session.accesstoken;
 
-      // VF-Userdaten holen: Versuche zuerst die signin-Response, dann /user/get
+      // VF-Userdaten holen
       let vfData = null;
       let vfDisplayName = '', vfUid = '', vfMemberid = '';
 
+      // DEBUG: Signin-Response loggen
+      console.log('[VF-DEBUG] signin response:', JSON.stringify(session.signinData).substring(0, 800));
+
       // Versuch 1: Userdaten aus der signin-Response extrahieren
       vfData = extractVfUserData(session.signinData);
+      console.log('[VF-DEBUG] extractVfUserData(signin):', JSON.stringify(vfData));
 
-      // Versuch 2: Falls signin keine kompletten Daten lieferte, /user/get aufrufen
+      // Versuch 2: /user/get (POST)
       if (!vfData || (!vfData.uid && !vfData.memberid)) {
         try {
           const res = await fetch(`${VF_BASE}/user/get`, {
@@ -323,10 +327,26 @@ exports.handler = async (event) => {
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: new URLSearchParams({ accesstoken }).toString()
           });
-          const userData = await res.json();
+          const rawText = await res.text();
+          console.log('[VF-DEBUG] /user/get POST response:', rawText.substring(0, 800));
+          const userData = JSON.parse(rawText);
+          vfData = extractVfUserData(userData);
+          console.log('[VF-DEBUG] extractVfUserData(user/get):', JSON.stringify(vfData));
+        } catch (e) {
+          console.log('[VF-DEBUG] /user/get POST error:', e.message);
+        }
+      }
+
+      // Versuch 3: /user/get als GET mit accesstoken in URL
+      if (!vfData || (!vfData.uid && !vfData.memberid)) {
+        try {
+          const res = await fetch(`${VF_BASE}/user/get?accesstoken=${accesstoken}`, { method: 'GET' });
+          const rawText = await res.text();
+          console.log('[VF-DEBUG] /user/get GET response:', rawText.substring(0, 800));
+          const userData = JSON.parse(rawText);
           vfData = extractVfUserData(userData);
         } catch (e) {
-          // Falls /user/get fehlschlägt, weitermachen mit signin-Daten
+          console.log('[VF-DEBUG] /user/get GET error:', e.message);
         }
       }
 
@@ -335,6 +355,8 @@ exports.handler = async (event) => {
         vfMemberid = vfData.memberid;
         vfDisplayName = vfData.displayName;
       }
+
+      console.log('[VF-DEBUG] final result:', JSON.stringify({ vfUid, vfMemberid, vfDisplayName }));
 
       if (!vfUid && !vfMemberid && !vfDisplayName) {
         await vfSignOut(accesstoken);
