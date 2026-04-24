@@ -263,6 +263,42 @@ function aggregateFlights(flights) {
   return { totalFlights, totalMinutes, byAircraft, byMonth, flyingDays: uniqueDates.size };
 }
 
+/**
+ * Sucht einen VF-Benutzer über den Staff-Account anhand des Usernamens (Email).
+ * Wird verwendet wenn /user/get für den persönlichen Account gesperrt ist.
+ * @param {string} vfUsername — Der Benutzername (Email) aus dem Login-Formular
+ * @returns {{uid: string, memberid: string, displayName: string} | null}
+ */
+async function lookupVfUserViaStaff(vfUsername) {
+  let staffToken = null;
+  try {
+    staffToken = await vfGetAccessToken();
+    const staffSession = await vfSignIn(staffToken); // Env-Vars = Staff-Account
+    staffToken = staffSession.accesstoken;
+    const users = await vfGetUserList(staffToken);
+
+    // Suche nach Username-Match (case-insensitive)
+    const searchName = vfUsername.toLowerCase().trim();
+    for (const u of users) {
+      const email = (u.email || '').toLowerCase().trim();
+      const uname = (u.username || '').toLowerCase().trim();
+      if ((email && email === searchName) || (uname && uname === searchName)) {
+        const uid = String(u.uid || '').trim();
+        const memberid = String(u.memberid || '').trim();
+        const displayName = ((String(u.firstname || '') + ' ' + String(u.lastname || '')).trim());
+        await vfSignOut(staffToken);
+        return { uid, memberid, displayName };
+      }
+    }
+    await vfSignOut(staffToken);
+    return null;
+  } catch (e) {
+    if (staffToken) await vfSignOut(staffToken);
+    console.log('lookupVfUserViaStaff error:', e.message);
+    return null;
+  }
+}
+
 // ---- Handler ----
 
 exports.handler = async (event) => {
@@ -312,14 +348,10 @@ exports.handler = async (event) => {
       let vfData = null;
       let vfDisplayName = '', vfUid = '', vfMemberid = '';
 
-      // DEBUG: Signin-Response loggen
-      console.log('[VF-DEBUG] signin response:', JSON.stringify(session.signinData).substring(0, 800));
-
       // Versuch 1: Userdaten aus der signin-Response extrahieren
       vfData = extractVfUserData(session.signinData);
-      console.log('[VF-DEBUG] extractVfUserData(signin):', JSON.stringify(vfData));
 
-      // Versuch 2: /user/get (POST)
+      // Versuch 2: /user/get (funktioniert nur bei Accounts mit API-Berechtigung)
       if (!vfData || (!vfData.uid && !vfData.memberid)) {
         try {
           const res = await fetch(`${VF_BASE}/user/get`, {
@@ -327,27 +359,16 @@ exports.handler = async (event) => {
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: new URLSearchParams({ accesstoken }).toString()
           });
-          const rawText = await res.text();
-          console.log('[VF-DEBUG] /user/get POST response:', rawText.substring(0, 800));
-          const userData = JSON.parse(rawText);
-          vfData = extractVfUserData(userData);
-          console.log('[VF-DEBUG] extractVfUserData(user/get):', JSON.stringify(vfData));
-        } catch (e) {
-          console.log('[VF-DEBUG] /user/get POST error:', e.message);
-        }
+          const userData = await res.json();
+          if (!userData.error) {
+            vfData = extractVfUserData(userData);
+          }
+        } catch (_) { /* /user/get nicht verfügbar */ }
       }
 
-      // Versuch 3: /user/get als GET mit accesstoken in URL
+      // Versuch 3: Staff-Account nutzen um User über /user/list zu finden
       if (!vfData || (!vfData.uid && !vfData.memberid)) {
-        try {
-          const res = await fetch(`${VF_BASE}/user/get?accesstoken=${accesstoken}`, { method: 'GET' });
-          const rawText = await res.text();
-          console.log('[VF-DEBUG] /user/get GET response:', rawText.substring(0, 800));
-          const userData = JSON.parse(rawText);
-          vfData = extractVfUserData(userData);
-        } catch (e) {
-          console.log('[VF-DEBUG] /user/get GET error:', e.message);
-        }
+        vfData = await lookupVfUserViaStaff(vfUsername);
       }
 
       if (vfData) {
@@ -355,8 +376,6 @@ exports.handler = async (event) => {
         vfMemberid = vfData.memberid;
         vfDisplayName = vfData.displayName;
       }
-
-      console.log('[VF-DEBUG] final result:', JSON.stringify({ vfUid, vfMemberid, vfDisplayName }));
 
       if (!vfUid && !vfMemberid && !vfDisplayName) {
         await vfSignOut(accesstoken);
@@ -441,21 +460,28 @@ exports.handler = async (event) => {
       const signInResult = await vfSignIn(accesstoken, { username: vfUsername, password: vfPassword });
       accesstoken = signInResult.accesstoken;
 
-      // Auto-Reparatur: Wenn UID/Name fehlen, jetzt nachholen und speichern
+      // Auto-Reparatur: Wenn UID/Name fehlen, über Staff-Account nachholen
       if (!vfUid || !memberName) {
         try {
           // Versuch 1: Daten aus der signin-Response extrahieren
           let vfData = extractVfUserData(signInResult.signinData);
 
-          // Versuch 2: Falls signin keine kompletten Daten lieferte, /user/get aufrufen
+          // Versuch 2: /user/get (funktioniert nur bei Accounts mit API-Berechtigung)
           if (!vfData || (!vfData.uid && !vfData.memberid)) {
-            const userRes = await fetch(`${VF_BASE}/user/get`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-              body: new URLSearchParams({ accesstoken }).toString()
-            });
-            const userData = await userRes.json();
-            vfData = extractVfUserData(userData);
+            try {
+              const userRes = await fetch(`${VF_BASE}/user/get`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ accesstoken }).toString()
+              });
+              const userData = await userRes.json();
+              if (!userData.error) vfData = extractVfUserData(userData);
+            } catch (_) { /* /user/get nicht verfügbar */ }
+          }
+
+          // Versuch 3: Staff-Account nutzen um User über /user/list zu finden
+          if (!vfData || (!vfData.uid && !vfData.memberid)) {
+            vfData = await lookupVfUserViaStaff(vfUsername);
           }
 
           if (vfData) {
