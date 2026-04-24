@@ -1150,13 +1150,27 @@
     height: auto;
   }
   .gantt-aircraft-col {
-    width: 220px;
+    width: 200px;
     flex-shrink: 0;
     background: var(--c-paper);
     border-right: 1px solid var(--c-line);
     position: sticky;
     left: 0;
     z-index: 10;
+  }
+  .gantt-aircraft-col-header {
+    height: 32px;
+    display: flex;
+    align-items: flex-end;
+    padding: 0 12px 5px;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--c-ink-3);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-family: var(--font-ui);
+    border-bottom: 1px solid var(--c-line);
+    background: var(--c-paper);
   }
   .gantt-aircraft-row {
     display: flex;
@@ -1214,7 +1228,7 @@
     top: 0;
     left: 0;
     right: 0;
-    height: 28px;
+    height: 32px;
     background: var(--c-paper);
     border-bottom: 1px solid var(--c-line);
     display: flex;
@@ -1343,6 +1357,24 @@
     background: linear-gradient(135deg, #FFF4EC, #FEE8D6);
     border-color: #C08E36;
     color: #5B3F0F;
+  }
+  /* Platzrunden restricted overlay inside timeline rows */
+  .gantt-restricted-zone {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    background-color: rgba(245, 222, 195, 0.3);
+    background-image: repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 6px,
+      rgba(0,0,0,0.03) 6px,
+      rgba(0,0,0,0.03) 7px
+    );
+    z-index: 1;
+    pointer-events: none;
+    border-left: 1px dashed rgba(197,106,28,0.25);
+    border-right: 1px dashed rgba(197,106,28,0.25);
   }
   .gantt-nowline {
     position: absolute;
@@ -1695,9 +1727,15 @@
     <div class="gantt-container">
       <div class="gantt-wrap" id="ganttWrap">
         <div class="gantt-header">
-          <div>
-            <span class="gantt-title">Tagesstrip — Flotte</span>
-            <span class="gantt-time-range" id="ganttTimeRange">06:00 – 18:00 LT</span>
+          <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+            <button class="btn" onclick="navigateBack()" title="Zurück" style="padding:6px 10px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <span class="gantt-title" id="ganttDateLabel"></span>
+            <button class="btn" onclick="navigateForward()" title="Weiter" style="padding:6px 10px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+            <button class="btn" onclick="goToToday()" style="font-size:11px; padding:5px 12px;">Heute</button>
           </div>
           <div class="mode-toggle" style="margin: 0;">
             <button class="mode-btn active" id="modeDayBtn" onclick="setViewMode('day')">Tag</button>
@@ -1706,7 +1744,9 @@
         </div>
         <div class="gantt-body" id="ganttBody">
           <!-- Aircraft column (sticky left) -->
-          <div class="gantt-aircraft-col" id="ganttAircraftCol"></div>
+          <div class="gantt-aircraft-col" id="ganttAircraftCol">
+            <div class="gantt-aircraft-col-header">Flotte</div>
+          </div>
           <!-- Timeline (scrollable) -->
           <div class="gantt-timeline-scroll">
             <div class="gantt-ruler" id="ganttRuler"></div>
@@ -2890,64 +2930,82 @@ function renderGanttCalendar(dk, aircraft) {
   const isToday = dk === todayKey;
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
-  // Get time range from TIME_POINTS (08:00 to 18:00)
   const firstHour = 8;
   const lastHour = 18;
-  const hourCount = lastHour - firstHour;
+  const totalMinutes = (lastHour - firstHour) * 60;
 
-  // Render Ruler (full hours + half-hour ticks)
-  let rulerHtml = '';
-  for (let h = firstHour; h < lastHour; h++) {
-    const label = `${String(h).padStart(2, '0')}:00`;
-    rulerHtml += `<div class="gantt-hour">${label}</div>`;
+  // --- Date label in gantt header ---
+  const viewDate = new Date(dk.replace(/(\d{4})-(\d{2})-(\d{2})/, '$1/$2/$3'));
+  const dayNames = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+  const monthNames = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+  const ganttLabel = document.getElementById('ganttDateLabel');
+  if (ganttLabel) {
+    ganttLabel.textContent = `${dayNames[viewDate.getDay()]}, ${viewDate.getDate()}. ${monthNames[viewDate.getMonth()]} ${viewDate.getFullYear()}`;
   }
 
+  // --- Ruler ---
+  let rulerHtml = '';
+  for (let h = firstHour; h < lastHour; h++) {
+    rulerHtml += `<div class="gantt-hour">${String(h).padStart(2, '0')}:00</div>`;
+  }
   document.getElementById('ganttRuler').innerHTML = rulerHtml;
 
-  // Platzrunden-Legende aktualisieren
+  // --- Platzrunden-Legende ---
   const legendDetail = document.getElementById('ganttPlatzrundenDetail');
   if (legendDetail) {
-    const viewDate = new Date(dk.replace(/(\d{4})-(\d{2})-(\d{2})/, '$1/$2/$3'));
     const prInfo = getPlatzrundenInfo(viewDate);
     legendDetail.innerHTML = `<span>${prInfo}</span> · <span>* Sonn- & Feiertage: Flugbetrieb Motorsegler ab 09:00</span>`;
   }
 
-  // Render Aircraft Column & Timeline
-  let aircraftHtml = '';
+  // --- Compute restricted (non-Platzrunden) time ranges for this day ---
+  function getRestrictedRanges(date) {
+    const dow = date.getDay();
+    if (dow === 0) return [[firstHour * 60, 9 * 60]]; // So: vor 09:00 gesperrt
+    if (dow === 6) return [[12 * 60, lastHour * 60]]; // Sa: ab 12:00 keine Platzrunden
+    // Mo-Fr: Platzrunden 08-12 & 15-18 → restricted = 12:00-15:00
+    return [[12 * 60, 15 * 60]];
+  }
+  const restrictedRanges = getRestrictedRanges(viewDate);
+
+  // Build restricted zone HTML (overlays inside each row)
+  let restrictedZonesHtml = '';
+  restrictedRanges.forEach(([startMin, endMin]) => {
+    const clampStart = Math.max(startMin, firstHour * 60);
+    const clampEnd = Math.min(endMin, lastHour * 60);
+    if (clampEnd <= clampStart) return;
+    const leftPct = ((clampStart - firstHour * 60) / totalMinutes) * 100;
+    const widthPct = ((clampEnd - clampStart) / totalMinutes) * 100;
+    restrictedZonesHtml += `<div class="gantt-restricted-zone" style="left:${leftPct}%;width:${widthPct}%;"></div>`;
+  });
+
+  // --- Aircraft Column & Timeline Rows ---
+  let aircraftHtml = '<div class="gantt-aircraft-col-header">Flotte</div>';
   let timelineHtml = '';
 
   aircraft.forEach((a, aIdx) => {
-    // Aircraft info row
     const img = AIRCRAFT_IMAGES[a] ? `<img src="${AIRCRAFT_IMAGES[a]}?format=100w" alt="${a}" class="gantt-aircraft-thumb" />` : '';
     const type = AIRCRAFT_TYPES[a] || '';
     aircraftHtml += `
-      <div class="gantt-aircraft-row">
+      <div class="gantt-aircraft-row" onclick="openBooking('${a}', null, '${dk}')">
         ${img}
         <div class="gantt-aircraft-info">
           <div class="gantt-aircraft-reg">${a}</div>
           <div class="gantt-aircraft-type">${type}</div>
         </div>
-      </div>
-    `;
+      </div>`;
 
-    // Timeline row for this aircraft
-    const restricted = isRestrictedSlot(dk, '12:00'); // Check middle of day for restricted times
-    let rowClass = 'gantt-row-bars';
-    if (restricted) rowClass += ' restricted-time';
-
-    timelineHtml += `<div class="${rowClass}" id="gantt-row-${aIdx}"></div>`;
+    timelineHtml += `<div class="gantt-row-bars" id="gantt-row-${aIdx}">${restrictedZonesHtml}</div>`;
   });
 
   document.getElementById('ganttAircraftCol').innerHTML = aircraftHtml;
   document.getElementById('ganttTimeline').innerHTML = timelineHtml;
 
-  // Render booking bars
+  // --- Render booking bars ---
   aircraft.forEach((a, aIdx) => {
     const rowEl = document.getElementById(`gantt-row-${aIdx}`);
     const bookingsForAircraft = bookings.filter(b => b.date === dk && b.aircraft === a);
 
     bookingsForAircraft.forEach(booking => {
-      // Calculate position and width based on start/end times
       const startH = parseInt(booking.startTime.split(':')[0]);
       const startM = parseInt(booking.startTime.split(':')[1]);
       const endH = parseInt(booking.endTime.split(':')[0]);
@@ -2955,19 +3013,18 @@ function renderGanttCalendar(dk, aircraft) {
 
       const startMinutes = startH * 60 + startM;
       const endMinutes = endH * 60 + endM;
-      const totalMinutes = (lastHour - firstHour) * 60;
-      const startPercent = ((startMinutes - firstHour * 60) / totalMinutes) * 100;
-      const durationPercent = ((endMinutes - startMinutes) / totalMinutes) * 100;
+      const startPct = ((startMinutes - firstHour * 60) / totalMinutes) * 100;
+      const widthPct = ((endMinutes - startMinutes) / totalMinutes) * 100;
 
       const hasInstructor = booking.instructor === 'ja';
       const statusIcon = booking.status === 'approved' ? '✓' : booking.status === 'pending' ? '◐' : '✗';
       const customerName = booking.customer || booking.name || '—';
-      const shortName = customerName.length > 14 ? customerName.substring(0, 13) + '…' : customerName;
-      const tooltipText = `${customerName} · ${booking.startTime}–${booking.endTime}${hasInstructor ? ' · Fluglehrer' : ''}`;
+      const shortName = customerName.length > 16 ? customerName.substring(0, 15) + '…' : customerName;
+      const tooltipText = `${customerName}\n${booking.startTime}–${booking.endTime}${hasInstructor ? '\nFluglehrer' : ''}\nStatus: ${booking.status}`;
 
-      const barHtml = `
+      rowEl.innerHTML += `
         <div class="gantt-bar ${booking.status}${hasInstructor ? ' with-instructor' : ''}"
-             style="left: ${startPercent}%; width: ${durationPercent}%;"
+             style="left:${startPct}%;width:${widthPct}%;"
              title="${tooltipText}"
              onclick="event.stopPropagation(); showDetail('${booking.id}')">
           <span class="gantt-bar-dot">${statusIcon}</span>
@@ -2975,50 +3032,38 @@ function renderGanttCalendar(dk, aircraft) {
             <span class="gantt-bar-name">${shortName}</span>
             <span class="gantt-bar-time">${booking.startTime}–${booking.endTime}</span>
           </span>
-        </div>
-      `;
-      rowEl.innerHTML += barHtml;
+        </div>`;
     });
   });
 
-  // Draw "now" line if it's today
-  if (isToday) {
-    const nowPercent = ((nowMinutes - firstHour * 60) / ((lastHour - firstHour) * 60)) * 100;
-    const nowlineHtml = `
-      <div class="gantt-nowline" style="left: ${nowPercent}%;">
+  // --- "Now" line ---
+  if (isToday && nowMinutes >= firstHour * 60 && nowMinutes <= lastHour * 60) {
+    const nowPct = ((nowMinutes - firstHour * 60) / totalMinutes) * 100;
+    document.getElementById('ganttTimeline').innerHTML += `
+      <div class="gantt-nowline" style="left:${nowPct}%;">
         <div class="gantt-nowline-label">${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}</div>
-      </div>
-    `;
-    document.getElementById('ganttTimeline').innerHTML += nowlineHtml;
+      </div>`;
   }
 
-  // Add click handlers for empty space (open booking)
+  // --- Click handlers for booking on empty space ---
   aircraft.forEach((a, aIdx) => {
     const rowEl = document.getElementById(`gantt-row-${aIdx}`);
     rowEl.addEventListener('click', (e) => {
-      // Only respond to clicks on empty space, not on booking bars
-      if (e.target === rowEl || e.target.parentElement === rowEl) {
-        // Calculate clicked time relative to the timeline
-        const timelineEl = document.querySelector('.gantt-timeline-scroll');
-        const timelineScrollWidth = timelineEl.scrollWidth - timelineEl.clientWidth;
-        const timelineClientWidth = timelineEl.clientWidth;
+      // Only on empty space or restricted zone, not booking bars
+      if (e.target.closest('.gantt-bar')) return;
 
-        // Get position relative to timeline content (accounting for scroll)
-        const clickXInTimeline = e.clientX - timelineEl.getBoundingClientRect().left + timelineEl.scrollLeft;
-        const totalMinutes = (lastHour - firstHour) * 60;
-        const clickedMinutesFromStart = (clickXInTimeline / timelineEl.scrollWidth) * totalMinutes;
-        const clickedHour = Math.floor(clickedMinutesFromStart / 60) + firstHour;
-        const clickedMin = Math.floor(clickedMinutesFromStart % 60);
+      const rowRect = rowEl.getBoundingClientRect();
+      const clickX = e.clientX - rowRect.left;
+      const rowWidth = rowRect.width;
+      const clickedMinutes = (clickX / rowWidth) * totalMinutes + firstHour * 60;
+      const clickedHour = Math.floor(clickedMinutes / 60);
+      const clickedMin = Math.floor(clickedMinutes % 60);
+      const roundedMin = Math.floor(clickedMin / 30) * 30;
+      const clickedTime = `${String(clickedHour).padStart(2, '0')}:${String(roundedMin).padStart(2, '0')}`;
 
-        // Round to nearest 30-minute slot
-        const roundedMin = Math.floor(clickedMin / 30) * 30;
-        const clickedTime = `${String(clickedHour).padStart(2, '0')}:${String(roundedMin).padStart(2, '0')}`;
-
-        // Find matching slot
-        const slot = TIME_SLOTS.find(s => s.startsWith(clickedTime));
-        if (slot) {
-          openBooking(a, slot, dk, e);
-        }
+      const slot = TIME_SLOTS.find(s => s.startsWith(clickedTime));
+      if (slot) {
+        openBooking(a, slot, dk, e);
       }
     });
   });
