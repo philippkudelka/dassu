@@ -3279,6 +3279,7 @@ function openBooking(aircraft, slot, date, evt) {
   }
   // Admin: Schnellbuchung statt Formular
   if (adminLoggedIn) {
+    if (evt) evt.stopPropagation(); // Prevent document click from immediately closing popup
     openQuickBook(aircraft, slot, date, evt);
     return;
   }
@@ -5866,9 +5867,11 @@ function openQuickBook(aircraft, slot, date, event) {
 }
 
 function updateQbTo() {
-  const fromVal = document.getElementById('qbFrom').value;
-  const fromIdx = slotIndex(fromVal);
+  const fromEl = document.getElementById('qbFrom');
   const toSel = document.getElementById('qbTo');
+  if (!fromEl || !toSel) return; // Popup was removed before timeout fired
+  const fromVal = fromEl.value;
+  const fromIdx = slotIndex(fromVal);
   const prevTo = toSel.value;
   toSel.innerHTML = '';
   // Max 4h, aber im Admin kein hartes Limit — bis 18:00
@@ -5883,11 +5886,15 @@ function updateQbTo() {
 }
 
 function submitQuickBook() {
-  const name = document.getElementById('qbName').value.trim();
-  if (!name) { document.getElementById('qbName').style.borderColor = 'var(--danger)'; return; }
-  const startTime = document.getElementById('qbFrom').value;
-  const endTime = document.getElementById('qbTo').value;
+  const nameEl = document.getElementById('qbName');
+  const fromEl = document.getElementById('qbFrom');
+  const toEl = document.getElementById('qbTo');
   const popup = document.getElementById('quickBookPopup');
+  if (!nameEl || !fromEl || !toEl || !popup) return;
+  const name = nameEl.value.trim();
+  if (!name) { nameEl.style.borderColor = 'var(--danger)'; return; }
+  const startTime = fromEl.value;
+  const endTime = toEl.value;
   const aircraft = popup._aircraft;
   const date = popup._date;
 
@@ -5940,7 +5947,7 @@ function closeQuickBook() {
 
 // Close quick-book on outside click
 document.addEventListener('click', (e) => {
-  if (quickBookPopup && !quickBookPopup.contains(e.target) && !e.target.closest('.grid-cell')) {
+  if (quickBookPopup && !quickBookPopup.contains(e.target) && !e.target.closest('.grid-cell') && !e.target.closest('.gantt-row-bars') && !e.target.closest('.gantt-bar')) {
     closeQuickBook();
   }
 });
