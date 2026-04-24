@@ -5798,12 +5798,21 @@ function openQuickBook(aircraft, slot, date, event) {
   popup.className = 'quick-book-popup';
   popup.id = 'quickBookPopup';
 
-  // Position near click
-  const rect = event.target.getBoundingClientRect();
-  let top = rect.bottom + 4;
-  let left = rect.left;
-  if (top + 220 > window.innerHeight) top = rect.top - 220;
-  if (left + 260 > window.innerWidth) left = window.innerWidth - 270;
+  // Position near click (or center if no event)
+  let top = window.innerHeight / 2 - 110;
+  let left = window.innerWidth / 2 - 130;
+  if (event && event.target) {
+    const rect = event.target.getBoundingClientRect();
+    top = rect.bottom + 4;
+    left = rect.left;
+    if (top + 220 > window.innerHeight) top = rect.top - 220;
+    if (left + 260 > window.innerWidth) left = window.innerWidth - 270;
+  } else if (event && event.clientY) {
+    top = event.clientY + 4;
+    left = event.clientX;
+    if (top + 220 > window.innerHeight) top = event.clientY - 220;
+    if (left + 260 > window.innerWidth) left = window.innerWidth - 270;
+  }
   popup.style.top = top + 'px';
   popup.style.left = left + 'px';
 
@@ -5842,9 +5851,10 @@ function openQuickBook(aircraft, slot, date, event) {
 
   // Focus name input
   setTimeout(() => {
-    document.getElementById('qbName').focus();
+    const qbNameEl = document.getElementById('qbName');
+    if (qbNameEl) qbNameEl.focus();
     updateQbTo();
-  }, 50);
+  }, 80);
 
   // Enter = submit, Escape = close (but not when autocomplete is handling it)
   popup.addEventListener('keydown', (e) => {
