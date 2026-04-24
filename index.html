@@ -2965,7 +2965,7 @@ function renderGanttCalendar(dk, aircraft) {
 
 // ===== HELPER: Render Sidebar =====
 function renderSidebar(dk) {
-  const currentUser = currentCustomer; // Global from auth.js
+  const currentUser = firebase.auth().currentUser || null;
 
   // === Next Flight Card ===
   const nextFlightCard = document.getElementById('nextFlightCard');
@@ -3013,8 +3013,8 @@ function renderSidebar(dk) {
   }
 
   // === Flugbuch Card ===
-  // TODO: Pull from currentCustomer.flugbuchHours if available
-  const flugbuchHours = currentUser && currentUser.flugbuchHours ? currentUser.flugbuchHours : '0.0';
+  // Flugbuch-Stunden werden in der Flugbuch-Ansicht aus VF geladen
+  const flugbuchHours = (flugbuchData && flugbuchData.totalMinutes) ? (flugbuchData.totalMinutes / 60).toFixed(0) : '—';
   document.getElementById('flugbuchHours').textContent = flugbuchHours;
 }
 
