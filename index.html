@@ -770,17 +770,61 @@
     .modal { padding: 28px 24px; }
   }
 
+  /* === BURGER MENU (hidden on desktop) === */
+  .burger-btn { display: none; background: none; border: none; cursor: pointer; padding: 8px 4px; flex-direction: column; gap: 4px; }
+  .burger-btn span { display: block; width: 20px; height: 2px; background: var(--c-ink-3); border-radius: 1px; transition: all 0.3s; }
+  .burger-btn.open span:nth-child(1) { transform: rotate(45deg) translate(4px, 4px); }
+  .burger-btn.open span:nth-child(2) { opacity: 0; }
+  .burger-btn.open span:nth-child(3) { transform: rotate(-45deg) translate(4px, -4px); }
+  .mobile-menu { display: none; position: absolute; top: 100%; right: 0; background: var(--c-paper); border: 1px solid var(--c-line); border-radius: 0 0 var(--radius) var(--radius); box-shadow: 0 8px 24px rgba(27,29,31,0.12); min-width: 220px; z-index: 200; padding: 8px 0; }
+  .mobile-menu.open { display: block; }
+  .mobile-menu-item { display: flex; align-items: center; gap: 8px; width: 100%; padding: 12px 20px; border: none; background: none; font-size: 14px; color: var(--c-ink); cursor: pointer; text-align: left; font-family: var(--font-ui); text-decoration: none; }
+  .mobile-menu-item:hover { background: var(--c-sand); }
+  .mobile-menu-divider { border: none; border-top: 1px solid var(--c-line); margin: 4px 0; }
+  .hero-weather-toggle { display: none; }
+
   /* Responsive Mobile */
   @media (max-width: 480px) {
-    .header { padding: 0 10px; height: 46px; }
+    .header { padding: 0 10px; height: 46px; position: relative; }
     .header h1 { font-size: 14px; letter-spacing: 0.06em; }
     .header h1 span { display: none; }
     .header img { height: 28px !important; width: 28px !important; }
     .header-actions { gap: 6px; }
-    .header-actions .btn-sm { font-size: 9px; padding: 5px 8px; }
-    .view-tabs { display: none; }
+    .header-desktop-only { display: none !important; }
+    .view-tabs { display: none !important; }
+    .burger-btn { display: flex; }
 
-    .info-banner-mobile { padding: 10px 12px !important; font-size: 11px !important; line-height: 1.5 !important; }
+    /* Info-Banner: 1 Zeile, einklappbar */
+    .info-banner-mobile { padding: 8px 12px !important; font-size: 10px !important; line-height: 1.4 !important; }
+    .info-banner-mobile span { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+    .info-banner-mobile.expanded span { -webkit-line-clamp: unset; }
+
+    /* Hero-Band: Wetter einklappbar */
+    .hero-band { padding: 10px 12px !important; gap: 8px !important; }
+    .hero-content { flex-direction: column !important; gap: 6px !important; align-items: flex-start !important; }
+    .hero-meta { font-size: 10px !important; }
+    .hero-weather-icon { font-size: 24px !important; }
+    .hero-weather { display: none; padding: 10px 12px !important; gap: 4px !important; }
+    .hero-weather.mobile-expanded { display: block; width: 100%; }
+    .hero-weather-toggle { display: flex !important; align-items: center; gap: 6px; background: none; border: 1px solid var(--c-line); border-radius: var(--radius-sm); padding: 6px 12px; color: var(--c-ink-3); font-size: 11px; cursor: pointer; font-family: var(--font-ui); margin-top: 2px; }
+    .weather-grid { font-size: 10px !important; }
+    .weather-grid dt { font-size: 8px !important; }
+
+    /* Gantt: horizontal scroll mit fixierter Flugzeug-Spalte */
+    .gantt-strip { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .gantt-header-row { position: sticky; top: 0; z-index: 5; }
+    .gantt-timeline { overflow: visible; }
+    .gantt-aircraft-col { width: 100px !important; min-width: 100px; position: sticky; left: 0; z-index: 3; background: var(--c-paper); }
+    .gantt-aircraft-row { height: 50px !important; padding: 0 6px !important; }
+    .gantt-aircraft-thumb { width: 32px !important; height: 20px !important; }
+    .gantt-aircraft-reg { font-size: 9px !important; }
+    .gantt-aircraft-type { font-size: 7px !important; }
+    .gantt-row-bars { height: 50px !important; }
+
+    /* Sidebar unter den Kalender */
+    .gantt-content { flex-direction: column !important; padding: 8px !important; gap: 8px !important; }
+    .sidebar { width: 100% !important; order: 2; }
+    .sidebar-card { padding: 12px !important; }
 
     .date-nav { padding: 10px 12px; gap: 6px; flex-wrap: wrap; justify-content: center; }
     .date-nav h2 { font-size: 13px; min-width: auto; text-align: center; order: -1; width: 100%; margin-bottom: 4px; }
@@ -1590,21 +1634,36 @@
     <h1>DASSU <span style="color:rgba(201,168,76,0.7); font-weight:300; font-size:11px; font-family:var(--font-ui); letter-spacing:0.12em; text-transform:uppercase; margin-left:4px;">Buchungskalender</span></h1>
   </div>
   <div class="header-actions">
-    <button id="btnStornieren" class="btn btn-sm" onclick="document.getElementById('cancelInputModal').classList.add('active')" style="color:rgba(255,255,255,0.6); background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.15); font-size:11px; letter-spacing:0.04em; text-transform:uppercase;">Stornieren</button>
-    <button id="customerAuthBtn" class="btn btn-sm" onclick="openCustomerAuth()" style="color:rgba(255,255,255,0.6); background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.15); font-size:11px; letter-spacing:0.04em; text-transform:uppercase;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span id="custAuthLabel">Login</span></button>
-    <a href="staff.html" id="btnStaff" class="btn btn-sm staff-only" style="color:rgba(255,255,255,0.6); background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.15); font-size:11px; letter-spacing:0.04em; text-transform:uppercase; text-decoration:none;">Staff</a>
+    <button id="btnStornieren" class="btn btn-sm header-desktop-only" onclick="document.getElementById('cancelInputModal').classList.add('active')" style="color:rgba(255,255,255,0.6); background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.15); font-size:11px; letter-spacing:0.04em; text-transform:uppercase;">Stornieren</button>
+    <button id="customerAuthBtn" class="btn btn-sm header-desktop-only" onclick="openCustomerAuth()" style="color:rgba(255,255,255,0.6); background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.15); font-size:11px; letter-spacing:0.04em; text-transform:uppercase;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span id="custAuthLabel">Login</span></button>
+    <a href="staff.html" id="btnStaff" class="btn btn-sm staff-only header-desktop-only" style="color:rgba(255,255,255,0.6); background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.15); font-size:11px; letter-spacing:0.04em; text-transform:uppercase; text-decoration:none;">Staff</a>
     <div class="view-tabs" id="mainViewTabs">
       <button class="view-tab active" onclick="showView('calendar')">Kalender</button>
       <button class="view-tab customer-only" id="tabMyBookings" onclick="showView('myBookings')">Meine Buchungen</button>
       <a href="staff.html" class="view-tab staff-only" id="tabFluglehrer" style="text-decoration:none;">Fluglehrer</a>
       <button class="view-tab staff-only" id="tabAdmin" onclick="showView('admin')">Admin</button>
     </div>
+    <!-- Burger Menu (Mobile only) -->
+    <button class="burger-btn" id="burgerBtn" onclick="toggleMobileMenu()">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+  <!-- Mobile Slide-out Menu -->
+  <div class="mobile-menu" id="mobileMenu">
+    <button class="mobile-menu-item" onclick="showView('calendar'); closeMobileMenu();">Kalender</button>
+    <button class="mobile-menu-item customer-only" id="mobileTabMyBookings" onclick="showView('myBookings'); closeMobileMenu();">Meine Buchungen</button>
+    <a href="staff.html" class="mobile-menu-item staff-only" id="mobileTabFluglehrer">Fluglehrer</a>
+    <button class="mobile-menu-item staff-only" id="mobileTabAdmin" onclick="showView('admin'); closeMobileMenu();">Admin</button>
+    <hr class="mobile-menu-divider">
+    <button class="mobile-menu-item" onclick="openCustomerAuth(); closeMobileMenu();"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> <span id="mobileAuthLabel">Login</span></button>
+    <button class="mobile-menu-item" onclick="document.getElementById('cancelInputModal').classList.add('active'); closeMobileMenu();">Stornieren</button>
+    <a href="staff.html" class="mobile-menu-item staff-only" id="mobileStaffLink">Staff-Bereich</a>
   </div>
 </div>
 
 <!-- Calendar View -->
 <div id="calendarView">
-  <div class="info-banner-mobile" style="background:var(--navy); padding:12px 36px; display:flex; align-items:center; gap:10px; font-size:12px; color:rgba(255,255,255,0.6); line-height:1.6; letter-spacing:0.01em; border-bottom:1px solid rgba(201,168,76,0.1);">
+  <div class="info-banner-mobile" onclick="this.classList.toggle('expanded')" style="background:var(--navy); padding:12px 36px; display:flex; align-items:center; gap:10px; font-size:12px; color:rgba(255,255,255,0.6); line-height:1.6; letter-spacing:0.01em; border-bottom:1px solid rgba(201,168,76,0.1); cursor:pointer;">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(201,168,76,0.6)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
     <span>Dieser Kalender ist f&uuml;r <strong style="font-weight:600; color:rgba(255,255,255,0.85);">bestehende Charterkunden</strong> und <strong style="font-weight:600; color:rgba(255,255,255,0.85);">angemeldete Flugsch&uuml;ler</strong>. F&uuml;r Gastfl&uuml;ge und alle anderen Anfragen meldet euch bitte in unserem B&uuml;ro: <a href="tel:+498641698787" style="color:var(--accent); font-weight:500; text-decoration:none;">+49 8641 698787</a> oder <a href="mailto:info@dassu.de" style="color:var(--accent); font-weight:500; text-decoration:none;">info@dassu.de</a>. Bitte beachtet, dass eine Buchung erst g&uuml;ltig ist, wenn sie von uns per E-Mail best&auml;tigt wurde.</span>
   </div>
@@ -1638,6 +1697,7 @@
     <div class="hero-content" id="heroContent">
       <div class="hero-meta" id="heroMeta"></div>
       <div class="hero-weather-icon" id="heroWeatherIcon"></div>
+      <button class="hero-weather-toggle" onclick="toggleMobileWeather()">Wetter <span id="weatherToggleArrow">&#9660;</span></button>
     </div>
     <div class="hero-weather" id="heroWeather">
       <h4>Wetter & Umgebung</h4>
@@ -2621,6 +2681,32 @@ function renderView() {
 // ============================================================
 // VIEWS
 // ============================================================
+// ============================================================
+// MOBILE MENU
+// ============================================================
+function toggleMobileMenu() {
+  const menu = document.getElementById('mobileMenu');
+  const btn = document.getElementById('burgerBtn');
+  menu.classList.toggle('open');
+  btn.classList.toggle('open');
+}
+function closeMobileMenu() {
+  document.getElementById('mobileMenu')?.classList.remove('open');
+  document.getElementById('burgerBtn')?.classList.remove('open');
+}
+// Close mobile menu on outside click
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.mobile-menu') && !e.target.closest('.burger-btn')) {
+    closeMobileMenu();
+  }
+});
+function toggleMobileWeather() {
+  const w = document.getElementById('heroWeather');
+  const arrow = document.getElementById('weatherToggleArrow');
+  w.classList.toggle('mobile-expanded');
+  arrow.innerHTML = w.classList.contains('mobile-expanded') ? '&#9650;' : '&#9660;';
+}
+
 function showView(view) {
   document.getElementById('calendarView').style.display = view === 'calendar' ? 'block' : 'none';
   document.getElementById('myBookingsView').style.display = view === 'myBookings' ? 'block' : 'none';
@@ -5372,11 +5458,10 @@ async function changeCustomerPassword() {
 
 function updateCustomerButton() {
   const label = document.getElementById('custAuthLabel');
-  if (customerProfile) {
-    label.textContent = 'Konto';
-  } else {
-    label.textContent = 'Login';
-  }
+  const mobileLabel = document.getElementById('mobileAuthLabel');
+  const text = customerProfile ? 'Konto' : 'Login';
+  if (label) label.textContent = text;
+  if (mobileLabel) mobileLabel.textContent = text;
 }
 
 function autofillBookingForm() {
@@ -5411,6 +5496,9 @@ firebase.auth().onAuthStateChanged(async (user) => {
           adminLoggedIn = true;
           if (document.getElementById('tabAdmin')) document.getElementById('tabAdmin').classList.add('auth-revealed');
           if (document.getElementById('tabFluglehrer')) document.getElementById('tabFluglehrer').classList.add('auth-revealed');
+          document.getElementById('mobileTabAdmin')?.classList.add('auth-revealed');
+          document.getElementById('mobileTabFluglehrer')?.classList.add('auth-revealed');
+          document.getElementById('mobileStaffLink')?.classList.add('auth-revealed');
           if (document.getElementById('adminDashboard')) {
             document.getElementById('adminLogin').style.display = 'none';
             document.getElementById('adminDashboard').style.display = 'block';
@@ -5420,10 +5508,12 @@ firebase.auth().onAuthStateChanged(async (user) => {
         // Team/Fluglehrer: Fluglehrer-Tab
         else if (role === 'team' || role === 'staff' || role === 'guestGlider' || role === 'guestMotor') {
           if (document.getElementById('tabFluglehrer')) document.getElementById('tabFluglehrer').classList.add('auth-revealed');
+          document.getElementById('mobileTabFluglehrer')?.classList.add('auth-revealed');
         }
         // Staff ist auch Kunde: Autofill mit Staff-Daten + Meine Buchungen Tab
         customerProfile = { name: staffProfile.name, email: staffProfile.email, phone: staffProfile.phone || '', birthdate: '', photoURL: staffProfile.photoURL || '' };
         document.getElementById('tabMyBookings')?.classList.add('auth-revealed');
+        document.getElementById('mobileTabMyBookings')?.classList.add('auth-revealed');
         document.getElementById('mainViewTabs')?.classList.add('has-customer-tabs');
         renderView();
         return;
@@ -5447,6 +5537,7 @@ firebase.auth().onAuthStateChanged(async (user) => {
       }
       // Meine Buchungen Tab sichtbar machen
       document.getElementById('tabMyBookings')?.classList.add('auth-revealed');
+      document.getElementById('mobileTabMyBookings')?.classList.add('auth-revealed');
       document.getElementById('mainViewTabs')?.classList.add('has-customer-tabs');
       updateCustomerButton();
     } catch (e) { console.warn('Auth-Check fehlgeschlagen:', e); }
