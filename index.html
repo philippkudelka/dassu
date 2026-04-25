@@ -810,16 +810,20 @@
     .weather-grid { font-size: 10px !important; }
     .weather-grid dt { font-size: 8px !important; }
 
-    /* Gantt: horizontal scroll mit fixierter Flugzeug-Spalte */
-    .gantt-strip { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    .gantt-header-row { position: sticky; top: 0; z-index: 5; }
-    .gantt-timeline { overflow: visible; }
-    .gantt-aircraft-col { width: 100px !important; min-width: 100px; position: sticky; left: 0; z-index: 3; background: var(--c-paper); }
-    .gantt-aircraft-row { height: 50px !important; padding: 0 6px !important; }
-    .gantt-aircraft-thumb { width: 32px !important; height: 20px !important; }
-    .gantt-aircraft-reg { font-size: 9px !important; }
-    .gantt-aircraft-type { font-size: 7px !important; }
-    .gantt-row-bars { height: 50px !important; }
+    /* Gantt: Spalten-Layout auf Mobile */
+    .gantt-body { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .gantt-time-col { width: 42px !important; }
+    .gantt-time-header { height: 56px !important; font-size: 7px !important; }
+    .gantt-time-slot { height: 50px !important; font-size: 9px !important; padding: 3px 4px 0 !important; }
+    .gantt-aircraft-column { min-width: 110px !important; }
+    .gantt-col-header { height: 56px !important; padding: 4px !important; }
+    .gantt-col-thumb { width: 36px !important; height: 22px !important; }
+    .gantt-col-reg { font-size: 9px !important; }
+    .gantt-col-type { font-size: 7px !important; }
+    .gantt-col-slot { height: 50px !important; }
+    .gantt-bar { font-size: 8px !important; padding: 2px 4px !important; left: 2px !important; right: 2px !important; }
+    .gantt-bar-name { font-size: 8px !important; }
+    .gantt-bar-time { font-size: 7px !important; }
 
     /* Sidebar unter den Kalender */
     .gantt-content { flex-direction: column !important; padding: 8px !important; gap: 8px !important; }
@@ -1133,12 +1137,13 @@
   }
   .gantt-body {
     display: flex;
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
     position: relative;
-    height: auto;
+    -webkit-overflow-scrolling: touch;
   }
-  .gantt-aircraft-col {
-    width: 200px;
+  .gantt-time-col {
+    width: 54px;
     flex-shrink: 0;
     background: var(--c-paper);
     border-right: 1px solid var(--c-line);
@@ -1146,12 +1151,13 @@
     left: 0;
     z-index: 10;
   }
-  .gantt-aircraft-col-header {
-    height: 32px;
+  .gantt-time-header {
+    height: 72px;
     display: flex;
     align-items: flex-end;
-    padding: 0 12px 5px;
-    font-size: 10px;
+    justify-content: center;
+    padding: 0 0 6px;
+    font-size: 9px;
     font-weight: 700;
     color: var(--c-ink-3);
     text-transform: uppercase;
@@ -1160,166 +1166,145 @@
     border-bottom: 1px solid var(--c-line);
     background: var(--c-paper);
   }
-  .gantt-aircraft-row {
+  .gantt-time-slot {
+    height: 60px;
     display: flex;
-    align-items: center;
-    height: 64px;
-    padding: 0 12px;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 4px 6px 0;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--c-ink-2);
+    font-family: var(--font-mono);
     border-bottom: 1px solid var(--c-line);
-    gap: 10px;
-    background: white;
+    box-sizing: border-box;
+    position: relative;
+  }
+  .gantt-time-slot::after {
+    content: ':30';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 8px;
+    font-weight: 500;
+    color: var(--c-ink-3);
+    opacity: 0.4;
+  }
+  .gantt-columns {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+  }
+  .gantt-aircraft-column {
+    flex: 1;
+    min-width: 140px;
+    border-right: 1px solid var(--c-line);
+    display: flex;
+    flex-direction: column;
+  }
+  .gantt-aircraft-column:last-child {
+    border-right: none;
+  }
+  .gantt-col-header {
+    height: 72px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--c-line);
+    background: var(--c-paper);
+    gap: 3px;
     cursor: pointer;
     transition: background 0.12s;
   }
-  .gantt-aircraft-row:hover {
+  .gantt-col-header:hover {
     background: #FAFAF8;
   }
-  .gantt-aircraft-row:last-child {
-    border-bottom: none;
-  }
-  .gantt-aircraft-thumb {
+  .gantt-col-thumb {
     width: 48px;
-    height: 30px;
+    height: 28px;
     object-fit: cover;
     border-radius: 4px;
     border: 1px solid var(--c-line);
-    flex-shrink: 0;
   }
-  .gantt-aircraft-info {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-  .gantt-aircraft-reg {
+  .gantt-col-reg {
     font-family: var(--font-mono);
     font-size: 11px;
     font-weight: 700;
     color: var(--c-ink);
     letter-spacing: 0.08em;
   }
-  .gantt-aircraft-type {
-    font-size: 9px;
+  .gantt-col-type {
+    font-size: 8px;
     color: var(--c-ink-3);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
   }
-  .gantt-timeline {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
+  .gantt-col-timeline {
     position: relative;
-    background: white;
-    min-width: max-content;
+    flex: 1;
   }
-  .gantt-ruler {
-    position: sticky;
-    top: 0;
+  .gantt-col-slot {
+    height: 60px;
+    border-bottom: 1px solid var(--c-line);
+    position: relative;
+    cursor: pointer;
+    background: white;
+    transition: background 0.1s;
+  }
+  .gantt-col-slot:nth-child(even) {
+    background: #FAFAF8;
+  }
+  .gantt-col-slot:hover {
+    background: rgba(30, 75, 78, 0.04);
+  }
+  /* Half-hour gridline inside each slot */
+  .gantt-col-slot::after {
+    content: '';
+    position: absolute;
     left: 0;
     right: 0;
-    height: 32px;
-    background: var(--c-paper);
-    border-bottom: 1px solid var(--c-line);
-    display: flex;
-    z-index: 5;
-    flex-shrink: 0;
+    top: 50%;
+    height: 0;
+    border-top: 1px dashed rgba(0,0,0,0.06);
+    pointer-events: none;
   }
-  .gantt-hour {
-    flex: 1;
-    min-width: 60px;
-    border-right: 1px solid var(--c-line);
-    display: flex;
-    align-items: flex-end;
-    justify-content: flex-start;
-    padding: 0 0 4px 4px;
-    font-size: 10px;
-    font-weight: 700;
-    color: var(--c-ink-2);
-    font-family: var(--font-mono);
-    position: relative;
-    box-sizing: border-box;
-  }
-  .gantt-hour::after {
-    content: ':30';
-    position: absolute;
-    left: 50%;
-    bottom: 4px;
-    font-size: 8px;
-    font-weight: 500;
-    color: var(--c-ink-3);
-    opacity: 0.5;
-    transform: translateX(-50%);
-  }
-  .gantt-hour:last-child {
-    border-right: none;
-  }
-  .gantt-row-bars {
-    position: relative;
-    width: 100%;
-    height: 64px;
-    border-bottom: 1px solid var(--c-line);
-    background-color: white;
-    cursor: pointer;
-  }
-  .gantt-row-bars:nth-child(even) {
-    background-color: #FAFAF8;
-  }
-  .gantt-row-bars:last-child {
+  .gantt-col-slot:last-child {
     border-bottom: none;
   }
-  .gantt-row-bars:hover {
-    background-color: rgba(30, 75, 78, 0.04);
+  /* Dummy ruler - kept for compatibility */
+  .gantt-ruler {
+    display: none;
   }
-  /* Vertical hour grid lines — generated in JS as child divs */
-  .gantt-gridline {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    width: 1px;
-    pointer-events: none;
-    z-index: 0;
-  }
-  .gantt-gridline.hour {
-    background: var(--c-line);
-  }
-  .gantt-gridline.half {
-    background: rgba(0,0,0,0.06);
-    border-left: 1px dashed rgba(0,0,0,0.06);
-    width: 0;
-  }
-  .gantt-row-bars.restricted-time {
-    background-color: rgba(245, 222, 195, 0.25);
-    background-image: repeating-linear-gradient(
-      -45deg,
-      transparent,
-      transparent 8px,
-      rgba(0,0,0,0.02) 8px,
-      rgba(0,0,0,0.02) 10px
-    );
+  .gantt-hour {
+    display: none;
   }
   .gantt-bar {
     position: absolute;
-    height: 36px;
-    top: 50%;
-    transform: translateY(-50%);
+    left: 3px;
+    right: 3px;
     border-radius: 6px;
-    padding: 0 10px;
+    padding: 4px 6px;
     display: flex;
-    align-items: center;
-    gap: 6px;
+    flex-direction: column;
+    gap: 2px;
     cursor: pointer;
     border: 1.5px solid;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 600;
     font-family: var(--font-ui);
-    white-space: nowrap;
     transition: all 0.15s;
     overflow: hidden;
-    min-width: 28px;
+    min-height: 20px;
     box-sizing: border-box;
     z-index: 2;
   }
   .gantt-bar:hover {
-    transform: translateY(-50%) scale(1.03);
+    transform: scale(1.02);
     box-shadow: 0 4px 14px rgba(27,29,31,0.15);
     z-index: 4;
   }
@@ -1331,20 +1316,24 @@
   }
   .gantt-bar-name {
     font-weight: 700;
-    font-size: 11px;
+    font-size: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .gantt-bar-time {
     font-family: var(--font-mono);
     font-size: 9px;
     font-weight: 500;
     opacity: 0.75;
-    margin-left: 4px;
+    display: block;
   }
   .gantt-bar-dot {
     width: 7px;
     height: 7px;
     border-radius: 50%;
     flex-shrink: 0;
+    display: none;
   }
   .gantt-bar.pending {
     background: linear-gradient(135deg, #FBF0D5, #F2DFB7);
@@ -1368,11 +1357,11 @@
     border-color: #C08E36;
     color: #5B3F0F;
   }
-  /* Platzrunden restricted overlay inside timeline rows */
+  /* Platzrunden restricted overlay inside column timeline */
   .gantt-restricted-zone {
     position: absolute;
-    top: 0;
-    bottom: 0;
+    left: 0;
+    right: 0;
     background-color: rgba(245, 222, 195, 0.3);
     background-image: repeating-linear-gradient(
       -45deg,
@@ -1383,14 +1372,14 @@
     );
     z-index: 1;
     pointer-events: none;
-    border-left: 1px dashed rgba(197,106,28,0.25);
-    border-right: 1px dashed rgba(197,106,28,0.25);
+    border-top: 1px dashed rgba(197,106,28,0.25);
+    border-bottom: 1px dashed rgba(197,106,28,0.25);
   }
   .gantt-nowline {
     position: absolute;
-    top: 0;
-    bottom: 0;
-    width: 2px;
+    left: 0;
+    right: 0;
+    height: 2px;
     background: var(--c-amber);
     z-index: 3;
     opacity: 0.8;
@@ -1398,17 +1387,15 @@
   }
   .gantt-nowline-label {
     position: absolute;
-    top: 28px;
-    left: -32px;
-    width: 60px;
+    right: 4px;
+    top: -8px;
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 600;
     color: var(--c-amber);
-    text-align: center;
     background: var(--c-paper);
-    padding: 4px 0;
-    border-radius: 4px;
+    padding: 2px 4px;
+    border-radius: 3px;
   }
 
   /* ===== SIDEBAR ===== */
@@ -1553,14 +1540,6 @@
     flex-direction: column;
     overflow: hidden;
   }
-  .gantt-timeline-scroll {
-    flex: 1;
-    overflow-x: auto;
-    overflow-y: hidden;
-    position: relative;
-    display: flex;
-    flex-direction: column;
-  }
 
   /* ===== RESPONSIVE ===== */
   @media (max-width: 1200px) {
@@ -1575,8 +1554,7 @@
     .hero-weather { min-width: auto; width: 100%; }
     .gantt-content { flex-direction: column; padding: 16px 12px; gap: 16px; }
     .sidebar { width: 100%; }
-    .gantt-aircraft-col { width: 160px; }
-    .gantt-hour { min-width: 50px; }
+    .gantt-aircraft-column { min-width: 130px; }
   }
   @media (max-width: 480px) {
     .hero-band { padding: 16px 12px; }
@@ -1587,13 +1565,6 @@
     .gantt-content { padding: 12px 8px; gap: 12px; }
     .sidebar { width: 100%; }
     .gantt-header { padding: 12px 16px; font-size: 12px; }
-    .gantt-aircraft-col { width: 140px; }
-    .gantt-aircraft-row { height: 56px; padding: 0 10px; }
-    .gantt-aircraft-thumb { width: 40px; height: 24px; }
-    .gantt-aircraft-reg { font-size: 10px; }
-    .gantt-hour { min-width: 45px; font-size: 8px; }
-    .gantt-bar { height: 30px; font-size: 10px; }
-    .gantt-bar-time { display: none; }
     .sidebar-card { padding: 16px; }
     .next-flight-time { font-size: 24px; }
   }
@@ -1752,15 +1723,12 @@
           </div>
         </div>
         <div class="gantt-body" id="ganttBody">
-          <!-- Aircraft column (sticky left) -->
-          <div class="gantt-aircraft-col" id="ganttAircraftCol">
-            <div class="gantt-aircraft-col-header">Flotte</div>
+          <!-- Time column (sticky left) -->
+          <div class="gantt-time-col" id="ganttTimeCol">
+            <div class="gantt-time-header">Uhr</div>
           </div>
-          <!-- Timeline (scrollable) -->
-          <div class="gantt-timeline-scroll">
-            <div class="gantt-ruler" id="ganttRuler"></div>
-            <div class="gantt-timeline" id="ganttTimeline"></div>
-          </div>
+          <!-- Aircraft columns -->
+          <div class="gantt-columns" id="ganttColumns"></div>
         </div>
         <!-- Platzrunden-Legende -->
         <div class="platzrunden-legend" id="ganttPlatzrundenLegend">
@@ -3091,6 +3059,7 @@ function renderGanttCalendar(dk, aircraft) {
   const firstHour = 8;
   const lastHour = 18;
   const totalMinutes = (lastHour - firstHour) * 60;
+  const slotHeight = 60; // px per hour
 
   // --- Date label in gantt header ---
   const viewDate = new Date(dk.replace(/(\d{4})-(\d{2})-(\d{2})/, '$1/$2/$3'));
@@ -3100,13 +3069,6 @@ function renderGanttCalendar(dk, aircraft) {
   if (ganttLabel) {
     ganttLabel.textContent = `${dayNames[viewDate.getDay()]}, ${viewDate.getDate()}. ${monthNames[viewDate.getMonth()]} ${viewDate.getFullYear()}`;
   }
-
-  // --- Ruler ---
-  let rulerHtml = '';
-  for (let h = firstHour; h < lastHour; h++) {
-    rulerHtml += `<div class="gantt-hour">${String(h).padStart(2, '0')}:00</div>`;
-  }
-  document.getElementById('ganttRuler').innerHTML = rulerHtml;
 
   // --- Platzrunden-Legende ---
   const legendDetail = document.getElementById('ganttPlatzrundenDetail');
@@ -3118,62 +3080,60 @@ function renderGanttCalendar(dk, aircraft) {
   // --- Compute restricted (non-Platzrunden) time ranges for this day ---
   function getRestrictedRanges(date) {
     const dow = date.getDay();
-    if (dow === 0) return [[firstHour * 60, 9 * 60]]; // So: vor 09:00 gesperrt
-    if (dow === 6) return [[12 * 60, lastHour * 60]]; // Sa: ab 12:00 keine Platzrunden
-    // Mo-Fr: Platzrunden 08-12 & 15-18 → restricted = 12:00-15:00
+    if (dow === 0) return [[firstHour * 60, 9 * 60]];
+    if (dow === 6) return [[12 * 60, lastHour * 60]];
     return [[12 * 60, 15 * 60]];
   }
   const restrictedRanges = getRestrictedRanges(viewDate);
 
-  // Build restricted zone HTML (overlays inside each row)
+  // Build restricted zone HTML (horizontal overlays per column)
   let restrictedZonesHtml = '';
   restrictedRanges.forEach(([startMin, endMin]) => {
     const clampStart = Math.max(startMin, firstHour * 60);
     const clampEnd = Math.min(endMin, lastHour * 60);
     if (clampEnd <= clampStart) return;
-    const leftPct = ((clampStart - firstHour * 60) / totalMinutes) * 100;
-    const widthPct = ((clampEnd - clampStart) / totalMinutes) * 100;
-    restrictedZonesHtml += `<div class="gantt-restricted-zone" style="left:${leftPct}%;width:${widthPct}%;"></div>`;
+    const topPx = ((clampStart - firstHour * 60) / 60) * slotHeight;
+    const heightPx = ((clampEnd - clampStart) / 60) * slotHeight;
+    restrictedZonesHtml += `<div class="gantt-restricted-zone" style="top:${topPx}px;height:${heightPx}px;"></div>`;
   });
 
-  // --- Aircraft Column & Timeline Rows ---
-  let aircraftHtml = '<div class="gantt-aircraft-col-header">Flotte</div>';
-  let timelineHtml = '';
+  // --- Time Column ---
+  let timeColHtml = '<div class="gantt-time-header">Uhr</div>';
+  for (let h = firstHour; h < lastHour; h++) {
+    timeColHtml += `<div class="gantt-time-slot">${String(h).padStart(2, '0')}:00</div>`;
+  }
+  document.getElementById('ganttTimeCol').innerHTML = timeColHtml;
 
+  // --- Aircraft Columns ---
+  let columnsHtml = '';
   aircraft.forEach((a, aIdx) => {
-    const img = AIRCRAFT_IMAGES[a] ? `<img src="${AIRCRAFT_IMAGES[a]}?format=100w" alt="${a}" class="gantt-aircraft-thumb" />` : '';
+    const img = AIRCRAFT_IMAGES[a] ? `<img src="${AIRCRAFT_IMAGES[a]}?format=100w" alt="${a}" class="gantt-col-thumb" />` : '';
     const type = AIRCRAFT_TYPES[a] || '';
-    aircraftHtml += `
-      <div class="gantt-aircraft-row">
-        ${img}
-        <div class="gantt-aircraft-info">
-          <div class="gantt-aircraft-reg">${a}</div>
-          <div class="gantt-aircraft-type">${type}</div>
+
+    // Build hour slots
+    let slotsHtml = '';
+    for (let h = firstHour; h < lastHour; h++) {
+      slotsHtml += `<div class="gantt-col-slot" data-hour="${h}" data-aircraft="${a}"></div>`;
+    }
+
+    columnsHtml += `
+      <div class="gantt-aircraft-column" id="gantt-col-${aIdx}">
+        <div class="gantt-col-header" data-aircraft="${a}">
+          ${img}
+          <div class="gantt-col-reg">${a}</div>
+          <div class="gantt-col-type">${type}</div>
+        </div>
+        <div class="gantt-col-timeline" id="gantt-timeline-${aIdx}">
+          ${slotsHtml}
+          ${restrictedZonesHtml}
         </div>
       </div>`;
-
-    // Build gridlines HTML for this row
-    let gridlinesHtml = '';
-    for (let h = 0; h <= (lastHour - firstHour); h++) {
-      const pct = (h / (lastHour - firstHour)) * 100;
-      if (h > 0 && h < (lastHour - firstHour)) {
-        gridlinesHtml += `<div class="gantt-gridline hour" style="left:${pct}%"></div>`;
-      }
-      // Half-hour line
-      if (h < (lastHour - firstHour)) {
-        const halfPct = ((h + 0.5) / (lastHour - firstHour)) * 100;
-        gridlinesHtml += `<div class="gantt-gridline half" style="left:${halfPct}%"></div>`;
-      }
-    }
-    timelineHtml += `<div class="gantt-row-bars" id="gantt-row-${aIdx}">${gridlinesHtml}${restrictedZonesHtml}</div>`;
   });
+  document.getElementById('ganttColumns').innerHTML = columnsHtml;
 
-  document.getElementById('ganttAircraftCol').innerHTML = aircraftHtml;
-  document.getElementById('ganttTimeline').innerHTML = timelineHtml;
-
-  // --- Render booking bars ---
+  // --- Render booking bars (vertical blocks) ---
   aircraft.forEach((a, aIdx) => {
-    const rowEl = document.getElementById(`gantt-row-${aIdx}`);
+    const timelineEl = document.getElementById(`gantt-timeline-${aIdx}`);
     const bookingsForAircraft = bookings.filter(b => b.date === dk && b.aircraft === a);
 
     bookingsForAircraft.forEach(booking => {
@@ -3184,71 +3144,70 @@ function renderGanttCalendar(dk, aircraft) {
 
       const startMinutes = startH * 60 + startM;
       const endMinutes = endH * 60 + endM;
-      const startPct = ((startMinutes - firstHour * 60) / totalMinutes) * 100;
-      const widthPct = ((endMinutes - startMinutes) / totalMinutes) * 100;
+      const topPx = ((startMinutes - firstHour * 60) / 60) * slotHeight;
+      const heightPx = ((endMinutes - startMinutes) / 60) * slotHeight;
 
       const hasInstructor = booking.instructor === 'ja';
-      const statusIcon = booking.status === 'approved' ? '✓' : booking.status === 'pending' ? '◐' : '✗';
       const customerName = booking.customer || booking.name || '—';
-      const shortName = customerName.length > 16 ? customerName.substring(0, 15) + '…' : customerName;
+      const shortName = customerName.length > 12 ? customerName.substring(0, 11) + '…' : customerName;
       const tooltipText = `${customerName}\n${booking.startTime}–${booking.endTime}${hasInstructor ? '\nFluglehrer' : ''}\nStatus: ${booking.status}`;
 
-      rowEl.innerHTML += `
-        <div class="gantt-bar ${booking.status}${hasInstructor ? ' with-instructor' : ''}"
-             style="left:${startPct}%;width:${widthPct}%;"
-             title="${tooltipText}"
-             onclick="event.stopPropagation(); showDetail('${booking.id}')">
-          <span class="gantt-bar-dot">${statusIcon}</span>
-          <span class="gantt-bar-label">
-            <span class="gantt-bar-name">${shortName}</span>
-            <span class="gantt-bar-time">${booking.startTime}–${booking.endTime}</span>
-          </span>
-        </div>`;
+      const barDiv = document.createElement('div');
+      barDiv.className = `gantt-bar ${booking.status}${hasInstructor ? ' with-instructor' : ''}`;
+      barDiv.style.top = topPx + 'px';
+      barDiv.style.height = heightPx + 'px';
+      barDiv.title = tooltipText;
+      barDiv.onclick = function(e) { e.stopPropagation(); showDetail(booking.id); };
+      barDiv.innerHTML = `
+        <span class="gantt-bar-name">${shortName}</span>
+        <span class="gantt-bar-time">${booking.startTime}–${booking.endTime}</span>`;
+      timelineEl.appendChild(barDiv);
     });
   });
 
-  // --- "Now" line ---
+  // --- "Now" line (horizontal) ---
   if (isToday && nowMinutes >= firstHour * 60 && nowMinutes <= lastHour * 60) {
-    const nowPct = ((nowMinutes - firstHour * 60) / totalMinutes) * 100;
-    document.getElementById('ganttTimeline').innerHTML += `
-      <div class="gantt-nowline" style="left:${nowPct}%;">
-        <div class="gantt-nowline-label">${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}</div>
-      </div>`;
+    const nowPx = ((nowMinutes - firstHour * 60) / 60) * slotHeight;
+    aircraft.forEach((a, aIdx) => {
+      const timelineEl = document.getElementById(`gantt-timeline-${aIdx}`);
+      timelineEl.innerHTML += `
+        <div class="gantt-nowline" style="top:${nowPx}px;">
+          ${aIdx === 0 ? `<div class="gantt-nowline-label">${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}</div>` : ''}
+        </div>`;
+    });
+    // Also add now marker to time column
+    const timeCol = document.getElementById('ganttTimeCol');
+    const timeColNowPx = nowPx + 72; // offset by header height
+    timeCol.innerHTML += `<div style="position:absolute;left:0;right:0;top:${timeColNowPx}px;height:2px;background:var(--c-amber);z-index:5;opacity:0.8;"></div>`;
   }
 
-  // --- Click handlers for booking on empty space ---
-  aircraft.forEach((a, aIdx) => {
-    const rowEl = document.getElementById(`gantt-row-${aIdx}`);
-    rowEl.addEventListener('click', (e) => {
-      // Don't intercept clicks on booking bars
+  // --- Click handlers for booking on empty slots ---
+  document.querySelectorAll('.gantt-col-slot').forEach(slotEl => {
+    slotEl.addEventListener('click', (e) => {
       if (e.target.closest('.gantt-bar')) return;
-
-      const rowRect = rowEl.getBoundingClientRect();
-      const clickX = e.clientX - rowRect.left;
-      const rowWidth = rowRect.width;
-      const clickedMinutesTotal = (clickX / rowWidth) * totalMinutes + firstHour * 60;
-      const clickedHour = Math.floor(clickedMinutesTotal / 60);
-      const clickedMin = Math.floor(clickedMinutesTotal % 60);
-      const roundedMin = Math.floor(clickedMin / 30) * 30;
-      const clickedTime = `${String(Math.min(clickedHour, lastHour - 1)).padStart(2, '0')}:${String(roundedMin).padStart(2, '0')}`;
+      const a = slotEl.dataset.aircraft;
+      const h = parseInt(slotEl.dataset.hour);
+      // Calculate minutes from click Y position within slot
+      const slotRect = slotEl.getBoundingClientRect();
+      const clickY = e.clientY - slotRect.top;
+      const minuteInSlot = (clickY / slotRect.height) * 60;
+      const roundedMin = Math.floor(minuteInSlot / 30) * 30;
+      const clickedTime = `${String(h).padStart(2, '0')}:${String(roundedMin).padStart(2, '0')}`;
 
       const slot = TIME_SLOTS.find(s => s.startsWith(clickedTime));
       if (slot) {
         openBooking(a, slot, dk, e);
       } else {
-        // Fallback: open booking for last available slot
         openBooking(a, TIME_SLOTS[TIME_SLOTS.length - 1], dk, e);
       }
     });
   });
 
-  // Also handle clicks on aircraft rows (left column) — open first free slot
-  document.querySelectorAll('.gantt-aircraft-row').forEach((el, idx) => {
-    el.style.cursor = 'pointer';
+  // Click on aircraft header — open first free slot
+  document.querySelectorAll('.gantt-col-header').forEach(el => {
     el.addEventListener('click', () => {
-      const a = aircraft[idx];
+      const a = el.dataset.aircraft;
       if (!a) return;
-      // Find first free slot
       const bookedSlots = bookings.filter(b => b.date === dk && b.aircraft === a);
       const freeSlot = TIME_SLOTS.find(slot => {
         const slotStart = slot.split(' - ')[0];
