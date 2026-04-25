@@ -1066,18 +1066,19 @@
     text-transform: uppercase;
     color: var(--c-alpine);
   }
-  .hero-headline {
+  .hero-weather-icon {
+    font-size: 64px;
+    line-height: 1;
+    filter: drop-shadow(0 2px 8px rgba(0,0,0,0.1));
+  }
+  .hero-tagline {
     font-family: var(--font-brand);
-    font-size: 44px;
-    line-height: 1.2;
+    font-size: 28px;
+    line-height: 1.3;
     color: var(--c-ink);
     font-weight: 400;
     margin: 0;
-  }
-  .hero-headline em {
-    font-style: italic;
-    color: var(--c-amber);
-    font-weight: 500;
+    opacity: 0.7;
   }
   .hero-weather {
     background: rgba(255, 255, 255, 0.6);
@@ -1604,13 +1605,13 @@
   /* ===== RESPONSIVE ===== */
   @media (max-width: 1200px) {
     .hero-band { padding: 24px 24px; gap: 32px; }
-    .hero-headline { font-size: 36px; }
+    .hero-weather-icon { font-size: 52px; } .hero-tagline { font-size: 24px; }
     .hero-weather { min-width: 240px; }
     .gantt-content { padding: 20px 24px; gap: 16px; }
   }
   @media (max-width: 768px) {
     .hero-band { flex-direction: column; gap: 20px; padding: 20px 16px; min-height: auto; }
-    .hero-headline { font-size: 28px; }
+    .hero-weather-icon { font-size: 44px; } .hero-tagline { font-size: 20px; }
     .hero-weather { min-width: auto; width: 100%; }
     .gantt-content { flex-direction: column; padding: 16px 12px; gap: 16px; }
     .sidebar { width: 100%; }
@@ -1619,7 +1620,7 @@
   }
   @media (max-width: 480px) {
     .hero-band { padding: 16px 12px; }
-    .hero-headline { font-size: 22px; }
+    .hero-weather-icon { font-size: 36px; } .hero-tagline { font-size: 16px; }
     .hero-meta { font-size: 9px; }
     .hero-weather { padding: 14px 16px; }
     .weather-grid { gap: 8px; }
@@ -1722,7 +1723,8 @@
     </svg>
     <div class="hero-content" id="heroContent">
       <div class="hero-meta" id="heroMeta"></div>
-      <h2 class="hero-headline" id="heroHeadline"></h2>
+      <div class="hero-weather-icon" id="heroWeatherIcon"></div>
+      <div class="hero-tagline" id="heroTagline">Buche deinen nächsten Flug über der Alpenlandschaft.</div>
     </div>
     <div class="hero-weather" id="heroWeather">
       <h4>Wetter & Umgebung</h4>
@@ -2918,6 +2920,23 @@ function renderHeroBand(date, dk) {
 
   document.getElementById('heroMeta').textContent = `${dayName.toUpperCase()} · ${day}. ${['JAN','FEB','MÄR','APR','MAI','JUN','JUL','AUG','SEP','OKT','NOV','DEZ'][date.getMonth()]} ${date.getFullYear()} · DOY ${doyStr}`;
 
+  // Rotating positive taglines
+  const taglines = [
+    'Buche deinen nächsten Flug über der Alpenlandschaft.',
+    'Die Berge warten — sichere dir deinen Slot.',
+    'Fliegen in Unterwössen — einfach buchen.',
+    'Dein Cockpit wartet. Jetzt Termin sichern.',
+    'Ab in die Luft — freie Plätze heute verfügbar.',
+    'Fliegen macht glücklich. Buche jetzt.',
+    'Die schönste Flugschule der Alpen erwartet dich.'
+  ];
+  const tagEl = document.getElementById('heroTagline');
+  if (tagEl) tagEl.textContent = taglines[(date.getDate() + date.getMonth()) % taglines.length];
+
+  // Reset weather icon while loading
+  const iconEl = document.getElementById('heroWeatherIcon');
+  if (iconEl) iconEl.textContent = '';
+
   // Generate SVG topography (simple contour lines)
   generateTopography();
 
@@ -3047,9 +3066,9 @@ function applyWeather(data, date) {
     document.getElementById('weatherTemp').textContent = '—';
   }
 
-  // Dynamic headline based on weather code
+  // Weather icon based on weather code
   const wCode = daily.weathercode?.[0] ?? 0;
-  updateHeadline(wCode, avgWind, avgCloud, tMax, date);
+  updateWeatherIcon(wCode, avgCloud);
 }
 
 function degToCompass(deg) {
@@ -3057,38 +3076,26 @@ function degToCompass(deg) {
   return dirs[Math.round(deg / 22.5) % 16];
 }
 
-function updateHeadline(wCode, wind, cloud, temp, date) {
-  let headline = '';
-  // WMO Weather interpretation codes
-  if (wCode <= 1 && cloud < 30) {
-    const variants = [
-      'Perfekte Sicht mit <em>stabiler Thermik</em> erwartet.',
-      '<em>Kristallklare Luft</em> über der Alpenlandschaft.',
-      '<em>Sonnige</em> Bedingungen für optimale Flugstunden.',
-      'Steigt auf in <em>glatte Thermik</em> über den Bergen.'
-    ];
-    headline = variants[date.getDate() % variants.length];
-  } else if (wCode <= 3 && cloud < 60) {
-    headline = '<em>Aufgelockerte Bewölkung</em> — gute Flugbedingungen.';
-  } else if (wCode <= 3 && cloud >= 60) {
-    headline = '<em>Bewölkt</em>, aber fliegbar — Wolkenlücken nutzen.';
-  } else if (wCode >= 45 && wCode <= 48) {
-    headline = '<em>Nebel</em> möglich — Sichtbedingungen beachten.';
-  } else if (wCode >= 51 && wCode <= 67) {
-    headline = '<em>Niederschlag</em> erwartet — Flugbedingungen eingeschränkt.';
-  } else if (wCode >= 71 && wCode <= 77) {
-    headline = '<em>Schnee</em> erwartet — Flugbedingungen stark eingeschränkt.';
-  } else if (wCode >= 80 && wCode <= 82) {
-    headline = '<em>Schauer</em> möglich — Wetterfenster abwarten.';
-  } else if (wCode >= 95) {
-    headline = '<em>Gewitter</em> erwartet — Flugbetrieb voraussichtlich eingeschränkt.';
-  } else {
-    headline = 'Frisch, <em>blaue Thermik</em> über der Unterwössener Hochebene.';
-  }
-  if (wind && wind > 25) {
-    headline = '<em>Starkwind</em> erwartet — Flugbedingungen prüfen.';
-  }
-  document.getElementById('heroHeadline').innerHTML = headline;
+function updateWeatherIcon(wCode, cloud) {
+  // WMO Weather interpretation codes → emoji symbol
+  let icon = '';
+  if (wCode === 0) icon = '☀️'; // Clear sky ☀️
+  else if (wCode === 1) icon = '🌤️'; // Mainly clear 🌤️
+  else if (wCode === 2) icon = '⛅'; // Partly cloudy ⛅
+  else if (wCode === 3) icon = '☁️'; // Overcast ☁️
+  else if (wCode >= 45 && wCode <= 48) icon = '🌫️'; // Fog 🌫️
+  else if (wCode >= 51 && wCode <= 55) icon = '🌦️'; // Drizzle 🌦️
+  else if (wCode >= 56 && wCode <= 57) icon = '🌧️'; // Freezing drizzle 🌧️
+  else if (wCode >= 61 && wCode <= 65) icon = '🌧️'; // Rain 🌧️
+  else if (wCode >= 66 && wCode <= 67) icon = '🌧️'; // Freezing rain 🌧️
+  else if (wCode >= 71 && wCode <= 77) icon = '🌨️'; // Snow 🌨️
+  else if (wCode >= 80 && wCode <= 82) icon = '🌦️'; // Showers 🌦️
+  else if (wCode >= 85 && wCode <= 86) icon = '🌨️'; // Snow showers 🌨️
+  else if (wCode >= 95) icon = '⛈️'; // Thunderstorm ⛈️
+  else icon = '⛅'; // Default: partly cloudy ⛅
+
+  const el = document.getElementById('heroWeatherIcon');
+  if (el) el.textContent = icon;
 }
 
 function generateTopography() {
