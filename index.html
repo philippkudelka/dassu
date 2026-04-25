@@ -2902,6 +2902,9 @@ function renderDayView() {
 }
 
 // ===== HELPER: Generate Hero Section =====
+// ── Wetter-Cache (vermeidet doppelte API-Calls) ──
+const weatherCache = {};
+
 function renderHeroBand(date, dk) {
   const now = new Date();
   const isToday = dk === dateKey(now);
@@ -2915,28 +2918,177 @@ function renderHeroBand(date, dk) {
 
   document.getElementById('heroMeta').textContent = `${dayName.toUpperCase()} · ${day}. ${['JAN','FEB','MÄR','APR','MAI','JUN','JUL','AUG','SEP','OKT','NOV','DEZ'][date.getMonth()]} ${date.getFullYear()} · DOY ${doyStr}`;
 
-  // Random headline variants
-  const headlines = [
-    'Frisch, <em>blaue Thermik</em> über der Unterwössener Hochebene.',
-    'Steigt auf in <em>glatte Thermik</em> über den Bergen.',
-    '<em>Sonnige</em> Bedingungen für optimale Flugstunden.',
-    'Perfekte Sicht mit <em>stabiler Thermik</em> erwartet.',
-    '<em>Kristallklare Luft</em> über der Alpenlandschaft.'
-  ];
-  const seed = date.getDate() + date.getMonth() + date.getFullYear();
-  const headline = headlines[seed % headlines.length];
-  document.getElementById('heroHeadline').innerHTML = headline;
-
   // Generate SVG topography (simple contour lines)
   generateTopography();
 
-  // Placeholder weather data (in real implementation, fetch actual data)
-  document.getElementById('weatherSunrise').textContent = '06:45';
-  document.getElementById('weatherSunset').textContent = '20:15';
-  document.getElementById('weatherWind').textContent = '5-8 kt';
-  document.getElementById('weatherQNH').textContent = '1013 hPa';
-  document.getElementById('weatherCeiling').textContent = '4500 ft';
-  document.getElementById('weatherTemp').textContent = '18°C';
+  // Fetch real weather from Open-Meteo
+  fetchWeather(date, dk);
+}
+
+async function fetchWeather(date, dk) {
+  // Show loading state
+  ['weatherSunrise','weatherSunset','weatherWind','weatherQNH','weatherCeiling','weatherTemp'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.textContent === '—') el.textContent = '…';
+  });
+
+  // Check cache (valid 15 min)
+  if (weatherCache[dk] && (Date.now() - weatherCache[dk].ts) < 900000) {
+    applyWeather(weatherCache[dk].data, date);
+    return;
+  }
+
+  // Unterwössen coordinates: 47.653°N, 12.371°E, Elevation ~560m
+  const lat = 47.653;
+  const lon = 12.371;
+
+  try {
+    // Build date range (today or specific day)
+    const startDate = dk;
+    const endDate = dk;
+
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`
+      + `&daily=sunrise,sunset,temperature_2m_max,temperature_2m_min,windspeed_10m_max,windgusts_10m_max,winddirection_10m_dominant,weathercode`
+      + `&hourly=temperature_2m,dewpoint_2m,surface_pressure,cloudcover,windspeed_10m,windgusts_10m,winddirection_10m,weathercode`
+      + `&start_date=${startDate}&end_date=${endDate}`
+      + `&timezone=Europe%2FBerlin&windspeed_unit=kn`;
+
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    weatherCache[dk] = { data, ts: Date.now() };
+    applyWeather(data, date);
+  } catch (err) {
+    console.warn('Wetter laden fehlgeschlagen:', err);
+    // Fallback: show dashes
+    document.getElementById('weatherSunrise').textContent = '—';
+    document.getElementById('weatherSunset').textContent = '—';
+    document.getElementById('weatherWind').textContent = '—';
+    document.getElementById('weatherQNH').textContent = '—';
+    document.getElementById('weatherCeiling').textContent = '—';
+    document.getElementById('weatherTemp').textContent = '—';
+  }
+}
+
+function applyWeather(data, date) {
+  const daily = data.daily;
+  const hourly = data.hourly;
+  if (!daily || !hourly) return;
+
+  // Sunrise / Sunset (format: "2026-04-25T06:12")
+  const sunrise = daily.sunrise?.[0];
+  const sunset = daily.sunset?.[0];
+  document.getElementById('weatherSunrise').textContent = sunrise ? sunrise.split('T')[1] : '—';
+  document.getElementById('weatherSunset').textContent = sunset ? sunset.split('T')[1] : '—';
+
+  // Find midday hours (10:00–15:00) for representative flying weather
+  const flyingHours = [];
+  hourly.time.forEach((t, i) => {
+    const h = parseInt(t.split('T')[1].split(':')[0]);
+    if (h >= 10 && h <= 15) flyingHours.push(i);
+  });
+  const relevantIdx = flyingHours.length > 0 ? flyingHours : [0];
+
+  // Wind: average + gusts during flying hours (already in knots)
+  const winds = relevantIdx.map(i => hourly.windspeed_10m[i]).filter(v => v != null);
+  const gusts = relevantIdx.map(i => hourly.windgusts_10m[i]).filter(v => v != null);
+  const avgWind = winds.length ? Math.round(winds.reduce((a,b) => a+b, 0) / winds.length) : null;
+  const maxGust = gusts.length ? Math.round(Math.max(...gusts)) : null;
+  // Wind direction
+  const dirs = relevantIdx.map(i => hourly.winddirection_10m[i]).filter(v => v != null);
+  const avgDir = dirs.length ? Math.round(dirs.reduce((a,b) => a+b, 0) / dirs.length) : null;
+  const dirStr = avgDir != null ? degToCompass(avgDir) : '';
+  if (avgWind != null && maxGust != null && maxGust > avgWind + 3) {
+    document.getElementById('weatherWind').textContent = `${dirStr} ${avgWind}-${maxGust} kt`;
+  } else if (avgWind != null) {
+    document.getElementById('weatherWind').textContent = `${dirStr} ${avgWind} kt`;
+  } else {
+    document.getElementById('weatherWind').textContent = '—';
+  }
+
+  // QNH: surface pressure at station altitude (560m) → sea level
+  // QNH ≈ station_pressure + (elevation / 8.3) [simplified barometric formula]
+  const pressures = relevantIdx.map(i => hourly.surface_pressure[i]).filter(v => v != null);
+  if (pressures.length) {
+    const avgPressure = pressures.reduce((a,b) => a+b, 0) / pressures.length;
+    const qnh = Math.round(avgPressure + 560 / 8.3); // Approximation for 560m elevation
+    document.getElementById('weatherQNH').textContent = `${qnh} hPa`;
+  } else {
+    document.getElementById('weatherQNH').textContent = '—';
+  }
+
+  // Cloud base estimate: (Temp - Dewpoint) × 400 ft (Henning formula)
+  const temps = relevantIdx.map(i => hourly.temperature_2m[i]).filter(v => v != null);
+  const dews = relevantIdx.map(i => hourly.dewpoint_2m[i]).filter(v => v != null);
+  const clouds = relevantIdx.map(i => hourly.cloudcover[i]).filter(v => v != null);
+  const avgCloud = clouds.length ? Math.round(clouds.reduce((a,b) => a+b, 0) / clouds.length) : 0;
+  if (temps.length && dews.length) {
+    const avgTemp = temps.reduce((a,b) => a+b, 0) / temps.length;
+    const avgDew = dews.reduce((a,b) => a+b, 0) / dews.length;
+    const spread = avgTemp - avgDew;
+    const baseFt = Math.round(spread * 400 / 500) * 500; // Round to nearest 500ft
+    // Add station elevation (560m ≈ 1837ft) for AGL → AMSL
+    if (avgCloud > 20) {
+      document.getElementById('weatherCeiling').textContent = `${baseFt + 1800} ft`;
+    } else {
+      document.getElementById('weatherCeiling').textContent = 'CAVOK';
+    }
+  } else {
+    document.getElementById('weatherCeiling').textContent = '—';
+  }
+
+  // Temperature: max of the day
+  const tMax = daily.temperature_2m_max?.[0];
+  const tMin = daily.temperature_2m_min?.[0];
+  if (tMax != null) {
+    document.getElementById('weatherTemp').textContent = `${Math.round(tMax)}°C`;
+  } else {
+    document.getElementById('weatherTemp').textContent = '—';
+  }
+
+  // Dynamic headline based on weather code
+  const wCode = daily.weathercode?.[0] ?? 0;
+  updateHeadline(wCode, avgWind, avgCloud, tMax, date);
+}
+
+function degToCompass(deg) {
+  const dirs = ['N','NNO','NO','ONO','O','OSO','SO','SSO','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+  return dirs[Math.round(deg / 22.5) % 16];
+}
+
+function updateHeadline(wCode, wind, cloud, temp, date) {
+  let headline = '';
+  // WMO Weather interpretation codes
+  if (wCode <= 1 && cloud < 30) {
+    const variants = [
+      'Perfekte Sicht mit <em>stabiler Thermik</em> erwartet.',
+      '<em>Kristallklare Luft</em> über der Alpenlandschaft.',
+      '<em>Sonnige</em> Bedingungen für optimale Flugstunden.',
+      'Steigt auf in <em>glatte Thermik</em> über den Bergen.'
+    ];
+    headline = variants[date.getDate() % variants.length];
+  } else if (wCode <= 3 && cloud < 60) {
+    headline = '<em>Aufgelockerte Bewölkung</em> — gute Flugbedingungen.';
+  } else if (wCode <= 3 && cloud >= 60) {
+    headline = '<em>Bewölkt</em>, aber fliegbar — Wolkenlücken nutzen.';
+  } else if (wCode >= 45 && wCode <= 48) {
+    headline = '<em>Nebel</em> möglich — Sichtbedingungen beachten.';
+  } else if (wCode >= 51 && wCode <= 67) {
+    headline = '<em>Niederschlag</em> erwartet — Flugbedingungen eingeschränkt.';
+  } else if (wCode >= 71 && wCode <= 77) {
+    headline = '<em>Schnee</em> erwartet — Flugbedingungen stark eingeschränkt.';
+  } else if (wCode >= 80 && wCode <= 82) {
+    headline = '<em>Schauer</em> möglich — Wetterfenster abwarten.';
+  } else if (wCode >= 95) {
+    headline = '<em>Gewitter</em> erwartet — Flugbetrieb voraussichtlich eingeschränkt.';
+  } else {
+    headline = 'Frisch, <em>blaue Thermik</em> über der Unterwössener Hochebene.';
+  }
+  if (wind && wind > 25) {
+    headline = '<em>Starkwind</em> erwartet — Flugbedingungen prüfen.';
+  }
+  document.getElementById('heroHeadline').innerHTML = headline;
 }
 
 function generateTopography() {
