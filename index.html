@@ -3222,14 +3222,16 @@ function renderGanttCalendar(dk, aircraft) {
 function renderSidebar(dk) {
   const currentUser = firebase.auth().currentUser || null;
 
-  // === Next Flight Card ===
+  // === Next Flight Card (nur für eingeloggte User) ===
   const nextFlightCard = document.getElementById('nextFlightCard');
   const now = new Date();
-  const upcomingBookings = bookings.filter(b => {
-    if (currentUser && currentUser.email && b.email !== currentUser.email) return false;
-    const bDate = new Date(b.date + 'T' + b.startTime + ':00');
-    return bDate > now;
-  }).sort((a, b) => new Date(a.date + 'T' + a.startTime) - new Date(b.date + 'T' + b.startTime));
+  const upcomingBookings = currentUser && currentUser.email
+    ? bookings.filter(b => {
+        if (b.email !== currentUser.email) return false;
+        const bDate = new Date(b.date + 'T' + b.startTime + ':00');
+        return bDate > now;
+      }).sort((a, b) => new Date(a.date + 'T' + a.startTime) - new Date(b.date + 'T' + b.startTime))
+    : [];
 
   if (upcomingBookings.length > 0) {
     const next = upcomingBookings[0];
