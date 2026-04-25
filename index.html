@@ -3316,10 +3316,12 @@ function renderSidebar(dk) {
     bookingsList.innerHTML = '<div class="sidebar-empty">Keine Buchungen</div>';
   }
 
-  // === Flugbuch Card ===
-  // Flugbuch-Stunden werden in der Flugbuch-Ansicht aus VF geladen
-  const flugbuchHours = (flugbuchData && flugbuchData.totalMinutes) ? (flugbuchData.totalMinutes / 60).toFixed(0) : '—';
-  document.getElementById('flugbuchHours').textContent = flugbuchHours;
+  // === Flugbuch Card (entfernt aus Sidebar) ===
+  const flugbuchHoursEl = document.getElementById('flugbuchHours');
+  if (flugbuchHoursEl) {
+    const flugbuchHours = (flugbuchData && flugbuchData.totalMinutes) ? (flugbuchData.totalMinutes / 60).toFixed(0) : '—';
+    flugbuchHoursEl.textContent = flugbuchHours;
+  }
 }
 
 // Alias for backward compat
