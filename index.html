@@ -1032,13 +1032,13 @@
   /* ===== HERO SECTION ===== */
   .hero-band {
     background: linear-gradient(to bottom, #BED3D6, #E4E0CB);
-    padding: 32px 36px;
+    padding: 16px 36px;
     position: relative;
     overflow: hidden;
-    min-height: 210px;
+    min-height: auto;
     display: flex;
     align-items: center;
-    gap: 48px;
+    gap: 32px;
     border-bottom: 1px solid var(--c-line);
   }
   .hero-topo {
@@ -1055,8 +1055,8 @@
     z-index: 1;
     flex: 1;
     display: flex;
-    flex-direction: column;
-    gap: 16px;
+    align-items: center;
+    gap: 20px;
   }
   .hero-meta {
     font-family: var(--font-mono);
@@ -1067,41 +1067,32 @@
     color: var(--c-alpine);
   }
   .hero-weather-icon {
-    font-size: 64px;
+    font-size: 48px;
     line-height: 1;
     filter: drop-shadow(0 2px 8px rgba(0,0,0,0.1));
-  }
-  .hero-tagline {
-    font-family: var(--font-brand);
-    font-size: 28px;
-    line-height: 1.3;
-    color: var(--c-ink);
-    font-weight: 400;
-    margin: 0;
-    opacity: 0.7;
   }
   .hero-weather {
     background: rgba(255, 255, 255, 0.6);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    padding: 20px 24px;
-    border-radius: 12px;
+    padding: 14px 20px;
+    border-radius: 10px;
     border: 1px solid rgba(255, 255, 255, 0.8);
-    min-width: 280px;
+    min-width: 260px;
     flex-shrink: 0;
   }
   .hero-weather h4 {
-    font-size: 9px;
+    font-size: 8px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: var(--c-ink-3);
-    margin-bottom: 12px;
+    margin-bottom: 8px;
   }
   .weather-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    gap: 6px;
   }
   .weather-item {
     font-size: 11px;
@@ -1604,14 +1595,14 @@
 
   /* ===== RESPONSIVE ===== */
   @media (max-width: 1200px) {
-    .hero-band { padding: 24px 24px; gap: 32px; }
-    .hero-weather-icon { font-size: 52px; } .hero-tagline { font-size: 24px; }
+    .hero-band { padding: 12px 24px; gap: 24px; }
+    .hero-weather-icon { font-size: 40px; }
     .hero-weather { min-width: 240px; }
     .gantt-content { padding: 20px 24px; gap: 16px; }
   }
   @media (max-width: 768px) {
-    .hero-band { flex-direction: column; gap: 20px; padding: 20px 16px; min-height: auto; }
-    .hero-weather-icon { font-size: 44px; } .hero-tagline { font-size: 20px; }
+    .hero-band { flex-direction: column; gap: 12px; padding: 12px 16px; min-height: auto; }
+    .hero-weather-icon { font-size: 36px; }
     .hero-weather { min-width: auto; width: 100%; }
     .gantt-content { flex-direction: column; padding: 16px 12px; gap: 16px; }
     .sidebar { width: 100%; }
@@ -1620,7 +1611,7 @@
   }
   @media (max-width: 480px) {
     .hero-band { padding: 16px 12px; }
-    .hero-weather-icon { font-size: 36px; } .hero-tagline { font-size: 16px; }
+    .hero-weather-icon { font-size: 28px; }
     .hero-meta { font-size: 9px; }
     .hero-weather { padding: 14px 16px; }
     .weather-grid { gap: 8px; }
@@ -1724,7 +1715,6 @@
     <div class="hero-content" id="heroContent">
       <div class="hero-meta" id="heroMeta"></div>
       <div class="hero-weather-icon" id="heroWeatherIcon"></div>
-      <div class="hero-tagline" id="heroTagline">Buche deinen nächsten Flug über der Alpenlandschaft.</div>
     </div>
     <div class="hero-weather" id="heroWeather">
       <h4>Wetter & Umgebung</h4>
@@ -1827,12 +1817,7 @@
         </div>
       </div>
 
-      <!-- Flugbuch Card -->
-      <div class="sidebar-card" id="flugbuchCard">
-        <h3>Flugbuch</h3>
-        <div class="flugbuch-hours" id="flugbuchHours">0.0</div>
-        <div class="flugbuch-subtitle" id="flugbuchSubtitle">Stunden aus Vereinsflieger</div>
-      </div>
+      <!-- Flugbuch Card entfernt — siehe Flugbuch-Tab -->
     </div>
   </div>
 
@@ -2914,24 +2899,8 @@ function renderHeroBand(date, dk) {
   // Generate metadata
   const dayName = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'][date.getDay()];
   const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const doy = Math.floor((date - new Date(date.getFullYear(), 0, 0)) / 86400000);
-  const doyStr = String(doy).padStart(3, '0');
 
-  document.getElementById('heroMeta').textContent = `${dayName.toUpperCase()} · ${day}. ${['JAN','FEB','MÄR','APR','MAI','JUN','JUL','AUG','SEP','OKT','NOV','DEZ'][date.getMonth()]} ${date.getFullYear()} · DOY ${doyStr}`;
-
-  // Rotating positive taglines
-  const taglines = [
-    'Buche deinen nächsten Flug über der Alpenlandschaft.',
-    'Die Berge warten — sichere dir deinen Slot.',
-    'Fliegen in Unterwössen — einfach buchen.',
-    'Dein Cockpit wartet. Jetzt Termin sichern.',
-    'Ab in die Luft — freie Plätze heute verfügbar.',
-    'Fliegen macht glücklich. Buche jetzt.',
-    'Die schönste Flugschule der Alpen erwartet dich.'
-  ];
-  const tagEl = document.getElementById('heroTagline');
-  if (tagEl) tagEl.textContent = taglines[(date.getDate() + date.getMonth()) % taglines.length];
+  document.getElementById('heroMeta').textContent = `${dayName.toUpperCase()} · ${day}. ${['JAN','FEB','MÄR','APR','MAI','JUN','JUL','AUG','SEP','OKT','NOV','DEZ'][date.getMonth()]} ${date.getFullYear()}`;
 
   // Reset weather icon while loading
   const iconEl = document.getElementById('heroWeatherIcon');
