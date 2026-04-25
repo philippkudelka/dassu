@@ -1611,7 +1611,7 @@
     <div class="view-tabs" id="mainViewTabs">
       <button class="view-tab active" onclick="showView('calendar')">Kalender</button>
       <button class="view-tab customer-only" id="tabMyBookings" onclick="showView('myBookings')">Meine Buchungen</button>
-      <a href="staff.html" class="view-tab staff-only" id="tabFluglehrer" style="text-decoration:none;">Fluglehrer</a>
+
       <button class="view-tab staff-only" id="tabAdmin" onclick="showView('admin')">Admin</button>
     </div>
     <!-- Burger Menu (Mobile only) -->
@@ -1623,7 +1623,7 @@
   <div class="mobile-menu" id="mobileMenu">
     <button class="mobile-menu-item" onclick="showView('calendar'); closeMobileMenu();">Kalender</button>
     <button class="mobile-menu-item customer-only" id="mobileTabMyBookings" onclick="showView('myBookings'); closeMobileMenu();">Meine Buchungen</button>
-    <a href="staff.html" class="mobile-menu-item staff-only" id="mobileTabFluglehrer">Fluglehrer</a>
+
     <button class="mobile-menu-item staff-only" id="mobileTabAdmin" onclick="showView('admin'); closeMobileMenu();">Admin</button>
     <hr class="mobile-menu-divider">
     <button class="mobile-menu-item" onclick="openCustomerAuth(); closeMobileMenu();"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> <span id="mobileAuthLabel">Login</span></button>
@@ -5456,9 +5456,7 @@ firebase.auth().onAuthStateChanged(async (user) => {
         if (role === 'admin') {
           adminLoggedIn = true;
           if (document.getElementById('tabAdmin')) document.getElementById('tabAdmin').classList.add('auth-revealed');
-          if (document.getElementById('tabFluglehrer')) document.getElementById('tabFluglehrer').classList.add('auth-revealed');
           document.getElementById('mobileTabAdmin')?.classList.add('auth-revealed');
-          document.getElementById('mobileTabFluglehrer')?.classList.add('auth-revealed');
           document.getElementById('mobileStaffLink')?.classList.add('auth-revealed');
           if (document.getElementById('adminDashboard')) {
             document.getElementById('adminLogin').style.display = 'none';
@@ -5466,10 +5464,9 @@ firebase.auth().onAuthStateChanged(async (user) => {
             renderAdminTable();
           }
         }
-        // Team/Fluglehrer: Fluglehrer-Tab
+        // Team/Fluglehrer: Staff-Link im Mobile-Menü
         else if (role === 'team' || role === 'staff' || role === 'guestGlider' || role === 'guestMotor') {
-          if (document.getElementById('tabFluglehrer')) document.getElementById('tabFluglehrer').classList.add('auth-revealed');
-          document.getElementById('mobileTabFluglehrer')?.classList.add('auth-revealed');
+          document.getElementById('mobileStaffLink')?.classList.add('auth-revealed');
         }
         // Staff ist auch Kunde: Autofill mit Staff-Daten + Meine Buchungen Tab
         customerProfile = { name: staffProfile.name, email: staffProfile.email, phone: staffProfile.phone || '', birthdate: '', photoURL: staffProfile.photoURL || '' };
