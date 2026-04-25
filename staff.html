@@ -1637,7 +1637,7 @@ function appCreateInvitation() {
     if (sendCb && sendCb.checked) {
       if (appSettings.emailServiceId && appSettings.emailInviteTemplateId && appSettings.emailPublicKey) {
         notify(`Einladung f\u00fcr ${name} angelegt. Sende Mail\u2026`, 'info');
-        await appSendInvEmail(key);
+        await appSendInvEmail(key, { key, email, name, role, createdAt: Date.now() });
       } else {
         notify(`Einladung f\u00fcr ${name} angelegt. \u26a0 EmailJS nicht konfiguriert \u2013 Link manuell kopieren.`, 'info');
       }
@@ -1647,9 +1647,9 @@ function appCreateInvitation() {
   }).catch(e => notify('Fehler: ' + e.message, 'error'));
 }
 
-async function appSendInvEmail(invKey) {
+async function appSendInvEmail(invKey, invData) {
   if (!isAdmin()) return;
-  const inv = appInvitations.find(i => i.key === invKey);
+  const inv = invData || appInvitations.find(i => i.key === invKey);
   if (!inv) return notify('Einladung nicht gefunden.', 'error');
   if (!appSettings.emailServiceId || !appSettings.emailInviteTemplateId || !appSettings.emailPublicKey) {
     return notify('EmailJS ist nicht konfiguriert. Bitte im Admin-Bereich der Website Einstellungen pr\u00fcfen.', 'error');
@@ -3012,7 +3012,7 @@ function teamCreateInvitation() {
     if (sendCb && sendCb.checked) {
       if (appSettings.emailServiceId && appSettings.emailInviteTemplateId && appSettings.emailPublicKey) {
         notify(`Einladung f\u00fcr ${name} angelegt. Sende Mail\u2026`, 'info');
-        await appSendInvEmail(key);
+        await appSendInvEmail(key, { key, email, name, role, createdAt: Date.now() });
       } else {
         notify(`Einladung f\u00fcr ${name} angelegt. \u26a0 EmailJS nicht konfiguriert \u2013 Link manuell kopieren.`, 'info');
       }
