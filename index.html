@@ -408,7 +408,7 @@
 
   /* Autocomplete */
   .qb-ac-wrap { position: relative; }
-  .qb-ac-list { position: absolute; top: 100%; left: 0; right: 0; max-height: 180px; overflow-y: auto; background: white; border: 2px solid var(--c-alpine); border-top: none; border-radius: 0 0 var(--radius-xs) var(--radius-xs); z-index: 1000; display: none; box-shadow: 0 8px 24px rgba(27,29,31,0.12); }
+  .qb-ac-list { position: absolute; top: 100%; left: 0; right: 0; max-height: 240px; overflow-y: auto; background: white; border: 2px solid var(--c-alpine); border-top: none; border-radius: 0 0 var(--radius-xs) var(--radius-xs); z-index: 1000; display: none; box-shadow: 0 8px 24px rgba(27,29,31,0.12); }
   .qb-ac-list.open { display: block; }
   .qb-ac-list .ac-item { padding: 7px 10px; font-size: 13px; cursor: pointer; }
   .qb-ac-list .ac-item:hover, .qb-ac-list .ac-item.active { background: var(--c-alpine); color: white; }
@@ -1788,6 +1788,10 @@
           <div class="legend-item"><div class="legend-swatch swatch-restricted"></div> Keine Platzrunden in Unterwössen *</div>
           <div class="legend-item" style="flex-basis: 100%; font-size: 10px; color: var(--c-ink-3);" id="ganttPlatzrundenDetail">
           </div>
+        </div>
+        <div style="padding: 6px 16px 10px; font-size: 11px; color: var(--c-ink-3); line-height: 1.5;">
+          <span style="color: var(--c-alpine);">*</span> Platzrunden können problemlos an den umliegenden Flugplätzen (EDPK, EDNV, EDMY, EDME u.&thinsp;a.) geflogen werden — der Shuttle dorthin ist kurz.<br>
+          Für Buchungen, die über diesen Kalender nicht möglich sind (längere Flüge, Übernachtungen, Sonderwünsche), meldet euch bitte bei uns: <a href="tel:+498641698787" style="color:var(--c-alpine);text-decoration:none;font-weight:500;">+49 8641 698787</a> oder <a href="mailto:info@dassu.de" style="color:var(--c-alpine);text-decoration:none;font-weight:500;">info@dassu.de</a>
         </div>
       </div>
     </div>
@@ -6018,7 +6022,16 @@ function qbAcFilter() {
   // Collect unique names from VF members + bookings
   const bookingNames = [...new Set(bookings.map(b => b.name).filter(Boolean))];
   const allNames = [...new Set([...vfMembers, ...bookingNames])];
-  const matches = allNames.filter(n => n.toLowerCase().includes(q)).sort().slice(0, 8);
+  const filtered = allNames.filter(n => n.toLowerCase().includes(q));
+  // Sort: names starting with query first, then alphabetically
+  filtered.sort((a, b) => {
+    const aStarts = a.toLowerCase().startsWith(q) || a.toLowerCase().split(' ').some(w => w.startsWith(q));
+    const bStarts = b.toLowerCase().startsWith(q) || b.toLowerCase().split(' ').some(w => w.startsWith(q));
+    if (aStarts && !bStarts) return -1;
+    if (!aStarts && bStarts) return 1;
+    return a.localeCompare(b, 'de');
+  });
+  const matches = filtered.slice(0, 12);
 
   if (matches.length === 0) {
     list.classList.remove('open');
