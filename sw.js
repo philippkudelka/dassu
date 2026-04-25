@@ -1,5 +1,7 @@
-const CACHE_NAME = 'dassu-staff-v4';
+const CACHE_NAME = 'dassu-v5';
 const ASSETS = [
+  '/',
+  '/index.html',
   '/staff.html',
   'https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js',
   'https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js',
@@ -10,29 +12,50 @@ self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS).catch(() => {}))
   );
-  self.skipWaiting();
+  self.skipWaiting(); // Sofort aktivieren, nicht auf Tab-Schließung warten
 });
 
 self.addEventListener('activate', e => {
+  // Alle alten Caches löschen
   e.waitUntil(
     caches.keys().then(keys =>
       Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
     )
   );
-  self.clients.claim();
+  self.clients.claim(); // Sofort alle offenen Tabs übernehmen
 });
 
 self.addEventListener('fetch', e => {
-  // Network first, fallback to cache
+  const url = new URL(e.request.url);
+  // HTML-Seiten: immer vom Netzwerk, Cache nur als Fallback (offline)
+  if (e.request.mode === 'navigate' || url.pathname.endsWith('.html')) {
+    e.respondWith(
+      fetch(e.request)
+        .then(response => {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone)).catch(() => {});
+          return response;
+        })
+        .catch(() => caches.match(e.request))
+    );
+    return;
+  }
+  // Alles andere (JS, CSS, Bilder): Cache first, dann Netzwerk
   e.respondWith(
-    fetch(e.request)
-      .then(response => {
+    caches.match(e.request).then(cached => {
+      const fetched = fetch(e.request).then(response => {
         const clone = response.clone();
         caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone)).catch(() => {});
         return response;
-      })
-      .catch(() => caches.match(e.request))
+      }).catch(() => cached);
+      return cached || fetched;
+    })
   );
+});
+
+// Bei neuer SW-Version: alle Clients sofort neu laden
+self.addEventListener('message', event => {
+  if (event.data === 'skipWaiting') self.skipWaiting();
 });
 
 // Push event - for FCM push notifications (requires VAPID setup)

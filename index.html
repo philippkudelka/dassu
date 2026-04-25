@@ -5884,6 +5884,23 @@ function qbAcKeydown(e) {
   }
 }
 
+// Service Worker registrieren + Auto-Update
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').then(reg => {
+    // Prüfe alle 5 Minuten auf Updates
+    setInterval(() => reg.update(), 5 * 60 * 1000);
+    reg.addEventListener('updatefound', () => {
+      const newSW = reg.installing;
+      newSW.addEventListener('statechange', () => {
+        if (newSW.state === 'activated' && navigator.serviceWorker.controller) {
+          // Neue Version aktiv — Seite leise neu laden
+          window.location.reload();
+        }
+      });
+    });
+  }).catch(() => {});
+}
+
 </script>
 </body>
 </html>
