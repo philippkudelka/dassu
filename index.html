@@ -921,8 +921,13 @@
     text-align: center;
     letter-spacing: 0.06em;
     text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
   }
+  .week-grid-header:first-child { cursor: default; }
+  .week-grid-header:not(:first-child):hover { background: var(--c-alpine); color: white; }
   .week-grid-header.today { background: var(--c-confirmed); color: white; }
+  .week-grid-header.today:hover { background: var(--c-alpine); }
   .week-grid-aircraft {
     background: var(--c-paper);
     padding: 10px 4px;
@@ -2796,7 +2801,7 @@ function renderWeekView() {
     const restrictionHint = dow === 0 ? '<br><span style="font-size:8px;color:#bbb;">ab 09:00</span>' :
                             dow === 6 ? '<br><span style="font-size:8px;color:#bbb;">PR bis 12h</span>' : '';
     const pastClass = isPast && !adminLoggedIn ? ' past-day' : '';
-    html += `<div class="week-grid-header${isToday ? ' today' : ''}${pastClass}">${dayNames[i]}<br>${d.getDate()}.${d.getMonth()+1}.${restrictionHint}</div>`;
+    html += `<div class="week-grid-header${isToday ? ' today' : ''}${pastClass}" onclick="goToDay('${dk}')" style="cursor:pointer;" title="Tagesansicht öffnen">${dayNames[i]}<br>${d.getDate()}.${d.getMonth()+1}.${restrictionHint}</div>`;
   });
 
   // One row per aircraft
