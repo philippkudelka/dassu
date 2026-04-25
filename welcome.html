@@ -289,6 +289,8 @@ async function doLogin() {
   // onAuthChange kümmert sich um die Weiterleitung
 }
 
+let registrationInProgress = false;
+
 async function doRegister() {
   clearMessages();
   const name = document.getElementById('regName').value.trim();
@@ -300,13 +302,17 @@ async function doRegister() {
 
   const btn = document.getElementById('regBtn');
   btn.disabled = true; btn.textContent = 'Registriere…';
+  registrationInProgress = true;
   const res = await DASSU_AUTH.signUpWithInvitation(email, p1, name);
+  registrationInProgress = false;
   btn.disabled = false; btn.textContent = 'Account anlegen';
   if (!res.ok) {
     showMsg('regMsg', 'error', res.error);
     return;
   }
   showMsg('regMsg', 'success', 'Willkommen! Du wirst gleich in die App weitergeleitet…');
+  // onAuthChange wurde während der Registrierung ignoriert, daher manuell weiterleiten
+  setTimeout(() => { window.location.href = 'staff.html'; }, 1500);
 }
 
 async function doReset() {
@@ -333,6 +339,11 @@ DASSU_AUTH.onAuthChange(async user => {
   const authedBox = document.getElementById('authedBox');
   const authBox = document.getElementById('authBox');
   if (user) {
+    // Während der Registrierung NICHT prüfen – signUpWithInvitation erstellt
+    // zuerst den Auth-Account und schreibt danach das Profil. Wenn wir hier
+    // sofort prüfen, existiert das Profil noch nicht → User wird ausgeloggt
+    // → der anschließende Profil-Schreibversuch scheitert mit PERMISSION_DENIED.
+    if (registrationInProgress) return;
     // Wir müssen auch das staffUsers-Profil prüfen (Fall: Auth existiert, aber keine Freigabe)
     const profile = await DASSU_AUTH.currentStaffProfile();
     if (!profile) {
