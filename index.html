@@ -1476,6 +1476,63 @@
     .sidebar-card { padding: 16px; }
     .next-flight-time { font-size: 24px; }
   }
+
+  /* Dev-Toolbar (nur für Admins mit ?dev=1) */
+  .dev-toolbar {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 99999;
+    background: rgba(30,30,30,0.95);
+    backdrop-filter: blur(8px);
+    padding: 8px 16px;
+    font-family: var(--font-ui);
+    border-top: 1px solid rgba(255,255,255,0.1);
+  }
+  .dev-toolbar.visible { display: flex; align-items: center; gap: 12px; }
+  .dev-toolbar-label {
+    font-size: 10px;
+    color: rgba(255,255,255,0.4);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-right: 4px;
+    white-space: nowrap;
+  }
+  .dev-toolbar-btns { display: flex; gap: 2px; background: rgba(255,255,255,0.08); border-radius: 8px; padding: 2px; }
+  .dev-toolbar-btn {
+    padding: 6px 16px;
+    font-size: 12px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.5);
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: var(--font-ui);
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .dev-toolbar-btn:hover { color: rgba(255,255,255,0.8); background: rgba(255,255,255,0.06); }
+  .dev-toolbar-btn.active { color: white; background: rgba(255,255,255,0.15); }
+  .dev-toolbar-btn .dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  .dev-toolbar-btn .dot.c-kunde { background: #5DCAA5; }
+  .dev-toolbar-btn .dot.c-fluglehrer { background: #EF9F27; }
+  .dev-toolbar-btn .dot.c-staff { background: #85B7EB; }
+  .dev-toolbar-info {
+    margin-left: auto;
+    font-size: 11px;
+    color: rgba(255,255,255,0.35);
+  }
+  body.dev-mode { padding-bottom: 48px; }
 </style>
 </head>
 <body>
@@ -1966,6 +2023,11 @@
 // DATA
 // ============================================================
 const DEFAULT_AIRCRAFT = ['D-KYGL', 'D-KYCK', 'D-KYSS', 'D-MYUW', 'D-MYIH'];
+
+// Dev-Mode: Perspektivwechsel für Admins (?dev=1 in URL)
+const devMode = new URLSearchParams(window.location.search).has('dev');
+let devPerspective = devMode ? 'kunde' : null; // 'kunde' | 'fluglehrer' | 'staff'
+let devStaffProfile = null; // gespeichertes Staff-Profil im Dev-Modus
 
 const AIRCRAFT_IMAGES = {
   'D-KYGL': 'https://images.squarespace-cdn.com/content/v1/5a6084aad0e628eab9591587/1547813117982-OW707IT4O3SF6ZRSEEYN/D-KYGL.jpg',
@@ -4270,6 +4332,44 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ============================================================
+// ============================================================
+// DEV-TOOLBAR: Perspektivwechsel
+// ============================================================
+function devSwitchPerspective(p) {
+  if (!devMode) return;
+  if (p === 'staff') {
+    // Staff → zu staff.html weiterleiten
+    window.location.href = 'staff.html';
+    return;
+  }
+  devPerspective = p;
+  // Buttons aktualisieren
+  document.querySelectorAll('.dev-toolbar-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.textContent.trim().toLowerCase().startsWith(p));
+  });
+  devApplyPerspective();
+  renderView();
+}
+
+function devApplyPerspective() {
+  if (!devMode || !devPerspective) return;
+  const info = document.getElementById('devToolbarInfo');
+  const isKunde = devPerspective === 'kunde';
+  const isFluglehrer = devPerspective === 'fluglehrer';
+
+  // Info-Text
+  if (info) {
+    if (isKunde) info.textContent = 'Ansicht: Kunde (nur Kalender, Buchungen, Konto)';
+    else if (isFluglehrer) info.textContent = 'Ansicht: Fluglehrer (+ Schüler, Theorie)';
+  }
+
+  // Fluglehrer-spezifische Tabs ein-/ausblenden
+  // (werden in Task #67 als HTML-Elemente hinzugefügt, hier schon vorbereitet)
+  document.querySelectorAll('.fluglehrer-only').forEach(el => {
+    el.style.display = isFluglehrer ? '' : 'none';
+  });
+}
+
 // Admin-Stubs (Funktionen sind jetzt in staff.html)
 function showTheoryAdmin() {}
 function showSettings() {}
@@ -4653,9 +4753,24 @@ firebase.auth().onAuthStateChanged(async (user) => {
       const snap = await db.ref('staffUsers/' + user.uid).once('value');
       const staffProfile = snap.val();
       if (staffProfile) {
-        // Staff/Admin → direkt zu staff.html weiterleiten
-        window.location.href = 'staff.html';
-        return;
+        if (devMode && staffProfile.role === 'admin') {
+          // Dev-Modus: Admin bleibt auf index.html, Toolbar zeigen
+          devStaffProfile = staffProfile;
+          customerProfile = { name: staffProfile.name || user.displayName || '', email: user.email || '' };
+          document.body.classList.add('dev-mode');
+          document.getElementById('devToolbar').classList.add('visible');
+          document.getElementById('tabMyBookings')?.classList.add('auth-revealed');
+          document.getElementById('mobileTabMyBookings')?.classList.add('auth-revealed');
+          document.getElementById('mainViewTabs')?.classList.add('has-customer-tabs');
+          updateCustomerButton();
+          devApplyPerspective();
+          renderView();
+          return; // Auth fertig, Rest überspringen
+        } else {
+          // Normal: Staff/Admin → direkt zu staff.html weiterleiten
+          window.location.href = 'staff.html';
+          return;
+        }
       }
       // 2. Kunden-Check → E-Mail muss verifiziert sein
       if (!user.emailVerified) {
@@ -5028,5 +5143,17 @@ if ('serviceWorker' in navigator) {
 }
 
 </script>
+
+<!-- Dev-Toolbar (nur für Admins mit ?dev=1) -->
+<div class="dev-toolbar" id="devToolbar">
+  <span class="dev-toolbar-label">DEV</span>
+  <div class="dev-toolbar-btns">
+    <button class="dev-toolbar-btn active" onclick="devSwitchPerspective('kunde')"><span class="dot c-kunde"></span>Kunde</button>
+    <button class="dev-toolbar-btn" onclick="devSwitchPerspective('fluglehrer')"><span class="dot c-fluglehrer"></span>Fluglehrer</button>
+    <button class="dev-toolbar-btn" onclick="devSwitchPerspective('staff')"><span class="dot c-staff"></span>Staff</button>
+  </div>
+  <span class="dev-toolbar-info" id="devToolbarInfo"></span>
+</div>
+
 </body>
 </html>
