@@ -2026,7 +2026,7 @@ const DEFAULT_AIRCRAFT = ['D-KYGL', 'D-KYCK', 'D-KYSS', 'D-MYUW', 'D-MYIH'];
 
 // Dev-Mode: Perspektivwechsel für Admins (?dev=1 in URL)
 const devMode = new URLSearchParams(window.location.search).has('dev');
-let devPerspective = devMode ? 'kunde' : null; // 'kunde' | 'fluglehrer' | 'staff'
+let devPerspective = devMode ? (window.location.hash === '#fluglehrer' ? 'fluglehrer' : 'kunde') : null;
 let devStaffProfile = null; // gespeichertes Staff-Profil im Dev-Modus
 
 const AIRCRAFT_IMAGES = {
@@ -4338,8 +4338,8 @@ document.addEventListener('DOMContentLoaded', () => {
 function devSwitchPerspective(p) {
   if (!devMode) return;
   if (p === 'staff') {
-    // Staff → zu staff.html weiterleiten
-    window.location.href = 'staff.html';
+    // Staff → zu staff.html weiterleiten (dev=1 mitnehmen)
+    window.location.href = 'staff.html?dev=1';
     return;
   }
   devPerspective = p;
@@ -4764,6 +4764,10 @@ firebase.auth().onAuthStateChanged(async (user) => {
           document.getElementById('mainViewTabs')?.classList.add('has-customer-tabs');
           updateCustomerButton();
           devApplyPerspective();
+          // Toolbar-Buttons dem aktiven devPerspective anpassen
+          document.querySelectorAll('.dev-toolbar-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.textContent.trim().toLowerCase().startsWith(devPerspective));
+          });
           renderView();
           return; // Auth fertig, Rest überspringen
         } else {

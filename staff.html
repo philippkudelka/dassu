@@ -712,6 +712,20 @@ body { font-family: var(--font); background: var(--gray-100); color: #1a1a1a; mi
 .account-msg { padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; display: none; }
 .account-msg.success { display: block; background: #edf7ed; color: #2e7d32; }
 .account-msg.error { display: block; background: #fdecea; color: var(--danger); }
+
+/* Dev-Toolbar */
+.dev-toolbar { display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 99999; background: rgba(30,30,30,0.95); backdrop-filter: blur(8px); padding: 8px 16px; border-top: 1px solid rgba(255,255,255,0.1); }
+.dev-toolbar.visible { display: flex; align-items: center; gap: 12px; }
+.dev-toolbar-label { color: rgba(255,255,255,0.3); font-size: 11px; font-weight: 700; letter-spacing: 1px; }
+.dev-toolbar-btns { display: flex; gap: 4px; }
+.dev-toolbar-btn { padding: 6px 16px; font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.5); background: transparent; border: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+.dev-toolbar-btn.active { color: white; background: rgba(255,255,255,0.15); }
+.dev-toolbar-btn .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.dot.c-kunde { background: #6dbe6d; }
+.dot.c-fluglehrer { background: #e0a030; }
+.dot.c-staff { background: #5b9bd5; }
+.dev-toolbar-info { margin-left: auto; color: rgba(255,255,255,0.35); font-size: 11px; }
+body.dev-mode { padding-bottom: 48px; }
 </style>
 </head>
 <body>
@@ -4986,6 +5000,25 @@ loadVfMembers();
     if (e.key === 'Enter') { e.preventDefault(); appCreateInvitation(); }
   });
 });
+</script>
+
+<!-- Dev-Toolbar (nur mit ?dev=1) -->
+<div class="dev-toolbar" id="devToolbar">
+  <span class="dev-toolbar-label">DEV</span>
+  <div class="dev-toolbar-btns">
+    <button class="dev-toolbar-btn" onclick="window.location.href='/?dev=1'"><span class="dot c-kunde"></span>Kunde</button>
+    <button class="dev-toolbar-btn" onclick="window.location.href='/?dev=1#fluglehrer'"><span class="dot c-fluglehrer"></span>Fluglehrer</button>
+    <button class="dev-toolbar-btn active"><span class="dot c-staff"></span>Staff</button>
+  </div>
+  <span class="dev-toolbar-info" id="devToolbarInfo">Ansicht: Staff (staff.html)</span>
+</div>
+<script>
+(function() {
+  if (new URLSearchParams(window.location.search).has('dev')) {
+    document.body.classList.add('dev-mode');
+    document.getElementById('devToolbar').classList.add('visible');
+  }
+})();
 </script>
 </body>
 </html>
