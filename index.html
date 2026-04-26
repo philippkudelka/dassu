@@ -5338,18 +5338,25 @@ function qbAcKeydown(e) {
 // Service Worker registrieren + Auto-Update
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').then(reg => {
-    // Prüfe alle 5 Minuten auf Updates
-    setInterval(() => reg.update(), 5 * 60 * 1000);
+    // Sofort beim Laden auf Updates prüfen
+    reg.update().catch(() => {});
+    // Danach alle 2 Minuten
+    setInterval(() => reg.update(), 2 * 60 * 1000);
     reg.addEventListener('updatefound', () => {
       const newSW = reg.installing;
       newSW.addEventListener('statechange', () => {
-        if (newSW.state === 'activated' && navigator.serviceWorker.controller) {
-          // Neue Version aktiv — Seite leise neu laden
-          window.location.reload();
+        if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+          // Neuer SW bereit — sofort aktivieren (skipWaiting)
+          newSW.postMessage('skipWaiting');
         }
       });
     });
   }).catch(() => {});
+  // Wenn neuer SW die Kontrolle übernimmt → Seite neu laden
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!refreshing) { refreshing = true; window.location.reload(); }
+  });
 }
 
 </script>
