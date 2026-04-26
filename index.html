@@ -84,7 +84,7 @@
     font-size: 14px;
     letter-spacing: -0.01em;
   }
-  #calendarView, #adminView { flex: 1; }
+  #calendarView { flex: 1; }
 
   /* Header — Alpen & Horizont */
   .header {
@@ -595,93 +595,6 @@
   }
   .form-group input::placeholder { color: var(--c-ink-3); }
 
-  /* Admin Panel — Alpen & Horizont */
-  .admin-panel {
-    display: none;
-    padding: 28px 36px;
-  }
-  .admin-panel.active { display: block; }
-  .admin-table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-    background: var(--c-paper);
-    border-radius: var(--radius);
-    overflow: hidden;
-    box-shadow: var(--shadow-md);
-    border: 1px solid var(--c-line);
-  }
-  .admin-table th {
-    background: var(--c-paper);
-    color: var(--c-ink-3);
-    padding: 12px 16px;
-    font-size: 10px;
-    text-align: left;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-family: var(--font-ui);
-    border-bottom: 2px solid var(--c-line);
-  }
-  .admin-table td {
-    padding: 11px 16px;
-    border-bottom: 1px solid var(--c-line);
-    font-size: 13px;
-    font-weight: 400;
-    color: var(--c-ink);
-  }
-  .admin-table tr:hover td { background: #FEFBF7; }
-  .status-badge {
-    padding: 4px 12px;
-    border-radius: var(--radius-xs);
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    border: 1px solid;
-  }
-  .status-badge.pending { background: #FAF3EB; color: var(--c-requested); border-color: var(--c-requested); }
-  .status-badge.approved { background: #F1F6EE; color: var(--c-confirmed); border-color: var(--c-confirmed); }
-  .status-badge.rejected { background: #FBF1ED; color: var(--c-rejected); border-color: var(--c-rejected); }
-
-  /* Admin Login */
-  .admin-login {
-    max-width: 380px;
-    margin: 80px auto;
-    background: var(--c-paper);
-    padding: 40px;
-    border-radius: var(--radius);
-    box-shadow: var(--shadow-lg);
-    text-align: center;
-    border: 1px solid var(--c-line);
-  }
-  .admin-login h3 { margin-bottom: 20px; color: var(--c-ink); }
-
-  /* Filter tabs */
-  .filter-tabs {
-    display: flex;
-    gap: 0;
-    margin-bottom: 20px;
-    border-bottom: 1px solid var(--c-line);
-    width: fit-content;
-  }
-  .filter-tab {
-    padding: 8px 20px;
-    border-radius: 0;
-    font-size: 12px;
-    font-weight: 500;
-    cursor: pointer;
-    border: none;
-    border-bottom: 2px solid transparent;
-    background: transparent;
-    color: var(--c-ink-3);
-    transition: all var(--transition);
-    font-family: var(--font-ui);
-    letter-spacing: 0.02em;
-    text-transform: uppercase;
-    margin-bottom: -1px;
-  }
-  .filter-tab.active { color: var(--c-ink); border-bottom-color: var(--c-amber); font-weight: 600; }
 
   /* View Tabs */
   .view-tabs {
@@ -710,14 +623,11 @@
   }
   .view-tab.active { background: transparent; color: var(--c-ink); border-bottom-color: var(--c-amber); }
 
-  /* Staff-only elements: hidden until JS adds .auth-revealed */
-  .staff-only { display: none !important; }
-  .staff-only.auth-revealed { display: inline-flex !important; }
   /* Customer-only elements: hidden until JS adds .auth-revealed */
   .customer-only { display: none !important; }
   .customer-only.auth-revealed { display: inline-flex !important; }
   /* Hide entire tab bar when no extra tabs are visible */
-  .view-tabs:not(.has-staff-tabs):not(.has-customer-tabs) { display: none !important; }
+  .view-tabs:not(.has-customer-tabs) { display: none !important; }
 
   /* Meine Buchungen */
   .my-bookings-panel { padding: 24px 20px; max-width: 900px; margin: 0 auto; }
@@ -766,7 +676,6 @@
     .date-nav { padding: 14px 16px; gap: 8px; }
     .date-nav h2 { font-size: 15px; min-width: 180px; }
     .legend { padding: 10px 16px; gap: 14px; }
-    .admin-panel { padding: 20px 16px; }
     .modal { padding: 28px 24px; }
   }
 
@@ -852,7 +761,6 @@
 
     .modal { padding: 20px 16px; max-height: 90vh; overflow-y: auto; }
     .modal h3 { font-size: 16px; }
-    .admin-panel { padding: 16px 10px; }
 
     .platzrunden-legend { font-size: 9px; padding: 8px 10px; gap: 6px; flex-wrap: wrap; }
     .legend-swatch { width: 10px; height: 10px; }
@@ -1607,12 +1515,9 @@
   <div class="header-actions">
     <button id="btnStornieren" class="btn btn-sm header-desktop-only" onclick="document.getElementById('cancelInputModal').classList.add('active')" style="font-size:11px; letter-spacing:0.04em; text-transform:uppercase;">Stornieren</button>
     <button id="customerAuthBtn" class="btn btn-sm header-desktop-only" onclick="openCustomerAuth()" style="font-size:11px; letter-spacing:0.04em; text-transform:uppercase; background:var(--navy); color:white; border-color:var(--navy);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span id="custAuthLabel">Login</span></button>
-    <a href="staff.html" id="btnStaff" class="btn btn-sm staff-only header-desktop-only" style="font-size:11px; letter-spacing:0.04em; text-transform:uppercase; text-decoration:none;">Staff</a>
     <div class="view-tabs" id="mainViewTabs">
       <button class="view-tab active" onclick="showView('calendar')">Kalender</button>
       <button class="view-tab customer-only" id="tabMyBookings" onclick="showView('myBookings')">Meine Buchungen</button>
-
-      <button class="view-tab staff-only" id="tabAdmin" onclick="showView('admin')">Admin</button>
     </div>
     <!-- Burger Menu (Mobile only) -->
     <button class="burger-btn" id="burgerBtn" onclick="toggleMobileMenu()">
@@ -1623,12 +1528,9 @@
   <div class="mobile-menu" id="mobileMenu">
     <button class="mobile-menu-item" onclick="showView('calendar'); closeMobileMenu();">Kalender</button>
     <button class="mobile-menu-item customer-only" id="mobileTabMyBookings" onclick="showView('myBookings'); closeMobileMenu();">Meine Buchungen</button>
-
-    <button class="mobile-menu-item staff-only" id="mobileTabAdmin" onclick="showView('admin'); closeMobileMenu();">Admin</button>
     <hr class="mobile-menu-divider">
     <button class="mobile-menu-item" onclick="openCustomerAuth(); closeMobileMenu();"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> <span id="mobileAuthLabel">Login</span></button>
     <button class="mobile-menu-item" onclick="document.getElementById('cancelInputModal').classList.add('active'); closeMobileMenu();">Stornieren</button>
-    <a href="staff.html" class="mobile-menu-item staff-only" id="mobileStaffLink">Staff-Bereich</a>
   </div>
 </div>
 
@@ -1800,58 +1702,6 @@
   </div>
 </div>
 
-<!-- Admin View -->
-<div id="adminView" class="admin-panel">
-  <!-- Login -->
-  <div id="adminLogin" class="admin-login">
-    <h3>Admin-Bereich</h3>
-    <p style="color:var(--gray-500); margin-bottom:16px; font-size:14px;">
-      Melde dich an, um Buchungen zu verwalten.
-    </p>
-    <div class="form-group">
-      <input type="password" id="adminPassword" placeholder="Passwort eingeben" onkeydown="if(event.key==='Enter') adminLogin()">
-    </div>
-    <button class="btn btn-primary" onclick="adminLogin()" style="width:100%;">Anmelden</button>
-    <p style="color:var(--gray-400); margin-top:12px; font-size:12px;">Standard-Passwort: admin123</p>
-  </div>
-
-  <!-- Admin Dashboard -->
-  <div id="adminDashboard" style="display:none;">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
-      <h2 style="font-size:20px; font-weight:700; font-family:var(--font-ui); letter-spacing:0.01em;">Buchungsverwaltung</h2>
-      <div style="display:flex; gap:8px; align-items:center;">
-        <button class="btn btn-danger btn-sm" onclick="adminLogout()">Abmelden</button>
-        <button class="btn btn-sm" onclick="exportData()">Exportieren</button>
-        <button class="btn btn-sm" onclick="showTheoryAdmin()">Theorie</button>
-        <button class="btn btn-sm" onclick="showStaffMgmt()">Mitarbeiter</button>
-        <button class="btn btn-sm" onclick="showSettings()">Einstellungen</button>
-      </div>
-    </div>
-
-    <div class="filter-tabs">
-      <button class="filter-tab active" onclick="filterBookings('all', this)">Alle</button>
-      <button class="filter-tab" onclick="filterBookings('pending', this)">Ausstehend</button>
-      <button class="filter-tab" onclick="filterBookings('approved', this)">Best&auml;tigt</button>
-      <button class="filter-tab" onclick="filterBookings('rejected', this)">Abgelehnt</button>
-    </div>
-
-    <table class="admin-table" id="adminTable">
-      <thead>
-        <tr>
-          <th>Datum</th>
-          <th>Uhrzeit</th>
-          <th>Flugzeug</th>
-          <th>Name</th>
-          <th>Kontakt</th>
-          <th>Fluglehrer</th>
-          <th>Status</th>
-          <th>Aktionen</th>
-        </tr>
-      </thead>
-      <tbody id="adminTableBody"></tbody>
-    </table>
-  </div>
-</div>
 
 
 <!-- Booking Modal -->
@@ -2066,210 +1916,6 @@
   <div class="sm-detail-panel" id="smDetailPanel"></div>
 </div>
 
-<!-- Theorie-Admin Modal -->
-<div class="modal-overlay" id="theoryAdminModal">
-  <div class="modal" style="max-width:960px; width:96vw; max-height:90vh; display:flex; flex-direction:column;">
-    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:8px; flex-wrap:wrap;">
-      <h3 style="margin:0;">Theoriestunden &ndash; &Uuml;bersicht &amp; Abrechnung</h3>
-      <button class="btn btn-primary btn-sm" onclick="theoryAdminOpenForm()">+ Neue Theoriestunde</button>
-    </div>
-    <p style="font-size:12px; color:var(--gray-500); margin-bottom:14px; line-height:1.5;">
-      Alle erfassten Theoriestunden. Filter einstellen, auf eine Zeile klicken zum Bearbeiten, oder als CSV exportieren.
-    </p>
-
-    <!-- Filter -->
-    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:10px; margin-bottom:14px; padding:12px; background:var(--gray-50); border-radius:6px; border:1px solid var(--gray-200);">
-      <div>
-        <label style="font-size:11px; font-weight:600; color:var(--gray-600); text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:4px;">Von</label>
-        <input type="date" id="theoryFilterFrom" onchange="renderTheoryAdmin()" style="width:100%; padding:8px; border:1px solid var(--gray-300); border-radius:4px; font-family:var(--font-ui); font-size:13px;">
-      </div>
-      <div>
-        <label style="font-size:11px; font-weight:600; color:var(--gray-600); text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:4px;">Bis</label>
-        <input type="date" id="theoryFilterTo" onchange="renderTheoryAdmin()" style="width:100%; padding:8px; border:1px solid var(--gray-300); border-radius:4px; font-family:var(--font-ui); font-size:13px;">
-      </div>
-      <div>
-        <label style="font-size:11px; font-weight:600; color:var(--gray-600); text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:4px;">Lehrer</label>
-        <select id="theoryFilterTeacher" onchange="renderTheoryAdmin()" style="width:100%; padding:8px; border:1px solid var(--gray-300); border-radius:4px; font-family:var(--font-ui); font-size:13px; background:white;">
-          <option value="">Alle</option>
-        </select>
-      </div>
-      <div>
-        <label style="font-size:11px; font-weight:600; color:var(--gray-600); text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:4px;">Sch&uuml;ler (Freitext)</label>
-        <input type="text" id="theoryFilterStudent" oninput="renderTheoryAdmin()" placeholder="filtern..." style="width:100%; padding:8px; border:1px solid var(--gray-300); border-radius:4px; font-family:var(--font-ui); font-size:13px;">
-      </div>
-    </div>
-
-    <!-- Summary -->
-    <div id="theoryAdminSummary" style="display:flex; gap:16px; flex-wrap:wrap; padding:10px 14px; background:var(--primary-light); border-radius:6px; margin-bottom:12px; font-size:13px;"></div>
-
-    <!-- Table -->
-    <div style="flex:1; overflow:auto; border:1px solid var(--gray-200); border-radius:6px;">
-      <table class="admin-table" id="theoryAdminTable" style="margin:0;">
-        <thead>
-          <tr>
-            <th>Datum</th>
-            <th>Zeit</th>
-            <th>Dauer</th>
-            <th>Lehrer</th>
-            <th>Sch&uuml;ler</th>
-            <th>Thema</th>
-            <th>Notiz</th>
-          </tr>
-        </thead>
-        <tbody id="theoryAdminBody"></tbody>
-      </table>
-    </div>
-
-    <div style="display:flex; gap:8px; justify-content:space-between; margin-top:14px; flex-wrap:wrap;">
-      <button class="btn btn-primary btn-sm" onclick="exportTheoryCsv()">CSV exportieren</button>
-      <button class="btn btn-sm" onclick="closeModal('theoryAdminModal')">Schlie&szlig;en</button>
-    </div>
-  </div>
-</div>
-
-<!-- Theorie-Erfassen/Bearbeiten Modal -->
-<div class="modal-overlay" id="theoryFormModal">
-  <div class="modal" style="max-width:520px;">
-    <h3 id="theoryFormTitleAdmin" style="margin-bottom:14px;">Neue Theoriestunde</h3>
-    <input type="hidden" id="theoryFormEditIdAdmin">
-
-    <div class="form-group">
-      <label>Lehrer *</label>
-      <select id="theoryFormTeacher" style="width:100%; padding:10px; border:1px solid var(--gray-300); border-radius:4px; font-family:var(--font-ui); font-size:14px; background:white;">
-        <option value="">— bitte wählen —</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label>Schüler *</label>
-      <input type="text" id="theoryFormStudent" placeholder="Name des Schülers" list="theoryFormStudentSugg" style="width:100%; padding:10px; border:1px solid var(--gray-300); border-radius:4px; font-family:var(--font-ui); font-size:14px;">
-      <datalist id="theoryFormStudentSugg"></datalist>
-    </div>
-    <div class="form-group">
-      <label>Thema / Inhalt</label>
-      <input type="text" id="theoryFormTopic" placeholder="z.B. Meteorologie – Fronten" list="theoryFormTopicSugg" style="width:100%; padding:10px; border:1px solid var(--gray-300); border-radius:4px; font-family:var(--font-ui); font-size:14px;">
-      <datalist id="theoryFormTopicSugg"></datalist>
-    </div>
-    <div class="form-group">
-      <label>Datum *</label>
-      <input type="date" id="theoryFormDate" style="width:100%; padding:10px; border:1px solid var(--gray-300); border-radius:4px; font-family:var(--font-ui); font-size:14px;">
-    </div>
-    <div style="display:flex; gap:12px;">
-      <div class="form-group" style="flex:1;">
-        <label>Von *</label>
-        <input type="time" id="theoryFormStart" style="width:100%; padding:10px; border:1px solid var(--gray-300); border-radius:4px; font-family:var(--font-ui); font-size:14px;">
-      </div>
-      <div class="form-group" style="flex:1;">
-        <label>Bis *</label>
-        <input type="time" id="theoryFormEnd" style="width:100%; padding:10px; border:1px solid var(--gray-300); border-radius:4px; font-family:var(--font-ui); font-size:14px;">
-      </div>
-    </div>
-    <div class="form-group">
-      <label>Notiz (optional)</label>
-      <textarea id="theoryFormNotes" rows="2" placeholder="Details, Besonderheiten..." style="width:100%; padding:10px; border:1px solid var(--gray-300); border-radius:4px; font-family:var(--font-ui); font-size:14px; resize:vertical;"></textarea>
-    </div>
-    <div id="theoryFormErrorAdmin" style="color:var(--danger); font-size:13px; margin-bottom:10px; display:none;"></div>
-
-    <div style="display:flex; gap:8px; justify-content:space-between; margin-top:16px; flex-wrap:wrap;">
-      <button id="theoryFormDeleteBtnAdmin" class="btn btn-danger btn-sm" onclick="theoryAdminDelete()" style="display:none;">Löschen</button>
-      <div style="display:flex; gap:8px; margin-left:auto;">
-        <button class="btn btn-sm" onclick="closeModal('theoryFormModal')">Abbrechen</button>
-        <button class="btn btn-primary btn-sm" onclick="theoryAdminSave()">Speichern</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Settings Modal -->
-<div class="modal-overlay" id="settingsModal">
-  <div class="modal">
-    <h3>Einstellungen</h3>
-    <div class="form-group">
-      <label>Admin-Passwort &auml;ndern</label>
-      <input type="password" id="newPassword" placeholder="Neues Passwort">
-    </div>
-    <div class="form-group">
-      <label>Flugzeug-Kennzeichen (eines pro Zeile)</label>
-      <textarea id="aircraftNames" rows="5" style="font-family:monospace;"></textarea>
-    </div>
-
-    <hr style="margin:20px 0; border:none; border-top:1px solid var(--gray-200);">
-    <h4 style="margin-bottom:4px; font-size:17px; font-weight:400; color:var(--dark);">E-Mail-Benachrichtigung via info@dassu.de</h4>
-    <p style="font-size:12px; color:var(--gray-500); margin-bottom:14px; line-height:1.6;">
-      E-Mails werden &uuml;ber <a href="https://www.emailjs.com/" target="_blank" style="color:var(--primary);">EmailJS</a> (kostenlos, 200 Mails/Monat) direkt von eurer info@dassu.de-Adresse via Exchange verschickt.
-    </p>
-
-    <details style="margin-bottom:14px; font-size:12px; color:var(--gray-600); line-height:1.7; border:1px solid var(--gray-200); border-radius:4px; padding:10px 14px; background:var(--gray-50);">
-      <summary style="cursor:pointer; font-weight:600; color:var(--dark); margin-bottom:8px;">Einrichtungsanleitung (einmalig, ca. 5 Min.)</summary>
-      <ol style="padding-left:18px; margin:8px 0;">
-        <li>Gehe zu <a href="https://www.emailjs.com/signup" target="_blank" style="color:var(--primary);">emailjs.com/signup</a> und erstelle einen kostenlosen Account.</li>
-        <li><strong>E-Mail-Service hinzuf&uuml;gen:</strong> Klicke auf &bdquo;Add New Service&ldquo; &rarr; w&auml;hle &bdquo;<strong>SMTP server</strong>&ldquo; und trage eure Exchange-Daten ein:
-          <div style="background:white; border:1px solid var(--gray-200); padding:8px; border-radius:4px; margin:6px 0; font-family:monospace; font-size:11px; line-height:1.6;">
-Host: smtp.office365.com<br>
-Port: 587<br>
-Username: info@dassu.de<br>
-Password: (euer Exchange-Passwort oder App-Passwort)</div>
-          Notiere die <em>Service-ID</em> (z.B. <code>service_abc123</code>).</li>
-        <li><strong>E-Mail-Template erstellen:</strong> Gehe zu &bdquo;Email Templates&ldquo; &rarr; &bdquo;Create New Template&ldquo;. F&uuml;ge folgendes ein:</li>
-      </ol>
-      <div style="background:white; border:1px solid var(--gray-200); padding:10px; border-radius:4px; margin:6px 0; font-family:monospace; font-size:11px; white-space:pre-wrap; line-height:1.5;">Betreff: Buchung {{status_text}} &ndash; {{aircraft}} am {{date}}
-
-Hallo {{to_name}},
-
-deine Flugzeug-Buchung wurde {{status_text}}.
-
-Flugzeug: {{aircraft}}
-Datum: {{date}}
-Uhrzeit: {{time}}
-Fluglehrer: {{instructor}}
-
-Bei Fragen melde dich gerne bei uns.
-
-Viele Gr&uuml;&szlig;e
-DASSU &ndash; Deutsche Alpensegelflugschule Unterwössen e.V.
-info@dassu.de</div>
-      <ol start="4" style="padding-left:18px; margin:8px 0;">
-        <li>Setze &bdquo;To Email&ldquo; auf <code>{{to_email}}</code> und speichere. Notiere die <em>Template-ID</em>.</li>
-        <li>Gehe zu &bdquo;Account&ldquo; &rarr; &bdquo;API Keys&ldquo; und kopiere den <em>Public Key</em>.</li>
-        <li>Trage alle drei Werte hier unten ein &mdash; fertig!</li>
-      </ol>
-    </details>
-
-    <div class="form-group">
-      <label>EmailJS Service-ID</label>
-      <input type="text" id="emailServiceId" placeholder="service_abc123">
-    </div>
-    <div class="form-group">
-      <label>EmailJS Template-ID (Buchungen)</label>
-      <input type="text" id="emailTemplateId" placeholder="template_xyz789">
-    </div>
-    <div class="form-group">
-      <label>EmailJS Template-ID (Mitarbeiter-Einladungen)</label>
-      <input type="text" id="emailInviteTemplateId" placeholder="template_invite_abc">
-      <small style="display:block;margin-top:4px;color:var(--gray-500);font-size:11px;line-height:1.4;">
-        Eigenes Template mit den Variablen <code>{{to_name}}</code>, <code>{{to_email}}</code>, <code>{{invitation_link}}</code>, <code>{{role}}</code>, <code>{{inviter_name}}</code>.
-      </small>
-    </div>
-    <div class="form-group">
-      <label>EmailJS Public Key</label>
-      <input type="text" id="emailPublicKey" placeholder="AbCdEfGhIjKlM">
-    </div>
-    <div class="form-group">
-      <label>Absender-Name</label>
-      <input type="text" id="senderName" placeholder="DASSU - Alpensegelflugschule Unterwössen" value="DASSU - Alpensegelflugschule Unterwössen">
-    </div>
-
-    <div style="display:flex; gap:8px; align-items:center; margin-top:8px; margin-bottom:12px;">
-      <button class="btn btn-sm" onclick="testEmail()" style="border-color:var(--primary); color:var(--primary);">Test-E-Mail senden</button>
-      <span id="emailTestStatus" style="font-size:12px; color:var(--gray-500);"></span>
-    </div>
-
-    <div class="modal-actions">
-      <button class="btn" onclick="closeModal('settingsModal')">Abbrechen</button>
-      <button class="btn btn-primary" onclick="saveSettings()">Speichern</button>
-    </div>
-  </div>
-</div>
-
 <!-- Cancel Confirmation Modal -->
 <div class="modal-overlay" id="cancelModal">
   <div class="modal" style="text-align:center;">
@@ -2446,7 +2092,6 @@ function getPlatzrundenInfo(date) {
 
 let currentDate = new Date();
 let bookings = [];
-let adminLoggedIn = false;
 let customerProfile = null; // { name, email, phone, birthdate }
 let currentFilter = 'all';
 let detailBookingId = null;
@@ -2492,23 +2137,12 @@ function loadData() {
     renderDailyNotesBanner();
   }, () => {});
 
-  // Staff Users Listener
-  db.ref('staffUsers').on('value', (snapshot) => {
-    const data = snapshot.val();
-    staffUsers = data ? Object.values(data) : [];
-    // Nachrendern falls Modal offen
-    if (document.getElementById('staffMgmtOverlay').classList.contains('active')) {
-      renderStaffMgmt();
-    }
-  }, () => {});
-
   // Bookings: Echtzeit-Listener — alle Geräte sehen sofort Änderungen
   db.ref('bookings').on('value', (snapshot) => {
     const data = snapshot.val();
     bookings = data ? Object.values(data) : [];
     firebaseReady = true;
     renderView();
-    if (adminLoggedIn) renderAdminTable();
   }, (error) => {
     console.error('Firebase Bookings Fehler:', error);
     // Fallback auf localStorage
@@ -2583,20 +2217,18 @@ function navigateBack() {
   } else {
     test.setDate(test.getDate() - 1);
   }
-  if (!adminLoggedIn) {
-    const today = new Date();
-    today.setHours(0,0,0,0);
-    test.setHours(0,0,0,0);
-    if (viewMode === 'week') {
-      const weekStart = new Date(test);
-      const day = weekStart.getDay() || 7;
-      weekStart.setDate(weekStart.getDate() - day + 1);
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekEnd.getDate() + 6);
-      if (weekEnd < today) return;
-    } else {
-      if (test < today) return;
-    }
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  test.setHours(0,0,0,0);
+  if (viewMode === 'week') {
+    const weekStart = new Date(test);
+    const day = weekStart.getDay() || 7;
+    weekStart.setDate(weekStart.getDate() - day + 1);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    if (weekEnd < today) return;
+  } else {
+    if (test < today) return;
   }
   currentDate = test;
   renderView();
@@ -2678,13 +2310,10 @@ function toggleMobileWeather() {
 function showView(view) {
   document.getElementById('calendarView').style.display = view === 'calendar' ? 'block' : 'none';
   document.getElementById('myBookingsView').style.display = view === 'myBookings' ? 'block' : 'none';
-  document.getElementById('adminView').classList.toggle('active', view === 'admin');
   // Tab-Buttons aktiv markieren
   document.querySelectorAll('#mainViewTabs > .view-tab').forEach(t => t.classList.remove('active'));
   if (view === 'calendar') document.querySelector('#mainViewTabs > .view-tab:first-child')?.classList.add('active');
   else if (view === 'myBookings') document.getElementById('tabMyBookings')?.classList.add('active');
-  else if (view === 'admin') document.getElementById('tabAdmin')?.classList.add('active');
-  if (view === 'admin' && adminLoggedIn) renderAdminTable();
   if (view === 'myBookings') renderMyBookings();
 }
 
@@ -2747,7 +2376,7 @@ function renderWeekView() {
     // Show small indicator for restricted days
     const restrictionHint = dow === 0 ? '<br><span style="font-size:8px;color:#bbb;">ab 09:00</span>' :
                             dow === 6 ? '<br><span style="font-size:8px;color:#bbb;">PR bis 12h</span>' : '';
-    const pastClass = isPast && !adminLoggedIn ? ' past-day' : '';
+    const pastClass = isPast ? ' past-day' : '';
     html += `<div class="week-grid-header${isToday ? ' today' : ''}${pastClass}" onclick="goToDay('${dk}')" style="cursor:pointer;" title="Tagesansicht öffnen">${dayNames[i]}<br>${d.getDate()}.${d.getMonth()+1}.${restrictionHint}</div>`;
   });
 
@@ -2770,13 +2399,11 @@ function renderWeekView() {
       }
       dayBookings.forEach(b => {
         const timeLabel = b.startTime ? `${b.startTime}–${b.endTime}` : (b.slot || '');
-        const label = adminLoggedIn ? `${timeLabel} ${b.name}` : timeLabel;
-        const titleAttr = adminLoggedIn ? `${b.name}: ${timeLabel}` : `Belegt: ${timeLabel}`;
         const instrClass = b.instructor === 'ja' ? ' with-instructor' : '';
-        cellContent += `<div class="week-booking-bar ${b.status}${instrClass}" onclick="event.stopPropagation(); showDetail('${b.id}')" title="${titleAttr}">${label}</div>`;
+        cellContent += `<div class="week-booking-bar ${b.status}${instrClass}" onclick="event.stopPropagation(); showDetail('${b.id}')" title="Belegt: ${timeLabel}">${timeLabel}</div>`;
       });
 
-      const pastCellClass = isPast && !adminLoggedIn ? ' past-day' : '';
+      const pastCellClass = isPast ? ' past-day' : '';
       html += `<div class="week-cell${isToday ? ' is-today' : ''}${pastCellClass}" onclick="goToDay('${dk}')">${cellContent}</div>`;
     });
   });
@@ -2804,11 +2431,9 @@ function renderWeekView() {
 
 function goToDay(dk) {
   const target = new Date(dk + 'T12:00:00');
-  if (!adminLoggedIn) {
-    const today = new Date();
-    today.setHours(0,0,0,0);
-    if (target < today) return;
-  }
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  if (target < today) return;
   currentDate = target;
   setViewMode('day');
 }
@@ -2820,8 +2445,6 @@ function renderDailyNotesBanner() {
   const dk = dateKey(currentDate);
   let el = document.getElementById('dailyNotesBanner');
   const txt = (dailyNotes[dk] && dailyNotes[dk].text) || '';
-  // Nur f&uuml;r Admins sichtbar
-  if (!adminLoggedIn) { if (el) el.style.display = 'none'; return; }
   if (!el) {
     el = document.createElement('div');
     el.id = 'dailyNotesBanner';
@@ -3344,19 +2967,17 @@ function openBooking(aircraft, slot, date, evt) {
     showDetail(existing.id);
     return;
   }
-  // Vergangene Zeitslots blockieren (für Nicht-Admins)
+  // Vergangene Zeitslots blockieren
   const slotStart = slot.split(' - ')[0];
-  if (!adminLoggedIn) {
-    const now = new Date();
-    const todayStr = dateKey(now);
-    if (date < todayStr) return;
-    if (date === todayStr) {
-      const slotH = parseInt(slotStart.split(':')[0]);
-      const slotM = parseInt(slotStart.split(':')[1]);
-      if (slotH * 60 + slotM < now.getHours() * 60 + now.getMinutes()) {
-        notify('Dieser Zeitslot liegt in der Vergangenheit.', 'info');
-        return;
-      }
+  const now = new Date();
+  const todayStr = dateKey(now);
+  if (date < todayStr) return;
+  if (date === todayStr) {
+    const slotH = parseInt(slotStart.split(':')[0]);
+    const slotM = parseInt(slotStart.split(':')[1]);
+    if (slotH * 60 + slotM < now.getHours() * 60 + now.getMinutes()) {
+      notify('Dieser Zeitslot liegt in der Vergangenheit.', 'info');
+      return;
     }
   }
   // Sonntag vor 09:00: nicht buchbar
@@ -3368,12 +2989,6 @@ function openBooking(aircraft, slot, date, evt) {
   // D-MYIH: Schleppbetrieb 10:00–13:30
   if (isTowingBlocked(aircraft, slotStart)) {
     notify('Die D-MYIH wird von 10:00–13:30 für den Schleppbetrieb benötigt. Anfragen für diesen Zeitraum bitte telefonisch: +49 8641 698787', 'info');
-    return;
-  }
-  // Admin: Schnellbuchung statt Formular
-  if (adminLoggedIn) {
-    if (evt) evt.stopPropagation(); // Prevent document click from immediately closing popup
-    openQuickBook(aircraft, slot, date, evt);
     return;
   }
   document.getElementById('bookingAircraft').value = aircraft;
@@ -3479,11 +3094,10 @@ function showBookingConfirmation() {
 }
 
 function submitBooking() {
-  // E-Mail-Verifizierung prüfen (nur für eingeloggte Kunden, nicht für Staff)
+  // E-Mail-Verifizierung prüfen (nur für eingeloggte Kunden)
   const currentUser = firebase.auth().currentUser;
   if (currentUser && !currentUser.emailVerified) {
-    // Prüfen ob es ein Staff-User ist (Staff überspringt die Prüfung)
-    if (customerProfile && !adminLoggedIn) {
+    if (customerProfile) {
       notify('Bitte bestätige zuerst deine E-Mail-Adresse. Prüfe deinen Posteingang.', 'error', 5000);
       return;
     }
@@ -3553,40 +3167,15 @@ function showDetail(id) {
 
   const timeDisplay = b.startTime ? `${b.startTime} – ${b.endTime}` : (b.slot || '—');
 
-  let html = '';
-  if (adminLoggedIn) {
-    html += `
-      <div class="booking-detail"><div class="label">Flugzeug</div><div class="value">${b.aircraft}</div></div>
-      <div class="booking-detail"><div class="label">Datum</div><div class="value">${b.date}</div></div>
-      <div class="booking-detail"><div class="label">Uhrzeit</div><div class="value">${timeDisplay}</div></div>
-      <div class="booking-detail"><div class="label">Name</div><div class="value">${b.name}</div></div>
-      <div class="booking-detail"><div class="label">E-Mail</div><div class="value">${b.email}</div></div>
-      <div class="booking-detail"><div class="label">Telefon</div><div class="value">${b.phone || '—'}</div></div>
-      <div class="booking-detail"><div class="label">Fluglehrer</div><div class="value">${b.instructor === 'ja' ? (b.instructorName ? b.instructorName : 'Ja, benötigt') : 'Nein'}</div></div>
-      <div class="booking-detail"><div class="label">Status</div><div class="value"><span class="status-badge ${b.status}">${statusLabels[b.status]}</span></div></div>
-      <div class="booking-detail"><div class="label">Erstellt am</div><div class="value">${isNaN(created.getTime()) ? '—' : created.toLocaleDateString('de-DE') + ' ' + created.toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'})}</div></div>
-    `;
-  } else {
-    html += `
-      <div class="booking-detail"><div class="label">Flugzeug</div><div class="value">${b.aircraft}</div></div>
-      <div class="booking-detail"><div class="label">Datum</div><div class="value">${b.date}</div></div>
-      <div class="booking-detail"><div class="label">Uhrzeit</div><div class="value">${timeDisplay}</div></div>
-      <div class="booking-detail"><div class="label">Status</div><div class="value"><span class="status-badge ${b.status}">${statusLabels[b.status]}</span></div></div>
-      <p style="font-size:12px; color:var(--gray-500); margin-top:8px;">Persönliche Daten sind nur für Mitarbeiter sichtbar.</p>
-    `;
-  }
+  let html = `
+    <div class="booking-detail"><div class="label">Flugzeug</div><div class="value">${b.aircraft}</div></div>
+    <div class="booking-detail"><div class="label">Datum</div><div class="value">${b.date}</div></div>
+    <div class="booking-detail"><div class="label">Uhrzeit</div><div class="value">${timeDisplay}</div></div>
+    <div class="booking-detail"><div class="label">Status</div><div class="value"><span class="status-badge ${b.status}">${statusLabels[b.status]}</span></div></div>
+    <p style="font-size:12px; color:var(--gray-500); margin-top:8px;">Persönliche Daten sind nur für Mitarbeiter sichtbar.</p>
+  `;
 
-  if (adminLoggedIn) {
-    html += `<div style="margin-top:16px; display:flex; gap:8px; flex-wrap:wrap;">`;
-    html += `<button class="btn btn-sm" style="background:var(--navy);color:white;" onclick="editBookingFromDetail('${b.id}')">Bearbeiten</button>`;
-    if (b.status !== 'approved') html += `<button class="btn btn-success btn-sm" onclick="updateStatus('${b.id}','approved')">Freischalten</button>`;
-    if (b.status !== 'rejected') html += `<button class="btn btn-danger btn-sm" onclick="updateStatus('${b.id}','rejected')">Ablehnen</button>`;
-    if (b.status !== 'pending') html += `<button class="btn btn-sm" onclick="updateStatus('${b.id}','pending')">Zurücksetzen</button>`;
-    html += `</div>`;
-    document.getElementById('detailDeleteBtn').style.display = 'inline-flex';
-  } else {
-    document.getElementById('detailDeleteBtn').style.display = 'none';
-  }
+  document.getElementById('detailDeleteBtn').style.display = 'none';
 
   document.getElementById('detailContent').innerHTML = html;
   document.getElementById('detailModal').classList.add('active');
@@ -3827,7 +3416,7 @@ function sendAdminNotification(booking) {
     </table>
 
     <div style="text-align: center; margin-top: 28px;">
-      <a href="${window.location.href.split('?')[0].split('#')[0]}#admin" style="display: inline-block; padding: 10px 28px; background: #3d9991; color: #fff; text-decoration: none; border-radius: 4px; font-family: Arial, sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 0.5px;">Im Admin-Bereich pr&uuml;fen</a>
+      <a href="staff.html" style="display: inline-block; padding: 10px 28px; background: #3d9991; color: #fff; text-decoration: none; border-radius: 4px; font-family: Arial, sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 0.5px;">Im Staff-Bereich pr&uuml;fen</a>
     </div>
   </div>
 
@@ -4334,104 +3923,19 @@ function myBookingShowInCalendar(dateStr) {
   showView('calendar');
 }
 
-// ============================================================
-// ADMIN
-// ============================================================
-function adminLogin() {
-  const pw = document.getElementById('adminPassword').value;
-  if (pw === settings.password) {
-    adminLoggedIn = true;
-    document.getElementById('adminLogin').style.display = 'none';
-    document.getElementById('adminDashboard').style.display = 'block';
-    renderAdminTable();
-    notify('Erfolgreich angemeldet.', 'success');
-  } else {
-    notify('Falsches Passwort.', 'error');
-  }
-}
+// Admin-Funktionen entfernt – Staff-User werden zu staff.html weitergeleitet
+function adminLogin() { window.location.href = 'staff.html'; }
+function adminLogout() {}
+function renderAdminTable() {}
+function filterBookings() {}
 
-async function adminLogout() {
-  adminLoggedIn = false;
-  document.getElementById('adminLogin').style.display = 'block';
-  document.getElementById('adminDashboard').style.display = 'none';
-  document.getElementById('adminPassword').value = '';
-  // Komplett ausloggen (Firebase Auth + UI zurücksetzen)
-  await firebase.auth().signOut();
-  showView('calendar');
-}
+// Admin/Staff-Funktionen entfernt – Staff-User werden zu staff.html weitergeleitet
+// Stub-Funktionen nur zur Vermeidung von ReferenceErrors
+function showStaffMgmt() {}
+function closeStaffMgmt() {}
+function toggleSmInvite() {}
 
-function filterBookings(filter, el) {
-  currentFilter = filter;
-  document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
-  if (el) el.classList.add('active');
-  renderAdminTable();
-}
-
-function renderAdminTable() {
-  const tbody = document.getElementById('adminTableBody');
-  let filtered = [...bookings].sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
-  if (currentFilter !== 'all') filtered = filtered.filter(b => b.status === currentFilter);
-
-  if (filtered.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:24px; color:var(--gray-400);">Keine Buchungen vorhanden.</td></tr>';
-    return;
-  }
-
-  tbody.innerHTML = filtered.map(b => {
-    const statusLabels = { pending: 'Ausstehend', approved: 'Bestätigt', rejected: 'Abgelehnt' };
-    const timeDisplay = b.startTime ? `${b.startTime} – ${b.endTime}` : (b.slot || '—');
-    return `<tr>
-      <td>${b.date}</td>
-      <td>${timeDisplay}</td>
-      <td>${b.aircraft}</td>
-      <td>${b.name}</td>
-      <td>${b.email}${b.phone ? '<br>' + b.phone : ''}</td>
-      <td>${b.instructor === 'ja' ? '<strong style="color:var(--warning);">' + (b.instructorName || 'Ja') + '</strong>' : 'Nein'}</td>
-      <td><span class="status-badge ${b.status}">${statusLabels[b.status]}</span></td>
-      <td>
-        ${b.status !== 'approved' ? `<button class="btn btn-success btn-sm" onclick="updateStatus('${b.id}','approved')">&#10003;</button>` : ''}
-        ${b.status !== 'rejected' ? `<button class="btn btn-danger btn-sm" onclick="updateStatus('${b.id}','rejected')">&#10007;</button>` : ''}
-        <button class="btn btn-sm" onclick="showDetail('${b.id}')">&#128065;</button>
-        <button class="btn btn-sm" onclick="deleteBooking('${b.id}')">&#128465;</button>
-      </td>
-    </tr>`;
-  }).join('');
-}
-
-function deleteBooking(id) {
-  if (!confirm('Buchung wirklich löschen?')) return;
-  bookings = bookings.filter(b => b.id !== id);
-  saveData();
-  renderCalendar();
-  renderAdminTable();
-  notify('Buchung gelöscht.', 'info');
-}
-
-// ============================================================
-// SETTINGS
-// ============================================================
-// ============================================================
-// STAFF-MITARBEITER-VERWALTUNG (Compact Team View)
-// ============================================================
-let smRoleFilter = 'all';
-
-function showStaffMgmt() {
-  renderStaffMgmt();
-  renderInvitations();
-  populateInvRoleOptions();
-  document.getElementById('staffMgmtOverlay').classList.add('active');
-}
-function closeStaffMgmt() {
-  document.getElementById('staffMgmtOverlay').classList.remove('active');
-}
-function toggleSmInvite() {
-  const panel = document.getElementById('smInvitePanel');
-  if (panel) panel.style.display = panel.style.display === 'none' ? '' : 'none';
-}
-
-function renderStaffMgmt() {
-  const el = document.getElementById('staffMgmtList');
-  if (!el) return;
+function renderStaffMgmt() {}
   const query = (document.getElementById('smSearchInput')?.value || '').toLowerCase().trim();
   let filtered = staffUsers.slice();
   if (query) {
@@ -4764,313 +4268,15 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ============================================================
-// THEORIE-MODUL (ADMIN-ANSICHT)
-// ============================================================
-let theoryLessons = [];
-
-db.ref('theoryLessons').on('value', snap => {
-  const data = snap.val();
-  theoryLessons = data ? Object.values(data) : [];
-  if (document.getElementById('theoryAdminModal').classList.contains('active')) {
-    renderTheoryAdmin();
-  }
-});
-
-function showTheoryAdmin() {
-  // Lehrer-Filter mit verfügbaren Lehrern füllen
-  const teachers = [...new Set(theoryLessons.map(t => t.teacherName).filter(Boolean))].sort();
-  const sel = document.getElementById('theoryFilterTeacher');
-  const current = sel.value;
-  sel.innerHTML = '<option value="">Alle</option>' + teachers.map(t => `<option value="${t}" ${current === t ? 'selected' : ''}>${t}</option>`).join('');
-  renderTheoryAdmin();
-  document.getElementById('theoryAdminModal').classList.add('active');
-}
-
-function theoryEscapeHtml(s) {
-  return (s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-}
-
-function theoryFormatDuration(minutes) {
-  if (!minutes || minutes <= 0) return '0 min';
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  if (h && m) return `${h}h ${m}m`;
-  if (h) return `${h}h`;
-  return `${m} min`;
-}
-
-function getFilteredTheory() {
-  const from = document.getElementById('theoryFilterFrom').value;
-  const to = document.getElementById('theoryFilterTo').value;
-  const teacher = document.getElementById('theoryFilterTeacher').value;
-  const student = (document.getElementById('theoryFilterStudent').value || '').trim().toLowerCase();
-  return theoryLessons.filter(t => {
-    if (from && t.date < from) return false;
-    if (to && t.date > to) return false;
-    if (teacher && t.teacherName !== teacher) return false;
-    if (student && !(t.studentName || '').toLowerCase().includes(student)) return false;
-    return true;
-  }).sort((a, b) => (b.date + (b.startTime || '')).localeCompare(a.date + (a.startTime || '')));
-}
-
-function renderTheoryAdmin() {
-  const rows = getFilteredTheory();
-  const body = document.getElementById('theoryAdminBody');
-  const summary = document.getElementById('theoryAdminSummary');
-
-  if (!rows.length) {
-    body.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:24px; color:var(--gray-500); font-style:italic;">Keine Einträge im gewählten Zeitraum.</td></tr>';
-  } else {
-    body.innerHTML = rows.map(t => {
-      const dateFmt = t.date ? new Date(t.date + 'T12:00:00').toLocaleDateString('de-DE') : '';
-      const time = t.startTime && t.endTime ? `${t.startTime}–${t.endTime}` : '';
-      return `<tr style="cursor:pointer;" onclick="theoryAdminOpenForm('${t.id}')" title="Zum Bearbeiten klicken">
-        <td style="white-space:nowrap;">${theoryEscapeHtml(dateFmt)}</td>
-        <td style="white-space:nowrap; font-variant-numeric: tabular-nums;">${time}</td>
-        <td style="white-space:nowrap; font-weight:600; color:var(--primary);">${theoryFormatDuration(t.duration || 0)}</td>
-        <td>${theoryEscapeHtml(t.teacherName || '—')}</td>
-        <td>${theoryEscapeHtml(t.studentName || '—')}</td>
-        <td>${theoryEscapeHtml(t.topic || '—')}</td>
-        <td style="color:var(--gray-600); font-size:12px;">${theoryEscapeHtml(t.notes || '')}</td>
-      </tr>`;
-    }).join('');
-  }
-
-  const totalMin = rows.reduce((sum, t) => sum + (t.duration || 0), 0);
-  const uniqStudents = new Set(rows.map(t => t.studentName).filter(Boolean)).size;
-  const uniqTeachers = new Set(rows.map(t => t.teacherName).filter(Boolean)).size;
-  summary.innerHTML = `
-    <div><strong>${rows.length}</strong> Eintr${rows.length === 1 ? 'ag' : 'äge'}</div>
-    <div><strong>${theoryFormatDuration(totalMin)}</strong> gesamt</div>
-    <div><strong>${uniqStudents}</strong> Schüler</div>
-    <div><strong>${uniqTeachers}</strong> Lehrer</div>
-  `;
-}
-
-function exportTheoryCsv() {
-  const rows = getFilteredTheory();
-  if (!rows.length) { notify('Keine Einträge zum Exportieren.', 'error'); return; }
-
-  // BOM für Excel-kompatibles UTF-8
-  const BOM = '\uFEFF';
-  const header = ['Datum', 'Von', 'Bis', 'Dauer (min)', 'Dauer (h)', 'Lehrer', 'Schüler', 'Thema', 'Notiz'];
-  const esc = v => {
-    const s = (v == null ? '' : String(v));
-    if (/[;"\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
-    return s;
-  };
-  const body = rows.map(t => {
-    const h = ((t.duration || 0) / 60).toFixed(2).replace('.', ',');
-    return [t.date || '', t.startTime || '', t.endTime || '', t.duration || 0, h, t.teacherName || '', t.studentName || '', t.topic || '', t.notes || ''].map(esc).join(';');
-  });
-  const csv = BOM + header.join(';') + '\r\n' + body.join('\r\n');
-
-  const from = document.getElementById('theoryFilterFrom').value;
-  const to = document.getElementById('theoryFilterTo').value;
-  let fname = 'Theoriestunden';
-  if (from || to) fname += `_${from || 'anfang'}_bis_${to || 'heute'}`;
-  fname += '.csv';
-
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = fname;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  notify(`${rows.length} Einträge exportiert.`, 'success');
-}
-
-// --- Admin: Theoriestunden erstellen / bearbeiten / löschen ---
-
-function theoryMinutesBetween(start, end) {
-  if (!start || !end) return 0;
-  const [sh, sm] = start.split(':').map(Number);
-  const [eh, em] = end.split(':').map(Number);
-  return Math.max(0, (eh * 60 + em) - (sh * 60 + sm));
-}
-
-function theoryAdminOpenForm(id) {
-  const modal = document.getElementById('theoryFormModal');
-  const title = document.getElementById('theoryFormTitleAdmin');
-  const err = document.getElementById('theoryFormErrorAdmin');
-  const delBtn = document.getElementById('theoryFormDeleteBtnAdmin');
-  const teacherSel = document.getElementById('theoryFormTeacher');
-
-  err.style.display = 'none';
-
-  // Lehrer-Dropdown mit allen aktiven Usern füllen
-  const teachers = (typeof staffUsers !== 'undefined' ? staffUsers : []).slice()
-    .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  teacherSel.innerHTML = '<option value="">— bitte wählen —</option>' +
-    teachers.map(u => `<option value="${u.id}" data-name="${theoryEscapeHtml(u.name)}">${theoryEscapeHtml(u.name)}</option>`).join('');
-
-  // Vorschlagslisten
-  const uniqStudents = [...new Set(theoryLessons.map(t => t.studentName).filter(Boolean))].sort();
-  const uniqTopics = [...new Set(theoryLessons.map(t => t.topic).filter(Boolean))].sort();
-  document.getElementById('theoryFormStudentSugg').innerHTML = uniqStudents.map(s => `<option value="${theoryEscapeHtml(s)}">`).join('');
-  document.getElementById('theoryFormTopicSugg').innerHTML = uniqTopics.map(s => `<option value="${theoryEscapeHtml(s)}">`).join('');
-
-  if (id) {
-    const t = theoryLessons.find(x => x.id === id);
-    if (!t) { notify('Eintrag nicht gefunden.', 'error'); return; }
-    title.textContent = 'Theoriestunde bearbeiten';
-    document.getElementById('theoryFormEditIdAdmin').value = id;
-    teacherSel.value = t.teacherId || '';
-    // Falls der Lehrer nicht mehr in staffUsers ist, als Option hinzufügen
-    if (t.teacherId && !teachers.find(u => u.id === t.teacherId)) {
-      const opt = document.createElement('option');
-      opt.value = t.teacherId;
-      opt.textContent = (t.teacherName || '(gelöschter Nutzer)') + ' *';
-      opt.setAttribute('data-name', t.teacherName || '');
-      opt.selected = true;
-      teacherSel.appendChild(opt);
-    }
-    document.getElementById('theoryFormStudent').value = t.studentName || '';
-    document.getElementById('theoryFormTopic').value = t.topic || '';
-    document.getElementById('theoryFormDate').value = t.date || '';
-    document.getElementById('theoryFormStart').value = t.startTime || '';
-    document.getElementById('theoryFormEnd').value = t.endTime || '';
-    document.getElementById('theoryFormNotes').value = t.notes || '';
-    delBtn.style.display = '';
-  } else {
-    title.textContent = 'Neue Theoriestunde';
-    document.getElementById('theoryFormEditIdAdmin').value = '';
-    teacherSel.value = '';
-    document.getElementById('theoryFormStudent').value = '';
-    document.getElementById('theoryFormTopic').value = '';
-    // Datum: heute
-    const now = new Date();
-    const iso = now.toISOString().split('T')[0];
-    document.getElementById('theoryFormDate').value = iso;
-    document.getElementById('theoryFormStart').value = '';
-    document.getElementById('theoryFormEnd').value = '';
-    document.getElementById('theoryFormNotes').value = '';
-    delBtn.style.display = 'none';
-  }
-  modal.classList.add('active');
-}
-
-function theoryAdminSave() {
-  const err = document.getElementById('theoryFormErrorAdmin');
-  const id = document.getElementById('theoryFormEditIdAdmin').value;
-  const teacherSel = document.getElementById('theoryFormTeacher');
-  const teacherId = teacherSel.value;
-  const teacherOpt = teacherSel.options[teacherSel.selectedIndex];
-  const teacherName = teacherOpt ? (teacherOpt.getAttribute('data-name') || teacherOpt.textContent) : '';
-  const student = document.getElementById('theoryFormStudent').value.trim();
-  const topic = document.getElementById('theoryFormTopic').value.trim();
-  const date = document.getElementById('theoryFormDate').value;
-  const startTime = document.getElementById('theoryFormStart').value;
-  const endTime = document.getElementById('theoryFormEnd').value;
-  const notes = document.getElementById('theoryFormNotes').value.trim();
-
-  const show = msg => { err.textContent = msg; err.style.display = ''; };
-  err.style.display = 'none';
-  if (!teacherId) return show('Bitte Lehrer wählen.');
-  if (!student) return show('Bitte Schüler angeben.');
-  if (!date) return show('Bitte Datum angeben.');
-  if (!startTime || !endTime) return show('Bitte Von- und Bis-Zeit angeben.');
-  const duration = theoryMinutesBetween(startTime, endTime);
-  if (duration <= 0) return show('Bis-Zeit muss nach Von-Zeit liegen.');
-
-  const now = Date.now();
-  const payload = {
-    teacherId: teacherId,
-    teacherName: teacherName,
-    studentName: student,
-    topic: topic,
-    date: date,
-    startTime: startTime,
-    endTime: endTime,
-    duration: duration,
-    notes: notes,
-    updatedAt: now,
-  };
-
-  if (id) {
-    db.ref('theoryLessons/' + id).update(payload);
-    notify('Theoriestunde aktualisiert.', 'success');
-  } else {
-    const newId = 't' + now.toString(36) + Math.random().toString(36).slice(2, 6);
-    payload.id = newId;
-    payload.createdAt = now;
-    db.ref('theoryLessons/' + newId).set(payload);
-    notify('Theoriestunde gespeichert.', 'success');
-  }
-  closeModal('theoryFormModal');
-}
-
-function theoryAdminDelete() {
-  const id = document.getElementById('theoryFormEditIdAdmin').value;
-  if (!id) return;
-  const t = theoryLessons.find(x => x.id === id);
-  if (!t) return;
-  if (!confirm(`Theoriestunde "${t.studentName} – ${t.topic || ''}" wirklich löschen?`)) return;
-  db.ref('theoryLessons/' + id).remove();
-  notify('Eintrag gelöscht.', 'info');
-  closeModal('theoryFormModal');
-}
-
-function showSettings() {
-  document.getElementById('newPassword').value = '';
-  document.getElementById('aircraftNames').value = settings.aircraft.join('\n');
-  document.getElementById('emailServiceId').value = settings.emailServiceId || '';
-  document.getElementById('emailTemplateId').value = settings.emailTemplateId || '';
-  document.getElementById('emailInviteTemplateId').value = settings.emailInviteTemplateId || '';
-  document.getElementById('emailPublicKey').value = settings.emailPublicKey || '';
-  document.getElementById('senderName').value = settings.senderName || '';
-  document.getElementById('settingsModal').classList.add('active');
-}
-
-function saveSettings() {
-  const pw = document.getElementById('newPassword').value.trim();
-  if (pw) settings.password = pw;
-
-  const names = document.getElementById('aircraftNames').value.trim().split('\n').map(n => n.trim()).filter(n => n);
-  if (names.length > 0 && names.length <= 10) {
-    settings.aircraft = names;
-  } else if (names.length > 10) {
-    notify('Maximal 10 Flugzeuge möglich.', 'error');
-    return;
-  }
-
-  settings.emailServiceId = document.getElementById('emailServiceId').value.trim();
-  settings.emailTemplateId = document.getElementById('emailTemplateId').value.trim();
-  settings.emailInviteTemplateId = document.getElementById('emailInviteTemplateId').value.trim();
-  settings.emailPublicKey = document.getElementById('emailPublicKey').value.trim();
-  settings.senderName = document.getElementById('senderName').value.trim();
-
-  // Initialize EmailJS if credentials are set
-  if (settings.emailPublicKey) {
-    try { emailjs.init(settings.emailPublicKey); } catch(e) {}
-  }
-
-  saveData();
-  closeModal('settingsModal');
-  renderCalendar();
-  notify('Einstellungen gespeichert.', 'success');
-}
-
-// ============================================================
-// EXPORT
-// ============================================================
-function exportData() {
-  let csv = 'Datum,Von,Bis,Flugzeug,Name,Email,Telefon,Fluglehrer,Status,Erstellt\n';
-  bookings.forEach(b => {
-    const von = b.startTime || (b.slot ? b.slot.split(' - ')[0] : '');
-    const bis = b.endTime || (b.slot ? b.slot.split(' - ')[1] : '');
-    const instrCsv = b.instructor === 'ja' ? (b.instructorName || 'Ja') : 'Nein';
-    csv += `${b.date},${von},${bis},"${b.name}",${b.email},${b.phone || ''},${instrCsv},${b.status},${b.createdAt}\n`;
-  });
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `buchungen_export_${dateKey(new Date())}.csv`;
-  a.click();
-}
+// Admin-Stubs (Funktionen sind jetzt in staff.html)
+function showTheoryAdmin() {}
+function showSettings() {}
+function saveSettings() {}
+function exportData() {}
+function renderTheoryAdmin() {}
+function theoryAdminOpenForm() {}
+function theoryAdminSave() {}
+function theoryAdminDelete() {}
 
 // ============================================================
 // HELPERS
@@ -5437,7 +4643,6 @@ function autofillBookingForm() {
 
 // Firebase Auth: Rolle erkennen, Tabs + Admin-Status setzen
 firebase.auth().onAuthStateChanged(async (user) => {
-  const btnStaff = document.getElementById('btnStaff');
   const btnStornieren = document.getElementById('btnStornieren');
   const customerAuthBtn = document.getElementById('customerAuthBtn');
   if (user) {
@@ -5446,34 +4651,8 @@ firebase.auth().onAuthStateChanged(async (user) => {
       const snap = await db.ref('staffUsers/' + user.uid).once('value');
       const staffProfile = snap.val();
       if (staffProfile) {
-        // Staff/Admin eingeloggt → Staff-Button zeigen, Kunden-Buttons ausblenden
-        if (btnStaff) btnStaff.classList.add('auth-revealed');
-        document.getElementById('mainViewTabs')?.classList.add('has-staff-tabs');
-        if (btnStornieren) btnStornieren.style.display = 'none';
-        if (customerAuthBtn) customerAuthBtn.style.display = 'none';
-        const role = staffProfile.role || 'team';
-        // Admin: alles sichtbar
-        if (role === 'admin') {
-          adminLoggedIn = true;
-          if (document.getElementById('tabAdmin')) document.getElementById('tabAdmin').classList.add('auth-revealed');
-          document.getElementById('mobileTabAdmin')?.classList.add('auth-revealed');
-          document.getElementById('mobileStaffLink')?.classList.add('auth-revealed');
-          if (document.getElementById('adminDashboard')) {
-            document.getElementById('adminLogin').style.display = 'none';
-            document.getElementById('adminDashboard').style.display = 'block';
-            renderAdminTable();
-          }
-        }
-        // Team/Fluglehrer: Staff-Link im Mobile-Menü
-        else if (role === 'team' || role === 'staff' || role === 'guestGlider' || role === 'guestMotor') {
-          document.getElementById('mobileStaffLink')?.classList.add('auth-revealed');
-        }
-        // Staff ist auch Kunde: Autofill mit Staff-Daten + Meine Buchungen Tab
-        customerProfile = { name: staffProfile.name, email: staffProfile.email, phone: staffProfile.phone || '', birthdate: '', photoURL: staffProfile.photoURL || '' };
-        document.getElementById('tabMyBookings')?.classList.add('auth-revealed');
-        document.getElementById('mobileTabMyBookings')?.classList.add('auth-revealed');
-        document.getElementById('mainViewTabs')?.classList.add('has-customer-tabs');
-        renderView();
+        // Staff/Admin → direkt zu staff.html weiterleiten
+        window.location.href = 'staff.html';
         return;
       }
       // 2. Kunden-Check → E-Mail muss verifiziert sein
@@ -5482,7 +4661,6 @@ firebase.auth().onAuthStateChanged(async (user) => {
         await firebase.auth().signOut();
         return; // onAuthStateChanged wird erneut mit user=null getriggert
       }
-      if (btnStaff) btnStaff.classList.remove('auth-revealed');
       document.getElementById('mainViewTabs')?.classList.remove('has-staff-tabs');
       if (btnStornieren) btnStornieren.style.display = '';
       if (customerAuthBtn) customerAuthBtn.style.display = '';
@@ -5502,32 +4680,20 @@ firebase.auth().onAuthStateChanged(async (user) => {
     renderView();
   } else {
     // Nicht eingeloggt: Stornieren + Login zeigen, Staff/Tabs ausblenden
-    adminLoggedIn = false;
     customerProfile = null;
     vfConnected = null;
     updateCustomerButton();
     // Staff- und Kunden-Elemente verstecken (auth-revealed entfernen)
-    document.querySelectorAll('.staff-only').forEach(el => el.classList.remove('auth-revealed'));
     document.querySelectorAll('.customer-only').forEach(el => el.classList.remove('auth-revealed'));
     document.getElementById('mainViewTabs')?.classList.remove('has-staff-tabs');
     document.getElementById('mainViewTabs')?.classList.remove('has-customer-tabs');
     if (btnStornieren) btnStornieren.style.display = '';
     if (customerAuthBtn) customerAuthBtn.style.display = '';
-    // Admin-Dashboard zurücksetzen
-    const adminLogin = document.getElementById('adminLogin');
-    const adminDashboard = document.getElementById('adminDashboard');
-    if (adminLogin) adminLogin.style.display = 'block';
-    if (adminDashboard) adminDashboard.style.display = 'none';
     // Immer zurück zum Kalender nach Logout
     showView('calendar');
     renderView();
   }
 });
-
-// Open admin view if #admin hash is in URL
-if (window.location.hash === '#admin') {
-  showView('admin');
-}
 
 // Hide loading screen
 // Datenschutz-Banner
