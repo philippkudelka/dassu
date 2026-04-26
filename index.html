@@ -3935,7 +3935,9 @@ function showStaffMgmt() {}
 function closeStaffMgmt() {}
 function toggleSmInvite() {}
 
-function renderStaffMgmt() {}
+function renderStaffMgmt() {
+  const el = document.getElementById('smListBody');
+  if (!el) return;
   const query = (document.getElementById('smSearchInput')?.value || '').toLowerCase().trim();
   let filtered = staffUsers.slice();
   if (query) {
