@@ -1575,6 +1575,8 @@
     <div class="view-tabs" id="mainViewTabs">
       <button class="view-tab active" onclick="showView('calendar')">Kalender</button>
       <button class="view-tab customer-only" id="tabMyBookings" onclick="showView('myBookings')">Meine Buchungen</button>
+      <button class="view-tab fluglehrer-only" id="tabStudentBookings" onclick="showView('studentBookings')" style="display:none;">Schüler-Buchungen</button>
+      <button class="view-tab fluglehrer-only" id="tabTheory" onclick="showView('theory')" style="display:none;">Theorie</button>
     </div>
     <!-- Burger Menu (Mobile only) -->
     <button class="burger-btn" id="burgerBtn" onclick="toggleMobileMenu()">
@@ -1585,6 +1587,8 @@
   <div class="mobile-menu" id="mobileMenu">
     <button class="mobile-menu-item" onclick="showView('calendar'); closeMobileMenu();">Kalender</button>
     <button class="mobile-menu-item customer-only" id="mobileTabMyBookings" onclick="showView('myBookings'); closeMobileMenu();">Meine Buchungen</button>
+    <button class="mobile-menu-item fluglehrer-only" id="mobileTabStudentBookings" onclick="showView('studentBookings'); closeMobileMenu();" style="display:none;">Schüler-Buchungen</button>
+    <button class="mobile-menu-item fluglehrer-only" id="mobileTabTheory" onclick="showView('theory'); closeMobileMenu();" style="display:none;">Theorie</button>
     <hr class="mobile-menu-divider">
     <button class="mobile-menu-item" onclick="openCustomerAuth(); closeMobileMenu();"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> <span id="mobileAuthLabel">Login</span></button>
     <button class="mobile-menu-item" onclick="document.getElementById('cancelInputModal').classList.add('active'); closeMobileMenu();">Stornieren</button>
@@ -1759,7 +1763,76 @@
   </div>
 </div>
 
+<!-- Schüler-Buchungen View (Fluglehrer) -->
+<div id="studentBookingsView" style="display:none;">
+  <div class="my-bookings-panel">
+    <h2>Schüler-Buchungen</h2>
+    <p class="mb-subtitle">Buchungen deiner zugewiesenen Flugschüler</p>
+    <div class="mb-filter-tabs" id="sbFilterTabs">
+      <button class="mb-filter-tab active" onclick="filterStudentBookings('all', this)">Alle</button>
+      <button class="mb-filter-tab" onclick="filterStudentBookings('today', this)">Heute</button>
+      <button class="mb-filter-tab" onclick="filterStudentBookings('upcoming', this)">Anstehend</button>
+      <button class="mb-filter-tab" onclick="filterStudentBookings('past', this)">Vergangen</button>
+    </div>
+    <div id="sbList"><p style="color:var(--c-muted); padding:24px 0;">Noch keine Schüler-Buchungen vorhanden.</p></div>
+  </div>
+</div>
 
+<!-- Theorie View (Fluglehrer) -->
+<div id="theoryView" style="display:none;">
+  <div class="my-bookings-panel">
+    <h2>Theorieunterricht</h2>
+    <p class="mb-subtitle">Deine erfassten Theoriestunden</p>
+    <div style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;">
+      <button class="btn btn-sm" onclick="openTheoryForm()" style="background:var(--navy); color:white; border-color:var(--navy); font-size:12px;">+ Neue Stunde erfassen</button>
+    </div>
+    <div class="mb-filter-tabs" id="thFilterTabs">
+      <button class="mb-filter-tab active" onclick="filterTheoryLessons('all', this)">Alle</button>
+      <button class="mb-filter-tab" onclick="filterTheoryLessons('thisMonth', this)">Dieser Monat</button>
+      <button class="mb-filter-tab" onclick="filterTheoryLessons('lastMonth', this)">Letzter Monat</button>
+    </div>
+    <div id="thList"><p style="color:var(--c-muted); padding:24px 0;">Noch keine Theoriestunden erfasst.</p></div>
+  </div>
+</div>
+
+<!-- Theorie-Erfassungs-Modal (Fluglehrer) -->
+<div class="modal-overlay" id="theoryFormModal">
+  <div class="modal" style="max-width:480px;">
+    <h3>Theoriestunde erfassen</h3>
+    <div style="display:grid; gap:12px; margin-top:12px;">
+      <div>
+        <label style="font-size:12px; font-weight:600; color:var(--c-muted); text-transform:uppercase; letter-spacing:0.04em;">Datum</label>
+        <input type="date" id="thFormDate" class="form-input" style="width:100%;">
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+        <div>
+          <label style="font-size:12px; font-weight:600; color:var(--c-muted); text-transform:uppercase; letter-spacing:0.04em;">Von</label>
+          <input type="time" id="thFormStart" class="form-input" style="width:100%;">
+        </div>
+        <div>
+          <label style="font-size:12px; font-weight:600; color:var(--c-muted); text-transform:uppercase; letter-spacing:0.04em;">Bis</label>
+          <input type="time" id="thFormEnd" class="form-input" style="width:100%;">
+        </div>
+      </div>
+      <div>
+        <label style="font-size:12px; font-weight:600; color:var(--c-muted); text-transform:uppercase; letter-spacing:0.04em;">Schüler</label>
+        <input type="text" id="thFormStudent" class="form-input" placeholder="Name des Schülers" style="width:100%;">
+      </div>
+      <div>
+        <label style="font-size:12px; font-weight:600; color:var(--c-muted); text-transform:uppercase; letter-spacing:0.04em;">Thema</label>
+        <input type="text" id="thFormTopic" class="form-input" placeholder="z.B. Navigation, Meteorologie..." style="width:100%;">
+      </div>
+      <div>
+        <label style="font-size:12px; font-weight:600; color:var(--c-muted); text-transform:uppercase; letter-spacing:0.04em;">Notizen (optional)</label>
+        <textarea id="thFormNotes" class="form-input" rows="2" placeholder="Anmerkungen..." style="width:100%; resize:vertical;"></textarea>
+      </div>
+    </div>
+    <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:16px;">
+      <button class="btn btn-sm" onclick="closeTheoryForm()" style="font-size:12px;">Abbrechen</button>
+      <button class="btn btn-sm" onclick="saveTheoryLesson()" style="background:var(--navy); color:white; border-color:var(--navy); font-size:12px;">Speichern</button>
+    </div>
+  </div>
+</div>
 
 <!-- Booking Modal -->
 <!-- Kunden-Auth Modal -->
@@ -2203,6 +2276,7 @@ function loadData() {
   db.ref('bookings').on('value', (snapshot) => {
     const data = snapshot.val();
     bookings = data ? Object.values(data) : [];
+    window._allBookings = data || {};
     firebaseReady = true;
     renderView();
   }, (error) => {
@@ -2372,11 +2446,17 @@ function toggleMobileWeather() {
 function showView(view) {
   document.getElementById('calendarView').style.display = view === 'calendar' ? 'block' : 'none';
   document.getElementById('myBookingsView').style.display = view === 'myBookings' ? 'block' : 'none';
+  document.getElementById('studentBookingsView').style.display = view === 'studentBookings' ? 'block' : 'none';
+  document.getElementById('theoryView').style.display = view === 'theory' ? 'block' : 'none';
   // Tab-Buttons aktiv markieren
   document.querySelectorAll('#mainViewTabs > .view-tab').forEach(t => t.classList.remove('active'));
   if (view === 'calendar') document.querySelector('#mainViewTabs > .view-tab:first-child')?.classList.add('active');
   else if (view === 'myBookings') document.getElementById('tabMyBookings')?.classList.add('active');
+  else if (view === 'studentBookings') document.getElementById('tabStudentBookings')?.classList.add('active');
+  else if (view === 'theory') document.getElementById('tabTheory')?.classList.add('active');
   if (view === 'myBookings') renderMyBookings();
+  if (view === 'studentBookings') renderStudentBookings();
+  if (view === 'theory') renderTheoryLessons();
 }
 
 // ============================================================
@@ -4379,6 +4459,185 @@ function renderTheoryAdmin() {}
 function theoryAdminOpenForm() {}
 function theoryAdminSave() {}
 function theoryAdminDelete() {}
+
+// ============================================================
+// FLUGLEHRER: Schüler-Buchungen
+// ============================================================
+let studentBookingsFilter = 'all';
+
+function filterStudentBookings(filter, btn) {
+  studentBookingsFilter = filter;
+  if (btn) {
+    document.querySelectorAll('#sbFilterTabs .mb-filter-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+  }
+  renderStudentBookings();
+}
+
+function renderStudentBookings() {
+  const list = document.getElementById('sbList');
+  if (!list) return;
+  // Alle Buchungen holen, die einen Fluglehrer-Bezug haben
+  const uid = firebase.auth().currentUser?.uid;
+  if (!uid) { list.innerHTML = '<p style="color:var(--c-muted); padding:24px 0;">Bitte einloggen.</p>'; return; }
+
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0];
+  const allBookings = Object.values(window._allBookings || {}).filter(b => {
+    // Buchungen, bei denen der aktuelle User als Fluglehrer zugewiesen ist
+    return b.instructorId === uid || b.instructor === (devStaffProfile?.name || '');
+  });
+
+  let filtered = allBookings;
+  if (studentBookingsFilter === 'today') {
+    filtered = allBookings.filter(b => b.date === todayStr);
+  } else if (studentBookingsFilter === 'upcoming') {
+    filtered = allBookings.filter(b => b.date >= todayStr);
+  } else if (studentBookingsFilter === 'past') {
+    filtered = allBookings.filter(b => b.date < todayStr);
+  }
+
+  filtered.sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.startTime || '').localeCompare(a.startTime || ''));
+
+  if (filtered.length === 0) {
+    list.innerHTML = '<p style="color:var(--c-muted); padding:24px 0;">Keine Schüler-Buchungen ' +
+      (studentBookingsFilter === 'all' ? 'vorhanden' : 'in diesem Zeitraum') + '.</p>';
+    return;
+  }
+
+  list.innerHTML = filtered.map(b => {
+    const dateStr = b.date ? new Date(b.date + 'T00:00').toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
+    const time = (b.startTime || '?') + ' – ' + (b.endTime || '?');
+    const status = b.status === 'approved' ? '<span style="color:#2e7d32;">Bestätigt</span>' :
+                   b.status === 'pending' ? '<span style="color:#e6a100;">Angefragt</span>' :
+                   '<span style="color:var(--c-muted);">' + (b.status || '') + '</span>';
+    return '<div style="padding:12px 0; border-bottom:1px solid #eee;">' +
+      '<div style="display:flex; justify-content:space-between; align-items:center;">' +
+      '<div><strong>' + (b.customerName || b.name || 'Unbekannt') + '</strong>' +
+      '<span style="color:var(--c-muted); margin-left:8px; font-size:13px;">' + (b.aircraft || '') + '</span></div>' +
+      '<div>' + status + '</div></div>' +
+      '<div style="font-size:13px; color:var(--c-muted); margin-top:2px;">' + dateStr + ' · ' + time + '</div>' +
+      '</div>';
+  }).join('');
+}
+
+// ============================================================
+// FLUGLEHRER: Theoriestunden
+// ============================================================
+let theoryFilter = 'all';
+let theoryLessonsData = {};
+
+function filterTheoryLessons(filter, btn) {
+  theoryFilter = filter;
+  if (btn) {
+    document.querySelectorAll('#thFilterTabs .mb-filter-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+  }
+  renderTheoryLessons();
+}
+
+function renderTheoryLessons() {
+  const list = document.getElementById('thList');
+  if (!list) return;
+  const uid = firebase.auth().currentUser?.uid;
+  if (!uid) { list.innerHTML = '<p style="color:var(--c-muted); padding:24px 0;">Bitte einloggen.</p>'; return; }
+
+  const now = new Date();
+  const thisMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+  const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const lastMonth = lastMonthDate.getFullYear() + '-' + String(lastMonthDate.getMonth() + 1).padStart(2, '0');
+
+  let entries = Object.entries(theoryLessonsData).map(([id, d]) => ({ id, ...d }));
+  // Nur eigene Einträge
+  entries = entries.filter(e => e.teacherId === uid);
+
+  if (theoryFilter === 'thisMonth') {
+    entries = entries.filter(e => (e.date || '').startsWith(thisMonth));
+  } else if (theoryFilter === 'lastMonth') {
+    entries = entries.filter(e => (e.date || '').startsWith(lastMonth));
+  }
+
+  entries.sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.startTime || '').localeCompare(a.startTime || ''));
+
+  if (entries.length === 0) {
+    list.innerHTML = '<p style="color:var(--c-muted); padding:24px 0;">Keine Theoriestunden ' +
+      (theoryFilter === 'all' ? 'erfasst' : 'in diesem Zeitraum') + '.</p>';
+    return;
+  }
+
+  list.innerHTML = entries.map(e => {
+    const dateStr = e.date ? new Date(e.date + 'T00:00').toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
+    const time = (e.startTime || '?') + ' – ' + (e.endTime || '?');
+    return '<div style="padding:12px 0; border-bottom:1px solid #eee;">' +
+      '<div style="display:flex; justify-content:space-between; align-items:center;">' +
+      '<div><strong>' + (e.topic || 'Kein Thema') + '</strong>' +
+      '<span style="color:var(--c-muted); margin-left:8px; font-size:13px;">' + (e.student || '') + '</span></div>' +
+      '<button onclick="deleteTheoryLesson(\'' + e.id + '\')" style="background:none; border:none; color:#c62828; cursor:pointer; font-size:12px;">Löschen</button>' +
+      '</div>' +
+      '<div style="font-size:13px; color:var(--c-muted); margin-top:2px;">' + dateStr + ' · ' + time +
+      (e.notes ? ' · ' + e.notes : '') + '</div>' +
+      '</div>';
+  }).join('');
+}
+
+function openTheoryForm() {
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('thFormDate').value = today;
+  document.getElementById('thFormStart').value = '';
+  document.getElementById('thFormEnd').value = '';
+  document.getElementById('thFormStudent').value = '';
+  document.getElementById('thFormTopic').value = '';
+  document.getElementById('thFormNotes').value = '';
+  document.getElementById('theoryFormModal').classList.add('active');
+}
+
+function closeTheoryForm() {
+  document.getElementById('theoryFormModal').classList.remove('active');
+}
+
+function saveTheoryLesson() {
+  const uid = firebase.auth().currentUser?.uid;
+  if (!uid) return;
+  const date = document.getElementById('thFormDate').value;
+  const startTime = document.getElementById('thFormStart').value;
+  const endTime = document.getElementById('thFormEnd').value;
+  const student = document.getElementById('thFormStudent').value.trim();
+  const topic = document.getElementById('thFormTopic').value.trim();
+  const notes = document.getElementById('thFormNotes').value.trim();
+  if (!date || !startTime || !endTime || !student || !topic) {
+    notify('Bitte alle Pflichtfelder ausfüllen.', 'error');
+    return;
+  }
+  const entry = {
+    teacherId: uid,
+    teacherName: devStaffProfile?.name || firebase.auth().currentUser?.displayName || '',
+    date, startTime, endTime, student, topic, notes,
+    createdAt: Date.now()
+  };
+  db.ref('theoryLessons').push(entry).then(() => {
+    closeTheoryForm();
+    notify('Theoriestunde gespeichert.', 'success');
+  }).catch(err => {
+    notify('Fehler: ' + err.message, 'error');
+  });
+}
+
+function deleteTheoryLesson(id) {
+  if (!confirm('Theoriestunde wirklich löschen?')) return;
+  db.ref('theoryLessons/' + id).remove().then(() => {
+    notify('Theoriestunde gelöscht.', 'success');
+  });
+}
+
+// Firebase-Listener für Theoriestunden
+(function initTheoryListener() {
+  db.ref('theoryLessons').on('value', snap => {
+    theoryLessonsData = snap.val() || {};
+    if (document.getElementById('theoryView')?.style.display !== 'none') {
+      renderTheoryLessons();
+    }
+  });
+})();
 
 // ============================================================
 // HELPERS
