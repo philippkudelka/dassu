@@ -690,7 +690,6 @@
   .mobile-menu-item { display: flex; align-items: center; gap: 8px; width: 100%; padding: 12px 20px; border: none; background: none; font-size: 14px; color: var(--c-ink); cursor: pointer; text-align: left; font-family: var(--font-ui); text-decoration: none; }
   .mobile-menu-item:hover { background: var(--c-sand); }
   .mobile-menu-divider { border: none; border-top: 1px solid var(--c-line); margin: 4px 0; }
-  .hero-weather-toggle { display: none; }
 
   /* Responsive Mobile */
   @media (max-width: 480px) {
@@ -708,16 +707,12 @@
     .info-banner-mobile span { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
     .info-banner-mobile.expanded span { -webkit-line-clamp: unset; }
 
-    /* Hero-Band: Wetter einklappbar */
-    .hero-band { padding: 10px 12px !important; gap: 8px !important; }
+    /* Hero-Band: Wetter kompakt */
+    .hero-band { padding: 10px 12px !important; gap: 8px !important; flex-wrap: wrap; }
     .hero-content { flex-direction: column !important; gap: 6px !important; align-items: flex-start !important; }
     .hero-meta { font-size: 10px !important; }
     .hero-weather-icon { font-size: 24px !important; }
-    .hero-weather { display: none; padding: 10px 12px !important; gap: 4px !important; }
-    .hero-weather.mobile-expanded { display: block; width: 100%; }
-    .hero-weather-toggle { display: flex !important; align-items: center; gap: 6px; background: none; border: 1px solid var(--c-line); border-radius: var(--radius-sm); padding: 6px 12px; color: var(--c-ink-3); font-size: 11px; cursor: pointer; font-family: var(--font-ui); margin-top: 2px; }
-    .weather-grid { font-size: 10px !important; }
-    .weather-grid dt { font-size: 8px !important; }
+    .hero-weather-line { font-size: 10px !important; gap: 6px !important; }
 
     /* Gantt: Spalten-Layout auf Mobile */
     .gantt-body { overflow-x: auto; -webkit-overflow-scrolling: touch; }
@@ -967,44 +962,27 @@
     line-height: 1;
     filter: drop-shadow(0 2px 8px rgba(0,0,0,0.1));
   }
-  .hero-weather {
-    background: rgba(255, 255, 255, 0.6);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    padding: 14px 20px;
-    border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.8);
-    min-width: 260px;
-    flex-shrink: 0;
-  }
-  .hero-weather h4 {
-    font-size: 8px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--c-ink-3);
-    margin-bottom: 8px;
-  }
-  .weather-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 6px;
-  }
-  .weather-item {
-    font-size: 11px;
-  }
-  .weather-item .label {
-    color: var(--c-ink-3);
-    font-size: 9px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    margin-bottom: 2px;
-  }
-  .weather-item .value {
+  .hero-weather-line {
+    display: flex;
+    align-items: center;
+    gap: 12px;
     font-family: var(--font-mono);
+    font-size: 12px;
     font-weight: 600;
     color: var(--c-ink);
+    flex-wrap: wrap;
+    flex: 1;
+  }
+  .weather-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 8px;
+    border-left: 1px solid var(--c-line);
+  }
+  .weather-chip:first-child {
+    border-left: none;
+    padding-left: 0;
   }
 
   /* ===== GANTT CALENDAR ===== */
@@ -1631,36 +1609,13 @@
     <div class="hero-content" id="heroContent">
       <div class="hero-meta" id="heroMeta"></div>
       <div class="hero-weather-icon" id="heroWeatherIcon"></div>
-      <button class="hero-weather-toggle" onclick="toggleMobileWeather()">Wetter <span id="weatherToggleArrow">&#9660;</span></button>
     </div>
-    <div class="hero-weather" id="heroWeather">
-      <h4>Wetter & Umgebung</h4>
-      <div class="weather-grid">
-        <div class="weather-item">
-          <div class="label">Sonnenaufgang</div>
-          <div class="value" id="weatherSunrise">—</div>
-        </div>
-        <div class="weather-item">
-          <div class="label">Sonnenuntergang</div>
-          <div class="value" id="weatherSunset">—</div>
-        </div>
-        <div class="weather-item">
-          <div class="label">Wind</div>
-          <div class="value" id="weatherWind">—</div>
-        </div>
-        <div class="weather-item">
-          <div class="label">QNH</div>
-          <div class="value" id="weatherQNH">—</div>
-        </div>
-        <div class="weather-item">
-          <div class="label">Basis</div>
-          <div class="value" id="weatherCeiling">—</div>
-        </div>
-        <div class="weather-item">
-          <div class="label">Temperatur</div>
-          <div class="value" id="weatherTemp">—</div>
-        </div>
-      </div>
+    <div class="hero-weather-line" id="heroWeather">
+      <span class="weather-chip" id="weatherTemp">--°C</span>
+      <span class="weather-chip" id="weatherWind">-- kt</span>
+      <span class="weather-chip" id="weatherQNH">QNH --</span>
+      <span class="weather-chip" id="weatherCeiling">Basis --</span>
+      <span class="weather-chip">☀ <span id="weatherSunrise">--:--</span>–<span id="weatherSunset">--:--</span></span>
     </div>
   </div>
 
@@ -2436,13 +2391,6 @@ document.addEventListener('click', function(e) {
     closeMobileMenu();
   }
 });
-function toggleMobileWeather() {
-  const w = document.getElementById('heroWeather');
-  const arrow = document.getElementById('weatherToggleArrow');
-  w.classList.toggle('mobile-expanded');
-  arrow.innerHTML = w.classList.contains('mobile-expanded') ? '&#9650;' : '&#9660;';
-}
-
 function showView(view) {
   document.getElementById('calendarView').style.display = view === 'calendar' ? 'block' : 'none';
   document.getElementById('myBookingsView').style.display = view === 'myBookings' ? 'block' : 'none';
@@ -2692,8 +2640,8 @@ function applyWeather(data, date) {
   // Sunrise / Sunset (format: "2026-04-25T06:12")
   const sunrise = daily.sunrise?.[0];
   const sunset = daily.sunset?.[0];
-  document.getElementById('weatherSunrise').textContent = sunrise ? sunrise.split('T')[1] : '—';
-  document.getElementById('weatherSunset').textContent = sunset ? sunset.split('T')[1] : '—';
+  document.getElementById('weatherSunrise').textContent = sunrise ? sunrise.split('T')[1] : '--:--';
+  document.getElementById('weatherSunset').textContent = sunset ? sunset.split('T')[1] : '--:--';
 
   // Find midday hours (10:00–15:00) for representative flying weather
   const flyingHours = [];
@@ -2713,11 +2661,11 @@ function applyWeather(data, date) {
   const avgDir = dirs.length ? Math.round(dirs.reduce((a,b) => a+b, 0) / dirs.length) : null;
   const dirStr = avgDir != null ? degToCompass(avgDir) : '';
   if (avgWind != null && maxGust != null && maxGust > avgWind + 3) {
-    document.getElementById('weatherWind').textContent = `${dirStr} ${avgWind}-${maxGust} kt`;
+    document.getElementById('weatherWind').textContent = `${dirStr} ${avgWind}-${maxGust}kt`;
   } else if (avgWind != null) {
-    document.getElementById('weatherWind').textContent = `${dirStr} ${avgWind} kt`;
+    document.getElementById('weatherWind').textContent = `${dirStr} ${avgWind}kt`;
   } else {
-    document.getElementById('weatherWind').textContent = '—';
+    document.getElementById('weatherWind').textContent = '-- kt';
   }
 
   // QNH: surface pressure at station altitude (560m) → sea level
@@ -2726,9 +2674,9 @@ function applyWeather(data, date) {
   if (pressures.length) {
     const avgPressure = pressures.reduce((a,b) => a+b, 0) / pressures.length;
     const qnh = Math.round(avgPressure + 560 / 8.3); // Approximation for 560m elevation
-    document.getElementById('weatherQNH').textContent = `${qnh} hPa`;
+    document.getElementById('weatherQNH').textContent = `QNH ${qnh}`;
   } else {
-    document.getElementById('weatherQNH').textContent = '—';
+    document.getElementById('weatherQNH').textContent = 'QNH --';
   }
 
   // Cloud base estimate: (Temp - Dewpoint) × 400 ft (Henning formula)
@@ -2743,12 +2691,12 @@ function applyWeather(data, date) {
     const baseFt = Math.round(spread * 400 / 500) * 500; // Round to nearest 500ft
     // Add station elevation (560m ≈ 1837ft) for AGL → AMSL
     if (avgCloud > 20) {
-      document.getElementById('weatherCeiling').textContent = `${baseFt + 1800} ft`;
+      document.getElementById('weatherCeiling').textContent = `${baseFt + 1800}ft`;
     } else {
       document.getElementById('weatherCeiling').textContent = 'CAVOK';
     }
   } else {
-    document.getElementById('weatherCeiling').textContent = '—';
+    document.getElementById('weatherCeiling').textContent = '--';
   }
 
   // Temperature: max of the day
@@ -2757,7 +2705,7 @@ function applyWeather(data, date) {
   if (tMax != null) {
     document.getElementById('weatherTemp').textContent = `${Math.round(tMax)}°C`;
   } else {
-    document.getElementById('weatherTemp').textContent = '—';
+    document.getElementById('weatherTemp').textContent = '--°C';
   }
 
   // Weather icon based on weather code
