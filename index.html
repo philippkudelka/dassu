@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen
 (function() {
-  var APP_VERSION = 36;
+  var APP_VERSION = 37;
   try {
     var stored = parseInt(localStorage.getItem('dassu_v') || '0');
     if (stored < APP_VERSION) {
@@ -2904,8 +2904,13 @@ function renderGanttCalendar(dk, aircraft) {
 
       const hasInstructor = booking.instructor === 'ja';
       const customerName = booking.customer || booking.name || '—';
-      const shortName = customerName.length > 12 ? customerName.substring(0, 11) + '…' : customerName;
-      const tooltipText = `${customerName}\n${booking.startTime}–${booking.endTime}${hasInstructor ? '\nFluglehrer' : ''}\nStatus: ${booking.status}`;
+      const effRole = getEffectiveRole();
+      const canSeeName = effRole === 'admin' || effRole === 'staff' || effRole === 'team' || effRole === 'fluglehrer' || effRole === 'guestGlider' || effRole === 'guestMotor';
+      const displayName = canSeeName ? customerName : 'Belegt';
+      const shortName = displayName.length > 12 ? displayName.substring(0, 11) + '…' : displayName;
+      const tooltipText = canSeeName
+        ? `${customerName}\n${booking.startTime}–${booking.endTime}${hasInstructor ? '\nFluglehrer' : ''}\nStatus: ${booking.status}`
+        : `Belegt\n${booking.startTime}–${booking.endTime}`;
 
       const barDiv = document.createElement('div');
       barDiv.className = `gantt-bar ${booking.status}${hasInstructor ? ' with-instructor' : ''}`;
