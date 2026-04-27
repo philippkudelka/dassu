@@ -13,12 +13,13 @@
 <title>DASSU Staff</title>
 <script>
 // Alte cached index.html leitet Admins auf staff.html um (ohne Parameter).
-// Fange das ab und schicke sie zurück auf index.html.
-// Erlaubte Zugriffe: ?dev=1 (Dev-Toolbar), ?booking= (Push-Notification)
+// Redirect auf /index.html?v=23 — der Query-Param sorgt dafür, dass der
+// alte Service Worker Cache den URL NICHT kennt und vom Netzwerk laden MUSS.
+// So bekommt der Browser die NEUE index.html, die nicht mehr weiterleitet.
 (function() {
   var p = window.location.search;
   if (!p || (!p.includes('dev') && !p.includes('booking'))) {
-    window.location.replace('/index.html' + window.location.search + window.location.hash);
+    window.location.replace('/index.html?v=23');
   }
 })();
 </script>

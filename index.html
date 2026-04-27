@@ -5051,9 +5051,8 @@ firebase.auth().onAuthStateChanged(async (user) => {
           renderView();
           return; // Auth fertig, Rest überspringen
         } else {
-          // Normal: Staff/Admin → direkt zu staff.html weiterleiten
-          window.location.href = 'staff.html';
-          return;
+          // Staff/Admin ohne devMode → als normaler Kunde behandeln
+          // (Staff-Ansicht nur über Dev-Toolbar erreichbar)
         }
       }
       // 2. Kunden-Check → E-Mail muss verifiziert sein
