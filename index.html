@@ -1893,7 +1893,7 @@
       </div>
       <div class="form-group">
         <label>Datum</label>
-        <input type="text" id="bookingDate" readonly style="background:var(--gray-50);">
+        <input type="date" id="bookingDate" onchange="onBookingDateChange()">
       </div>
       <div style="display:flex; gap:12px;">
         <div class="form-group" style="flex:1;">
@@ -1905,17 +1905,22 @@
           <select id="bookingTimeTo" onchange="checkConflictWarning()"></select>
         </div>
       </div>
-      <div class="form-group">
-        <label>Dein Name *</label>
-        <input type="text" id="bookingName" placeholder="Vor- und Nachname">
+      <div id="bookingContactFields">
+        <div class="form-group">
+          <label>Dein Name *</label>
+          <input type="text" id="bookingName" placeholder="Vor- und Nachname">
+        </div>
+        <div class="form-group">
+          <label>E-Mail *</label>
+          <input type="email" id="bookingEmail" placeholder="deine@email.de">
+        </div>
+        <div class="form-group">
+          <label>Telefon *</label>
+          <input type="tel" id="bookingPhone" placeholder="+49 123 456789" required>
+        </div>
       </div>
-      <div class="form-group">
-        <label>E-Mail *</label>
-        <input type="email" id="bookingEmail" placeholder="deine@email.de">
-      </div>
-      <div class="form-group">
-        <label>Telefon *</label>
-        <input type="tel" id="bookingPhone" placeholder="+49 123 456789" required>
+      <div id="bookingLoggedInInfo" style="display:none; background:var(--gray-50); border:1px solid var(--gray-200); border-radius:var(--radius-sm); padding:12px; margin-bottom:12px; font-size:13px; color:var(--gray-600);">
+        Gebucht als <strong id="bookingLoggedInName"></strong> (<span id="bookingLoggedInEmail"></span>)
       </div>
       <div class="form-group">
         <label>Fluglehrer ben&ouml;tigt? *</label>
@@ -3081,7 +3086,8 @@ function openBooking(aircraft, slot, date, evt) {
     return;
   }
   document.getElementById('bookingAircraft').value = aircraft;
-  document.getElementById('bookingDate').value = formatDate(currentDate);
+  document.getElementById('bookingDate').value = dateKey(currentDate);
+  document.getElementById('bookingDate').min = dateKey(new Date());
 
   // Populate "From" dropdown — Sonntags erst ab 09:00, D-MYIH Schleppzeiten ausblenden
   const fromSel = document.getElementById('bookingTimeFrom');
@@ -3138,6 +3144,46 @@ function openBooking(aircraft, slot, date, evt) {
   setTimeout(checkConflictWarning, 50);
 }
 
+function onBookingDateChange() {
+  const modal = document.getElementById('bookingModal');
+  const newDate = document.getElementById('bookingDate').value;
+  if (!newDate) return;
+  const todayStr = dateKey(new Date());
+  if (newDate < todayStr) {
+    notify('Datum liegt in der Vergangenheit.', 'error');
+    document.getElementById('bookingDate').value = modal._date;
+    return;
+  }
+  modal._date = newDate;
+  // Zeitslots neu berechnen
+  const aircraft = modal._aircraft;
+  const fromSel = document.getElementById('bookingTimeFrom');
+  const toSel = document.getElementById('bookingTimeTo');
+  const prevFrom = fromSel.value;
+  fromSel.innerHTML = '';
+  const bookingDate = new Date(newDate + 'T12:00:00');
+  const isSunday = bookingDate.getDay() === 0;
+  const sundayStart = '09:00';
+  fromSel.disabled = false;
+  toSel.disabled = false;
+  for (let i = 0; i < TIME_POINTS.length - 1; i++) {
+    if (isSunday && TIME_POINTS[i] < sundayStart) continue;
+    if (isTowingBlocked(aircraft, TIME_POINTS[i])) continue;
+    const mbTest = getMorningBlock(aircraft, newDate, TIME_POINTS[i]);
+    if (mbTest) continue;
+    const opt = document.createElement('option');
+    opt.value = TIME_POINTS[i];
+    opt.textContent = TIME_POINTS[i];
+    fromSel.appendChild(opt);
+  }
+  // Vorherige Startzeit beibehalten falls möglich
+  if (prevFrom && [...fromSel.options].some(o => o.value === prevFrom)) {
+    fromSel.value = prevFrom;
+  }
+  updateTimeTo();
+  setTimeout(checkConflictWarning, 50);
+}
+
 function showBookingConfirmation() {
   const name = document.getElementById('bookingName').value.trim();
   const email = document.getElementById('bookingEmail').value.trim();
@@ -3169,7 +3215,7 @@ function showBookingConfirmation() {
   const summaryHtml = `
     <div style="display:grid; grid-template-columns:auto 1fr; gap:6px 16px; font-size:14px;">
       <span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Flugzeug</span><span style="font-weight:600;">${modal._aircraft}</span>
-      <span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Datum</span><span>${document.getElementById('bookingDate').value}</span>
+      <span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Datum</span><span>${formatDate(new Date(modal._date + 'T12:00:00'))}</span>
       <span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Uhrzeit</span><span>${startTime} – ${endTime}</span>
       <span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Name</span><span>${name}</span>
       <span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">E-Mail</span><span>${email}</span>
@@ -4940,13 +4986,30 @@ function updateCustomerButton() {
 }
 
 function autofillBookingForm() {
-  if (!customerProfile) return;
-  const n = document.getElementById('bookingName');
-  const e = document.getElementById('bookingEmail');
-  const p = document.getElementById('bookingPhone');
-  if (n && !n.value) n.value = customerProfile.name || '';
-  if (e && !e.value) e.value = customerProfile.email || '';
-  if (p && !p.value) p.value = customerProfile.phone || '';
+  const contactFields = document.getElementById('bookingContactFields');
+  const loggedInInfo = document.getElementById('bookingLoggedInInfo');
+  if (customerProfile && customerProfile.name && customerProfile.email) {
+    // Eingeloggt mit vollständigem Profil — Felder ausblenden
+    document.getElementById('bookingName').value = customerProfile.name;
+    document.getElementById('bookingEmail').value = customerProfile.email;
+    document.getElementById('bookingPhone').value = customerProfile.phone || '';
+    document.getElementById('bookingLoggedInName').textContent = customerProfile.name;
+    document.getElementById('bookingLoggedInEmail').textContent = customerProfile.email;
+    if (contactFields) contactFields.style.display = 'none';
+    if (loggedInInfo) loggedInInfo.style.display = 'block';
+  } else {
+    // Nicht eingeloggt oder Profil unvollständig — Felder zeigen
+    if (contactFields) contactFields.style.display = 'block';
+    if (loggedInInfo) loggedInInfo.style.display = 'none';
+    if (customerProfile) {
+      const n = document.getElementById('bookingName');
+      const e = document.getElementById('bookingEmail');
+      const p = document.getElementById('bookingPhone');
+      if (n && !n.value) n.value = customerProfile.name || '';
+      if (e && !e.value) e.value = customerProfile.email || '';
+      if (p && !p.value) p.value = customerProfile.phone || '';
+    }
+  }
 }
 
 // Firebase Auth: Rolle erkennen, Tabs + Admin-Status setzen
