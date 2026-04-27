@@ -1370,6 +1370,7 @@ let currentEditId = null;
 let manageFilter = 'pending';
 let firstLoad = true;
 let vfMembers = []; // Vereinsflieger-Mitgliedernamen für Autocomplete
+let firebaseCustomers = []; // Firebase-registrierte Kunden-Namen
 let acActiveIdx = -1; // Aktuell markierter Autocomplete-Eintrag
 let knownBookingIds = new Set();
 let pendingOpenBookingId = (new URLSearchParams(window.location.search)).get('booking') || '';
@@ -4877,23 +4878,45 @@ async function loadVfMembers() {
   }
 }
 
+// Firebase-registrierte Kunden laden
+async function loadFirebaseCustomers() {
+  try {
+    const snap = await db.ref('customers').once('value');
+    const data = snap.val();
+    if (data) {
+      firebaseCustomers = Object.values(data)
+        .map(c => c.name)
+        .filter(Boolean);
+      console.log(`Firebase-Kunden geladen: ${firebaseCustomers.length}`);
+    }
+  } catch (err) {
+    console.warn('Firebase-Kunden laden fehlgeschlagen:', err);
+  }
+}
+
 function acFilter(inputId) {
   const input = document.getElementById(inputId);
   const list = document.getElementById(inputId + '-ac');
   if (!input || !list) return;
 
   const q = input.value.trim().toLowerCase();
-  if (!q || q.length < 1 || vfMembers.length === 0) {
+  if (!q || q.length < 1) {
     list.classList.remove('open');
     acActiveIdx = -1;
     return;
   }
 
-  // Auch aus vergangenen Buchungen Namen sammeln
+  // Alle Quellen kombinieren: VF-Mitglieder + Firebase-Kunden + Buchungsnamen
   const bookingNames = [...new Set(bookings.map(b => b.name).filter(Boolean))];
-  const allNames = [...new Set([...vfMembers, ...bookingNames])];
+  const allNames = [...new Set([...vfMembers, ...firebaseCustomers, ...bookingNames])];
 
-  const matches = allNames.filter(n => n.toLowerCase().includes(q)).slice(0, 8);
+  if (allNames.length === 0) {
+    list.classList.remove('open');
+    acActiveIdx = -1;
+    return;
+  }
+
+  const matches = allNames.filter(n => n.toLowerCase().includes(q)).slice(0, 15);
   if (matches.length === 0) {
     list.classList.remove('open');
     acActiveIdx = -1;
@@ -5104,8 +5127,9 @@ function resizeImage(file, maxSize) {
   });
 }
 
-// Vereinsflieger-Mitglieder im Hintergrund laden
+// Vereinsflieger-Mitglieder + Firebase-Kunden im Hintergrund laden
 loadVfMembers();
+loadFirebaseCustomers();
 
 // Enter-Taste im Einladungsformular
 ['appInvName', 'appInvEmail'].forEach(id => {
