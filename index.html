@@ -3,7 +3,41 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DASSU - Buchungskalender v25</title>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<script>
+// Nuclear Cache Bust v27 — einmalig alle alten SW + Caches löschen
+(function() {
+  var APP_VERSION = 27;
+  try {
+    var stored = parseInt(localStorage.getItem('dassu_v') || '0');
+    if (stored < APP_VERSION) {
+      localStorage.setItem('dassu_v', APP_VERSION);
+      // Alle Service Worker entfernen
+      if (navigator.serviceWorker) {
+        navigator.serviceWorker.getRegistrations().then(function(regs) {
+          regs.forEach(function(r) { r.unregister(); });
+        });
+      }
+      // Alle Caches löschen
+      if (window.caches) {
+        caches.keys().then(function(names) {
+          names.forEach(function(name) { caches.delete(name); });
+        });
+      }
+      // Nach kurzem Delay neu laden (ohne Cache)
+      setTimeout(function() {
+        window.location.reload(true);
+      }, 500);
+      // Seite nicht weiter laden
+      document.write('<html><body style="background:#EFEAE0;display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;color:#3D3B37"><p>App wird aktualisiert...</p></body></html>');
+      return;
+    }
+  } catch(e) {}
+})();
+</script>
+<title>DASSU - Buchungskalender v27</title>
 <link rel="icon" type="image/png" href="https://images.squarespace-cdn.com/content/v1/5a6084aad0e628eab9591587/66b4214a-b88b-427c-8350-c5907ffdcda4/DASSU-Logo+2022+web+768x768+2.png?format=32w">
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>

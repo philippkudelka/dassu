@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dassu-v26';
+const CACHE_NAME = 'dassu-v27';
 const ASSETS = [
   '/',
   '/index.html',
