@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen
 (function() {
-  var APP_VERSION = 37;
+  var APP_VERSION = 38;
   try {
     var stored = parseInt(localStorage.getItem('dassu_v') || '0');
     if (stored < APP_VERSION) {
@@ -43,8 +43,10 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
 <script src="shared/permissions.js"></script>
 <script src="shared/auth.js"></script>
+<script src="shared/messages.js"></script>
 <link rel="preconnect" href="https://fonts.bunny.net">
 <link rel="stylesheet" href="https://fonts.bunny.net/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Fraunces:ital,wght@0,300;0,400;0,500;0,600;1,400;1,500&display=swap">
 <style>
@@ -1591,6 +1593,7 @@
       <button class="view-tab customer-only" id="tabMyBookings" onclick="showView('myBookings')">Meine Buchungen</button>
       <button class="view-tab fluglehrer-only" id="tabStudentBookings" onclick="showView('studentBookings')" style="display:none;">Schüler-Buchungen</button>
       <button class="view-tab fluglehrer-only" id="tabTheory" onclick="showView('theory')" style="display:none;">Theorie</button>
+      <button class="view-tab fluglehrer-only" id="tabMessages" onclick="showView('messages')" style="display:none;">Nachrichten<span id="msgUnreadBadge" style="display:none;background:#B36A5B;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:4px;">0</span></button>
     </div>
     <!-- Burger Menu (Mobile only) -->
     <button class="burger-btn" id="burgerBtn" onclick="toggleMobileMenu()">
@@ -1603,6 +1606,7 @@
     <button class="mobile-menu-item customer-only" id="mobileTabMyBookings" onclick="showView('myBookings'); closeMobileMenu();">Meine Buchungen</button>
     <button class="mobile-menu-item fluglehrer-only" id="mobileTabStudentBookings" onclick="showView('studentBookings'); closeMobileMenu();" style="display:none;">Schüler-Buchungen</button>
     <button class="mobile-menu-item fluglehrer-only" id="mobileTabTheory" onclick="showView('theory'); closeMobileMenu();" style="display:none;">Theorie</button>
+    <button class="mobile-menu-item fluglehrer-only" id="mobileTabMessages" onclick="showView('messages'); closeMobileMenu();" style="display:none;">Nachrichten</button>
     <hr class="mobile-menu-divider">
     <button class="mobile-menu-item" id="mobileStaffAdminBtn" onclick="window.location.href='staff.html?staff=1'" style="display:none;">Verwaltung</button>
     <button class="mobile-menu-item" onclick="openCustomerAuth(); closeMobileMenu();"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> <span id="mobileAuthLabel">Login</span></button>
@@ -1783,6 +1787,28 @@
       <button class="mb-filter-tab" onclick="filterTheoryLessons('lastMonth', this)">Letzter Monat</button>
     </div>
     <div id="thList"><p style="color:var(--c-muted); padding:24px 0;">Noch keine Theoriestunden erfasst.</p></div>
+  </div>
+</div>
+
+<!-- Nachrichten View (Fluglehrer) -->
+<div id="messagesView" style="display:none;">
+  <div class="my-bookings-panel">
+    <h2>Nachrichten</h2>
+    <p class="mb-subtitle">Nachrichten vom Admin-Team</p>
+    <div id="msgList"><p style="color:var(--c-muted); padding:24px 0;">Keine Nachrichten vorhanden.</p></div>
+  </div>
+</div>
+
+<!-- Nachricht-Detail-Modal -->
+<div class="modal-overlay" id="messageModal">
+  <div class="modal" style="max-width:560px;">
+    <h3 id="msgModalTitle" style="margin-bottom:4px;"></h3>
+    <div id="msgModalMeta" style="font-size:12px; color:var(--c-muted); margin-bottom:12px;"></div>
+    <div id="msgModalBody" style="white-space:pre-wrap; line-height:1.6; margin-bottom:16px;"></div>
+    <div id="msgModalFiles" style="margin-bottom:16px;"></div>
+    <div style="text-align:right;">
+      <button class="btn" onclick="closeModal('messageModal')" style="font-size:13px;">Schlie&szlig;en</button>
+    </div>
   </div>
 </div>
 
@@ -2438,15 +2464,18 @@ function showView(view) {
   document.getElementById('myBookingsView').style.display = view === 'myBookings' ? 'block' : 'none';
   document.getElementById('studentBookingsView').style.display = view === 'studentBookings' ? 'block' : 'none';
   document.getElementById('theoryView').style.display = view === 'theory' ? 'block' : 'none';
+  document.getElementById('messagesView').style.display = view === 'messages' ? 'block' : 'none';
   // Tab-Buttons aktiv markieren
   document.querySelectorAll('#mainViewTabs > .view-tab').forEach(t => t.classList.remove('active'));
   if (view === 'calendar') document.querySelector('#mainViewTabs > .view-tab:first-child')?.classList.add('active');
   else if (view === 'myBookings') document.getElementById('tabMyBookings')?.classList.add('active');
   else if (view === 'studentBookings') document.getElementById('tabStudentBookings')?.classList.add('active');
   else if (view === 'theory') document.getElementById('tabTheory')?.classList.add('active');
+  else if (view === 'messages') document.getElementById('tabMessages')?.classList.add('active');
   if (view === 'myBookings') renderMyBookings();
   if (view === 'studentBookings') renderStudentBookings();
   if (view === 'theory') renderTheoryLessons();
+  if (view === 'messages') renderMessages();
 }
 
 // ============================================================
@@ -4558,7 +4587,7 @@ function devApplyPerspective() {
   if (info) {
     const labels = {
       'kunde': 'Ansicht: Kunde (nur Kalender, Buchungen, Konto)',
-      'fluglehrer': 'Ansicht: Fluglehrer (+ Schüler, Theorie)',
+      'fluglehrer': 'Ansicht: Fluglehrer (+ Schüler, Theorie, Nachrichten)',
       'staff': 'Ansicht: Staff (+ Verwaltung)',
       'admin': 'Ansicht: Admin (voller Zugriff)'
     };
@@ -4578,6 +4607,14 @@ function devApplyPerspective() {
   if (staffBtn) staffBtn.style.display = isStaffOrAdmin ? '' : 'none';
   const mobileStaffBtn = document.getElementById('mobileStaffAdminBtn');
   if (mobileStaffBtn) mobileStaffBtn.style.display = isStaffOrAdmin ? '' : 'none';
+
+  // Nachrichten-Listener starten wenn Fluglehrer/Staff/Admin
+  if (isFluglehrer || isStaffOrAdmin) initMessagesListener();
+
+  // Wenn Kunde und gerade Messages-View offen → zurück zum Kalender
+  if (p === 'kunde' && document.getElementById('messagesView')?.style.display !== 'none') {
+    showView('calendar');
+  }
 }
 
 // Admin-Stubs (Funktionen sind jetzt in staff.html)
@@ -4768,6 +4805,123 @@ function deleteTheoryLesson(id) {
     }
   });
 })();
+
+// ============================================================
+// NACHRICHTEN-MODUL (Fluglehrer)
+// ============================================================
+let messagesData = [];
+let messagesListener = null;
+
+function initMessagesListener() {
+  if (messagesListener) return;
+  const db = firebase.database();
+  messagesListener = db.ref('messages').orderByChild('createdAt').limitToLast(50);
+  messagesListener.on('value', snap => {
+    const data = snap.val();
+    if (!data) { messagesData = []; } else {
+      messagesData = Object.entries(data)
+        .map(([id, m]) => ({ id, ...m }))
+        .sort((a, b) => b.createdAt - a.createdAt);
+    }
+    updateMsgBadge();
+    if (document.getElementById('messagesView')?.style.display !== 'none') {
+      renderMessages();
+    }
+  });
+}
+
+function updateMsgBadge() {
+  const badge = document.getElementById('msgUnreadBadge');
+  if (!badge) return;
+  const uid = firebase.auth().currentUser?.uid;
+  if (!uid) { badge.style.display = 'none'; return; }
+  const unread = messagesData.filter(m => !m.readBy || !m.readBy[uid]).length;
+  if (unread > 0) {
+    badge.textContent = unread;
+    badge.style.display = 'inline';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function renderMessages() {
+  const list = document.getElementById('msgList');
+  if (!list) return;
+  const uid = firebase.auth().currentUser?.uid;
+  if (!uid) { list.innerHTML = '<p style="color:var(--c-muted); padding:24px 0;">Bitte einloggen.</p>'; return; }
+
+  // Listener starten falls noch nicht aktiv
+  initMessagesListener();
+
+  if (messagesData.length === 0) {
+    list.innerHTML = '<p style="color:var(--c-muted); padding:24px 0;">Keine Nachrichten vorhanden.</p>';
+    return;
+  }
+
+  list.innerHTML = messagesData.map(m => {
+    const isUnread = !m.readBy || !m.readBy[uid];
+    const dateStr = new Date(m.createdAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const fileCount = (m.files && m.files.length) ? m.files.length : 0;
+    const fileIcon = fileCount > 0 ? ' &middot; ' + fileCount + ' Datei' + (fileCount > 1 ? 'en' : '') : '';
+    return '<div onclick="openMessage(\'' + m.id + '\')" style="padding:14px 0; border-bottom:1px solid var(--c-border); cursor:pointer;' + (isUnread ? 'background:rgba(179,106,91,0.06); margin:0 -16px; padding-left:16px; padding-right:16px; border-radius:6px;' : '') + '">' +
+      '<div style="display:flex; justify-content:space-between; align-items:flex-start;">' +
+      '<div style="flex:1; min-width:0;">' +
+      '<div style="font-weight:' + (isUnread ? '700' : '400') + '; font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' +
+      (isUnread ? '<span style="display:inline-block; width:8px; height:8px; background:#B36A5B; border-radius:50%; margin-right:6px; vertical-align:middle;"></span>' : '') +
+      escMsg(m.title || 'Ohne Betreff') + '</div>' +
+      '<div style="font-size:13px; color:var(--c-muted); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' +
+      escMsg((m.body || '').substring(0, 80)) + '</div>' +
+      '</div>' +
+      '<div style="font-size:11px; color:var(--c-muted); white-space:nowrap; margin-left:12px;">' + dateStr + fileIcon + '</div>' +
+      '</div></div>';
+  }).join('');
+}
+
+function escMsg(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function openMessage(messageId) {
+  const m = messagesData.find(x => x.id === messageId);
+  if (!m) return;
+  const uid = firebase.auth().currentUser?.uid;
+
+  document.getElementById('msgModalTitle').textContent = m.title || 'Ohne Betreff';
+  const dateStr = new Date(m.createdAt).toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  document.getElementById('msgModalMeta').textContent = 'Von ' + (m.createdByName || 'Admin') + ' · ' + dateStr;
+  document.getElementById('msgModalBody').textContent = m.body || '';
+
+  // Dateien
+  const filesEl = document.getElementById('msgModalFiles');
+  if (m.files && m.files.length) {
+    filesEl.innerHTML = '<div style="font-size:12px; font-weight:600; color:var(--c-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;">Anhänge</div>' +
+      m.files.map(f => {
+        const sizeStr = f.size ? (f.size < 1024 ? f.size + ' B' : f.size < 1048576 ? Math.round(f.size / 1024) + ' KB' : (f.size / 1048576).toFixed(1) + ' MB') : '';
+        return '<a href="' + f.url + '" target="_blank" rel="noopener" style="display:flex; align-items:center; gap:8px; padding:8px 10px; background:var(--c-bg); border:1px solid var(--c-border); border-radius:6px; margin-bottom:4px; text-decoration:none; color:inherit; font-size:13px;">' +
+          '<span style="font-size:18px;">📎</span>' +
+          '<span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + escMsg(f.name) + '</span>' +
+          (sizeStr ? '<span style="color:var(--c-muted); font-size:11px;">' + sizeStr + '</span>' : '') +
+          '</a>';
+      }).join('');
+  } else {
+    filesEl.innerHTML = '';
+  }
+
+  document.getElementById('messageModal').classList.add('active');
+
+  // Als gelesen markieren
+  if (uid && (!m.readBy || !m.readBy[uid])) {
+    DASSU_MESSAGES.markAsRead(messageId, uid);
+  }
+}
+
+// Listener starten wenn eingeloggt und Fluglehrer-Rolle
+firebase.auth().onAuthStateChanged(user => {
+  if (user) {
+    const effRole = typeof getEffectiveRole === 'function' ? getEffectiveRole() : currentStaffRole;
+    if (effRole && effRole !== 'kunde') {
+      initMessagesListener();
+    }
+  }
+});
 
 // ============================================================
 // HELPERS
