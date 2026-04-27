@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen
 (function() {
-  var APP_VERSION = 35;
+  var APP_VERSION = 36;
   try {
     var stored = parseInt(localStorage.getItem('dassu_v') || '0');
     if (stored < APP_VERSION) {
@@ -4553,17 +4553,26 @@ function devApplyPerspective() {
   if (info) {
     const labels = {
       'kunde': 'Ansicht: Kunde (nur Kalender, Buchungen, Konto)',
-      'fluglehrer': 'Ansicht: Fluglehrer (+ Sch&uuml;ler, Theorie)',
-      'staff': 'Ansicht: Staff (alle Tabs, eingeschr&auml;nkte Verwaltung)',
+      'fluglehrer': 'Ansicht: Fluglehrer (+ Schüler, Theorie)',
+      'staff': 'Ansicht: Staff (+ Verwaltung)',
       'admin': 'Ansicht: Admin (voller Zugriff)'
     };
     info.textContent = labels[p] || '';
   }
 
-  // Fluglehrer-spezifische Tabs ein-/ausblenden
+  const isStaffOrAdmin = p === 'staff' || p === 'admin';
+  const isFluglehrer = p === 'fluglehrer';
+
+  // Fluglehrer-spezifische Tabs (Schüler-Buchungen, Theorie)
   document.querySelectorAll('.fluglehrer-only').forEach(el => {
-    el.style.display = (p === 'fluglehrer') ? '' : 'none';
+    el.style.display = (isFluglehrer || isStaffOrAdmin) ? '' : 'none';
   });
+
+  // Verwaltung-Button (Link zu staff.html)
+  const staffBtn = document.getElementById('staffAdminBtn');
+  if (staffBtn) staffBtn.style.display = isStaffOrAdmin ? '' : 'none';
+  const mobileStaffBtn = document.getElementById('mobileStaffAdminBtn');
+  if (mobileStaffBtn) mobileStaffBtn.style.display = isStaffOrAdmin ? '' : 'none';
 }
 
 // Admin-Stubs (Funktionen sind jetzt in staff.html)
