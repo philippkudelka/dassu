@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen + VF-Cache erneuern
 (function() {
-  var APP_VERSION = 39;
+  var APP_VERSION = 40;
   try {
     var stored = parseInt(localStorage.getItem('dassu_staff_v') || '0');
     if (stored < APP_VERSION) {
@@ -1382,8 +1382,9 @@ body.dev-mode { padding-bottom: 48px; }
       <input class="quick-input" id="qbName" type="text" placeholder="Name eingeben..." autocomplete="nope" name="qbName-noac" oninput="acFilter('qbName')" onfocus="acFilter('qbName')" onkeydown="acKeydown(event,'qbName')">
       <div class="ac-list" id="qbName-ac"></div>
     </div>
-    <div class="quick-row" style="margin-top:8px;">
-      <input class="quick-input" id="qbInstructor" type="text" placeholder="Fluglehrer (optional)" autocomplete="off" style="flex:1;">
+    <div class="ac-wrap" style="margin-top:8px;">
+      <input class="quick-input" id="qbInstructor" type="text" placeholder="Fluglehrer (optional)" autocomplete="nope" name="qbInstr-noac" oninput="acFilterInstructor('qbInstructor')" onfocus="acFilterInstructor('qbInstructor')" onkeydown="acKeydown(event,'qbInstructor')">
+      <div class="ac-list" id="qbInstructor-ac"></div>
     </div>
     <div class="quick-row">
       <div style="flex:1;"><label style="font-size:11px;color:var(--gray-500);font-weight:600;display:block;margin-bottom:4px;">VON</label><select class="quick-select" id="qbFrom" style="width:100%;"></select></div>
@@ -1406,8 +1407,9 @@ body.dev-mode { padding-bottom: 48px; }
       <input class="quick-input" id="ebName" type="text" placeholder="Name" autocomplete="nope" name="ebName-noac" oninput="acFilter('ebName')" onfocus="acFilter('ebName')" onkeydown="acKeydown(event,'ebName')">
       <div class="ac-list" id="ebName-ac"></div>
     </div>
-    <div class="quick-row" style="margin-top:8px;">
-      <input class="quick-input" id="ebInstructor" type="text" placeholder="Fluglehrer (optional)" autocomplete="off" style="flex:1;">
+    <div class="ac-wrap" style="margin-top:8px;">
+      <input class="quick-input" id="ebInstructor" type="text" placeholder="Fluglehrer (optional)" autocomplete="nope" name="ebInstr-noac" oninput="acFilterInstructor('ebInstructor')" onfocus="acFilterInstructor('ebInstructor')" onkeydown="acKeydown(event,'ebInstructor')">
+      <div class="ac-list" id="ebInstructor-ac"></div>
     </div>
     <div class="quick-row">
       <div style="flex:1;"><label style="font-size:11px;color:var(--gray-500);font-weight:600;display:block;margin-bottom:4px;">VON</label><select class="quick-select" id="ebFrom" style="width:100%;"></select></div>
@@ -2049,6 +2051,12 @@ db.ref('theoryLessons').on('value', snap => {
   const data = snap.val();
   theoryLessons = data ? Object.values(data) : [];
   if (currentView === 'theory') renderTheory();
+});
+
+// Fluglehrer-Liste aus Vereinsflieger (für Autocomplete in Buchungsformularen)
+let fluglehrerNames = [];
+db.ref('settings/fluglehrerList').on('value', snap => {
+  fluglehrerNames = snap.val() || [];
 });
 
 db.ref('gastfluglehrer').on('value', snap => {
@@ -5280,6 +5288,42 @@ function acKeydown(e, inputId) {
     list.classList.remove('open');
     acActiveIdx = -1;
   }
+}
+
+// Fluglehrer-Autocomplete (nutzt fluglehrerNames + Gastfluglehrer)
+function acFilterInstructor(inputId) {
+  const input = document.getElementById(inputId);
+  const list = document.getElementById(inputId + '-ac');
+  if (!input || !list) return;
+
+  const q = input.value.trim().toLowerCase();
+
+  // Gastfluglehrer-Namen dazumischen (die aktuell aktiv sind)
+  const today = new Date().toISOString().slice(0, 10);
+  const activeGuests = (typeof guestInstructors !== 'undefined' ? guestInstructors : [])
+    .filter(g => g.from <= today && g.to >= today)
+    .map(g => g.name);
+  const allInstructors = [...new Set([...fluglehrerNames, ...activeGuests])].sort((a, b) => a.localeCompare(b, 'de'));
+
+  // Bei leerem Input: alle zeigen (max 15)
+  let matches;
+  if (!q) {
+    matches = allInstructors.slice(0, 15);
+  } else {
+    matches = allInstructors.filter(n => n.toLowerCase().includes(q));
+  }
+
+  if (matches.length === 0) {
+    list.classList.remove('open');
+    acActiveIdx = -1;
+    return;
+  }
+
+  acActiveIdx = -1;
+  list.innerHTML = matches.map(name =>
+    `<div class="ac-item" onmousedown="acSelect('${inputId}','${name.replace(/'/g, "\\'")}')">${name}</div>`
+  ).join('');
+  list.classList.add('open');
 }
 
 // Autocomplete schließen bei Klick außerhalb

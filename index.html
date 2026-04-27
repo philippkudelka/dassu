@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen
 (function() {
-  var APP_VERSION = 39;
+  var APP_VERSION = 40;
   try {
     var stored = parseInt(localStorage.getItem('dassu_v') || '0');
     if (stored < APP_VERSION) {
@@ -3525,7 +3525,7 @@ function editBookingFromDetail(id) {
       </div>
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
         <div><div class="label" style="font-size:10px;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:4px;">Fluglehrer</div><select id="editInstructor" class="edit-field" onchange="document.getElementById('editInstructorNameRow').style.display = this.value === 'ja' ? '' : 'none';"><option value="nein"${instrSel('nein')}>Nein</option><option value="ja"${instrSel('ja')}>Ja</option></select></div>
-        <div id="editInstructorNameRow" style="display:${b.instructor === 'ja' ? '' : 'none'};"><div class="label" style="font-size:10px;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:4px;">Lehrer</div><input type="text" id="editInstructorName" class="edit-field" value="${b.instructorName || ''}" placeholder="Name (optional)"></div>
+        <div id="editInstructorNameRow" style="display:${b.instructor === 'ja' ? '' : 'none'};"><div class="label" style="font-size:10px;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:4px;">Lehrer</div><div class="ac-wrap" style="position:relative;"><input type="text" id="editInstructorName" class="edit-field" value="${b.instructorName || ''}" placeholder="Name (optional)" autocomplete="nope" oninput="acFilterFluglehrer('editInstructorName')" onfocus="acFilterFluglehrer('editInstructorName')" onkeydown="acKeydownFl(event,'editInstructorName')"><div class="ac-list" id="editInstructorName-ac" style="position:absolute;top:100%;left:0;right:0;max-height:200px;overflow-y:auto;background:var(--white,#fff);border:2px solid var(--primary);border-top:none;border-radius:0 0 8px 8px;z-index:1000;display:none;box-shadow:0 8px 24px rgba(0,0,0,0.12);"></div></div></div>
       </div>
     </div>
     <div style="margin-top:16px; display:flex; gap:8px;">
@@ -3537,6 +3537,47 @@ function editBookingFromDetail(id) {
   document.getElementById('detailContent').innerHTML = html;
   document.getElementById('detailDeleteBtn').style.display = 'none';
 }
+
+// Fluglehrer-Autocomplete für Admin-Bearbeitungsdialog
+let flAcIdx = -1;
+function acFilterFluglehrer(inputId) {
+  const input = document.getElementById(inputId);
+  const list = document.getElementById(inputId + '-ac');
+  if (!input || !list) return;
+  const q = input.value.trim().toLowerCase();
+  const allFl = (settings.fluglehrerList || []).slice().sort((a, b) => a.localeCompare(b, 'de'));
+  let matches = !q ? allFl.slice(0, 15) : allFl.filter(n => n.toLowerCase().includes(q));
+  if (!matches.length) { list.style.display = 'none'; flAcIdx = -1; return; }
+  flAcIdx = -1;
+  list.innerHTML = matches.map(name =>
+    `<div class="ac-item" style="padding:8px 12px;cursor:pointer;font-size:13px;" onmousedown="acSelectFl('${inputId}','${name.replace(/'/g, "\\'")}')" onmouseover="this.style.background='var(--gray-100,#f3f4f6)'" onmouseout="this.style.background=''">${name}</div>`
+  ).join('');
+  list.style.display = 'block';
+}
+function acSelectFl(inputId, name) {
+  const input = document.getElementById(inputId);
+  const list = document.getElementById(inputId + '-ac');
+  if (input) input.value = name;
+  if (list) list.style.display = 'none';
+  flAcIdx = -1;
+}
+function acKeydownFl(e, inputId) {
+  const list = document.getElementById(inputId + '-ac');
+  if (!list || list.style.display === 'none') return;
+  const items = list.querySelectorAll('.ac-item');
+  if (!items.length) return;
+  if (e.key === 'ArrowDown') { e.preventDefault(); flAcIdx = Math.min(flAcIdx + 1, items.length - 1); items.forEach((el, i) => el.style.background = i === flAcIdx ? 'var(--gray-100,#f3f4f6)' : ''); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); flAcIdx = Math.max(flAcIdx - 1, 0); items.forEach((el, i) => el.style.background = i === flAcIdx ? 'var(--gray-100,#f3f4f6)' : ''); }
+  else if (e.key === 'Enter' && flAcIdx >= 0) { e.preventDefault(); const sel = items[flAcIdx]; if (sel) { document.getElementById(inputId).value = sel.textContent; list.style.display = 'none'; flAcIdx = -1; } }
+  else if (e.key === 'Escape') { list.style.display = 'none'; flAcIdx = -1; }
+}
+document.addEventListener('click', e => {
+  const list = document.getElementById('editInstructorName-ac');
+  if (list && list.style.display !== 'none') {
+    const wrap = list.parentElement;
+    if (wrap && !wrap.contains(e.target)) list.style.display = 'none';
+  }
+});
 
 function saveBookingEdit(id) {
   const b = bookings.find(x => x.id === id);
