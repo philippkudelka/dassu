@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen
 (function() {
-  var APP_VERSION = 38;
+  var APP_VERSION = 39;
   try {
     var stored = parseInt(localStorage.getItem('dassu_v') || '0');
     if (stored < APP_VERSION) {
@@ -1790,11 +1790,22 @@
   </div>
 </div>
 
-<!-- Nachrichten View (Fluglehrer) -->
+<!-- Nachrichten View (Fluglehrer + Admin) -->
 <div id="messagesView" style="display:none;">
   <div class="my-bookings-panel">
     <h2>Nachrichten</h2>
     <p class="mb-subtitle">Nachrichten vom Admin-Team</p>
+
+    <!-- Compose (nur Admin) -->
+    <div id="msgComposeBox" style="display:none; background:var(--c-bg); border:1px solid var(--c-border); border-radius:8px; padding:16px; margin-bottom:20px;">
+      <div style="font-size:12px; font-weight:600; color:var(--c-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:8px;">Neue Nachricht</div>
+      <input id="msgComposeTitle" type="text" placeholder="Betreff" style="width:100%; padding:8px 10px; border:1px solid var(--c-border); border-radius:6px; font-size:14px; margin-bottom:8px; background:var(--c-card); color:var(--c-text); box-sizing:border-box;">
+      <textarea id="msgComposeBody" placeholder="Nachricht eingeben..." rows="4" style="width:100%; padding:8px 10px; border:1px solid var(--c-border); border-radius:6px; font-size:14px; margin-bottom:10px; background:var(--c-card); color:var(--c-text); resize:vertical; font-family:inherit; box-sizing:border-box;"></textarea>
+      <div style="text-align:right;">
+        <button onclick="sendMsgFromIndex()" style="background:var(--navy); color:white; border:none; padding:8px 20px; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer;">Senden</button>
+      </div>
+    </div>
+
     <div id="msgList"><p style="color:var(--c-muted); padding:24px 0;">Keine Nachrichten vorhanden.</p></div>
   </div>
 </div>
@@ -4850,6 +4861,13 @@ function renderMessages() {
   const uid = firebase.auth().currentUser?.uid;
   if (!uid) { list.innerHTML = '<p style="color:var(--c-muted); padding:24px 0;">Bitte einloggen.</p>'; return; }
 
+  // Compose-Box nur für Admins anzeigen
+  const composeBox = document.getElementById('msgComposeBox');
+  if (composeBox) {
+    const effRole = getEffectiveRole();
+    composeBox.style.display = (effRole === 'admin') ? '' : 'none';
+  }
+
   // Listener starten falls noch nicht aktiv
   initMessagesListener();
 
@@ -4910,6 +4928,30 @@ function openMessage(messageId) {
   // Als gelesen markieren
   if (uid && (!m.readBy || !m.readBy[uid])) {
     DASSU_MESSAGES.markAsRead(messageId, uid);
+  }
+}
+
+// Admin: Nachricht senden aus index.html
+async function sendMsgFromIndex() {
+  const title = document.getElementById('msgComposeTitle').value.trim();
+  const body = document.getElementById('msgComposeBody').value.trim();
+  if (!title && !body) { notify('Bitte Betreff oder Text eingeben.', 'error'); return; }
+
+  const user = firebase.auth().currentUser;
+  if (!user) { notify('Nicht eingeloggt.', 'error'); return; }
+
+  // Admin-Name aus staffUsers holen
+  const snap = await firebase.database().ref('staffUsers/' + user.uid).once('value');
+  const prof = snap.val();
+  const senderName = prof ? (prof.firstName || '') + ' ' + (prof.lastName || '') : user.email;
+
+  const result = await DASSU_MESSAGES.sendMessage(title, body, [], senderName.trim());
+  if (result.ok) {
+    notify('Nachricht gesendet!', 'success');
+    document.getElementById('msgComposeTitle').value = '';
+    document.getElementById('msgComposeBody').value = '';
+  } else {
+    notify(result.error || 'Fehler beim Senden.', 'error');
   }
 }
 

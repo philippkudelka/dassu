@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen + VF-Cache erneuern
 (function() {
-  var APP_VERSION = 38;
+  var APP_VERSION = 39;
   try {
     var stored = parseInt(localStorage.getItem('dassu_staff_v') || '0');
     if (stored < APP_VERSION) {
@@ -1535,7 +1535,7 @@ function setupAuthGuard() {
       setTimeout(() => { window.location.href = 'welcome.html'; }, 2500);
       return;
     }
-    currentUser = { id: profile.id, name: profile.name, email: profile.email };
+    currentUser = { id: profile.id, name: profile.name, email: profile.email, role: profile.role || '' };
     localStorage.setItem('dassu_staff_user', JSON.stringify(currentUser));
     hideSplash();
     updateUserUI();
