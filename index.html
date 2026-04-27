@@ -1549,6 +1549,7 @@
   </div>
   <div class="header-actions">
     <button id="btnStornieren" class="btn btn-sm header-desktop-only" onclick="document.getElementById('cancelInputModal').classList.add('active')" style="font-size:11px; letter-spacing:0.04em; text-transform:uppercase;">Stornieren</button>
+    <button id="staffAdminBtn" class="btn btn-sm header-desktop-only" onclick="window.location.href='staff.html?staff=1'" style="font-size:11px; letter-spacing:0.04em; text-transform:uppercase; display:none;">Verwaltung</button>
     <button id="customerAuthBtn" class="btn btn-sm header-desktop-only" onclick="openCustomerAuth()" style="font-size:11px; letter-spacing:0.04em; text-transform:uppercase; background:var(--navy); color:white; border-color:var(--navy);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span id="custAuthLabel">Login</span></button>
     <div class="view-tabs" id="mainViewTabs">
       <button class="view-tab active" onclick="showView('calendar')">Kalender</button>
@@ -1568,6 +1569,7 @@
     <button class="mobile-menu-item fluglehrer-only" id="mobileTabStudentBookings" onclick="showView('studentBookings'); closeMobileMenu();" style="display:none;">Schüler-Buchungen</button>
     <button class="mobile-menu-item fluglehrer-only" id="mobileTabTheory" onclick="showView('theory'); closeMobileMenu();" style="display:none;">Theorie</button>
     <hr class="mobile-menu-divider">
+    <button class="mobile-menu-item" id="mobileStaffAdminBtn" onclick="window.location.href='staff.html?staff=1'" style="display:none;">Verwaltung</button>
     <button class="mobile-menu-item" onclick="openCustomerAuth(); closeMobileMenu();"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> <span id="mobileAuthLabel">Login</span></button>
     <button class="mobile-menu-item" onclick="document.getElementById('cancelInputModal').classList.add('active'); closeMobileMenu();">Stornieren</button>
   </div>
@@ -5033,6 +5035,7 @@ firebase.auth().onAuthStateChanged(async (user) => {
       const snap = await db.ref('staffUsers/' + user.uid).once('value');
       const staffProfile = snap.val();
       if (staffProfile) {
+        // Staff-Rolle erkannt (admin, team, guestGlider, guestMotor)
         if (devMode && staffProfile.role === 'admin') {
           // Dev-Modus: Admin bleibt auf index.html, Toolbar zeigen
           devStaffProfile = staffProfile;
@@ -5050,11 +5053,38 @@ firebase.auth().onAuthStateChanged(async (user) => {
           });
           renderView();
           return; // Auth fertig, Rest überspringen
-        } else {
-          // Staff/Admin ohne devMode → als normaler Kunde behandeln
-          // (Staff-Ansicht nur über Dev-Toolbar erreichbar)
         }
+
+        // Non-dev Staff/Admin: Zeige normalen Kundenbereich + "Verwaltung"-Button
+        if (staffProfile.role === 'admin' || staffProfile.role === 'team') {
+          // Staff-Button im Header und Mobile-Menu aktivieren
+          const staffBtn = document.getElementById('staffAdminBtn');
+          if (staffBtn) staffBtn.style.display = '';
+
+          const mobileStaffBtn = document.getElementById('mobileStaffAdminBtn');
+          if (mobileStaffBtn) mobileStaffBtn.style.display = '';
+        }
+
+        // Fluglehrer-Rollen: guestGlider und guestMotor haben Theorie-Permission
+        const isFluglehrer = staffProfile.role === 'guestGlider' || staffProfile.role === 'guestMotor' || staffProfile.role === 'team';
+        if (isFluglehrer) {
+          // Fluglehrer-Tabs anzeigen
+          document.getElementById('tabStudentBookings')?.style.removeProperty('display');
+          document.getElementById('tabTheory')?.style.removeProperty('display');
+          document.getElementById('mobileTabStudentBookings')?.style.removeProperty('display');
+          document.getElementById('mobileTabTheory')?.style.removeProperty('display');
+        }
+
+        // Staff-User auch als Kunde behandeln (E-Mail automatisch verifiziert)
+        customerProfile = { name: staffProfile.name || user.displayName || '', email: user.email || '' };
+        document.getElementById('tabMyBookings')?.classList.add('auth-revealed');
+        document.getElementById('mobileTabMyBookings')?.classList.add('auth-revealed');
+        document.getElementById('mainViewTabs')?.classList.add('has-customer-tabs');
+        updateCustomerButton();
+        renderView();
+        return; // Auth fertig, Rest überspringen
       }
+
       // 2. Kunden-Check → E-Mail muss verifiziert sein
       if (!user.emailVerified) {
         // Nicht verifiziert → abmelden, als Gast behandeln
@@ -5087,6 +5117,13 @@ firebase.auth().onAuthStateChanged(async (user) => {
     document.querySelectorAll('.customer-only').forEach(el => el.classList.remove('auth-revealed'));
     document.getElementById('mainViewTabs')?.classList.remove('has-staff-tabs');
     document.getElementById('mainViewTabs')?.classList.remove('has-customer-tabs');
+    // Staff-Button ausblenden
+    const staffBtn = document.getElementById('staffAdminBtn');
+    if (staffBtn) staffBtn.style.display = 'none';
+    const mobileStaffBtn = document.getElementById('mobileStaffAdminBtn');
+    if (mobileStaffBtn) mobileStaffBtn.style.display = 'none';
+    // Fluglehrer-Tabs ausblenden
+    document.querySelectorAll('.fluglehrer-only').forEach(el => el.style.display = 'none');
     if (btnStornieren) btnStornieren.style.display = '';
     if (customerAuthBtn) customerAuthBtn.style.display = '';
     // Immer zurück zum Kalender nach Logout

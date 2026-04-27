@@ -12,13 +12,14 @@
 <link rel="manifest" href="/manifest.json">
 <title>DASSU Staff</title>
 <script>
-// Alte cached index.html leitet Admins auf staff.html um (ohne Parameter).
-// Redirect auf /index.html?v=23 — der Query-Param sorgt dafür, dass der
-// alte Service Worker Cache den URL NICHT kennt und vom Netzwerk laden MUSS.
-// So bekommt der Browser die NEUE index.html, die nicht mehr weiterleitet.
+// Redirect-Guard: staff.html ist nur für Staff-User mit ?dev=1, ?booking=..., oder ?staff=1 erreichbar.
+// - ?dev=1: Dev-Modus für Admin-Tests (wird später durch Auth verifiziert)
+// - ?booking=...: Link von staff.html zu einer Buchung (intern)
+// - ?staff=1: Link vom Kunden-Bereich (wird später durch Auth verifiziert)
+// Ohne diese Parameter → zurück zu index.html
 (function() {
   var p = window.location.search;
-  if (!p || (!p.includes('dev') && !p.includes('booking'))) {
+  if (!p || (!p.includes('dev') && !p.includes('booking') && !p.includes('staff'))) {
     window.location.replace('/index.html?v=23');
   }
 })();
