@@ -2116,7 +2116,9 @@ function closeCalPicker() {
 function calPickerOutsideClick(e) {
   const picker = document.getElementById('calPicker');
   const dateH2 = document.getElementById('dateDisplay');
-  if (!picker.contains(e.target) && e.target !== dateH2) closeCalPicker();
+  // Check if click is inside picker OR if target was removed from DOM (e.g. after innerHTML re-render)
+  if (picker.contains(e.target) || e.target === dateH2 || !document.body.contains(e.target)) return;
+  closeCalPicker();
 }
 function calPickerNav(dir) {
   calPickerMonth.setMonth(calPickerMonth.getMonth() + dir);
