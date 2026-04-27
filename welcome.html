@@ -356,7 +356,7 @@ DASSU_AUTH.onAuthChange(async user => {
     authBox.classList.add('hidden');
     document.getElementById('authedEmail').textContent = user.email || '';
     // Auto-Redirect nach 1.5s
-    setTimeout(() => { window.location.href = 'staff.html'; }, 1500);
+    setTimeout(() => { window.location.href = 'staff.html?staff=1'; }, 1500);
   } else {
     authedBox.classList.add('hidden');
     authBox.classList.remove('hidden');
