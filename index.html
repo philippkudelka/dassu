@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen
 (function() {
-  var APP_VERSION = 29;
+  var APP_VERSION = 33;
   try {
     var stored = parseInt(localStorage.getItem('dassu_v') || '0');
     if (stored < APP_VERSION) {
@@ -2096,6 +2096,7 @@ const DEFAULT_AIRCRAFT = ['D-KYGL', 'D-KYCK', 'D-KYSS', 'D-MYUW', 'D-MYIH'];
 const devMode = new URLSearchParams(window.location.search).has('dev');
 let devPerspective = devMode ? (window.location.hash === '#fluglehrer' ? 'fluglehrer' : 'kunde') : null;
 let devStaffProfile = null; // gespeichertes Staff-Profil im Dev-Modus
+let currentStaffRole = null; // 'admin', 'team', 'guestGlider', 'guestMotor' oder null (Kunde)
 
 const AIRCRAFT_IMAGES = {
   'D-KYGL': 'https://images.squarespace-cdn.com/content/v1/5a6084aad0e628eab9591587/1547813117982-OW707IT4O3SF6ZRSEEYN/D-KYGL.jpg',
@@ -3141,19 +3142,50 @@ function openBooking(aircraft, slot, date, evt) {
   const clickedStart = slot.split(' - ')[0];
   const morningBlock = getMorningBlock(aircraft, date, clickedStart);
 
-  if (morningBlock) {
-    // Fixer 2h-Block f&uuml;r D-KYCK/D-KYGL vormittags
-    fromSel.innerHTML = `<option value="${morningBlock.start}" selected>${morningBlock.start}</option>`;
-    toSel.innerHTML = `<option value="${morningBlock.end}" selected>${morningBlock.end}  (2h)</option>`;
-    fromSel.disabled = true;
-    toSel.disabled = true;
-  } else {
+  const isStaffBooking = currentStaffRole === 'admin' || currentStaffRole === 'team';
+
+  if (isStaffBooking) {
+    // Staff/Admin: alle Zeiten im 30-Min-Raster, keine Einschr&auml;nkungen
     fromSel.disabled = false;
     toSel.disabled = false;
     for (let i = 0; i < TIME_POINTS.length - 1; i++) {
       if (isSunday && TIME_POINTS[i] < sundayStart) continue;
+      const opt = document.createElement('option');
+      opt.value = TIME_POINTS[i];
+      opt.textContent = TIME_POINTS[i];
+      fromSel.appendChild(opt);
+    }
+    fromSel.value = clickedStart;
+    updateTimeTo();
+  } else if (morningBlock) {
+    // Kunde: beide 2h-Bl&ouml;cke zur Auswahl anbieten
+    fromSel.disabled = false;
+    toSel.disabled = true;
+    fromSel.innerHTML = '';
+    const blocks = [{ start: '08:00', end: '10:00' }, { start: '10:00', end: '12:00' }];
+    blocks.forEach(b => {
+      if (isSunday) return; // Sonntag kein Block
+      const opt = document.createElement('option');
+      opt.value = b.start;
+      opt.textContent = `${b.start} – ${b.end}  (2h)`;
+      fromSel.appendChild(opt);
+    });
+    fromSel.value = morningBlock.start;
+    // To-Feld passend setzen
+    const selBlock = blocks.find(b => b.start === morningBlock.start) || blocks[0];
+    toSel.innerHTML = `<option value="${selBlock.end}" selected>${selBlock.end}  (2h)</option>`;
+    // Bei Wechsel des From-Blocks: To aktualisieren
+    fromSel.onchange = function() {
+      const chosen = blocks.find(b => b.start === fromSel.value);
+      if (chosen) toSel.innerHTML = `<option value="${chosen.end}" selected>${chosen.end}  (2h)</option>`;
+    };
+  } else {
+    fromSel.disabled = false;
+    toSel.disabled = false;
+    fromSel.onchange = function() { updateTimeTo(); };
+    for (let i = 0; i < TIME_POINTS.length - 1; i++) {
+      if (isSunday && TIME_POINTS[i] < sundayStart) continue;
       if (isTowingBlocked(aircraft, TIME_POINTS[i])) continue;
-      // D-KYCK/D-KYGL Mo-Sa vormittags: 8-12 Uhr aus Dropdown ausschlie&szlig;en (nur 2h-Bl&ouml;cke)
       const mbTest = getMorningBlock(aircraft, date, TIME_POINTS[i]);
       if (mbTest) continue;
       const opt = document.createElement('option');
@@ -3206,23 +3238,66 @@ function onBookingDateChange() {
   const bookingDate = new Date(newDate + 'T12:00:00');
   const isSunday = bookingDate.getDay() === 0;
   const sundayStart = '09:00';
-  fromSel.disabled = false;
-  toSel.disabled = false;
-  for (let i = 0; i < TIME_POINTS.length - 1; i++) {
-    if (isSunday && TIME_POINTS[i] < sundayStart) continue;
-    if (isTowingBlocked(aircraft, TIME_POINTS[i])) continue;
-    const mbTest = getMorningBlock(aircraft, newDate, TIME_POINTS[i]);
-    if (mbTest) continue;
-    const opt = document.createElement('option');
-    opt.value = TIME_POINTS[i];
-    opt.textContent = TIME_POINTS[i];
-    fromSel.appendChild(opt);
+
+  const isStaffBooking = currentStaffRole === 'admin' || currentStaffRole === 'team';
+  const morningBlock = getMorningBlock(aircraft, newDate, prevFrom || '08:00');
+
+  if (isStaffBooking) {
+    // Staff/Admin: alle Zeiten im 30-Min-Raster
+    fromSel.disabled = false;
+    toSel.disabled = false;
+    fromSel.onchange = function() { updateTimeTo(); };
+    for (let i = 0; i < TIME_POINTS.length - 1; i++) {
+      if (isSunday && TIME_POINTS[i] < sundayStart) continue;
+      const opt = document.createElement('option');
+      opt.value = TIME_POINTS[i];
+      opt.textContent = TIME_POINTS[i];
+      fromSel.appendChild(opt);
+    }
+    if (prevFrom && [...fromSel.options].some(o => o.value === prevFrom)) {
+      fromSel.value = prevFrom;
+    }
+    updateTimeTo();
+  } else if (morningBlock) {
+    // Kunde: beide 2h-Blöcke zur Auswahl
+    fromSel.disabled = false;
+    toSel.disabled = true;
+    fromSel.innerHTML = '';
+    const blocks = [{ start: '08:00', end: '10:00' }, { start: '10:00', end: '12:00' }];
+    blocks.forEach(b => {
+      if (isSunday) return;
+      const opt = document.createElement('option');
+      opt.value = b.start;
+      opt.textContent = `${b.start} – ${b.end}  (2h)`;
+      fromSel.appendChild(opt);
+    });
+    const selBlock = blocks.find(b => b.start === prevFrom) || blocks[0];
+    fromSel.value = selBlock.start;
+    toSel.innerHTML = `<option value="${selBlock.end}" selected>${selBlock.end}  (2h)</option>`;
+    fromSel.onchange = function() {
+      const chosen = blocks.find(b => b.start === fromSel.value);
+      if (chosen) toSel.innerHTML = `<option value="${chosen.end}" selected>${chosen.end}  (2h)</option>`;
+    };
+  } else {
+    // Kunde Nachmittag: normale Zeiten ohne Morgenblöcke
+    fromSel.disabled = false;
+    toSel.disabled = false;
+    fromSel.onchange = function() { updateTimeTo(); };
+    for (let i = 0; i < TIME_POINTS.length - 1; i++) {
+      if (isSunday && TIME_POINTS[i] < sundayStart) continue;
+      if (isTowingBlocked(aircraft, TIME_POINTS[i])) continue;
+      const mbTest = getMorningBlock(aircraft, newDate, TIME_POINTS[i]);
+      if (mbTest) continue;
+      const opt = document.createElement('option');
+      opt.value = TIME_POINTS[i];
+      opt.textContent = TIME_POINTS[i];
+      fromSel.appendChild(opt);
+    }
+    if (prevFrom && [...fromSel.options].some(o => o.value === prevFrom)) {
+      fromSel.value = prevFrom;
+    }
+    updateTimeTo();
   }
-  // Vorherige Startzeit beibehalten falls möglich
-  if (prevFrom && [...fromSel.options].some(o => o.value === prevFrom)) {
-    fromSel.value = prevFrom;
-  }
-  updateTimeTo();
   setTimeout(checkConflictWarning, 50);
 }
 
@@ -5070,6 +5145,7 @@ firebase.auth().onAuthStateChanged(async (user) => {
       const staffProfile = snap.val();
       if (staffProfile) {
         // Staff-Rolle erkannt (admin, team, guestGlider, guestMotor)
+        currentStaffRole = staffProfile.role;
         if (devMode && staffProfile.role === 'admin') {
           // Dev-Modus: Admin bleibt auf index.html, Toolbar zeigen
           devStaffProfile = staffProfile;
