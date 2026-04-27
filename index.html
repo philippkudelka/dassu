@@ -1929,7 +1929,7 @@
           <option value="ja">Ja, Fluglehrer ben&ouml;tigt</option>
         </select>
       </div>
-      <div style="margin-bottom:16px;">
+      <div id="bookingConsentWrap" style="margin-bottom:16px;">
         <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer; font-size:12px; color:var(--gray-600); line-height:1.5; text-transform:none; letter-spacing:0; font-weight:400;">
           <input type="checkbox" id="bookingConsent" style="margin-top:3px; flex-shrink:0; width:16px; height:16px; accent-color:var(--primary);">
           <span>Ich bin damit einverstanden, dass meine Angaben zur Bearbeitung meiner Buchungsanfrage verarbeitet und per E-Mail an den Verein &uuml;bermittelt werden. Weitere Informationen in der <a href="https://www.dassu.de/datenschutz" target="_blank" style="color:var(--primary); text-decoration:underline;">Datenschutzerkl&auml;rung</a>. *</span>
@@ -3059,6 +3059,12 @@ function openBooking(aircraft, slot, date, evt) {
   const existing = findBookingForSlot(date, slot, aircraft);
   if (existing) {
     showDetail(existing.id);
+    return;
+  }
+  // Nur eingeloggte Kunden dürfen buchen
+  if (!firebase.auth().currentUser) {
+    notify('Bitte melde dich an, um einen Termin zu buchen.', 'info', 4000);
+    document.getElementById('customerAuthBtn')?.click();
     return;
   }
   // Vergangene Zeitslots blockieren
@@ -4997,10 +5003,15 @@ function autofillBookingForm() {
     document.getElementById('bookingLoggedInEmail').textContent = customerProfile.email;
     if (contactFields) contactFields.style.display = 'none';
     if (loggedInInfo) loggedInInfo.style.display = 'block';
+    const consentWrap = document.getElementById('bookingConsentWrap');
+    if (consentWrap) consentWrap.style.display = 'none';
+    document.getElementById('bookingConsent').checked = true; // Auto-consent für eingeloggte
   } else {
     // Nicht eingeloggt oder Profil unvollständig — Felder zeigen
     if (contactFields) contactFields.style.display = 'block';
     if (loggedInInfo) loggedInInfo.style.display = 'none';
+    const consentWrap = document.getElementById('bookingConsentWrap');
+    if (consentWrap) consentWrap.style.display = 'block';
     if (customerProfile) {
       const n = document.getElementById('bookingName');
       const e = document.getElementById('bookingEmail');
