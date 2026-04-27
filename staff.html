@@ -1276,7 +1276,7 @@ body.dev-mode { padding-bottom: 48px; }
       <div class="info-chip" id="quickDate"></div>
     </div>
     <div class="ac-wrap">
-      <input class="quick-input" id="qbName" type="text" placeholder="Name eingeben..." autocomplete="off" oninput="acFilter('qbName')" onfocus="acFilter('qbName')" onkeydown="acKeydown(event,'qbName')">
+      <input class="quick-input" id="qbName" type="text" placeholder="Name eingeben..." autocomplete="nope" name="qbName-noac" oninput="acFilter('qbName')" onfocus="acFilter('qbName')" onkeydown="acKeydown(event,'qbName')">
       <div class="ac-list" id="qbName-ac"></div>
     </div>
     <div class="quick-row" style="margin-top:8px;">
@@ -1300,7 +1300,7 @@ body.dev-mode { padding-bottom: 48px; }
       <div class="info-chip" id="editDate"></div>
     </div>
     <div class="ac-wrap">
-      <input class="quick-input" id="ebName" type="text" placeholder="Name" autocomplete="off" oninput="acFilter('ebName')" onfocus="acFilter('ebName')" onkeydown="acKeydown(event,'ebName')">
+      <input class="quick-input" id="ebName" type="text" placeholder="Name" autocomplete="nope" name="ebName-noac" oninput="acFilter('ebName')" onfocus="acFilter('ebName')" onkeydown="acKeydown(event,'ebName')">
       <div class="ac-list" id="ebName-ac"></div>
     </div>
     <div class="quick-row" style="margin-top:8px;">
