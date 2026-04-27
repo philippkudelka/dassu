@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen
 (function() {
-  var APP_VERSION = 33;
+  var APP_VERSION = 34;
   try {
     var stored = parseInt(localStorage.getItem('dassu_v') || '0');
     if (stored < APP_VERSION) {
@@ -3142,7 +3142,7 @@ function openBooking(aircraft, slot, date, evt) {
   const clickedStart = slot.split(' - ')[0];
   const morningBlock = getMorningBlock(aircraft, date, clickedStart);
 
-  const isStaffBooking = currentStaffRole === 'admin' || currentStaffRole === 'team';
+  const isStaffBooking = (currentStaffRole === 'admin' || currentStaffRole === 'team') && (!devMode || devPerspective !== 'kunde');
 
   if (isStaffBooking) {
     // Staff/Admin: alle Zeiten im 30-Min-Raster, keine Einschr&auml;nkungen
@@ -3239,7 +3239,7 @@ function onBookingDateChange() {
   const isSunday = bookingDate.getDay() === 0;
   const sundayStart = '09:00';
 
-  const isStaffBooking = currentStaffRole === 'admin' || currentStaffRole === 'team';
+  const isStaffBooking = (currentStaffRole === 'admin' || currentStaffRole === 'team') && (!devMode || devPerspective !== 'kunde');
   const morningBlock = getMorningBlock(aircraft, newDate, prevFrom || '08:00');
 
   if (isStaffBooking) {
