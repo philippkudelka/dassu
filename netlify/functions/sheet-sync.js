@@ -42,9 +42,7 @@ exports.handler = async (event, context) => {
     let fetchUrl = appScriptUrl;
     let fetchOptions = {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
+      redirect: 'follow'
     };
 
     if (event.httpMethod === 'GET') {
@@ -53,10 +51,12 @@ exports.handler = async (event, context) => {
         ? '?' + new URLSearchParams(event.queryStringParameters).toString()
         : '';
       fetchUrl = appScriptUrl + queryString;
+      // Kein Content-Type Header bei GET — Google mag das nicht
 
     } else if (event.httpMethod === 'POST') {
       // Leite POST-Body weiter
       fetchOptions.method = 'POST';
+      fetchOptions.headers = { 'Content-Type': 'text/plain' };
       fetchOptions.body = event.body || '{}';
 
     } else {
@@ -70,9 +70,11 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Rufe Apps Script auf
+    // Rufe Apps Script auf (Google macht 302 Redirects)
+    console.log('Calling Apps Script:', fetchUrl, fetchOptions.method);
     const response = await fetch(fetchUrl, fetchOptions);
     const responseText = await response.text();
+    console.log('Apps Script response status:', response.status, 'body length:', responseText.length);
 
     // Parse Response
     let responseData;

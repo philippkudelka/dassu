@@ -7,7 +7,7 @@
  * Who has access: Anyone
  */
 
-const SHEET_ID = '1SanxAMschcXgYc-tgtVz-TbTjkLAoeba';
+const SHEET_ID = '1-NrJq8-751d4QI-ZT_vl1Hf1PYAzTAOqQdx0G_MajEU';
 const SHEET_NAME = 'Tabelle1';
 const DATE_START = new Date(2026, 3, 28); // 28.04.2026
 const DATE_END = new Date(2026, 4, 1);   // 01.06.2026
