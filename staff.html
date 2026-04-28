@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen + VF-Cache erneuern
 (function() {
-  var APP_VERSION = 43;
+  var APP_VERSION = 45;
   try {
     var stored = parseInt(localStorage.getItem('dassu_staff_v') || '0');
     if (stored < APP_VERSION) {
@@ -220,8 +220,8 @@ body { font-family: var(--font); background: var(--c-bg); color: var(--c-ink); m
 .ov-cell.ov-towing { background: #ececec !important; cursor: default; }
 .ov-cell.ov-towing.ov-bookable { cursor: pointer; background: repeating-linear-gradient(-45deg, #ececec, #ececec 4px, #e2e2e2 4px, #e2e2e2 5px) !important; }
 .ov-cell.ov-towing.ov-bookable:active { background: var(--c-line) !important; }
-.ov-cell.ov-restricted.ov-hour { background-color: rgba(245, 222, 195, 0.3) !important; background-image: repeating-linear-gradient(-45deg, transparent, transparent 4px, rgba(0,0,0,0.025) 4px, rgba(0,0,0,0.025) 5px) !important; }
-.ov-cell.ov-restricted.ov-half { background-color: rgba(245, 222, 195, 0.18) !important; background-image: repeating-linear-gradient(-45deg, transparent, transparent 4px, rgba(0,0,0,0.015) 4px, rgba(0,0,0,0.015) 5px) !important; }
+.ov-cell.ov-restricted.ov-hour:not(.ov-booked) { background-color: rgba(245, 222, 195, 0.3) !important; background-image: repeating-linear-gradient(-45deg, transparent, transparent 4px, rgba(0,0,0,0.025) 4px, rgba(0,0,0,0.025) 5px) !important; }
+.ov-cell.ov-restricted.ov-half:not(.ov-booked) { background-color: rgba(245, 222, 195, 0.18) !important; background-image: repeating-linear-gradient(-45deg, transparent, transparent 4px, rgba(0,0,0,0.015) 4px, rgba(0,0,0,0.015) 5px) !important; }
 .ov-cell.ov-restricted.ov-booked { background-image: none !important; }
 .ov-restricted-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 8px; color: rgba(0,0,0,0.15); font-weight: 700; pointer-events: none; }
 
@@ -2487,7 +2487,7 @@ function paintOverviewGrid(dk, lookup) {
       const entry = lookup[a][tp];
       const restrictedCls = slotRestricted ? ' ov-restricted' : '';
       if (entry) {
-        const hasInstructor = entry.instructor === 'ja';
+        const hasInstructor = entry.instructor === 'ja' || (entry.instructorName && entry.instructorName.trim());
         const instrCls = hasInstructor ? ' ov-instructor' : '';
         const pendingCls = entry.status === 'pending' ? ' ov-pending' : '';
         const nameHtml = entry.isFirst ? `<span class="ov-name">${entry.name}</span>` : '';
@@ -2629,7 +2629,7 @@ function renderWeekOverview() {
       const restricted = isPlatzrundenRestricted(dk, tp);
 
       if (entry) {
-        const instrCls = entry.instructor === 'ja' ? ' wk-instructor' : '';
+        const instrCls = (entry.instructor === 'ja' || (entry.instructorName && entry.instructorName.trim())) ? ' wk-instructor' : '';
         const pendingCls = entry.status === 'pending' ? ' wk-pending' : '';
         const nameHtml = entry.isFirst ? `<span class="wk-name">${entry.name}</span>` : '';
         html += `<div class="wk-cell ${rowCls} wk-booked${instrCls}${pendingCls}" onclick="showDetail('${entry.id}')">${nameHtml}</div>`;
@@ -2698,7 +2698,7 @@ function renderBook() {
       cellClass += ' towing';
       content = '<span class="towing-label">Schleppbetrieb · Tap zum Buchen</span>';
     } else if (booking) {
-      const hasInstructor = booking.instructor === 'ja';
+      const hasInstructor = booking.instructor === 'ja' || (booking.instructorName && booking.instructorName.trim());
       const instrClass = hasInstructor ? ' with-instructor' : '';
       const statusClass = booking.status === 'pending' ? ' pending' : '';
       cellClass += ` booked${instrClass}${statusClass}`;

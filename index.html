@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen
 (function() {
-  var APP_VERSION = 43;
+  var APP_VERSION = 45;
   try {
     var stored = parseInt(localStorage.getItem('dassu_v') || '0');
     if (stored < APP_VERSION) {
@@ -2571,7 +2571,7 @@ function renderWeekView() {
       }
       dayBookings.forEach(b => {
         const timeLabel = b.startTime ? `${b.startTime}–${b.endTime}` : (b.slot || '');
-        const instrClass = b.instructor === 'ja' ? ' with-instructor' : '';
+        const instrClass = (b.instructor === 'ja' || (b.instructorName && b.instructorName.trim())) ? ' with-instructor' : '';
         cellContent += `<div class="week-booking-bar ${b.status}${instrClass}" onclick="event.stopPropagation(); showDetail('${b.id}')" title="Belegt: ${timeLabel}">${timeLabel}</div>`;
       });
 
@@ -2942,7 +2942,7 @@ function renderGanttCalendar(dk, aircraft) {
       const topPx = ((startMinutes - firstHour * 60) / 60) * slotHeight;
       const heightPx = ((endMinutes - startMinutes) / 60) * slotHeight;
 
-      const hasInstructor = booking.instructor === 'ja';
+      const hasInstructor = booking.instructor === 'ja' || (booking.instructorName && booking.instructorName.trim());
       const customerName = booking.customer || booking.name || '—';
       const effRole = getEffectiveRole();
       const canSeeName = effRole === 'admin' || effRole === 'staff' || effRole === 'team' || effRole === 'fluglehrer' || effRole === 'guestGlider' || effRole === 'guestMotor';
