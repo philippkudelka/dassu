@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen + VF-Cache erneuern
 (function() {
-  var APP_VERSION = 42;
+  var APP_VERSION = 43;
   try {
     var stored = parseInt(localStorage.getItem('dassu_staff_v') || '0');
     if (stored < APP_VERSION) {
@@ -2487,12 +2487,12 @@ function paintOverviewGrid(dk, lookup) {
       const entry = lookup[a][tp];
       const restrictedCls = slotRestricted ? ' ov-restricted' : '';
       if (entry) {
-        const hasAssignedInstructor = entry.instructor === 'ja' && entry.instructorName && entry.instructorName.trim();
-        const instrCls = hasAssignedInstructor ? ' ov-instructor' : '';
+        const hasInstructor = entry.instructor === 'ja';
+        const instrCls = hasInstructor ? ' ov-instructor' : '';
         const pendingCls = entry.status === 'pending' ? ' ov-pending' : '';
-        const needsInstrTag = entry.isFirst && entry.instructor === 'ja' && !hasAssignedInstructor ? '<span class="ov-meta" style="color:#c07000;">FL benötigt</span>' : '';
         const nameHtml = entry.isFirst ? `<span class="ov-name">${entry.name}</span>` : '';
-        const metaHtml = entry.isFirst && hasAssignedInstructor ? `<span class="ov-meta">${entry.instructorName}</span>` : needsInstrTag;
+        const instrName = entry.instructorName && entry.instructorName.trim();
+        const metaHtml = entry.isFirst && hasInstructor ? `<span class="ov-meta">${instrName || 'FL benötigt'}</span>` : '';
         const onclick = `onclick="showDetail('${entry.id}')"`;
         const colorStyle = entry.color ? `style="background:${entry.color} !important;${isDarkColor(entry.color) ? 'color:#fff;' : ''}"` : '';
         html += `<div class="ov-cell ${rowCls} ov-booked${instrCls}${pendingCls}${restrictedCls}" ${onclick} ${colorStyle}>${nameHtml}${metaHtml}</div>`;
@@ -2629,8 +2629,7 @@ function renderWeekOverview() {
       const restricted = isPlatzrundenRestricted(dk, tp);
 
       if (entry) {
-        const wkHasAssigned = entry.instructor === 'ja' && entry.instructorName && entry.instructorName.trim();
-        const instrCls = wkHasAssigned ? ' wk-instructor' : '';
+        const instrCls = entry.instructor === 'ja' ? ' wk-instructor' : '';
         const pendingCls = entry.status === 'pending' ? ' wk-pending' : '';
         const nameHtml = entry.isFirst ? `<span class="wk-name">${entry.name}</span>` : '';
         html += `<div class="wk-cell ${rowCls} wk-booked${instrCls}${pendingCls}" onclick="showDetail('${entry.id}')">${nameHtml}</div>`;
@@ -2699,11 +2698,12 @@ function renderBook() {
       cellClass += ' towing';
       content = '<span class="towing-label">Schleppbetrieb · Tap zum Buchen</span>';
     } else if (booking) {
-      const bookHasAssigned = booking.instructor === 'ja' && booking.instructorName && booking.instructorName.trim();
-      const instrClass = bookHasAssigned ? ' with-instructor' : '';
+      const hasInstructor = booking.instructor === 'ja';
+      const instrClass = hasInstructor ? ' with-instructor' : '';
       const statusClass = booking.status === 'pending' ? ' pending' : '';
       cellClass += ` booked${instrClass}${statusClass}`;
-      const instrLabel = bookHasAssigned ? ` · ${booking.instructorName}` : (booking.instructor === 'ja' ? ' · FL benötigt' : '');
+      const instrName = booking.instructorName && booking.instructorName.trim();
+      const instrLabel = hasInstructor ? ` · ${instrName || 'FL benötigt'}` : '';
       const statusLabel = booking.status === 'pending' ? ' (Angefragt)' : '';
       content = `<div><div class="booking-name">${booking.name}${statusLabel}</div><div class="booking-meta">${booking.startTime}–${booking.endTime}${instrLabel}</div></div>`;
     } else {
@@ -4661,30 +4661,21 @@ function openQuick(slotStart) {
   document.getElementById('qbNeedInstructor').checked = false;
   document.getElementById('qbInstructorWrap').style.display = 'none';
 
-  const block = getMorningBlock(selectedAircraft, dk, slotStart);
+  // Staff/Admin: immer freie Zeitwahl (keine 2h-Block-Einschränkung)
   const fromSel = document.getElementById('qbFrom');
   const toSel = document.getElementById('qbTo');
-
-  if (block) {
-    // Fixer 2h-Block - Zeiten gesperrt
-    fromSel.innerHTML = `<option value="${block.start}" selected>${block.start}</option>`;
-    toSel.innerHTML = `<option value="${block.end}" selected>${block.end} (2h)</option>`;
-    fromSel.disabled = true;
-    toSel.disabled = true;
-  } else {
-    fromSel.disabled = false;
-    toSel.disabled = false;
-    fromSel.innerHTML = '';
-    for (let i = 0; i < TIME_POINTS.length - 1; i++) {
-      const opt = document.createElement('option');
-      opt.value = TIME_POINTS[i];
-      opt.textContent = TIME_POINTS[i];
-      if (TIME_POINTS[i] === slotStart) opt.selected = true;
-      fromSel.appendChild(opt);
-    }
-    updateQbTo();
-    fromSel.onchange = updateQbTo;
+  fromSel.disabled = false;
+  toSel.disabled = false;
+  fromSel.innerHTML = '';
+  for (let i = 0; i < TIME_POINTS.length - 1; i++) {
+    const opt = document.createElement('option');
+    opt.value = TIME_POINTS[i];
+    opt.textContent = TIME_POINTS[i];
+    if (TIME_POINTS[i] === slotStart) opt.selected = true;
+    fromSel.appendChild(opt);
   }
+  updateQbTo();
+  fromSel.onchange = updateQbTo;
 
   document.getElementById('quickOverlay').classList.add('active');
   setTimeout(() => document.getElementById('qbName').focus(), 300);
