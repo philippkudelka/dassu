@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen + VF-Cache erneuern
 (function() {
-  var APP_VERSION = 40;
+  var APP_VERSION = 41;
   try {
     var stored = parseInt(localStorage.getItem('dassu_staff_v') || '0');
     if (stored < APP_VERSION) {
@@ -1382,8 +1382,14 @@ body.dev-mode { padding-bottom: 48px; }
       <input class="quick-input" id="qbName" type="text" placeholder="Name eingeben..." autocomplete="nope" name="qbName-noac" oninput="acFilter('qbName')" onfocus="acFilter('qbName')" onkeydown="acKeydown(event,'qbName')">
       <div class="ac-list" id="qbName-ac"></div>
     </div>
-    <div class="ac-wrap" style="margin-top:8px;">
-      <input class="quick-input" id="qbInstructor" type="text" placeholder="Fluglehrer (optional)" autocomplete="nope" name="qbInstr-noac" oninput="acFilterInstructor('qbInstructor')" onfocus="acFilterInstructor('qbInstructor')" onkeydown="acKeydown(event,'qbInstructor')">
+    <div style="margin-top:8px;">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--ink);user-select:none;">
+        <input type="checkbox" id="qbNeedInstructor" onchange="document.getElementById('qbInstructorWrap').style.display=this.checked?'':'none'" style="width:16px;height:16px;accent-color:var(--primary);cursor:pointer;">
+        Fluglehrer benötigt
+      </label>
+    </div>
+    <div id="qbInstructorWrap" class="ac-wrap" style="margin-top:6px;display:none;">
+      <input class="quick-input" id="qbInstructor" type="text" placeholder="Fluglehrer auswählen (optional)" autocomplete="nope" name="qbInstr-noac" oninput="acFilterInstructor('qbInstructor')" onfocus="acFilterInstructor('qbInstructor')" onkeydown="acKeydown(event,'qbInstructor')">
       <div class="ac-list" id="qbInstructor-ac"></div>
     </div>
     <div class="quick-row">
@@ -1407,8 +1413,14 @@ body.dev-mode { padding-bottom: 48px; }
       <input class="quick-input" id="ebName" type="text" placeholder="Name" autocomplete="nope" name="ebName-noac" oninput="acFilter('ebName')" onfocus="acFilter('ebName')" onkeydown="acKeydown(event,'ebName')">
       <div class="ac-list" id="ebName-ac"></div>
     </div>
-    <div class="ac-wrap" style="margin-top:8px;">
-      <input class="quick-input" id="ebInstructor" type="text" placeholder="Fluglehrer (optional)" autocomplete="nope" name="ebInstr-noac" oninput="acFilterInstructor('ebInstructor')" onfocus="acFilterInstructor('ebInstructor')" onkeydown="acKeydown(event,'ebInstructor')">
+    <div style="margin-top:8px;">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--ink);user-select:none;">
+        <input type="checkbox" id="ebNeedInstructor" onchange="document.getElementById('ebInstructorWrap').style.display=this.checked?'':'none'" style="width:16px;height:16px;accent-color:var(--primary);cursor:pointer;">
+        Fluglehrer benötigt
+      </label>
+    </div>
+    <div id="ebInstructorWrap" class="ac-wrap" style="margin-top:6px;display:none;">
+      <input class="quick-input" id="ebInstructor" type="text" placeholder="Fluglehrer auswählen (optional)" autocomplete="nope" name="ebInstr-noac" oninput="acFilterInstructor('ebInstructor')" onfocus="acFilterInstructor('ebInstructor')" onkeydown="acKeydown(event,'ebInstructor')">
       <div class="ac-list" id="ebInstructor-ac"></div>
     </div>
     <div class="quick-row">
@@ -4642,6 +4654,8 @@ function openQuick(slotStart) {
   document.getElementById('quickDate').textContent = dk;
   document.getElementById('qbName').value = '';
   document.getElementById('qbInstructor').value = '';
+  document.getElementById('qbNeedInstructor').checked = false;
+  document.getElementById('qbInstructorWrap').style.display = 'none';
 
   const block = getMorningBlock(selectedAircraft, dk, slotStart);
   const fromSel = document.getElementById('qbFrom');
@@ -4691,8 +4705,8 @@ function submitQuick() {
   const startTime = document.getElementById('qbFrom').value;
   const endTime = document.getElementById('qbTo').value;
   const dk = dateKey(currentDate);
+  const needInstructor = document.getElementById('qbNeedInstructor').checked;
   const instructorName = document.getElementById('qbInstructor').value.trim();
-  const hasInstructor = instructorName.length > 0;
 
   const fromIdx = slotIndex(startTime);
   const toIdx = slotIndex(endTime);
@@ -4711,8 +4725,8 @@ function submitQuick() {
     slot: `${startTime} - ${endTime}`,
     startTime, endTime, name,
     email: '', phone: '',
-    instructor: hasInstructor ? 'ja' : 'nein',
-    instructorName: hasInstructor ? instructorName : '',
+    instructor: needInstructor ? 'ja' : 'nein',
+    instructorName: needInstructor ? instructorName : '',
     status: 'approved',
     cancelToken: '',
     quickBook: true,
@@ -4744,6 +4758,9 @@ function openEdit(id) {
   document.getElementById('editDate').textContent = b.date;
   document.getElementById('ebName').value = b.name || '';
   document.getElementById('ebInstructor').value = b.instructorName || '';
+  const ebNeed = b.instructor === 'ja';
+  document.getElementById('ebNeedInstructor').checked = ebNeed;
+  document.getElementById('ebInstructorWrap').style.display = ebNeed ? '' : 'none';
 
   const fromSel = document.getElementById('ebFrom');
   fromSel.innerHTML = '';
@@ -4795,8 +4812,8 @@ function submitEdit() {
   if (!name) { document.getElementById('ebName').style.borderColor = 'var(--danger)'; return; }
   const startTime = document.getElementById('ebFrom').value;
   const endTime = document.getElementById('ebTo').value;
+  const needInstructor = document.getElementById('ebNeedInstructor').checked;
   const instructorName = document.getElementById('ebInstructor').value.trim();
-  const hasInstructor = instructorName.length > 0;
 
   // Collision check (skip own slots)
   const fromIdx = slotIndex(startTime);
@@ -4812,15 +4829,17 @@ function submitEdit() {
   const changes = [];
   if (b.name !== name) changes.push(`Name: ${b.name} → ${name}`);
   if (b.startTime !== startTime || b.endTime !== endTime) changes.push(`Zeit: ${b.startTime}–${b.endTime} → ${startTime}–${endTime}`);
-  if ((b.instructorName || '') !== instructorName) changes.push(`Lehrer: ${b.instructorName || '—'} → ${instructorName || '—'}`);
+  const oldInstr = b.instructor === 'ja' ? (b.instructorName || 'Ja') : 'Nein';
+  const newInstr = needInstructor ? (instructorName || 'Ja') : 'Nein';
+  if (oldInstr !== newInstr) changes.push(`Lehrer: ${oldInstr} → ${newInstr}`);
 
   const updated = {
     ...b,
     name,
     startTime, endTime,
     slot: `${startTime} - ${endTime}`,
-    instructor: hasInstructor ? 'ja' : 'nein',
-    instructorName: hasInstructor ? instructorName : ''
+    instructor: needInstructor ? 'ja' : 'nein',
+    instructorName: needInstructor ? instructorName : ''
   };
 
   db.ref('bookings/' + id).set(updated);
