@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen
 (function() {
-  var APP_VERSION = 41;
+  var APP_VERSION = 42;
   try {
     var stored = parseInt(localStorage.getItem('dassu_v') || '0');
     if (stored < APP_VERSION) {
@@ -2571,7 +2571,8 @@ function renderWeekView() {
       }
       dayBookings.forEach(b => {
         const timeLabel = b.startTime ? `${b.startTime}–${b.endTime}` : (b.slot || '');
-        const instrClass = b.instructor === 'ja' ? ' with-instructor' : '';
+        const instrAssigned = b.instructor === 'ja' && b.instructorName && b.instructorName.trim();
+        const instrClass = instrAssigned ? ' with-instructor' : '';
         cellContent += `<div class="week-booking-bar ${b.status}${instrClass}" onclick="event.stopPropagation(); showDetail('${b.id}')" title="Belegt: ${timeLabel}">${timeLabel}</div>`;
       });
 
@@ -2942,18 +2943,19 @@ function renderGanttCalendar(dk, aircraft) {
       const topPx = ((startMinutes - firstHour * 60) / 60) * slotHeight;
       const heightPx = ((endMinutes - startMinutes) / 60) * slotHeight;
 
-      const hasInstructor = booking.instructor === 'ja';
+      const hasAssignedInstructor = booking.instructor === 'ja' && booking.instructorName && booking.instructorName.trim();
       const customerName = booking.customer || booking.name || '—';
       const effRole = getEffectiveRole();
       const canSeeName = effRole === 'admin' || effRole === 'staff' || effRole === 'team' || effRole === 'fluglehrer' || effRole === 'guestGlider' || effRole === 'guestMotor';
       const displayName = canSeeName ? customerName : 'Belegt';
       const shortName = displayName.length > 12 ? displayName.substring(0, 11) + '…' : displayName;
+      const instrTooltip = hasAssignedInstructor ? `\nFluglehrer: ${booking.instructorName}` : (booking.instructor === 'ja' ? '\nFL benötigt' : '');
       const tooltipText = canSeeName
-        ? `${customerName}\n${booking.startTime}–${booking.endTime}${hasInstructor ? '\nFluglehrer' : ''}\nStatus: ${booking.status}`
+        ? `${customerName}\n${booking.startTime}–${booking.endTime}${instrTooltip}\nStatus: ${booking.status}`
         : `Belegt\n${booking.startTime}–${booking.endTime}`;
 
       const barDiv = document.createElement('div');
-      barDiv.className = `gantt-bar ${booking.status}${hasInstructor ? ' with-instructor' : ''}`;
+      barDiv.className = `gantt-bar ${booking.status}${hasAssignedInstructor ? ' with-instructor' : ''}`;
       barDiv.style.top = topPx + 'px';
       barDiv.style.height = heightPx + 'px';
       barDiv.title = tooltipText;

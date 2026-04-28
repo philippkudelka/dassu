@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen + VF-Cache erneuern
 (function() {
-  var APP_VERSION = 41;
+  var APP_VERSION = 42;
   try {
     var stored = parseInt(localStorage.getItem('dassu_staff_v') || '0');
     if (stored < APP_VERSION) {
@@ -2487,10 +2487,12 @@ function paintOverviewGrid(dk, lookup) {
       const entry = lookup[a][tp];
       const restrictedCls = slotRestricted ? ' ov-restricted' : '';
       if (entry) {
-        const instrCls = entry.instructor === 'ja' ? ' ov-instructor' : '';
+        const hasAssignedInstructor = entry.instructor === 'ja' && entry.instructorName && entry.instructorName.trim();
+        const instrCls = hasAssignedInstructor ? ' ov-instructor' : '';
         const pendingCls = entry.status === 'pending' ? ' ov-pending' : '';
+        const needsInstrTag = entry.isFirst && entry.instructor === 'ja' && !hasAssignedInstructor ? '<span class="ov-meta" style="color:#c07000;">FL benötigt</span>' : '';
         const nameHtml = entry.isFirst ? `<span class="ov-name">${entry.name}</span>` : '';
-        const metaHtml = entry.isFirst && entry.instructorName ? `<span class="ov-meta">${entry.instructorName}</span>` : '';
+        const metaHtml = entry.isFirst && hasAssignedInstructor ? `<span class="ov-meta">${entry.instructorName}</span>` : needsInstrTag;
         const onclick = `onclick="showDetail('${entry.id}')"`;
         const colorStyle = entry.color ? `style="background:${entry.color} !important;${isDarkColor(entry.color) ? 'color:#fff;' : ''}"` : '';
         html += `<div class="ov-cell ${rowCls} ov-booked${instrCls}${pendingCls}${restrictedCls}" ${onclick} ${colorStyle}>${nameHtml}${metaHtml}</div>`;
@@ -2627,7 +2629,8 @@ function renderWeekOverview() {
       const restricted = isPlatzrundenRestricted(dk, tp);
 
       if (entry) {
-        const instrCls = entry.instructor === 'ja' ? ' wk-instructor' : '';
+        const wkHasAssigned = entry.instructor === 'ja' && entry.instructorName && entry.instructorName.trim();
+        const instrCls = wkHasAssigned ? ' wk-instructor' : '';
         const pendingCls = entry.status === 'pending' ? ' wk-pending' : '';
         const nameHtml = entry.isFirst ? `<span class="wk-name">${entry.name}</span>` : '';
         html += `<div class="wk-cell ${rowCls} wk-booked${instrCls}${pendingCls}" onclick="showDetail('${entry.id}')">${nameHtml}</div>`;
@@ -2696,10 +2699,11 @@ function renderBook() {
       cellClass += ' towing';
       content = '<span class="towing-label">Schleppbetrieb · Tap zum Buchen</span>';
     } else if (booking) {
-      const instrClass = booking.instructor === 'ja' ? ' with-instructor' : '';
+      const bookHasAssigned = booking.instructor === 'ja' && booking.instructorName && booking.instructorName.trim();
+      const instrClass = bookHasAssigned ? ' with-instructor' : '';
       const statusClass = booking.status === 'pending' ? ' pending' : '';
       cellClass += ` booked${instrClass}${statusClass}`;
-      const instrLabel = booking.instructor === 'ja' && booking.instructorName ? ` · ${booking.instructorName}` : '';
+      const instrLabel = bookHasAssigned ? ` · ${booking.instructorName}` : (booking.instructor === 'ja' ? ' · FL benötigt' : '');
       const statusLabel = booking.status === 'pending' ? ' (Angefragt)' : '';
       content = `<div><div class="booking-name">${booking.name}${statusLabel}</div><div class="booking-meta">${booking.startTime}–${booking.endTime}${instrLabel}</div></div>`;
     } else {
