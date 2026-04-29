@@ -153,6 +153,17 @@
     align-items: center;
   }
 
+  /* Customer User Menu */
+  .customer-user-menu { position: relative; }
+  .customer-user-btn { display:flex; align-items:center; gap:6px; background:none; border:1px solid var(--c-border); border-radius:8px; padding:4px 10px 4px 4px; cursor:pointer; font-family:inherit; font-size:12px; color:var(--navy); font-weight:600; }
+  .customer-user-avatar { width:26px; height:26px; border-radius:50%; background:var(--navy); color:#fff; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; overflow:hidden; flex-shrink:0; }
+  .customer-user-name { max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .customer-dropdown { display:none; position:absolute; top:100%; right:0; margin-top:4px; background:white; border:1px solid var(--c-border); border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.1); min-width:150px; z-index:100; overflow:hidden; }
+  .customer-dropdown.show { display:block; }
+  .customer-dropdown button { display:block; width:100%; text-align:left; padding:10px 14px; border:none; background:none; cursor:pointer; font-size:13px; font-family:inherit; color:var(--c-text); }
+  .customer-dropdown button:hover { background:var(--c-bg); }
+  .customer-dropdown button:last-child { color:#B36A5B; border-top:1px solid var(--c-border); }
+
   /* Buttons — Alpen & Horizont */
   .btn {
     padding: 8px 18px;
@@ -1588,6 +1599,17 @@
     <button id="btnStornieren" class="btn btn-sm header-desktop-only" onclick="document.getElementById('cancelInputModal').classList.add('active')" style="font-size:11px; letter-spacing:0.04em; text-transform:uppercase;">Stornieren</button>
     <button id="staffAdminBtn" class="btn btn-sm header-desktop-only" onclick="window.location.href='staff.html?staff=1'" style="font-size:11px; letter-spacing:0.04em; text-transform:uppercase; display:none;">Verwaltung</button>
     <button id="customerAuthBtn" class="btn btn-sm header-desktop-only" onclick="openCustomerAuth()" style="font-size:11px; letter-spacing:0.04em; text-transform:uppercase; background:var(--navy); color:white; border-color:var(--navy);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span id="custAuthLabel">Login</span></button>
+    <div id="customerUserMenu" class="customer-user-menu header-desktop-only" style="display:none;">
+      <button class="customer-user-btn" onclick="toggleCustomerDropdown()">
+        <span class="customer-user-avatar" id="custMenuAvatar"></span>
+        <span class="customer-user-name" id="custMenuName"></span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div class="customer-dropdown" id="customerDropdown">
+        <button onclick="showView('account'); closeCustomerDropdown();">Mein Konto</button>
+        <button onclick="customerLogout(); closeCustomerDropdown();">Abmelden</button>
+      </div>
+    </div>
     <div class="view-tabs" id="mainViewTabs">
       <button class="view-tab active" onclick="showView('calendar')">Kalender</button>
       <button class="view-tab customer-only" id="tabMyBookings" onclick="showView('myBookings')">Meine Buchungen</button>
@@ -1609,7 +1631,9 @@
     <button class="mobile-menu-item fluglehrer-only" id="mobileTabMessages" onclick="showView('messages'); closeMobileMenu();" style="display:none;">Nachrichten</button>
     <hr class="mobile-menu-divider">
     <button class="mobile-menu-item" id="mobileStaffAdminBtn" onclick="window.location.href='staff.html?staff=1'" style="display:none;">Verwaltung</button>
-    <button class="mobile-menu-item" onclick="openCustomerAuth(); closeMobileMenu();"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> <span id="mobileAuthLabel">Login</span></button>
+    <button class="mobile-menu-item" id="mobileLoginBtn" onclick="openCustomerAuth(); closeMobileMenu();"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> <span id="mobileAuthLabel">Login</span></button>
+    <button class="mobile-menu-item" id="mobileAccountBtn" onclick="showView('account'); closeMobileMenu();" style="display:none;">Mein Konto</button>
+    <button class="mobile-menu-item" id="mobileLogoutBtn" onclick="customerLogout(); closeMobileMenu();" style="display:none;color:#B36A5B;">Abmelden</button>
     <button class="mobile-menu-item" onclick="document.getElementById('cancelInputModal').classList.add('active'); closeMobileMenu();">Stornieren</button>
   </div>
 </div>
@@ -1858,6 +1882,57 @@
     <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:16px;">
       <button class="btn btn-sm" onclick="closeTheoryForm()" style="font-size:12px;">Abbrechen</button>
       <button class="btn btn-sm" onclick="saveTheoryLesson()" style="background:var(--navy); color:white; border-color:var(--navy); font-size:12px;">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- Mein Konto View (eigene Seite) -->
+<div id="accountView" style="display:none;">
+  <div class="my-bookings-panel" style="max-width:520px;margin:0 auto;">
+    <div style="text-align:center;margin-bottom:24px;">
+      <div class="ca-avatar-circle" id="acctAvatar" style="width:72px;height:72px;border-radius:50%;background:var(--navy);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;cursor:pointer;overflow:hidden;position:relative;" onclick="document.getElementById('acctPhotoInput').click();">
+      </div>
+      <input type="file" id="acctPhotoInput" accept="image/*" style="display:none;" onchange="uploadAccountPhoto(this)">
+      <div id="acctDisplayName" style="font-size:18px;font-weight:700;color:var(--navy);margin-top:10px;"></div>
+      <div id="acctDisplayEmail" style="font-size:13px;color:var(--c-muted);margin-top:2px;"></div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--c-muted);text-transform:uppercase;letter-spacing:0.04em;">Name</label>
+        <input type="text" id="acctName" class="form-input" style="width:100%;box-sizing:border-box;">
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--c-muted);text-transform:uppercase;letter-spacing:0.04em;">E-Mail</label>
+        <input type="email" id="acctEmail" class="form-input" style="width:100%;box-sizing:border-box;" disabled>
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--c-muted);text-transform:uppercase;letter-spacing:0.04em;">Telefon</label>
+        <input type="tel" id="acctPhone" class="form-input" style="width:100%;box-sizing:border-box;">
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--c-muted);text-transform:uppercase;letter-spacing:0.04em;">Geburtsdatum</label>
+        <input type="date" id="acctBirth" class="form-input" style="width:100%;box-sizing:border-box;">
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:20px;">
+      <button class="btn btn-primary" onclick="saveAccountProfile()" style="flex:1;">Speichern</button>
+    </div>
+    <div id="acctMsg" style="margin-top:8px;font-size:13px;text-align:center;"></div>
+
+    <details style="margin-top:24px;border-top:1px solid var(--c-border);padding-top:16px;">
+      <summary style="cursor:pointer;font-size:13px;font-weight:600;color:var(--c-muted);">Passwort ändern</summary>
+      <div style="margin-top:12px;display:flex;flex-direction:column;gap:10px;">
+        <input type="password" id="acctNewPw" class="form-input" placeholder="Neues Passwort" style="width:100%;box-sizing:border-box;">
+        <input type="password" id="acctNewPw2" class="form-input" placeholder="Passwort wiederholen" style="width:100%;box-sizing:border-box;">
+        <button class="btn btn-sm" onclick="changeAccountPassword()" style="align-self:flex-start;">Passwort ändern</button>
+        <div id="acctPwMsg" style="font-size:12px;"></div>
+      </div>
+    </details>
+
+    <div style="margin-top:24px;text-align:center;border-top:1px solid var(--c-border);padding-top:16px;">
+      <button onclick="customerLogout()" style="background:none;border:none;color:#B36A5B;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Abmelden</button>
     </div>
   </div>
 </div>
@@ -2476,6 +2551,7 @@ function showView(view) {
   document.getElementById('studentBookingsView').style.display = view === 'studentBookings' ? 'block' : 'none';
   document.getElementById('theoryView').style.display = view === 'theory' ? 'block' : 'none';
   document.getElementById('messagesView').style.display = view === 'messages' ? 'block' : 'none';
+  document.getElementById('accountView').style.display = view === 'account' ? 'block' : 'none';
   // Tab-Buttons aktiv markieren
   document.querySelectorAll('#mainViewTabs > .view-tab').forEach(t => t.classList.remove('active'));
   if (view === 'calendar') document.querySelector('#mainViewTabs > .view-tab:first-child')?.classList.add('active');
@@ -2487,6 +2563,7 @@ function showView(view) {
   if (view === 'studentBookings') renderStudentBookings();
   if (view === 'theory') renderTheoryLessons();
   if (view === 'messages') renderMessages();
+  if (view === 'account') renderAccountView();
 }
 
 // ============================================================
@@ -5040,48 +5117,17 @@ renderView();
 // KUNDEN-AUTH (optional, für Autofill)
 // ============================================================
 function openCustomerAuth() {
-  const modal = document.getElementById('customerAuthModal');
   if (customerProfile) {
-    // Eingeloggt: Profil anzeigen
-    document.getElementById('caLoggedIn').style.display = '';
-    document.getElementById('caAuthForms').style.display = 'none';
-    document.getElementById('caDisplayName').textContent = customerProfile.name || '';
-    document.getElementById('caDisplayEmail').textContent = customerProfile.email || '';
-    document.getElementById('caEditName').value = customerProfile.name || '';
-    document.getElementById('caEditEmail').value = customerProfile.email || '';
-    document.getElementById('caEditPhone').value = customerProfile.phone || '';
-    document.getElementById('caEditBirth').value = customerProfile.birthdate || '';
-    document.getElementById('caEditMsg').innerHTML = '';
-    // E-Mail-Verifizierung prüfen
-    const user = firebase.auth().currentUser;
-    const verifyBanner = document.getElementById('caVerifyBanner');
-    if (user && !user.emailVerified) {
-      // Token aktualisieren um neuesten Status zu holen
-      user.reload().then(() => {
-        if (user.emailVerified) {
-          verifyBanner.style.display = 'none';
-        } else {
-          verifyBanner.style.display = '';
-        }
-      }).catch(() => { verifyBanner.style.display = ''; });
-    } else {
-      verifyBanner.style.display = 'none';
-    }
-    // Avatar anzeigen
-    const avatarCircle = document.getElementById('caAvatarCircle');
-    const avatarInitial = document.getElementById('caAvatarInitial');
-    if (customerProfile.photoURL) {
-      avatarCircle.innerHTML = '<img src="' + customerProfile.photoURL + '" style="width:100%;height:100%;object-fit:cover;">';
-    } else {
-      const initials = (customerProfile.name || '?').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-      avatarCircle.innerHTML = '<span id="caAvatarInitial">' + initials + '</span>';
-    }
+    // Logged in — show account view instead
+    showView('account');
   } else {
+    // Not logged in — show modal with login/register
+    const modal = document.getElementById('customerAuthModal');
     document.getElementById('caLoggedIn').style.display = 'none';
     document.getElementById('caAuthForms').style.display = '';
     showCaTab('login');
+    modal.classList.add('active');
   }
-  modal.classList.add('active');
 }
 
 function showCaTab(which) {
@@ -5187,9 +5233,19 @@ async function customerRegister() {
     const profile = { name, email, phone: phone || '', birthdate: birth || '', consentAt: Date.now(), createdAt: Date.now() };
     await db.ref('customers/' + uid).set(profile);
     try { await cred.user.updateProfile({ displayName: name }); } catch (_) {}
-    // E-Mail-Verifizierung senden + sofort abmelden bis bestätigt
+    // Gebrandete Verifizierungsmail senden + sofort abmelden bis bestätigt
     if (!cred.user.emailVerified) {
-      try { await cred.user.sendEmailVerification(); } catch (_) {}
+      try {
+        const vRes = await fetch('/.netlify/functions/send-verification', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, name })
+        });
+        if (!vRes.ok) throw new Error('Verification API failed');
+      } catch (_) {
+        // Fallback: Firebase Standard-Mail
+        try { await cred.user.sendEmailVerification(); } catch (__) {}
+      }
       await firebase.auth().signOut();
       caMsg('caRegMsg', 'success', 'Fast geschafft! Wir haben dir eine Best\u00e4tigungs-E-Mail an <strong>' + email + '</strong> geschickt. Bitte klicke auf den Link in der E-Mail, um dein Konto zu aktivieren. Danach kannst du dich anmelden.');
       btn.disabled = false; btn.textContent = 'Registrieren';
@@ -5354,11 +5410,138 @@ async function changeCustomerPassword() {
 }
 
 function updateCustomerButton() {
-  const label = document.getElementById('custAuthLabel');
-  const mobileLabel = document.getElementById('mobileAuthLabel');
-  const text = customerProfile ? 'Konto' : 'Login';
-  if (label) label.textContent = text;
-  if (mobileLabel) mobileLabel.textContent = text;
+  const authBtn = document.getElementById('customerAuthBtn');
+  const userMenu = document.getElementById('customerUserMenu');
+  const mobileLogin = document.getElementById('mobileLoginBtn');
+  const mobileAccount = document.getElementById('mobileAccountBtn');
+  const mobileLogout = document.getElementById('mobileLogoutBtn');
+
+  if (customerProfile) {
+    // Logged in — show name menu, hide login button
+    if (authBtn) authBtn.style.display = 'none';
+    if (userMenu) {
+      userMenu.style.display = '';
+      const nameEl = document.getElementById('custMenuName');
+      const avatarEl = document.getElementById('custMenuAvatar');
+      if (nameEl) nameEl.textContent = customerProfile.name || 'Konto';
+      if (avatarEl) {
+        if (customerProfile.photoURL) {
+          avatarEl.innerHTML = '<img src="' + customerProfile.photoURL + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
+        } else {
+          avatarEl.textContent = (customerProfile.name || '?').charAt(0).toUpperCase();
+        }
+      }
+    }
+    // Mobile
+    if (mobileLogin) mobileLogin.style.display = 'none';
+    if (mobileAccount) mobileAccount.style.display = '';
+    if (mobileLogout) mobileLogout.style.display = '';
+  } else {
+    // Not logged in — show login button, hide name menu
+    if (authBtn) authBtn.style.display = '';
+    if (userMenu) userMenu.style.display = 'none';
+    // Mobile
+    if (mobileLogin) mobileLogin.style.display = '';
+    if (mobileAccount) mobileAccount.style.display = 'none';
+    if (mobileLogout) mobileLogout.style.display = 'none';
+  }
+}
+
+function toggleCustomerDropdown() {
+  const dd = document.getElementById('customerDropdown');
+  if (dd) dd.classList.toggle('show');
+}
+function closeCustomerDropdown() {
+  const dd = document.getElementById('customerDropdown');
+  if (dd) dd.classList.remove('show');
+}
+// Close dropdown when clicking outside
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.customer-user-menu')) closeCustomerDropdown();
+});
+
+function customerLogout() {
+  firebase.auth().signOut();
+  customerProfile = null;
+  updateCustomerButton();
+  showView('calendar');
+}
+
+function renderAccountView() {
+  if (!customerProfile) return;
+  document.getElementById('acctName').value = customerProfile.name || '';
+  document.getElementById('acctEmail').value = customerProfile.email || '';
+  document.getElementById('acctPhone').value = customerProfile.phone || '';
+  document.getElementById('acctBirth').value = customerProfile.birthdate || '';
+  document.getElementById('acctDisplayName').textContent = customerProfile.name || '';
+  document.getElementById('acctDisplayEmail').textContent = customerProfile.email || '';
+  const avatarEl = document.getElementById('acctAvatar');
+  if (avatarEl) {
+    if (customerProfile.photoURL) {
+      avatarEl.innerHTML = '<img src="' + customerProfile.photoURL + '" style="width:100%;height:100%;object-fit:cover;">';
+    } else {
+      avatarEl.textContent = (customerProfile.name || '?').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    }
+  }
+  document.getElementById('acctMsg').textContent = '';
+}
+
+async function saveAccountProfile() {
+  const user = firebase.auth().currentUser;
+  if (!user) return;
+  const name = document.getElementById('acctName').value.trim();
+  const phone = document.getElementById('acctPhone').value.trim();
+  const birth = document.getElementById('acctBirth').value;
+  if (!name) { document.getElementById('acctMsg').innerHTML = '<span style="color:#B36A5B;">Name darf nicht leer sein.</span>'; return; }
+  try {
+    await db.ref('customers/' + user.uid).update({ name, phone, birthdate: birth });
+    try { await user.updateProfile({ displayName: name }); } catch (_) {}
+    customerProfile.name = name;
+    customerProfile.phone = phone;
+    customerProfile.birthdate = birth;
+    updateCustomerButton();
+    renderAccountView();
+    document.getElementById('acctMsg').innerHTML = '<span style="color:var(--navy);">Gespeichert!</span>';
+    setTimeout(() => { document.getElementById('acctMsg').textContent = ''; }, 2000);
+  } catch (e) {
+    document.getElementById('acctMsg').innerHTML = '<span style="color:#B36A5B;">Fehler: ' + e.message + '</span>';
+  }
+}
+
+async function changeAccountPassword() {
+  const pw = document.getElementById('acctNewPw').value;
+  const pw2 = document.getElementById('acctNewPw2').value;
+  const msgEl = document.getElementById('acctPwMsg');
+  if (!pw || pw.length < 6) { msgEl.innerHTML = '<span style="color:#B36A5B;">Mindestens 6 Zeichen.</span>'; return; }
+  if (pw !== pw2) { msgEl.innerHTML = '<span style="color:#B36A5B;">Passwörter stimmen nicht überein.</span>'; return; }
+  try {
+    await firebase.auth().currentUser.updatePassword(pw);
+    msgEl.innerHTML = '<span style="color:var(--navy);">Passwort geändert!</span>';
+    document.getElementById('acctNewPw').value = '';
+    document.getElementById('acctNewPw2').value = '';
+  } catch (e) {
+    msgEl.innerHTML = '<span style="color:#B36A5B;">' + e.message + '</span>';
+  }
+}
+
+async function uploadAccountPhoto(input) {
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    const dataUrl = e.target.result;
+    const user = firebase.auth().currentUser;
+    if (!user) return;
+    try {
+      await db.ref('customers/' + user.uid + '/photoURL').set(dataUrl);
+      if (customerProfile) customerProfile.photoURL = dataUrl;
+      updateCustomerButton();
+      renderAccountView();
+    } catch (err) {
+      console.error('Photo upload error:', err);
+    }
+  };
+  reader.readAsDataURL(file);
 }
 
 function autofillBookingForm() {
