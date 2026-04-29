@@ -2224,7 +2224,7 @@
 
     <!-- ===== LOGIN VIEW ===== -->
     <div id="caLoginView">
-      <div class="auth-card">
+      <form class="auth-card" onsubmit="event.preventDefault(); customerLogin();">
         <h2>Anmelden</h2>
         <div id="caLoginMsg"></div>
         <div class="auth-field">
@@ -2235,11 +2235,11 @@
           <label for="caLoginPw">Passwort</label>
           <input type="password" id="caLoginPw" placeholder="Mind. 6 Zeichen" autocomplete="current-password">
           <div style="text-align:right; margin-top:6px;">
-            <button class="auth-link" onclick="customerResetPw()">Passwort vergessen?</button>
+            <button type="button" class="auth-link" onclick="customerResetPw()">Passwort vergessen?</button>
           </div>
         </div>
-        <button class="auth-btn-primary" id="caLoginBtn" onclick="customerLogin()">Anmelden</button>
-      </div>
+        <button type="submit" class="auth-btn-primary" id="caLoginBtn">Anmelden</button>
+      </form>
 
       <div class="auth-divider">Neu bei DASSU?</div>
 
@@ -2250,7 +2250,7 @@
 
     <!-- ===== REGISTER VIEW ===== -->
     <div id="caRegView" style="display:none;">
-      <div class="auth-card">
+      <form class="auth-card" onsubmit="event.preventDefault(); customerRegister();">
         <h2>Konto erstellen</h2>
         <div id="caRegMsg"></div>
         <div class="auth-field">
@@ -2296,12 +2296,12 @@
           <span>Ich bin damit einverstanden, dass meine Angaben zur Erstellung und Verwaltung meines Kundenkontos gespeichert und verarbeitet werden. Eine Abmeldung und L&ouml;schung ist jederzeit m&ouml;glich. Weitere Informationen in der <a href="https://www.dassu.de/datenschutz" target="_blank">Datenschutzerkl&auml;rung</a>.</span>
         </label>
 
-        <button class="auth-btn-primary" id="caRegBtn" onclick="customerRegister()">Konto erstellen</button>
+        <button type="submit" class="auth-btn-primary" id="caRegBtn">Konto erstellen</button>
 
         <div class="auth-info-note">
           Nach der Registrierung erh&auml;ltst du eine Best&auml;tigungs-E-Mail. Buchungen sind erst nach Best&auml;tigung deiner E-Mail-Adresse m&ouml;glich.
         </div>
-      </div>
+      </form>
 
       <div class="auth-switch-card">
         Du hast bereits ein Konto? <a onclick="showAuthView('login')">Anmelden</a>
