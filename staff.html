@@ -530,6 +530,7 @@ body { font-family: var(--font); background: var(--c-bg); color: var(--c-ink); m
 .team-row-avatar.role-admin { background: var(--accent); color: var(--navy); }
 .team-row-avatar.role-team { background: var(--primary); color: white; }
 .team-row-avatar.role-guest { background: var(--gray-300); color: var(--navy); }
+.team-row-avatar.role-customer { background: #e8f0fe; color: #1a73e8; }
 .team-row-info { flex: 1; min-width: 0; }
 .team-row-name { font-size: 14px; font-weight: 600; color: var(--navy); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .team-row-name .you-tag { font-size: 9px; color: var(--gray-500); font-weight: 400; margin-left: 4px; }
@@ -538,6 +539,7 @@ body { font-family: var(--font); background: var(--c-bg); color: var(--c-ink); m
 .team-row-badge.badge-admin { background: rgba(201,168,76,0.15); color: #8a6d10; }
 .team-row-badge.badge-team { background: rgba(30,75,78,0.12); color: #2d7a73; }
 .team-row-badge.badge-guest { background: var(--gray-100); color: var(--gray-500); }
+.team-row-badge.badge-customer { background: rgba(26,115,232,0.1); color: #1a73e8; }
 .team-row-chevron { color: var(--gray-300); font-size: 12px; flex-shrink: 0; }
 
 /* Detail overlay panel */
@@ -550,6 +552,7 @@ body { font-family: var(--font); background: var(--c-bg); color: var(--c-ink); m
 .td-avatar.role-admin { background: var(--accent); color: var(--navy); }
 .td-avatar.role-team { background: var(--primary); color: white; }
 .td-avatar.role-guest { background: var(--gray-300); color: var(--navy); }
+.td-avatar.role-customer { background: #e8f0fe; color: #1a73e8; }
 .td-close { position: absolute; right: 16px; top: 16px; width: 32px; height: 32px; border-radius: 50%; border: none; background: var(--gray-100); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--gray-500); }
 .td-name { font-size: 18px; font-weight: 700; color: var(--navy); }
 .td-email { font-size: 13px; color: var(--gray-500); margin-top: 2px; }
@@ -980,7 +983,7 @@ body.dev-mode { padding-bottom: 48px; }
   <button class="view-tab" id="tabBook" onclick="switchView('book')" style="display:none;">Buchen</button>
   <button class="view-tab" id="tabManage" onclick="switchView('manage')">Verwalten<span id="pendingBadge" style="display:none;" class="tab-badge">0</span></button>
   <button class="view-tab" id="tabTheory" onclick="switchView('theory')" style="display:none;">Theorie</button>
-  <button class="view-tab" id="tabTeam" onclick="switchView('team')" style="display:none;">Team</button>
+  <button class="view-tab" id="tabTeam" onclick="switchView('team')" style="display:none;">Mitglieder</button>
   <button class="view-tab" id="tabTime" onclick="switchView('time')" style="display:none;">Arbeitszeit</button>
   <button class="view-tab" id="tabStats" onclick="switchView('stats')" style="display:none;">Statistik</button>
   <button class="view-tab" id="tabMessages" onclick="switchView('messages')" style="display:none;">Nachrichten</button>
@@ -1024,7 +1027,7 @@ body.dev-mode { padding-bottom: 48px; }
   <div id="theoryList"></div>
 </div>
 
-<!-- Team View (full-page employee management) -->
+<!-- Mitglieder View (Team + Kunden) -->
 <div id="viewTeam" class="team-view" style="display:none;">
   <!-- Toolbar: Suche + Filter + Einladen -->
   <div class="team-toolbar">
@@ -1478,6 +1481,7 @@ for (let i = 0; i < TIME_POINTS.length - 1; i++) TIME_SLOTS.push(`${TIME_POINTS[
 
 let bookings = [];
 let staffUsers = [];
+let customerUsers = [];
 let dailyNotes = {};
 let theoryLessons = [];
 let theoryFilterMode = 'mine'; // 'mine' | 'all' (nur für Admins/Berechtigte)
@@ -2053,6 +2057,12 @@ db.ref('staffUsers').on('value', snap => {
   if (currentUser && !staffUsers.find(u => u.id === currentUser.id)) {
     DASSU_AUTH.signOut(); // Auth-Guard leitet auf welcome.html
   }
+});
+
+db.ref('customers').on('value', snap => {
+  const data = snap.val();
+  customerUsers = data ? Object.entries(data).map(([id, c]) => ({ id, ...c, _type: 'customer' })) : [];
+  if (currentView === 'team') renderTeamView();
 });
 
 db.ref('dailyNotes').on('value', snap => {
@@ -3197,34 +3207,67 @@ function toggleTeamCard(id) {
 
 let teamRoleFilter = 'all';
 
+function getCustomerStats(customerId) {
+  const c = customerUsers.find(x => x.id === customerId);
+  if (!c) return { count: 0, lastBooking: null };
+  const cName = (c.name || '').toLowerCase();
+  const cEmail = (c.email || '').toLowerCase();
+  const custBookings = bookings.filter(b =>
+    (cEmail && (b.email || '').toLowerCase() === cEmail) ||
+    (cName && (b.name || '').toLowerCase() === cName)
+  );
+  const count = custBookings.length;
+  let lastBooking = null;
+  if (count > 0) {
+    custBookings.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    lastBooking = custBookings[0].date;
+  }
+  return { count, lastBooking, bookings: custBookings };
+}
+
 function renderTeamView() {
   const el = document.getElementById('teamMembersList');
   if (!el) return;
 
-  // Search + Filter
   const query = (document.getElementById('teamSearchInput')?.value || '').toLowerCase().trim();
-  let filtered = staffUsers.slice();
+
+  // Build combined list
+  const allStaff = staffUsers.map(u => ({ ...u, _type: 'staff' }));
+  // Filter out customers that are also in staffUsers (by email)
+  const staffEmails = new Set(staffUsers.map(u => (u.email || '').toLowerCase()).filter(Boolean));
+  const uniqueCustomers = customerUsers.filter(c => !staffEmails.has((c.email || '').toLowerCase()));
+  const allUsers = [...allStaff, ...uniqueCustomers];
+
+  // Apply search
+  let filtered = allUsers;
   if (query) {
     filtered = filtered.filter(u =>
       (u.name || '').toLowerCase().includes(query) ||
       (u.email || '').toLowerCase().includes(query) ||
-      (u.role || '').toLowerCase().includes(query)
+      (u.role || u._type || '').toLowerCase().includes(query)
     );
   }
-  if (teamRoleFilter !== 'all') {
-    filtered = filtered.filter(u => u.role === teamRoleFilter);
+
+  // Apply filter
+  if (teamRoleFilter === 'customer') {
+    filtered = filtered.filter(u => u._type === 'customer');
+  } else if (teamRoleFilter !== 'all') {
+    filtered = filtered.filter(u => u._type === 'staff' && u.role === teamRoleFilter);
   }
 
-  // Sort: admins first, then alphabetical
+  // Sort: admins first, then staff, then customers, alphabetical within groups
+  const roleOrder = { admin: 0, vorstand: 1, flugleiter: 2, team: 3, guestGlider: 4, guestMotor: 4 };
   filtered.sort((a, b) => {
-    if (a.role === 'admin' && b.role !== 'admin') return -1;
-    if (b.role === 'admin' && a.role !== 'admin') return 1;
+    const aOrder = a._type === 'customer' ? 10 : (roleOrder[a.role] ?? 5);
+    const bOrder = b._type === 'customer' ? 10 : (roleOrder[b.role] ?? 5);
+    if (aOrder !== bOrder) return aOrder - bOrder;
     return (a.name || '').localeCompare(b.name || '');
   });
 
   // Role counts for filter chips
   const roleCounts = {};
-  staffUsers.forEach(u => { roleCounts[u.role] = (roleCounts[u.role] || 0) + 1; });
+  allStaff.forEach(u => { roleCounts[u.role] = (roleCounts[u.role] || 0) + 1; });
+  const customerCount = uniqueCustomers.length;
   const chipEl = document.getElementById('teamFilterChips');
   if (chipEl) {
     const roles = [
@@ -3232,10 +3275,11 @@ function renderTeamView() {
       { id: 'admin', label: 'Admin' },
       { id: 'team', label: 'Team' },
       { id: 'guestGlider', label: 'Gast MS' },
-      { id: 'guestMotor', label: 'Gast UL' }
+      { id: 'guestMotor', label: 'Gast UL' },
+      { id: 'customer', label: 'Kunden' }
     ];
     chipEl.innerHTML = roles.map(r => {
-      const count = r.id === 'all' ? staffUsers.length : (roleCounts[r.id] || 0);
+      const count = r.id === 'all' ? allUsers.length : (r.id === 'customer' ? customerCount : (roleCounts[r.id] || 0));
       if (r.id !== 'all' && !count) return '';
       return `<button class="team-filter-chip${teamRoleFilter === r.id ? ' active' : ''}" onclick="teamRoleFilter='${r.id}';renderTeamView();">${r.label}<span class="chip-count">${count}</span></button>`;
     }).join('');
@@ -3248,28 +3292,37 @@ function renderTeamView() {
   // Count bar
   const countBar = document.getElementById('teamCountBar');
   if (countBar) {
-    const showing = filtered.length === staffUsers.length ? `${staffUsers.length} Benutzer` : `${filtered.length} von ${staffUsers.length}`;
+    const total = allUsers.length;
+    const showing = filtered.length === total ? `${total} Mitglieder` : `${filtered.length} von ${total}`;
     countBar.textContent = showing;
   }
 
   // Compact list rows
   el.innerHTML = filtered.map(u => {
-    const avatarCls = u.role === 'admin' ? 'role-admin' : (u.role === 'team' ? 'role-team' : 'role-guest');
-    const meta = roleMeta(u.role);
-    const badgeCls = u.role === 'admin' ? 'badge-admin' : (u.role === 'team' ? 'badge-team' : 'badge-guest');
+    const isCustomer = u._type === 'customer';
+    const avatarCls = isCustomer ? 'role-customer' : (u.role === 'admin' ? 'role-admin' : (u.role === 'team' ? 'role-team' : 'role-guest'));
+    const badgeCls = isCustomer ? 'badge-customer' : (u.role === 'admin' ? 'badge-admin' : (u.role === 'team' ? 'badge-team' : 'badge-guest'));
+    const badgeLabel = isCustomer ? 'Kunde' : (roleMeta(u.role).short || roleMeta(u.role).label);
     const isMe = currentUser && u.id === currentUser.id;
     const youTag = isMe ? '<span class="you-tag">(du)</span>' : '';
+    const clickFn = isCustomer ? `openCustomerDetail('${u.id}')` : `openTeamDetail('${u.id}')`;
 
-    return `<div class="team-row" onclick="openTeamDetail('${u.id}')">
+    let metaText = escapeHtml(u.email || '\u2014');
+    if (isCustomer) {
+      const stats = getCustomerStats(u.id);
+      if (stats.count > 0) metaText += ` \u00B7 ${stats.count} Buchung${stats.count !== 1 ? 'en' : ''}`;
+    }
+
+    return `<div class="team-row" onclick="${clickFn}">
       <div class="team-row-avatar ${avatarCls}">${(u.name || '?').charAt(0).toUpperCase()}</div>
       <div class="team-row-info">
-        <div class="team-row-name">${escapeHtml(u.name)}${youTag}</div>
-        <div class="team-row-meta">${escapeHtml(u.email || '\u2014')}</div>
+        <div class="team-row-name">${escapeHtml(u.name || 'Unbekannt')}${youTag}</div>
+        <div class="team-row-meta">${metaText}</div>
       </div>
-      <span class="team-row-badge ${badgeCls}">${meta.short || meta.label}</span>
+      <span class="team-row-badge ${badgeCls}">${badgeLabel}</span>
       <span class="team-row-chevron">\u203A</span>
     </div>`;
-  }).join('') || '<div style="text-align:center;padding:24px;color:var(--gray-500);font-size:13px;">Keine Benutzer gefunden.</div>';
+  }).join('') || '<div style="text-align:center;padding:24px;color:var(--gray-500);font-size:13px;">Keine Mitglieder gefunden.</div>';
 
   // Invitations
   renderTeamInvitations();
@@ -3366,6 +3419,68 @@ function closeTeamDetail() {
   const overlay = document.getElementById('teamDetailOverlay');
   if (overlay) overlay.classList.remove('active');
   renderTeamView(); // refresh list in case changes were made
+}
+
+function openCustomerDetail(uid) {
+  const c = customerUsers.find(x => x.id === uid);
+  if (!c) return;
+  const panel = document.getElementById('teamDetailPanel');
+  const overlay = document.getElementById('teamDetailOverlay');
+  if (!panel || !overlay) return;
+
+  const stats = getCustomerStats(uid);
+  const createdAt = c.createdAt ? new Date(c.createdAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
+  const lastBooking = stats.lastBooking ? new Date(stats.lastBooking + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' }) : '—';
+
+  // Recent bookings from stats
+  const custBookings = (stats.bookings || []).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  const recentBookings = custBookings.slice(0, 5);
+
+  panel.innerHTML = `
+    <button class="td-close" onclick="closeTeamDetail()">✕</button>
+    <div class="td-header">
+      <div class="td-avatar role-customer">${(c.name || '?').charAt(0).toUpperCase()}</div>
+      <div class="td-name">${escapeHtml(c.name || 'Unbekannt')}</div>
+      <span class="team-row-badge badge-customer">Kunde</span>
+    </div>
+
+    <div class="td-section">
+      <div class="td-section-title">Kontaktdaten</div>
+      <div class="td-info-grid">
+        <div class="td-info-item"><div class="td-label">E-Mail</div><div class="td-value">${escapeHtml(c.email || '—')}</div></div>
+        <div class="td-info-item"><div class="td-label">Telefon</div><div class="td-value">${escapeHtml(c.phone || '—')}</div></div>
+        <div class="td-info-item"><div class="td-label">Geburtstag</div><div class="td-value">${c.birthdate || '—'}</div></div>
+        <div class="td-info-item"><div class="td-label">Registriert am</div><div class="td-value">${createdAt}</div></div>
+      </div>
+    </div>
+
+    <div class="td-section">
+      <div class="td-section-title">Buchungsstatistik</div>
+      <div class="td-info-grid">
+        <div class="td-info-item"><div class="td-label">Anzahl Buchungen</div><div class="td-value">${stats.count}</div></div>
+        <div class="td-info-item"><div class="td-label">Letzte Buchung</div><div class="td-value">${lastBooking}</div></div>
+      </div>
+    </div>
+
+    ${recentBookings.length > 0 ? `
+    <div class="td-section">
+      <div class="td-section-title">Letzte Buchungen</div>
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        ${recentBookings.map(b => `
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--gray-50);border-radius:6px;font-size:12px;">
+            <span style="color:var(--gray-500);min-width:70px;">${b.date || '—'}</span>
+            <span style="font-weight:600;color:var(--navy);">${escapeHtml(b.aircraft || '')}</span>
+            <span style="color:var(--gray-600);">${b.startTime || ''}–${b.endTime || ''}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>` : ''}
+
+    <div class="td-section" style="margin-top:8px;">
+      <div class="td-info-item"><div class="td-label">ID</div><div class="td-value mono" style="font-size:10px;word-break:break-all;">${uid}</div></div>
+    </div>
+  `;
+  overlay.classList.add('active');
 }
 
 function renderTeamInvitations() {
