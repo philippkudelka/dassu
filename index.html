@@ -1852,7 +1852,7 @@
           <span id="nextFlightType">—</span>
         </div>
         <div class="next-flight-actions">
-          <button class="btn" onclick="console.log('Details')">Details</button>
+          <button class="btn" id="nextFlightDetailsBtn" onclick="showDetail(this.dataset.bookingId)">Details</button>
         </div>
       </div>
 
@@ -3440,6 +3440,7 @@ function renderSidebar(dk) {
     document.getElementById('nextFlightTime').textContent = next.startTime;
     document.getElementById('nextFlightAircraft').textContent = next.aircraft;
     document.getElementById('nextFlightType').textContent = type;
+    document.getElementById('nextFlightDetailsBtn').dataset.bookingId = next.id;
   } else {
     nextFlightCard.style.display = 'none';
   }
