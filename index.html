@@ -2918,6 +2918,7 @@ function getBookingsForDay(date, aircraft) {
   const dk = dateKey(date);
   return bookings.filter(b => {
     if (b.date !== dk || b.aircraft !== aircraft) return false;
+    if (b.status === 'rejected' || b.status === 'cancelled') return false;
     return true;
   });
 }
@@ -3327,7 +3328,7 @@ function renderGanttCalendar(dk, aircraft) {
   // --- Render booking bars (vertical blocks) ---
   aircraft.forEach((a, aIdx) => {
     const timelineEl = document.getElementById(`gantt-timeline-${aIdx}`);
-    const bookingsForAircraft = bookings.filter(b => b.date === dk && b.aircraft === a);
+    const bookingsForAircraft = bookings.filter(b => b.date === dk && b.aircraft === a && b.status !== 'rejected' && b.status !== 'cancelled');
 
     bookingsForAircraft.forEach(booking => {
       const startH = parseInt(booking.startTime.split(':')[0]);
@@ -3408,7 +3409,7 @@ function renderGanttCalendar(dk, aircraft) {
     el.addEventListener('click', () => {
       const a = el.dataset.aircraft;
       if (!a) return;
-      const bookedSlots = bookings.filter(b => b.date === dk && b.aircraft === a);
+      const bookedSlots = bookings.filter(b => b.date === dk && b.aircraft === a && b.status !== 'rejected' && b.status !== 'cancelled');
       const freeSlot = TIME_SLOTS.find(slot => {
         const slotStart = slot.split(' - ')[0];
         return !bookedSlots.some(b => b.startTime <= slotStart && b.endTime > slotStart);
