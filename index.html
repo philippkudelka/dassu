@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen
 (function() {
-  var APP_VERSION = 47;
+  var APP_VERSION = 48;
   try {
     var stored = parseInt(localStorage.getItem('dassu_v') || '0');
     if (stored < APP_VERSION) {
@@ -164,19 +164,68 @@
   .customer-dropdown button:hover { background:var(--c-bg); }
   .customer-dropdown button:last-child { color:#B36A5B; border-top:1px solid var(--c-border); }
 
-  /* Mein Konto Sections */
-  .acct-section { margin-top:22px; border-top:1px solid var(--c-border); padding-top:18px; }
-  .acct-section-title { font-size:13px; font-weight:700; color:var(--navy); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:14px; }
-  .acct-label { font-size:12px; font-weight:600; color:var(--c-muted); text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:4px; }
-  .acct-info-grid { display:flex; flex-direction:column; gap:0; }
-  .acct-info-row { display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--gray-50); }
+  /* ──── Mein Konto — Modern Settings Page ──── */
+  .acct-page { max-width:600px; margin:0 auto; padding:0 16px; }
+  .acct-hero { text-align:center; padding:32px 0 28px; }
+  .acct-hero-avatar { width:88px; height:88px; border-radius:50%; background:var(--c-alpine); color:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:28px; font-weight:700; cursor:pointer; overflow:hidden; position:relative; border:3px solid white; box-shadow:var(--shadow-md); transition:transform 0.15s ease; }
+  .acct-hero-avatar:hover { transform:scale(1.04); }
+  .acct-hero-avatar img { width:100%; height:100%; object-fit:cover; }
+  .acct-hero-name { font-size:20px; font-weight:700; color:var(--c-ink); margin-top:12px; font-family:var(--font-brand); }
+  .acct-hero-email { font-size:13px; color:var(--c-ink-3); margin-top:2px; }
+  .acct-hero-badge { margin-top:8px; }
+
+  .acct-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:20px; }
+  .acct-stat-card { background:white; border-radius:var(--radius); padding:16px 12px; text-align:center; border:1px solid var(--c-line); }
+  .acct-stat-num { font-size:24px; font-weight:700; color:var(--c-alpine); font-family:var(--font-brand); line-height:1; }
+  .acct-stat-label { font-size:11px; color:var(--c-ink-3); margin-top:4px; letter-spacing:0.02em; }
+
+  .acct-card { background:white; border:1px solid var(--c-line); border-radius:var(--radius); padding:24px; margin-bottom:12px; }
+  .acct-card-title { font-size:15px; font-weight:700; color:var(--c-ink); margin-bottom:20px; display:flex; align-items:center; gap:8px; }
+  .acct-card-icon { width:20px; height:20px; color:var(--c-ink-3); flex-shrink:0; }
+
+  .acct-field { margin-bottom:16px; }
+  .acct-field:last-child { margin-bottom:0; }
+  .acct-field label { display:block; font-size:12px; font-weight:600; color:var(--c-ink-3); margin-bottom:6px; letter-spacing:0.03em; }
+  .acct-field input, .acct-field select { width:100%; padding:10px 14px; border:1px solid var(--c-line); border-radius:var(--radius-sm); font-size:14px; font-family:var(--font-ui); color:var(--c-ink); background:white; transition:all var(--transition); }
+  .acct-field input:focus, .acct-field select:focus { outline:none; border-color:var(--c-alpine); box-shadow:0 0 0 3px rgba(30,75,78,0.08); }
+  .acct-field input::placeholder { color:var(--c-ink-3); opacity:0.6; }
+  .acct-field input:disabled { background:var(--gray-50); color:var(--c-ink-3); cursor:not-allowed; }
+  .acct-field-row { display:grid; gap:12px; }
+  .acct-field-row.cols-2 { grid-template-columns:1fr 1fr; }
+  .acct-field-row.cols-plz { grid-template-columns:110px 1fr; }
+
+  .acct-info-list { display:flex; flex-direction:column; }
+  .acct-info-row { display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid var(--gray-100); }
   .acct-info-row:last-child { border-bottom:none; }
-  .acct-info-label { font-size:13px; color:var(--c-muted); }
-  .acct-info-value { font-size:13px; font-weight:600; color:var(--c-text); }
+  .acct-info-label { font-size:13px; color:var(--c-ink-3); }
+  .acct-info-value { font-size:13px; font-weight:600; color:var(--c-ink); }
+
   .acct-badge { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:600; padding:3px 10px; border-radius:99px; }
-  .acct-badge-ok { background:rgba(122,166,108,0.12); color:#5d8c4f; }
-  .acct-badge-warn { background:rgba(218,165,32,0.12); color:#9a7b1a; }
-  .acct-badge-neutral { background:var(--gray-50); color:var(--c-muted); }
+  .acct-badge-ok { background:rgba(120,155,110,0.12); color:#5a7e4f; }
+  .acct-badge-warn { background:rgba(197,106,28,0.1); color:#a06118; }
+  .acct-badge-neutral { background:var(--gray-100); color:var(--c-ink-3); }
+
+  .acct-save-bar { padding:16px 0; }
+  .acct-save-btn { width:100%; padding:12px; border:none; border-radius:var(--radius-sm); background:var(--c-alpine); color:white; font-size:14px; font-weight:600; font-family:var(--font-ui); cursor:pointer; transition:all var(--transition); letter-spacing:0.01em; }
+  .acct-save-btn:hover { background:var(--navy-light); box-shadow:var(--shadow-md); }
+  .acct-save-btn:active { transform:scale(0.99); }
+  .acct-save-msg { text-align:center; font-size:13px; margin-top:8px; min-height:20px; }
+
+  .acct-security summary { cursor:pointer; font-size:13px; font-weight:600; color:var(--c-ink-2); padding:2px 0; }
+  .acct-security summary:hover { color:var(--c-alpine); }
+  .acct-security[open] summary { margin-bottom:16px; }
+
+  .acct-footer { text-align:center; padding:20px 0 32px; }
+  .acct-logout-btn { background:none; border:1px solid var(--c-line); color:var(--c-rejected); font-size:13px; font-weight:600; cursor:pointer; font-family:var(--font-ui); padding:8px 24px; border-radius:var(--radius-sm); transition:all var(--transition); }
+  .acct-logout-btn:hover { background:var(--danger-light); border-color:var(--c-rejected); }
+
+  @media (max-width:480px) {
+    .acct-card { padding:18px 16px; }
+    .acct-field-row.cols-2 { grid-template-columns:1fr; }
+    .acct-stats { grid-template-columns:repeat(3,1fr); gap:6px; }
+    .acct-stat-card { padding:12px 8px; }
+    .acct-stat-num { font-size:20px; }
+  }
 
   /* Buttons — Alpen & Horizont */
   .btn {
@@ -1902,100 +1951,105 @@
 
 <!-- Mein Konto View (eigene Seite) -->
 <div id="accountView" style="display:none;">
-  <div class="my-bookings-panel" style="max-width:560px;margin:0 auto;">
-    <!-- Profil-Header -->
-    <div style="text-align:center;margin-bottom:28px;">
-      <div class="ca-avatar-circle" id="acctAvatar" style="width:80px;height:80px;border-radius:50%;background:var(--navy);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;cursor:pointer;overflow:hidden;position:relative;" onclick="document.getElementById('acctPhotoInput').click();">
-      </div>
+  <div class="acct-page">
+
+    <!-- Hero: Avatar + Name -->
+    <div class="acct-hero">
+      <div class="acct-hero-avatar" id="acctAvatar" onclick="document.getElementById('acctPhotoInput').click();"></div>
       <input type="file" id="acctPhotoInput" accept="image/*" style="display:none;" onchange="uploadAccountPhoto(this)">
-      <div id="acctDisplayName" style="font-size:18px;font-weight:700;color:var(--navy);margin-top:10px;"></div>
-      <div id="acctDisplayEmail" style="font-size:13px;color:var(--c-muted);margin-top:2px;"></div>
-      <div id="acctVerifyBadge" style="margin-top:6px;"></div>
+      <div class="acct-hero-name" id="acctDisplayName"></div>
+      <div class="acct-hero-email" id="acctDisplayEmail"></div>
+      <div class="acct-hero-badge" id="acctVerifyBadge"></div>
     </div>
 
-    <!-- Konto-Statistiken -->
-    <div id="acctStats" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:24px;">
-      <div style="background:var(--gray-50);border-radius:10px;padding:14px 10px;text-align:center;">
-        <div id="acctStatBookings" style="font-size:22px;font-weight:700;color:var(--navy);">0</div>
-        <div style="font-size:11px;color:var(--c-muted);margin-top:2px;">Buchungen</div>
+    <!-- Statistiken -->
+    <div class="acct-stats">
+      <div class="acct-stat-card">
+        <div class="acct-stat-num" id="acctStatBookings">0</div>
+        <div class="acct-stat-label">Buchungen</div>
       </div>
-      <div style="background:var(--gray-50);border-radius:10px;padding:14px 10px;text-align:center;">
-        <div id="acctStatUpcoming" style="font-size:22px;font-weight:700;color:var(--navy);">0</div>
-        <div style="font-size:11px;color:var(--c-muted);margin-top:2px;">Anstehend</div>
+      <div class="acct-stat-card">
+        <div class="acct-stat-num" id="acctStatUpcoming">0</div>
+        <div class="acct-stat-label">Anstehend</div>
       </div>
-      <div style="background:var(--gray-50);border-radius:10px;padding:14px 10px;text-align:center;">
-        <div id="acctStatMember" style="font-size:13px;font-weight:700;color:var(--navy);">–</div>
-        <div style="font-size:11px;color:var(--c-muted);margin-top:2px;">Mitglied seit</div>
-      </div>
-    </div>
-
-    <!-- Persönliche Daten -->
-    <div class="acct-section">
-      <div class="acct-section-title">Persönliche Daten</div>
-      <div style="display:flex;flex-direction:column;gap:14px;">
-        <div>
-          <label class="acct-label">Name</label>
-          <input type="text" id="acctName" class="form-input" style="width:100%;box-sizing:border-box;">
-        </div>
-        <div>
-          <label class="acct-label">E-Mail</label>
-          <input type="email" id="acctEmail" class="form-input" style="width:100%;box-sizing:border-box;background:var(--gray-50);color:var(--c-muted);" disabled>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-          <div>
-            <label class="acct-label">Telefon</label>
-            <input type="tel" id="acctPhone" class="form-input" style="width:100%;box-sizing:border-box;" placeholder="+49 123 456789">
-          </div>
-          <div>
-            <label class="acct-label">Geburtsdatum</label>
-            <input type="date" id="acctBirth" class="form-input" style="width:100%;box-sizing:border-box;">
-          </div>
-        </div>
+      <div class="acct-stat-card">
+        <div class="acct-stat-num" id="acctStatMember" style="font-size:14px;">–</div>
+        <div class="acct-stat-label">Mitglied seit</div>
       </div>
     </div>
 
-    <!-- Adresse -->
-    <div class="acct-section">
-      <div class="acct-section-title">Adresse</div>
-      <div style="display:flex;flex-direction:column;gap:14px;">
-        <div>
-          <label class="acct-label">Straße &amp; Hausnummer</label>
-          <input type="text" id="acctStreet" class="form-input" style="width:100%;box-sizing:border-box;" placeholder="Musterstraße 12">
+    <!-- Card: Persönliche Daten -->
+    <div class="acct-card">
+      <div class="acct-card-title">
+        <svg class="acct-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        Persönliche Daten
+      </div>
+      <div class="acct-field">
+        <label>Name</label>
+        <input type="text" id="acctName">
+      </div>
+      <div class="acct-field">
+        <label>E-Mail-Adresse</label>
+        <input type="email" id="acctEmail" disabled>
+      </div>
+      <div class="acct-field-row cols-2">
+        <div class="acct-field">
+          <label>Telefon</label>
+          <input type="tel" id="acctPhone" placeholder="+49 123 456789">
         </div>
-        <div style="display:grid;grid-template-columns:120px 1fr;gap:12px;">
-          <div>
-            <label class="acct-label">PLZ</label>
-            <input type="text" id="acctZip" class="form-input" style="width:100%;box-sizing:border-box;" placeholder="83246" maxlength="5">
-          </div>
-          <div>
-            <label class="acct-label">Ort</label>
-            <input type="text" id="acctCity" class="form-input" style="width:100%;box-sizing:border-box;" placeholder="Unterwössen">
-          </div>
+        <div class="acct-field">
+          <label>Geburtsdatum</label>
+          <input type="date" id="acctBirth">
         </div>
-        <div>
-          <label class="acct-label">Land</label>
-          <select id="acctCountry" class="form-input" style="width:100%;box-sizing:border-box;">
-            <option value="">– Bitte wählen –</option>
-            <option value="DE" selected>Deutschland</option>
-            <option value="AT">Österreich</option>
-            <option value="CH">Schweiz</option>
-            <option value="IT">Italien</option>
-            <option value="OTHER">Anderes</option>
-          </select>
+      </div>
+    </div>
+
+    <!-- Card: Adresse -->
+    <div class="acct-card">
+      <div class="acct-card-title">
+        <svg class="acct-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        Adresse
+      </div>
+      <div class="acct-field">
+        <label>Straße &amp; Hausnummer</label>
+        <input type="text" id="acctStreet" placeholder="Musterstraße 12">
+      </div>
+      <div class="acct-field-row cols-plz">
+        <div class="acct-field">
+          <label>PLZ</label>
+          <input type="text" id="acctZip" placeholder="83246" maxlength="5">
         </div>
+        <div class="acct-field">
+          <label>Ort</label>
+          <input type="text" id="acctCity" placeholder="Unterwössen">
+        </div>
+      </div>
+      <div class="acct-field">
+        <label>Land</label>
+        <select id="acctCountry">
+          <option value="">– Bitte wählen –</option>
+          <option value="DE" selected>Deutschland</option>
+          <option value="AT">Österreich</option>
+          <option value="CH">Schweiz</option>
+          <option value="IT">Italien</option>
+          <option value="OTHER">Anderes</option>
+        </select>
       </div>
     </div>
 
     <!-- Speichern -->
-    <div style="display:flex;gap:10px;margin-top:20px;">
-      <button class="btn btn-primary" onclick="saveAccountProfile()" style="flex:1;">Änderungen speichern</button>
+    <div class="acct-save-bar">
+      <button class="acct-save-btn" onclick="saveAccountProfile()">Änderungen speichern</button>
+      <div class="acct-save-msg" id="acctMsg"></div>
     </div>
-    <div id="acctMsg" style="margin-top:8px;font-size:13px;text-align:center;"></div>
 
-    <!-- Konto-Informationen (read-only) -->
-    <div class="acct-section" style="margin-top:28px;">
-      <div class="acct-section-title">Konto-Informationen</div>
-      <div class="acct-info-grid">
+    <!-- Card: Konto-Informationen -->
+    <div class="acct-card">
+      <div class="acct-card-title">
+        <svg class="acct-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Konto
+      </div>
+      <div class="acct-info-list">
         <div class="acct-info-row">
           <span class="acct-info-label">Registriert am</span>
           <span class="acct-info-value" id="acctCreatedAt">–</span>
@@ -2010,28 +2064,37 @@
         </div>
         <div class="acct-info-row">
           <span class="acct-info-label">Kunden-ID</span>
-          <span class="acct-info-value" id="acctUid" style="font-family:monospace;font-size:11px;">–</span>
+          <span class="acct-info-value" id="acctUid" style="font-family:var(--font-mono);font-size:11px;">–</span>
         </div>
       </div>
     </div>
 
-    <!-- Sicherheit -->
-    <div class="acct-section">
-      <div class="acct-section-title">Sicherheit</div>
-      <details>
-        <summary style="cursor:pointer;font-size:13px;font-weight:600;color:var(--c-muted);">Passwort ändern</summary>
-        <div style="margin-top:12px;display:flex;flex-direction:column;gap:10px;">
-          <input type="password" id="acctNewPw" class="form-input" placeholder="Neues Passwort (mind. 6 Zeichen)" style="width:100%;box-sizing:border-box;">
-          <input type="password" id="acctNewPw2" class="form-input" placeholder="Passwort wiederholen" style="width:100%;box-sizing:border-box;">
-          <button class="btn btn-sm" onclick="changeAccountPassword()" style="align-self:flex-start;">Passwort ändern</button>
-          <div id="acctPwMsg" style="font-size:12px;"></div>
+    <!-- Card: Sicherheit -->
+    <div class="acct-card">
+      <div class="acct-card-title">
+        <svg class="acct-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        Sicherheit
+      </div>
+      <details class="acct-security">
+        <summary>Passwort ändern</summary>
+        <div class="acct-field">
+          <label>Neues Passwort</label>
+          <input type="password" id="acctNewPw" placeholder="Mindestens 6 Zeichen">
         </div>
+        <div class="acct-field">
+          <label>Passwort bestätigen</label>
+          <input type="password" id="acctNewPw2" placeholder="Passwort wiederholen">
+        </div>
+        <button class="btn btn-sm" onclick="changeAccountPassword()" style="margin-top:4px;">Passwort ändern</button>
+        <div id="acctPwMsg" style="font-size:12px;margin-top:8px;"></div>
       </details>
     </div>
 
-    <div style="margin-top:28px;text-align:center;border-top:1px solid var(--c-border);padding-top:16px;">
-      <button onclick="customerLogout()" style="background:none;border:none;color:#B36A5B;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Abmelden</button>
+    <!-- Footer: Abmelden -->
+    <div class="acct-footer">
+      <button class="acct-logout-btn" onclick="customerLogout()">Abmelden</button>
     </div>
+
   </div>
 </div>
 
