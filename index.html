@@ -1712,7 +1712,6 @@
     <h1>DASSU <span style="color:rgba(201,168,76,0.7); font-weight:300; font-size:11px; font-family:var(--font-ui); letter-spacing:0.12em; text-transform:uppercase; margin-left:4px;">Buchungskalender</span></h1>
   </div>
   <div class="header-actions">
-    <button id="btnStornieren" class="btn btn-sm header-desktop-only" onclick="document.getElementById('cancelInputModal').classList.add('active')" style="font-size:11px; letter-spacing:0.04em; text-transform:uppercase;">Stornieren</button>
     <button id="staffAdminBtn" class="btn btn-sm header-desktop-only" onclick="window.location.href='staff.html?staff=1'" style="font-size:11px; letter-spacing:0.04em; text-transform:uppercase; display:none;">Verwaltung</button>
     <button id="customerAuthBtn" class="btn btn-sm header-desktop-only" onclick="openCustomerAuth()" style="font-size:11px; letter-spacing:0.04em; text-transform:uppercase; background:var(--navy); color:white; border-color:var(--navy);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span id="custAuthLabel">Login</span></button>
     <div id="customerUserMenu" class="customer-user-menu header-desktop-only" style="display:none;">
@@ -1750,7 +1749,6 @@
     <button class="mobile-menu-item" id="mobileLoginBtn" onclick="openCustomerAuth(); closeMobileMenu();"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> <span id="mobileAuthLabel">Login</span></button>
     <button class="mobile-menu-item" id="mobileAccountBtn" onclick="showView('account'); closeMobileMenu();" style="display:none;">Mein Konto</button>
     <button class="mobile-menu-item" id="mobileLogoutBtn" onclick="customerLogout(); closeMobileMenu();" style="display:none;color:#B36A5B;">Abmelden</button>
-    <button class="mobile-menu-item" onclick="document.getElementById('cancelInputModal').classList.add('active'); closeMobileMenu();">Stornieren</button>
   </div>
 </div>
 
@@ -2501,22 +2499,6 @@
     <div class="modal-actions" style="justify-content:center; gap:12px;">
       <button class="btn" onclick="closeModal('cancelModal')">Abbrechen</button>
       <button class="btn btn-danger" id="cancelConfirmBtn" onclick="confirmCancellation()">Ja, Buchung stornieren</button>
-    </div>
-  </div>
-</div>
-
-<!-- Cancel Input Modal (for entering cancel code) -->
-<div class="modal-overlay" id="cancelInputModal">
-  <div class="modal" style="text-align:center;">
-    <h3>Buchung stornieren</h3>
-    <p style="color:var(--gray-500); font-size:13px; margin-bottom:16px;">Gib deinen Stornierungscode ein, den du per E-Mail erhalten hast.</p>
-    <div class="form-group">
-      <input type="text" id="cancelCodeInput" placeholder="z.B. a1b2c3d4e5f6" style="text-align:center; font-family:monospace; letter-spacing:2px; font-size:16px;">
-    </div>
-    <div id="cancelInputResult" style="margin-bottom:12px;"></div>
-    <div class="modal-actions" style="justify-content:center; gap:12px;">
-      <button class="btn" onclick="closeModal('cancelInputModal')">Abbrechen</button>
-      <button class="btn btn-danger" onclick="lookupCancelCode()">Buchung suchen</button>
     </div>
   </div>
 </div>
@@ -3828,7 +3810,6 @@ function submitBooking() {
 
   const booking = {
     id: 'b_' + Date.now() + '_' + Math.random().toString(36).substr(2,5),
-    cancelToken: Math.random().toString(36).substr(2,12),
     aircraft: modal._aircraft,
     date: modal._date,
     startTime: startTime,
@@ -3883,13 +3864,25 @@ function showDetail(id) {
 
   const timeDisplay = b.startTime ? `${b.startTime} – ${b.endTime}` : (b.slot || '—');
 
+  // Prüfen ob es die eigene Buchung ist
+  const currentUser = firebase.auth().currentUser;
+  const isOwn = currentUser && b.uid && b.uid === currentUser.uid;
+  const isNotRejected = b.status !== 'rejected';
+
   let html = `
     <div class="booking-detail"><div class="label">Flugzeug</div><div class="value">${b.aircraft}</div></div>
     <div class="booking-detail"><div class="label">Datum</div><div class="value">${b.date}</div></div>
     <div class="booking-detail"><div class="label">Uhrzeit</div><div class="value">${timeDisplay}</div></div>
     <div class="booking-detail"><div class="label">Status</div><div class="value"><span class="status-badge ${b.status}">${statusLabels[b.status]}</span></div></div>
-    <p style="font-size:12px; color:var(--gray-500); margin-top:8px;">Persönliche Daten sind nur für Mitarbeiter sichtbar.</p>
   `;
+
+  if (isOwn && isNotRejected) {
+    html += `<div style="margin-top:16px; padding-top:12px; border-top:1px solid var(--c-line);">
+      <button onclick="myBookingCancel('${b.id}'); closeModal('detailModal');" style="width:100%; padding:10px; border:1px solid var(--c-rejected); background:none; color:var(--c-rejected); border-radius:var(--radius-sm); font-size:13px; font-weight:600; cursor:pointer; font-family:var(--font-ui); transition:all 0.15s;">Buchung stornieren</button>
+    </div>`;
+  } else if (!isOwn) {
+    html += `<p style="font-size:12px; color:var(--gray-500); margin-top:8px;">Persönliche Daten sind nur für Mitarbeiter sichtbar.</p>`;
+  }
 
   document.getElementById('detailDeleteBtn').style.display = 'none';
 
@@ -4121,10 +4114,6 @@ function buildEmailParams(booking) {
     ${emailBookingTable(booking)}
 
     <p style="margin: 24px 0 0 0; font-size: 14px; color: #888; font-family: Arial, Helvetica, sans-serif;">Bei Fragen erreichst du uns jederzeit.</p>
-    ${booking.status === 'approved' && booking.cancelToken ? `<div style="margin: 24px 0 0 0; padding: 14px 18px; background: #fafafa; border-radius: 6px; font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #999; line-height: 1.6; text-align: center;">
-      Du m&ouml;chtest stornieren? Klicke im Buchungskalender oben rechts auf <strong style="color:#666;">&bdquo;Stornieren&ldquo;</strong> und gib folgenden Code ein:<br>
-      <span style="display: inline-block; margin-top: 6px; padding: 6px 16px; background: #fff; border: 1px solid #e0e0e0; border-radius: 4px; font-family: monospace; font-size: 15px; letter-spacing: 2px; color: #272727; font-weight: 700;">${booking.cancelToken}</span>
-    </div>` : ''}
   </div>
 
   ${emailFooter()}
@@ -4221,11 +4210,6 @@ function sendBookingReceivedEmail(booking) {
     </div>
 
     <p style="margin: 0; font-size: 14px; color: #888; font-family: Arial, Helvetica, sans-serif;">Bei Fragen erreichst du uns jederzeit.</p>
-
-    <div style="margin: 24px 0 0 0; padding: 14px 18px; background: #fafafa; border-radius: 6px; font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #999; line-height: 1.6; text-align: center;">
-      Falls du stornieren m&ouml;chtest, klicke im Buchungskalender oben rechts auf <strong style="color:#666;">&bdquo;Stornieren&ldquo;</strong> und gib diesen Code ein:<br>
-      <span style="display: inline-block; margin-top: 6px; padding: 6px 16px; background: #fff; border: 1px solid #e0e0e0; border-radius: 4px; font-family: monospace; font-size: 15px; letter-spacing: 2px; color: #272727; font-weight: 700;">${booking.cancelToken}</span>
-    </div>
   </div>
 
   ${emailFooter()}
@@ -4250,8 +4234,8 @@ function sendBookingReceivedEmail(booking) {
 // ============================================================
 // CANCELLATION
 // ============================================================
-function cancelBookingByToken(token) {
-  const booking = bookings.find(b => b.cancelToken === token);
+function cancelBookingById(bookingId) {
+  const booking = bookings.find(b => b.id === bookingId);
   if (!booking) {
     notify('Buchung nicht gefunden oder bereits storniert.', 'error');
     return;
@@ -4330,64 +4314,14 @@ function cancelBookingByToken(token) {
   }
 }
 
-let pendingCancelToken = null;
-
-// Check URL for cancel token on page load → show confirmation modal
-function checkCancelToken() {
-  const params = new URLSearchParams(window.location.search);
-  const token = params.get('cancel');
-  if (token) {
-    pendingCancelToken = token;
-    const booking = bookings.find(b => b.cancelToken === token);
-
-    if (!booking) {
-      const content = document.getElementById('cancelModalContent');
-      content.innerHTML = '<p style="color:var(--gray-500); margin-bottom:16px;">Diese Buchung wurde nicht gefunden oder bereits storniert.</p>';
-      document.getElementById('cancelConfirmBtn').style.display = 'none';
-      document.getElementById('cancelModal').classList.add('active');
-    } else if (booking.status === 'rejected') {
-      const content = document.getElementById('cancelModalContent');
-      content.innerHTML = '<p style="color:var(--gray-500); margin-bottom:16px;">Diese Buchung wurde bereits storniert oder abgelehnt.</p>';
-      document.getElementById('cancelConfirmBtn').style.display = 'none';
-      document.getElementById('cancelModal').classList.add('active');
-    } else {
-      showCancelConfirmation(booking);
-    }
-    // Clean URL
-    window.history.replaceState({}, '', window.location.pathname);
-  }
-}
+let pendingCancelBookingId = null;
 
 function confirmCancellation() {
-  if (pendingCancelToken) {
-    cancelBookingByToken(pendingCancelToken);
-    pendingCancelToken = null;
+  if (pendingCancelBookingId) {
+    cancelBookingById(pendingCancelBookingId);
+    pendingCancelBookingId = null;
     closeModal('cancelModal');
   }
-}
-
-function lookupCancelCode() {
-  const code = document.getElementById('cancelCodeInput').value.trim();
-  const resultEl = document.getElementById('cancelInputResult');
-  if (!code) {
-    resultEl.innerHTML = '<span style="color:var(--danger); font-size:13px;">Bitte Stornierungscode eingeben.</span>';
-    return;
-  }
-  const booking = bookings.find(b => b.cancelToken === code);
-  if (!booking) {
-    resultEl.innerHTML = '<span style="color:var(--danger); font-size:13px;">Code nicht gefunden. Bitte pr&uuml;fe die Eingabe.</span>';
-    return;
-  }
-  if (booking.status === 'rejected') {
-    resultEl.innerHTML = '<span style="color:var(--gray-500); font-size:13px;">Diese Buchung wurde bereits storniert.</span>';
-    return;
-  }
-  // Found it — close input modal, open confirmation modal
-  closeModal('cancelInputModal');
-  document.getElementById('cancelCodeInput').value = '';
-  resultEl.innerHTML = '';
-  pendingCancelToken = code;
-  showCancelConfirmation(booking);
 }
 
 function showCancelConfirmation(booking) {
@@ -4662,17 +4596,9 @@ function renderMyBookings() {
 function myBookingCancel(bookingId) {
   const booking = bookings.find(b => b.id === bookingId);
   if (!booking) { notify('Buchung nicht gefunden.', 'error'); return; }
-  if (booking.cancelToken) {
-    cancelBookingByToken(booking.cancelToken);
-  } else {
-    // Fallback: direkte Stornierung für eigene Buchungen
-    if (!confirm('M\u00f6chtest du diese Buchung wirklich stornieren?')) return;
-    booking.status = 'cancelled';
-    saveData();
-    renderMyBookings();
-    renderView();
-    notify('Buchung wurde storniert.', 'success');
-  }
+  // Show confirmation modal
+  pendingCancelBookingId = bookingId;
+  showCancelConfirmation(booking);
 }
 
 function myBookingShowInCalendar(dateStr) {
@@ -5449,7 +5375,6 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
 // INIT
 // ============================================================
 loadData();
-checkCancelToken();
 renderView();
 
 // ============================================================
@@ -6154,7 +6079,6 @@ function autofillBookingForm() {
 
 // Firebase Auth: Rolle erkennen, Tabs + Admin-Status setzen
 firebase.auth().onAuthStateChanged(async (user) => {
-  const btnStornieren = document.getElementById('btnStornieren');
   const customerAuthBtn = document.getElementById('customerAuthBtn');
   if (user) {
     try {
@@ -6220,7 +6144,6 @@ firebase.auth().onAuthStateChanged(async (user) => {
         return; // onAuthStateChanged wird erneut mit user=null getriggert
       }
       document.getElementById('mainViewTabs')?.classList.remove('has-staff-tabs');
-      if (btnStornieren) btnStornieren.style.display = '';
       if (customerAuthBtn) customerAuthBtn.style.display = '';
       const custSnap = await db.ref('customers/' + user.uid).once('value');
       const custData = custSnap.val();
@@ -6237,7 +6160,7 @@ firebase.auth().onAuthStateChanged(async (user) => {
     } catch (e) { console.warn('Auth-Check fehlgeschlagen:', e); }
     renderView();
   } else {
-    // Nicht eingeloggt: Stornieren + Login zeigen, Staff/Tabs ausblenden
+    // Nicht eingeloggt: Login zeigen, Staff/Tabs ausblenden
     customerProfile = null;
     vfConnected = null;
     updateCustomerButton();
@@ -6252,7 +6175,6 @@ firebase.auth().onAuthStateChanged(async (user) => {
     if (mobileStaffBtn) mobileStaffBtn.style.display = 'none';
     // Fluglehrer-Tabs ausblenden
     document.querySelectorAll('.fluglehrer-only').forEach(el => el.style.display = 'none');
-    if (btnStornieren) btnStornieren.style.display = '';
     if (customerAuthBtn) customerAuthBtn.style.display = '';
     // Immer zurück zum Kalender nach Logout
     showView('calendar');
@@ -6430,7 +6352,6 @@ function submitQuickBook() {
     instructor: hasInstructor ? 'ja' : 'nein',
     instructorName: hasInstructor ? instructorName : '',
     status: 'approved',
-    cancelToken: '',
     quickBook: true, // Flag: Admin-Schnellbuchung
     createdAt: new Date().toISOString()
   };
