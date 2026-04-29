@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen
 (function() {
-  var APP_VERSION = 48;
+  var APP_VERSION = 49;
   try {
     var stored = parseInt(localStorage.getItem('dassu_v') || '0');
     if (stored < APP_VERSION) {
@@ -207,7 +207,7 @@
 
   .acct-phone-wrap { display:flex; border:1px solid var(--c-line); border-radius:var(--radius-sm); overflow:hidden; transition:all var(--transition); }
   .acct-phone-wrap:focus-within { border-color:var(--c-alpine); box-shadow:0 0 0 3px rgba(30,75,78,0.08); }
-  .acct-phone-prefix { border:none; background:var(--gray-50); padding:10px 6px 10px 12px; font-size:13px; font-family:var(--font-ui); color:var(--c-ink); cursor:pointer; outline:none; min-width:90px; border-right:1px solid var(--c-line); appearance:none; -webkit-appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238E887D' fill='none' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 8px center; padding-right:22px; }
+  .acct-phone-prefix { border:none; background:var(--gray-50); padding:10px 8px 10px 12px; font-size:14px; font-family:var(--font-ui); color:var(--c-ink); cursor:pointer; outline:none; width:72px; flex-shrink:0; border-right:1px solid var(--c-line); appearance:none; -webkit-appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238E887D' fill='none' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 6px center; padding-right:18px; }
   .acct-phone-number { border:none; flex:1; padding:10px 14px; font-size:14px; font-family:var(--font-ui); color:var(--c-ink); outline:none; background:white; min-width:0; }
   .acct-phone-number::placeholder { color:var(--c-ink-3); opacity:0.6; }
 
@@ -1025,16 +1025,63 @@
   /* Kunden-Auth */
   #customerAuthBtn { display:inline-flex; align-items:center; gap:5px; cursor:pointer; }
   #customerAuthBtn svg { width:14px; height:14px; }
-  .cauth-tabs { display:flex; gap:4px; background:var(--c-paper); padding:3px; border-radius:8px; margin-bottom:16px; }
-  .cauth-tabs button { flex:1; padding:8px; background:transparent; border:none; border-radius:6px; font-family:var(--font-ui); font-size:13px; font-weight:600; color:var(--c-ink-3); cursor:pointer; }
-  .cauth-tabs button.active { background:white; color:var(--c-ink); box-shadow:0 1px 3px rgba(27,29,31,0.08); }
-  .cauth-msg { padding:8px 12px; border-radius:8px; font-size:12px; margin-bottom:10px; line-height:1.4; }
+
+  /* Auth-Page (Amazon-Stil) */
+  .auth-page { position:fixed; inset:0; z-index:200; background:var(--c-bg); display:none; overflow-y:auto; }
+  .auth-page.active { display:block; }
+  .auth-page-inner { min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:32px 16px 48px; }
+  .auth-logo { margin-bottom:28px; display:flex; align-items:center; gap:10px; text-decoration:none; }
+  .auth-logo img { width:40px; height:40px; }
+  .auth-logo-text { font-family:var(--font-brand); font-size:22px; font-weight:700; color:var(--c-alpine); letter-spacing:0.02em; }
+  .auth-card { background:white; border:1px solid var(--c-line); border-radius:var(--radius); padding:28px 32px; width:100%; max-width:380px; box-shadow:0 2px 8px rgba(27,29,31,0.06); }
+  .auth-card h2 { font-family:var(--font-ui); font-size:22px; font-weight:700; color:var(--c-ink); margin:0 0 20px; }
+  .auth-field { margin-bottom:16px; }
+  .auth-field label { display:block; font-family:var(--font-ui); font-size:13px; font-weight:700; color:var(--c-ink); margin-bottom:5px; }
+  .auth-field input { width:100%; padding:10px 12px; border:1px solid #a6a6a6; border-radius:4px; font-size:14px; font-family:var(--font-ui); color:var(--c-ink); box-sizing:border-box; background:white; transition:border-color 0.15s, box-shadow 0.15s; outline:none; }
+  .auth-field input:focus { border-color:var(--c-alpine); box-shadow:0 0 0 3px rgba(30,75,78,0.15); }
+  .auth-field input::placeholder { color:#aaa; }
+  .auth-field .auth-hint { font-size:12px; color:var(--c-ink-3); margin-top:4px; display:flex; align-items:center; gap:4px; }
+  .auth-field .auth-hint svg { width:14px; height:14px; flex-shrink:0; }
+  .auth-btn-primary { width:100%; padding:11px 16px; border:none; border-radius:var(--radius-sm); background:var(--c-alpine); color:white; font-size:14px; font-weight:700; font-family:var(--font-ui); cursor:pointer; transition:all 0.15s; letter-spacing:0.01em; margin-top:4px; }
+  .auth-btn-primary:hover { background:var(--navy-light); box-shadow:0 2px 8px rgba(30,75,78,0.2); }
+  .auth-btn-primary:active { transform:scale(0.99); }
+  .auth-btn-primary:disabled { opacity:0.6; cursor:not-allowed; }
+  .auth-legal { font-size:12px; color:var(--c-ink-3); line-height:1.5; margin-top:16px; }
+  .auth-legal a { color:var(--c-alpine); text-decoration:underline; }
+  .auth-divider { display:flex; align-items:center; gap:12px; margin:24px 0 20px; font-size:12px; color:var(--c-ink-3); }
+  .auth-divider::before, .auth-divider::after { content:''; flex:1; height:1px; background:var(--c-line); }
+  .auth-switch-card { background:white; border:1px solid var(--c-line); border-radius:var(--radius); padding:16px 32px; width:100%; max-width:380px; text-align:center; margin-top:12px; font-size:13px; color:var(--c-ink); font-family:var(--font-ui); }
+  .auth-switch-card a { color:var(--c-alpine); font-weight:600; text-decoration:none; cursor:pointer; }
+  .auth-switch-card a:hover { text-decoration:underline; }
+  .auth-footer { margin-top:28px; text-align:center; font-size:11px; color:var(--c-ink-3); font-family:var(--font-ui); }
+  .auth-footer a { color:var(--c-ink-3); text-decoration:none; margin:0 8px; }
+  .auth-footer a:hover { color:var(--c-alpine); text-decoration:underline; }
+  .auth-link { background:none; border:none; color:var(--c-alpine); font-size:12px; cursor:pointer; font-family:var(--font-ui); text-decoration:none; padding:0; }
+  .auth-link:hover { text-decoration:underline; }
+  .auth-consent { display:flex; align-items:flex-start; gap:10px; margin:16px 0; cursor:pointer; }
+  .auth-consent input[type="checkbox"] { margin-top:2px; flex-shrink:0; width:16px; height:16px; accent-color:var(--c-alpine); cursor:pointer; }
+  .auth-consent span { font-size:12px; color:var(--c-ink-2); line-height:1.5; }
+  .auth-consent a { color:var(--c-alpine); text-decoration:underline; }
+  .auth-info-note { font-size:11px; color:var(--c-ink-3); line-height:1.5; margin:12px 0 16px; padding:10px 12px; background:var(--c-bg); border-radius:var(--radius-sm); }
+  .auth-phone-row { display:flex; gap:8px; }
+  .auth-phone-row select { width:100px; padding:10px 8px; border:1px solid #a6a6a6; border-radius:4px; font-size:13px; font-family:var(--font-ui); color:var(--c-ink); background:white; outline:none; cursor:pointer; }
+  .auth-phone-row select:focus { border-color:var(--c-alpine); box-shadow:0 0 0 3px rgba(30,75,78,0.15); }
+  .auth-phone-row input { flex:1; }
+
+  .cauth-msg { padding:10px 14px; border-radius:var(--radius-sm); font-size:13px; margin-bottom:14px; line-height:1.5; }
   .cauth-msg.error { background:#FBF1ED; color:var(--c-rejected); border:1px solid var(--c-rejected); }
   .cauth-msg.success { background:#F1F6EE; color:var(--c-confirmed); border:1px solid var(--c-confirmed); }
+
+  /* Logged-in modal (legacy, still used in some places) */
   .cauth-logged-in { text-align:center; padding:8px 0; }
   .cauth-logged-in .name { font-weight:600; font-size:15px; color:var(--c-ink); }
   .cauth-logged-in .email { font-size:12px; color:var(--c-ink-3); margin-top:2px; }
   .cauth-logged-in .actions { margin-top:14px; display:flex; gap:8px; justify-content:center; }
+
+  @media (max-width:420px) {
+    .auth-card, .auth-switch-card { padding-left:20px; padding-right:20px; }
+    .auth-card h2 { font-size:20px; }
+  }
 
   /* ===== HERO SECTION ===== */
   .hero-band {
@@ -2002,15 +2049,15 @@
         <label>Telefon</label>
         <div class="acct-phone-wrap">
           <select id="acctPhonePrefix" class="acct-phone-prefix">
-            <option value="+49">🇩🇪 +49</option>
-            <option value="+43">🇦🇹 +43</option>
-            <option value="+41">🇨🇭 +41</option>
-            <option value="+39">🇮🇹 +39</option>
-            <option value="+33">🇫🇷 +33</option>
-            <option value="+44">🇬🇧 +44</option>
-            <option value="+31">🇳🇱 +31</option>
-            <option value="+48">🇵🇱 +48</option>
-            <option value="+1">🇺🇸 +1</option>
+            <option value="+49">+49</option>
+            <option value="+43">+43</option>
+            <option value="+41">+41</option>
+            <option value="+39">+39</option>
+            <option value="+33">+33</option>
+            <option value="+44">+44</option>
+            <option value="+31">+31</option>
+            <option value="+48">+48</option>
+            <option value="+1">+1</option>
           </select>
           <input type="tel" id="acctPhone" placeholder="123 456789" class="acct-phone-number">
         </div>
@@ -2152,11 +2199,115 @@
   </div>
 </div>
 
-<!-- Booking Modal -->
-<!-- Kunden-Auth Modal -->
+<!-- Auth Page (Amazon-Stil) -->
+<div class="auth-page" id="customerAuthPage">
+  <div class="auth-page-inner">
+
+    <!-- Logo -->
+    <a class="auth-logo" href="/" onclick="closeAuthPage(); return false;">
+      <img src="https://www.dassu.de/wp-content/uploads/2024/05/cropped-Logo_Dassu_3.png" alt="DASSU">
+      <span class="auth-logo-text">DASSU</span>
+    </a>
+
+    <!-- ===== LOGIN VIEW ===== -->
+    <div id="caLoginView">
+      <div class="auth-card">
+        <h2>Anmelden</h2>
+        <div id="caLoginMsg"></div>
+        <div class="auth-field">
+          <label for="caLoginEmail">E-Mail-Adresse</label>
+          <input type="email" id="caLoginEmail" autocomplete="email">
+        </div>
+        <div class="auth-field">
+          <label for="caLoginPw">Passwort</label>
+          <input type="password" id="caLoginPw" placeholder="Mind. 6 Zeichen" autocomplete="current-password">
+          <div style="text-align:right; margin-top:6px;">
+            <button class="auth-link" onclick="customerResetPw()">Passwort vergessen?</button>
+          </div>
+        </div>
+        <button class="auth-btn-primary" id="caLoginBtn" onclick="customerLogin()">Anmelden</button>
+      </div>
+
+      <div class="auth-divider">Neu bei DASSU?</div>
+
+      <div class="auth-switch-card">
+        <a onclick="showAuthView('register')">Dein DASSU-Konto erstellen</a>
+      </div>
+    </div>
+
+    <!-- ===== REGISTER VIEW ===== -->
+    <div id="caRegView" style="display:none;">
+      <div class="auth-card">
+        <h2>Konto erstellen</h2>
+        <div id="caRegMsg"></div>
+        <div class="auth-field">
+          <label for="caRegName">Dein Name</label>
+          <input type="text" id="caRegName" placeholder="Vor- und Nachname" autocomplete="name">
+        </div>
+        <div class="auth-field">
+          <label for="caRegEmail">E-Mail-Adresse</label>
+          <input type="email" id="caRegEmail" placeholder="deine@email.de" autocomplete="email">
+        </div>
+        <div class="auth-field">
+          <label for="caRegPhone">Telefon</label>
+          <div class="auth-phone-row">
+            <select id="caRegPhonePrefix">
+              <option value="+49">+49</option>
+              <option value="+43">+43</option>
+              <option value="+41">+41</option>
+              <option value="+39">+39</option>
+              <option value="+33">+33</option>
+              <option value="+44">+44</option>
+              <option value="+31">+31</option>
+              <option value="+48">+48</option>
+              <option value="+1">+1</option>
+            </select>
+            <input type="tel" id="caRegPhone" placeholder="123 456789" autocomplete="tel-national">
+          </div>
+        </div>
+        <div class="auth-field">
+          <label for="caRegPw">Passwort</label>
+          <input type="password" id="caRegPw" minlength="6" placeholder="Mind. 6 Zeichen" autocomplete="new-password">
+          <div class="auth-hint">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            Passw&ouml;rter m&uuml;ssen mindestens 6 Zeichen lang sein.
+          </div>
+        </div>
+        <div class="auth-field">
+          <label for="caRegPw2">Passwort best&auml;tigen</label>
+          <input type="password" id="caRegPw2" minlength="6" autocomplete="new-password">
+        </div>
+
+        <label class="auth-consent">
+          <input type="checkbox" id="caRegConsent">
+          <span>Ich bin damit einverstanden, dass meine Angaben zur Erstellung und Verwaltung meines Kundenkontos gespeichert und verarbeitet werden. Eine Abmeldung und L&ouml;schung ist jederzeit m&ouml;glich. Weitere Informationen in der <a href="https://www.dassu.de/datenschutz" target="_blank">Datenschutzerkl&auml;rung</a>.</span>
+        </label>
+
+        <button class="auth-btn-primary" id="caRegBtn" onclick="customerRegister()">Konto erstellen</button>
+
+        <div class="auth-info-note">
+          Nach der Registrierung erh&auml;ltst du eine Best&auml;tigungs-E-Mail. Buchungen sind erst nach Best&auml;tigung deiner E-Mail-Adresse m&ouml;glich.
+        </div>
+      </div>
+
+      <div class="auth-switch-card">
+        Du hast bereits ein Konto? <a onclick="showAuthView('login')">Anmelden</a>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="auth-footer">
+      <a href="https://www.dassu.de/datenschutz" target="_blank">Datenschutz</a>
+      <a href="https://www.dassu.de/impressum" target="_blank">Impressum</a>
+      <a href="mailto:info@dassu.de">Kontakt</a>
+    </div>
+
+  </div>
+</div>
+
+<!-- Legacy modal kept for logged-in profile editing (opened from Mein Konto link when already logged in) -->
 <div class="modal-overlay" id="customerAuthModal">
   <div class="modal" style="max-width:400px;">
-    <!-- Eingeloggt-Ansicht -->
     <div id="caLoggedIn" style="display:none;">
       <h3>Mein Konto</h3>
       <div class="cauth-logged-in">
@@ -2199,48 +2350,6 @@
       </details>
       <div style="text-align:center; margin-top:8px;">
         <button onclick="customerSignOut()" style="background:none; border:none; color:var(--gray-500); font-size:12px; cursor:pointer; text-decoration:underline; font-family:var(--font-ui);">Abmelden</button>
-      </div>
-    </div>
-    <!-- Login/Register-Ansicht -->
-    <div id="caAuthForms">
-      <h3>Kundenkonto</h3>
-      <div class="cauth-tabs">
-        <button id="caTabLogin" class="active" onclick="showCaTab('login')">Anmelden</button>
-        <button id="caTabRegister" onclick="showCaTab('register')">Registrieren</button>
-      </div>
-      <!-- Login -->
-      <div id="caLoginForm">
-        <div id="caLoginMsg"></div>
-        <div class="form-group"><label>E-Mail</label><input type="email" id="caLoginEmail"></div>
-        <div class="form-group"><label>Passwort</label><input type="password" id="caLoginPw"></div>
-        <div class="modal-actions">
-          <button class="btn" onclick="closeModal('customerAuthModal')">Abbrechen</button>
-          <button class="btn btn-primary" id="caLoginBtn" onclick="customerLogin()">Anmelden</button>
-        </div>
-        <div style="text-align:center; margin-top:8px;">
-          <button onclick="customerResetPw()" style="background:none; border:none; color:var(--primary); font-size:12px; cursor:pointer; text-decoration:underline; font-family:var(--font-ui);">Passwort vergessen?</button>
-        </div>
-      </div>
-      <!-- Register -->
-      <div id="caRegForm" style="display:none;">
-        <div id="caRegMsg"></div>
-        <div class="form-group"><label>Name *</label><input type="text" id="caRegName" placeholder="Vor- und Nachname"></div>
-        <div class="form-group"><label>E-Mail *</label><input type="email" id="caRegEmail" placeholder="deine@email.de"></div>
-        <div class="form-group"><label>Telefon *</label><input type="tel" id="caRegPhone" placeholder="+49 123 456789"></div>
-        <div class="form-group"><label>Geburtsdatum</label><input type="date" id="caRegBirth"></div>
-        <div class="form-group"><label>Passwort *</label><input type="password" id="caRegPw" minlength="6" placeholder="Mind. 6 Zeichen"></div>
-        <div class="form-group"><label>Passwort best&auml;tigen *</label><input type="password" id="caRegPw2" minlength="6"></div>
-        <div style="margin:12px 0 16px;">
-          <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer; font-size:12px; color:var(--gray-600); line-height:1.5; text-transform:none; letter-spacing:0; font-weight:400;">
-            <input type="checkbox" id="caRegConsent" style="margin-top:3px; flex-shrink:0; width:16px; height:16px; accent-color:var(--primary);">
-            <span>Ich bin damit einverstanden, dass meine Angaben zur Erstellung und Verwaltung meines Kundenkontos gespeichert und verarbeitet werden. Eine Abmeldung und L&ouml;schung ist jederzeit m&ouml;glich. Weitere Informationen in der <a href="https://www.dassu.de/datenschutz" target="_blank" style="color:var(--primary); text-decoration:underline;">Datenschutzerkl&auml;rung</a>. *</span>
-          </label>
-        </div>
-        <p style="font-size:11px; color:var(--gray-400); line-height:1.5; margin-bottom:12px;">Nach der Registrierung erh&auml;ltst du eine Best&auml;tigungs-E-Mail. Buchungen sind erst nach Best&auml;tigung deiner E-Mail-Adresse m&ouml;glich.</p>
-        <div class="modal-actions">
-          <button class="btn" onclick="closeModal('customerAuthModal')">Abbrechen</button>
-          <button class="btn btn-primary" id="caRegBtn" onclick="customerRegister()">Registrieren</button>
-        </div>
       </div>
     </div>
   </div>
@@ -5333,26 +5442,32 @@ renderView();
 // ============================================================
 function openCustomerAuth() {
   if (customerProfile) {
-    // Logged in — show account view instead
     showView('account');
   } else {
-    // Not logged in — show modal with login/register
-    const modal = document.getElementById('customerAuthModal');
-    document.getElementById('caLoggedIn').style.display = 'none';
-    document.getElementById('caAuthForms').style.display = '';
-    showCaTab('login');
-    modal.classList.add('active');
+    showAuthView('login');
+    document.getElementById('customerAuthPage').classList.add('active');
+    document.body.style.overflow = 'hidden';
   }
 }
 
-function showCaTab(which) {
-  document.getElementById('caTabLogin').classList.toggle('active', which === 'login');
-  document.getElementById('caTabRegister').classList.toggle('active', which === 'register');
-  document.getElementById('caLoginForm').style.display = which === 'login' ? '' : 'none';
-  document.getElementById('caRegForm').style.display = which === 'register' ? '' : 'none';
+function closeAuthPage() {
+  document.getElementById('customerAuthPage').classList.remove('active');
+  document.body.style.overflow = '';
+}
+
+function showAuthView(which) {
+  document.getElementById('caLoginView').style.display = which === 'login' ? '' : 'none';
+  document.getElementById('caRegView').style.display = which === 'register' ? '' : 'none';
   document.getElementById('caLoginMsg').innerHTML = '';
   document.getElementById('caRegMsg').innerHTML = '';
+  // Scroll to top of auth page
+  const inner = document.querySelector('.auth-page-inner');
+  if (inner) inner.scrollTop = 0;
+  document.getElementById('customerAuthPage').scrollTop = 0;
 }
+
+// Legacy compat: old code may still call showCaTab
+function showCaTab(which) { showAuthView(which); }
 
 function caMsg(id, type, text) {
   document.getElementById(id).innerHTML = '<div class="cauth-msg ' + type + '">' + text + '</div>';
@@ -5369,7 +5484,7 @@ async function customerLogin() {
     // Staff-User d\u00fcrfen immer rein (haben keine E-Mail-Verifizierung)
     const staffSnap = await db.ref('staffUsers/' + cred.user.uid).once('value');
     if (staffSnap.val()) {
-      closeModal('customerAuthModal');
+      closeAuthPage();
       btn.disabled = false; btn.textContent = 'Anmelden';
       return;
     }
@@ -5380,7 +5495,7 @@ async function customerLogin() {
       btn.disabled = false; btn.textContent = 'Anmelden';
       return;
     }
-    closeModal('customerAuthModal');
+    closeAuthPage();
   } catch (e) {
     const msg = e.code === 'auth/user-not-found' ? 'Kein Account gefunden. Bitte zuerst registrieren.'
       : e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential' ? 'Falsches Passwort.'
@@ -5412,8 +5527,10 @@ async function resendVerifFromLogin() {
 async function customerRegister() {
   const name = document.getElementById('caRegName').value.trim();
   const email = document.getElementById('caRegEmail').value.trim();
-  const phone = document.getElementById('caRegPhone').value.trim();
-  const birth = document.getElementById('caRegBirth').value;
+  const phonePrefix = document.getElementById('caRegPhonePrefix') ? document.getElementById('caRegPhonePrefix').value : '+49';
+  const phoneNum = document.getElementById('caRegPhone').value.trim();
+  const phone = phoneNum ? (phonePrefix + ' ' + phoneNum) : '';
+  const birth = '';
   const pw = document.getElementById('caRegPw').value;
   const pw2 = document.getElementById('caRegPw2').value;
   if (!name || !email || !phone) { caMsg('caRegMsg', 'error', 'Name, E-Mail und Telefon sind Pflicht.'); return; }
@@ -5421,7 +5538,7 @@ async function customerRegister() {
   if (pw !== pw2) { caMsg('caRegMsg', 'error', 'Passw\u00f6rter stimmen nicht \u00fcberein.'); return; }
   if (!document.getElementById('caRegConsent').checked) { caMsg('caRegMsg', 'error', 'Bitte stimme der Datenschutzerkl\u00e4rung zu.'); return; }
   const btn = document.getElementById('caRegBtn');
-  btn.disabled = true; btn.textContent = 'Registriere...';
+  btn.disabled = true; btn.textContent = 'Einen Moment...';
   try {
     let cred;
     let isNewAccount = false;
@@ -5437,7 +5554,7 @@ async function customerRegister() {
             ? 'F\u00fcr diese E-Mail gibt es schon einen Account, aber das Passwort stimmt nicht. Bitte \u00fcber "Anmelden" einloggen.'
             : loginErr.message;
           caMsg('caRegMsg', 'error', lm);
-          btn.disabled = false; btn.textContent = 'Registrieren';
+          btn.disabled = false; btn.textContent = 'Konto erstellen';
           return;
         }
       } else {
@@ -5463,17 +5580,17 @@ async function customerRegister() {
       }
       await firebase.auth().signOut();
       caMsg('caRegMsg', 'success', 'Fast geschafft! Wir haben dir eine Best\u00e4tigungs-E-Mail an <strong>' + email + '</strong> geschickt. Bitte klicke auf den Link in der E-Mail, um dein Konto zu aktivieren. Danach kannst du dich anmelden.');
-      btn.disabled = false; btn.textContent = 'Registrieren';
+      btn.disabled = false; btn.textContent = 'Konto erstellen';
       return;
     } else {
-      closeModal('customerAuthModal');
+      closeAuthPage();
       notify('Willkommen, ' + name + '! Deine Daten werden ab jetzt automatisch ausgef\u00fcllt.', 'success');
     }
   } catch (e) {
     const msg = e.code === 'auth/weak-password' ? 'Passwort zu schwach.' : e.message;
     caMsg('caRegMsg', 'error', msg);
   }
-  btn.disabled = false; btn.textContent = 'Registrieren';
+  btn.disabled = false; btn.textContent = 'Konto erstellen';
 }
 
 async function saveCustomerProfile() {
@@ -5520,30 +5637,26 @@ async function customerResetPw() {
   } catch (_) {
     // Zeige immer die gleiche Nachricht (Sicherheit)
   }
-  // Login-Formular durch Bestätigungsansicht ersetzen
-  const loginForm = document.getElementById('caLoginForm');
-  loginForm.innerHTML = '<div style="text-align:center; padding:24px 0;">' +
-    '<div style="font-size:40px; margin-bottom:16px;">📧</div>' +
-    '<h3 style="margin:0 0 12px; font-size:18px; color:var(--gray-800);">E-Mail gesendet</h3>' +
-    '<p style="color:var(--gray-600); font-size:14px; line-height:1.6; margin:0 0 24px;">Falls ein Konto mit <strong>' + email + '</strong> existiert, wurde ein Link zum Zurücksetzen gesendet. Bitte prüfe deinen Posteingang.</p>' +
-    '<div class="modal-actions" style="justify-content:center;">' +
-    '<button class="btn" onclick="resetPwBackToLogin()">Zurück zum Login</button>' +
-    '<button class="btn btn-primary" onclick="closeModal(\'customerAuthModal\')">Schließen</button>' +
-    '</div></div>';
+  // Login-Card durch Bestätigungsansicht ersetzen
+  const loginView = document.getElementById('caLoginView');
+  loginView.dataset.originalHtml = loginView.innerHTML;
+  loginView.innerHTML = '<div class="auth-card" style="text-align:center;">' +
+    '<div style="font-size:48px; margin-bottom:20px;">📧</div>' +
+    '<h2 style="font-size:20px;">E-Mail gesendet</h2>' +
+    '<p style="color:var(--c-ink-2); font-size:14px; line-height:1.6; margin:0 0 24px;">Falls ein Konto mit <strong>' + email + '</strong> existiert, wurde ein Link zum Zurücksetzen gesendet. Bitte prüfe deinen Posteingang.</p>' +
+    '<button class="auth-btn-primary" onclick="resetPwBackToLogin()">Zurück zum Login</button>' +
+    '</div>';
 }
 
 function resetPwBackToLogin() {
-  const loginForm = document.getElementById('caLoginForm');
-  loginForm.innerHTML = '<div id="caLoginMsg"></div>' +
-    '<div class="form-group"><label>E-Mail</label><input type="email" id="caLoginEmail"></div>' +
-    '<div class="form-group"><label>Passwort</label><input type="password" id="caLoginPw"></div>' +
-    '<div class="modal-actions">' +
-    '<button class="btn" onclick="closeModal(\'customerAuthModal\')">Abbrechen</button>' +
-    '<button class="btn btn-primary" id="caLoginBtn" onclick="customerLogin()">Anmelden</button>' +
-    '</div>' +
-    '<div style="text-align:center; margin-top:8px;">' +
-    '<button onclick="customerResetPw()" style="background:none; border:none; color:var(--primary); font-size:12px; cursor:pointer; text-decoration:underline; font-family:var(--font-ui);">Passwort vergessen?</button>' +
-    '</div>';
+  const loginView = document.getElementById('caLoginView');
+  if (loginView.dataset.originalHtml) {
+    loginView.innerHTML = loginView.dataset.originalHtml;
+    delete loginView.dataset.originalHtml;
+  } else {
+    // Fallback: just reload the page
+    showAuthView('login');
+  }
 }
 
 async function resendVerificationEmail() {
