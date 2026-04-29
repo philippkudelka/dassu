@@ -2064,7 +2064,22 @@
       </div>
       <div class="acct-field">
         <label>Geburtsdatum</label>
-        <input type="date" id="acctBirth">
+        <div style="display:flex; gap:8px;">
+          <select id="acctBirthDay" style="width:72px; padding:10px 8px; border:1px solid var(--c-line); border-radius:var(--radius-sm); font-size:14px; font-family:var(--font-ui); color:var(--c-ink); background:white;">
+            <option value="">Tag</option>
+          </select>
+          <select id="acctBirthMonth" style="flex:1; padding:10px 8px; border:1px solid var(--c-line); border-radius:var(--radius-sm); font-size:14px; font-family:var(--font-ui); color:var(--c-ink); background:white;">
+            <option value="">Monat</option>
+            <option value="01">Januar</option><option value="02">Februar</option><option value="03">M&auml;rz</option>
+            <option value="04">April</option><option value="05">Mai</option><option value="06">Juni</option>
+            <option value="07">Juli</option><option value="08">August</option><option value="09">September</option>
+            <option value="10">Oktober</option><option value="11">November</option><option value="12">Dezember</option>
+          </select>
+          <select id="acctBirthYear" style="width:90px; padding:10px 8px; border:1px solid var(--c-line); border-radius:var(--radius-sm); font-size:14px; font-family:var(--font-ui); color:var(--c-ink); background:white;">
+            <option value="">Jahr</option>
+          </select>
+        </div>
+        <input type="hidden" id="acctBirth">
       </div>
     </div>
 
@@ -5824,7 +5839,18 @@ function renderAccountView() {
     phoneEl.value = numberPart;
   }
 
-  document.getElementById('acctBirth').value = customerProfile.birthdate || '';
+  // Geburtsdatum: Dropdowns initialisieren und befüllen
+  initBirthDateDropdowns();
+  const bdate = customerProfile.birthdate || '';
+  if (bdate) {
+    const parts = bdate.split('-'); // "YYYY-MM-DD"
+    if (parts.length === 3) {
+      document.getElementById('acctBirthYear').value = parts[0];
+      document.getElementById('acctBirthMonth').value = parts[1];
+      document.getElementById('acctBirthDay').value = parts[2];
+    }
+  }
+  syncHiddenBirthDate();
   document.getElementById('acctDisplayName').textContent = customerProfile.name || '';
   document.getElementById('acctDisplayEmail').textContent = customerProfile.email || '';
 
@@ -5914,9 +5940,46 @@ function renderAccountView() {
   renderVfSection();
 }
 
+function initBirthDateDropdowns() {
+  const dayEl = document.getElementById('acctBirthDay');
+  const yearEl = document.getElementById('acctBirthYear');
+  if (!dayEl || !yearEl) return;
+  // Tage 1-31
+  if (dayEl.options.length <= 1) {
+    for (let d = 1; d <= 31; d++) {
+      const opt = document.createElement('option');
+      opt.value = String(d).padStart(2, '0');
+      opt.textContent = d;
+      dayEl.appendChild(opt);
+    }
+  }
+  // Jahre: aktuelles Jahr - 100 bis aktuelles Jahr - 10
+  if (yearEl.options.length <= 1) {
+    const now = new Date().getFullYear();
+    for (let y = now - 10; y >= now - 100; y--) {
+      const opt = document.createElement('option');
+      opt.value = String(y);
+      opt.textContent = y;
+      yearEl.appendChild(opt);
+    }
+  }
+  // Change-Events: hidden field synchron halten
+  dayEl.onchange = syncHiddenBirthDate;
+  document.getElementById('acctBirthMonth').onchange = syncHiddenBirthDate;
+  yearEl.onchange = syncHiddenBirthDate;
+}
+
+function syncHiddenBirthDate() {
+  const d = document.getElementById('acctBirthDay').value;
+  const m = document.getElementById('acctBirthMonth').value;
+  const y = document.getElementById('acctBirthYear').value;
+  document.getElementById('acctBirth').value = (y && m && d) ? (y + '-' + m + '-' + d) : '';
+}
+
 async function saveAccountProfile() {
   const user = firebase.auth().currentUser;
   if (!user) return;
+  syncHiddenBirthDate();
   const name = document.getElementById('acctName').value.trim();
   const phonePrefix = document.getElementById('acctPhonePrefix').value || '+49';
   const phoneNum = document.getElementById('acctPhone').value.trim().replace(/^0+/, '');
