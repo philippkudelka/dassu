@@ -3450,6 +3450,7 @@ function openCustomerDetail(uid) {
         <div class="td-info-item"><div class="td-label">E-Mail</div><div class="td-value">${escapeHtml(c.email || '—')}</div></div>
         <div class="td-info-item"><div class="td-label">Telefon</div><div class="td-value">${escapeHtml(c.phone || '—')}</div></div>
         <div class="td-info-item"><div class="td-label">Geburtstag</div><div class="td-value">${c.birthdate || '—'}</div></div>
+        ${c.street || c.city ? `<div class="td-info-item"><div class="td-label">Adresse</div><div class="td-value">${escapeHtml(c.street || '')}${c.zip || c.city ? '<br>' + escapeHtml((c.zip || '') + ' ' + (c.city || '')).trim() : ''}</div></div>` : ''}
         <div class="td-info-item"><div class="td-label">Registriert am</div><div class="td-value">${createdAt}</div></div>
       </div>
     </div>

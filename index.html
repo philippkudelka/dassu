@@ -164,6 +164,20 @@
   .customer-dropdown button:hover { background:var(--c-bg); }
   .customer-dropdown button:last-child { color:#B36A5B; border-top:1px solid var(--c-border); }
 
+  /* Mein Konto Sections */
+  .acct-section { margin-top:22px; border-top:1px solid var(--c-border); padding-top:18px; }
+  .acct-section-title { font-size:13px; font-weight:700; color:var(--navy); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:14px; }
+  .acct-label { font-size:12px; font-weight:600; color:var(--c-muted); text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:4px; }
+  .acct-info-grid { display:flex; flex-direction:column; gap:0; }
+  .acct-info-row { display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--gray-50); }
+  .acct-info-row:last-child { border-bottom:none; }
+  .acct-info-label { font-size:13px; color:var(--c-muted); }
+  .acct-info-value { font-size:13px; font-weight:600; color:var(--c-text); }
+  .acct-badge { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:600; padding:3px 10px; border-radius:99px; }
+  .acct-badge-ok { background:rgba(122,166,108,0.12); color:#5d8c4f; }
+  .acct-badge-warn { background:rgba(218,165,32,0.12); color:#9a7b1a; }
+  .acct-badge-neutral { background:var(--gray-50); color:var(--c-muted); }
+
   /* Buttons — Alpen & Horizont */
   .btn {
     padding: 8px 18px;
@@ -1888,50 +1902,134 @@
 
 <!-- Mein Konto View (eigene Seite) -->
 <div id="accountView" style="display:none;">
-  <div class="my-bookings-panel" style="max-width:520px;margin:0 auto;">
-    <div style="text-align:center;margin-bottom:24px;">
-      <div class="ca-avatar-circle" id="acctAvatar" style="width:72px;height:72px;border-radius:50%;background:var(--navy);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;cursor:pointer;overflow:hidden;position:relative;" onclick="document.getElementById('acctPhotoInput').click();">
+  <div class="my-bookings-panel" style="max-width:560px;margin:0 auto;">
+    <!-- Profil-Header -->
+    <div style="text-align:center;margin-bottom:28px;">
+      <div class="ca-avatar-circle" id="acctAvatar" style="width:80px;height:80px;border-radius:50%;background:var(--navy);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;cursor:pointer;overflow:hidden;position:relative;" onclick="document.getElementById('acctPhotoInput').click();">
       </div>
       <input type="file" id="acctPhotoInput" accept="image/*" style="display:none;" onchange="uploadAccountPhoto(this)">
       <div id="acctDisplayName" style="font-size:18px;font-weight:700;color:var(--navy);margin-top:10px;"></div>
       <div id="acctDisplayEmail" style="font-size:13px;color:var(--c-muted);margin-top:2px;"></div>
+      <div id="acctVerifyBadge" style="margin-top:6px;"></div>
     </div>
 
-    <div style="display:flex;flex-direction:column;gap:14px;">
-      <div>
-        <label style="font-size:12px;font-weight:600;color:var(--c-muted);text-transform:uppercase;letter-spacing:0.04em;">Name</label>
-        <input type="text" id="acctName" class="form-input" style="width:100%;box-sizing:border-box;">
+    <!-- Konto-Statistiken -->
+    <div id="acctStats" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:24px;">
+      <div style="background:var(--gray-50);border-radius:10px;padding:14px 10px;text-align:center;">
+        <div id="acctStatBookings" style="font-size:22px;font-weight:700;color:var(--navy);">0</div>
+        <div style="font-size:11px;color:var(--c-muted);margin-top:2px;">Buchungen</div>
       </div>
-      <div>
-        <label style="font-size:12px;font-weight:600;color:var(--c-muted);text-transform:uppercase;letter-spacing:0.04em;">E-Mail</label>
-        <input type="email" id="acctEmail" class="form-input" style="width:100%;box-sizing:border-box;" disabled>
+      <div style="background:var(--gray-50);border-radius:10px;padding:14px 10px;text-align:center;">
+        <div id="acctStatUpcoming" style="font-size:22px;font-weight:700;color:var(--navy);">0</div>
+        <div style="font-size:11px;color:var(--c-muted);margin-top:2px;">Anstehend</div>
       </div>
-      <div>
-        <label style="font-size:12px;font-weight:600;color:var(--c-muted);text-transform:uppercase;letter-spacing:0.04em;">Telefon</label>
-        <input type="tel" id="acctPhone" class="form-input" style="width:100%;box-sizing:border-box;">
-      </div>
-      <div>
-        <label style="font-size:12px;font-weight:600;color:var(--c-muted);text-transform:uppercase;letter-spacing:0.04em;">Geburtsdatum</label>
-        <input type="date" id="acctBirth" class="form-input" style="width:100%;box-sizing:border-box;">
+      <div style="background:var(--gray-50);border-radius:10px;padding:14px 10px;text-align:center;">
+        <div id="acctStatMember" style="font-size:13px;font-weight:700;color:var(--navy);">–</div>
+        <div style="font-size:11px;color:var(--c-muted);margin-top:2px;">Mitglied seit</div>
       </div>
     </div>
 
+    <!-- Persönliche Daten -->
+    <div class="acct-section">
+      <div class="acct-section-title">Persönliche Daten</div>
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div>
+          <label class="acct-label">Name</label>
+          <input type="text" id="acctName" class="form-input" style="width:100%;box-sizing:border-box;">
+        </div>
+        <div>
+          <label class="acct-label">E-Mail</label>
+          <input type="email" id="acctEmail" class="form-input" style="width:100%;box-sizing:border-box;background:var(--gray-50);color:var(--c-muted);" disabled>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div>
+            <label class="acct-label">Telefon</label>
+            <input type="tel" id="acctPhone" class="form-input" style="width:100%;box-sizing:border-box;" placeholder="+49 123 456789">
+          </div>
+          <div>
+            <label class="acct-label">Geburtsdatum</label>
+            <input type="date" id="acctBirth" class="form-input" style="width:100%;box-sizing:border-box;">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Adresse -->
+    <div class="acct-section">
+      <div class="acct-section-title">Adresse</div>
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div>
+          <label class="acct-label">Straße &amp; Hausnummer</label>
+          <input type="text" id="acctStreet" class="form-input" style="width:100%;box-sizing:border-box;" placeholder="Musterstraße 12">
+        </div>
+        <div style="display:grid;grid-template-columns:120px 1fr;gap:12px;">
+          <div>
+            <label class="acct-label">PLZ</label>
+            <input type="text" id="acctZip" class="form-input" style="width:100%;box-sizing:border-box;" placeholder="83246" maxlength="5">
+          </div>
+          <div>
+            <label class="acct-label">Ort</label>
+            <input type="text" id="acctCity" class="form-input" style="width:100%;box-sizing:border-box;" placeholder="Unterwössen">
+          </div>
+        </div>
+        <div>
+          <label class="acct-label">Land</label>
+          <select id="acctCountry" class="form-input" style="width:100%;box-sizing:border-box;">
+            <option value="">– Bitte wählen –</option>
+            <option value="DE" selected>Deutschland</option>
+            <option value="AT">Österreich</option>
+            <option value="CH">Schweiz</option>
+            <option value="IT">Italien</option>
+            <option value="OTHER">Anderes</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Speichern -->
     <div style="display:flex;gap:10px;margin-top:20px;">
-      <button class="btn btn-primary" onclick="saveAccountProfile()" style="flex:1;">Speichern</button>
+      <button class="btn btn-primary" onclick="saveAccountProfile()" style="flex:1;">Änderungen speichern</button>
     </div>
     <div id="acctMsg" style="margin-top:8px;font-size:13px;text-align:center;"></div>
 
-    <details style="margin-top:24px;border-top:1px solid var(--c-border);padding-top:16px;">
-      <summary style="cursor:pointer;font-size:13px;font-weight:600;color:var(--c-muted);">Passwort ändern</summary>
-      <div style="margin-top:12px;display:flex;flex-direction:column;gap:10px;">
-        <input type="password" id="acctNewPw" class="form-input" placeholder="Neues Passwort" style="width:100%;box-sizing:border-box;">
-        <input type="password" id="acctNewPw2" class="form-input" placeholder="Passwort wiederholen" style="width:100%;box-sizing:border-box;">
-        <button class="btn btn-sm" onclick="changeAccountPassword()" style="align-self:flex-start;">Passwort ändern</button>
-        <div id="acctPwMsg" style="font-size:12px;"></div>
+    <!-- Konto-Informationen (read-only) -->
+    <div class="acct-section" style="margin-top:28px;">
+      <div class="acct-section-title">Konto-Informationen</div>
+      <div class="acct-info-grid">
+        <div class="acct-info-row">
+          <span class="acct-info-label">Registriert am</span>
+          <span class="acct-info-value" id="acctCreatedAt">–</span>
+        </div>
+        <div class="acct-info-row">
+          <span class="acct-info-label">E-Mail verifiziert</span>
+          <span class="acct-info-value" id="acctVerified">–</span>
+        </div>
+        <div class="acct-info-row">
+          <span class="acct-info-label">Vereinsflieger</span>
+          <span class="acct-info-value" id="acctVfStatus">–</span>
+        </div>
+        <div class="acct-info-row">
+          <span class="acct-info-label">Kunden-ID</span>
+          <span class="acct-info-value" id="acctUid" style="font-family:monospace;font-size:11px;">–</span>
+        </div>
       </div>
-    </details>
+    </div>
 
-    <div style="margin-top:24px;text-align:center;border-top:1px solid var(--c-border);padding-top:16px;">
+    <!-- Sicherheit -->
+    <div class="acct-section">
+      <div class="acct-section-title">Sicherheit</div>
+      <details>
+        <summary style="cursor:pointer;font-size:13px;font-weight:600;color:var(--c-muted);">Passwort ändern</summary>
+        <div style="margin-top:12px;display:flex;flex-direction:column;gap:10px;">
+          <input type="password" id="acctNewPw" class="form-input" placeholder="Neues Passwort (mind. 6 Zeichen)" style="width:100%;box-sizing:border-box;">
+          <input type="password" id="acctNewPw2" class="form-input" placeholder="Passwort wiederholen" style="width:100%;box-sizing:border-box;">
+          <button class="btn btn-sm" onclick="changeAccountPassword()" style="align-self:flex-start;">Passwort ändern</button>
+          <div id="acctPwMsg" style="font-size:12px;"></div>
+        </div>
+      </details>
+    </div>
+
+    <div style="margin-top:28px;text-align:center;border-top:1px solid var(--c-border);padding-top:16px;">
       <button onclick="customerLogout()" style="background:none;border:none;color:#B36A5B;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Abmelden</button>
     </div>
   </div>
@@ -5469,12 +5567,24 @@ function customerLogout() {
 
 function renderAccountView() {
   if (!customerProfile) return;
+  const user = firebase.auth().currentUser;
+
+  // Persönliche Daten
   document.getElementById('acctName').value = customerProfile.name || '';
   document.getElementById('acctEmail').value = customerProfile.email || '';
   document.getElementById('acctPhone').value = customerProfile.phone || '';
   document.getElementById('acctBirth').value = customerProfile.birthdate || '';
   document.getElementById('acctDisplayName').textContent = customerProfile.name || '';
   document.getElementById('acctDisplayEmail').textContent = customerProfile.email || '';
+
+  // Adresse
+  document.getElementById('acctStreet').value = customerProfile.street || '';
+  document.getElementById('acctZip').value = customerProfile.zip || '';
+  document.getElementById('acctCity').value = customerProfile.city || '';
+  const countryEl = document.getElementById('acctCountry');
+  if (countryEl) countryEl.value = customerProfile.country || 'DE';
+
+  // Avatar
   const avatarEl = document.getElementById('acctAvatar');
   if (avatarEl) {
     if (customerProfile.photoURL) {
@@ -5483,6 +5593,70 @@ function renderAccountView() {
       avatarEl.textContent = (customerProfile.name || '?').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
     }
   }
+
+  // E-Mail-Verifizierung Badge
+  const verifyBadge = document.getElementById('acctVerifyBadge');
+  if (verifyBadge && user) {
+    if (user.emailVerified) {
+      verifyBadge.innerHTML = '<span class="acct-badge acct-badge-ok">✓ Verifiziert</span>';
+    } else {
+      verifyBadge.innerHTML = '<span class="acct-badge acct-badge-warn">✉ E-Mail nicht bestätigt</span>';
+    }
+  }
+
+  // Buchungsstatistiken
+  const myBookings = bookings.filter(b => {
+    if (!customerProfile) return false;
+    const email = (customerProfile.email || '').toLowerCase();
+    const name = (customerProfile.name || '').toLowerCase();
+    return (b.email && b.email.toLowerCase() === email) || (b.name && b.name.toLowerCase() === name);
+  });
+  const now = new Date();
+  const upcoming = myBookings.filter(b => {
+    const bDate = new Date(b.date);
+    return bDate >= new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  });
+  document.getElementById('acctStatBookings').textContent = myBookings.length;
+  document.getElementById('acctStatUpcoming').textContent = upcoming.length;
+
+  // Mitglied seit
+  const memberEl = document.getElementById('acctStatMember');
+  if (memberEl && customerProfile.createdAt) {
+    const d = new Date(customerProfile.createdAt);
+    memberEl.textContent = d.toLocaleDateString('de-DE', { month: 'short', year: 'numeric' });
+  }
+
+  // Konto-Informationen
+  const createdEl = document.getElementById('acctCreatedAt');
+  if (createdEl && customerProfile.createdAt) {
+    createdEl.textContent = new Date(customerProfile.createdAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  }
+
+  const verifiedEl = document.getElementById('acctVerified');
+  if (verifiedEl && user) {
+    verifiedEl.innerHTML = user.emailVerified
+      ? '<span class="acct-badge acct-badge-ok">✓ Ja</span>'
+      : '<span class="acct-badge acct-badge-warn">Nein</span>';
+  }
+
+  const vfEl = document.getElementById('acctVfStatus');
+  if (vfEl) {
+    if (vfConnected === true) {
+      vfEl.innerHTML = '<span class="acct-badge acct-badge-ok">✓ Verbunden</span>';
+    } else if (vfConnected === false) {
+      vfEl.innerHTML = '<span class="acct-badge acct-badge-neutral">Nicht verbunden</span>';
+    } else {
+      vfEl.innerHTML = '<span class="acct-badge acct-badge-neutral">–</span>';
+    }
+  }
+
+  const uidEl = document.getElementById('acctUid');
+  if (uidEl && user) {
+    const uid = user.uid;
+    uidEl.textContent = uid.substring(0, 8) + '…';
+    uidEl.title = uid;
+  }
+
   document.getElementById('acctMsg').textContent = '';
 }
 
@@ -5492,17 +5666,25 @@ async function saveAccountProfile() {
   const name = document.getElementById('acctName').value.trim();
   const phone = document.getElementById('acctPhone').value.trim();
   const birth = document.getElementById('acctBirth').value;
+  const street = document.getElementById('acctStreet').value.trim();
+  const zip = document.getElementById('acctZip').value.trim();
+  const city = document.getElementById('acctCity').value.trim();
+  const country = document.getElementById('acctCountry').value;
   if (!name) { document.getElementById('acctMsg').innerHTML = '<span style="color:#B36A5B;">Name darf nicht leer sein.</span>'; return; }
   try {
-    await db.ref('customers/' + user.uid).update({ name, phone, birthdate: birth });
+    await db.ref('customers/' + user.uid).update({ name, phone, birthdate: birth, street, zip, city, country });
     try { await user.updateProfile({ displayName: name }); } catch (_) {}
     customerProfile.name = name;
     customerProfile.phone = phone;
     customerProfile.birthdate = birth;
+    customerProfile.street = street;
+    customerProfile.zip = zip;
+    customerProfile.city = city;
+    customerProfile.country = country;
     updateCustomerButton();
     renderAccountView();
-    document.getElementById('acctMsg').innerHTML = '<span style="color:var(--navy);">Gespeichert!</span>';
-    setTimeout(() => { document.getElementById('acctMsg').textContent = ''; }, 2000);
+    document.getElementById('acctMsg').innerHTML = '<span style="color:var(--navy);">✓ Änderungen gespeichert</span>';
+    setTimeout(() => { document.getElementById('acctMsg').textContent = ''; }, 2500);
   } catch (e) {
     document.getElementById('acctMsg').innerHTML = '<span style="color:#B36A5B;">Fehler: ' + e.message + '</span>';
   }
