@@ -205,6 +205,12 @@
   .acct-badge-warn { background:rgba(197,106,28,0.1); color:#a06118; }
   .acct-badge-neutral { background:var(--gray-100); color:var(--c-ink-3); }
 
+  .acct-phone-wrap { display:flex; border:1px solid var(--c-line); border-radius:var(--radius-sm); overflow:hidden; transition:all var(--transition); }
+  .acct-phone-wrap:focus-within { border-color:var(--c-alpine); box-shadow:0 0 0 3px rgba(30,75,78,0.08); }
+  .acct-phone-prefix { border:none; background:var(--gray-50); padding:10px 6px 10px 12px; font-size:13px; font-family:var(--font-ui); color:var(--c-ink); cursor:pointer; outline:none; min-width:90px; border-right:1px solid var(--c-line); appearance:none; -webkit-appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238E887D' fill='none' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 8px center; padding-right:22px; }
+  .acct-phone-number { border:none; flex:1; padding:10px 14px; font-size:14px; font-family:var(--font-ui); color:var(--c-ink); outline:none; background:white; min-width:0; }
+  .acct-phone-number::placeholder { color:var(--c-ink-3); opacity:0.6; }
+
   .acct-save-bar { padding:16px 0; }
   .acct-save-btn { width:100%; padding:12px; border:none; border-radius:var(--radius-sm); background:var(--c-alpine); color:white; font-size:14px; font-weight:600; font-family:var(--font-ui); cursor:pointer; transition:all var(--transition); letter-spacing:0.01em; }
   .acct-save-btn:hover { background:var(--navy-light); box-shadow:var(--shadow-md); }
@@ -1995,7 +2001,20 @@
       <div class="acct-field-row cols-2">
         <div class="acct-field">
           <label>Telefon</label>
-          <input type="tel" id="acctPhone" placeholder="+49 123 456789">
+          <div class="acct-phone-wrap">
+            <select id="acctPhonePrefix" class="acct-phone-prefix">
+              <option value="+49">🇩🇪 +49</option>
+              <option value="+43">🇦🇹 +43</option>
+              <option value="+41">🇨🇭 +41</option>
+              <option value="+39">🇮🇹 +39</option>
+              <option value="+33">🇫🇷 +33</option>
+              <option value="+44">🇬🇧 +44</option>
+              <option value="+31">🇳🇱 +31</option>
+              <option value="+48">🇵🇱 +48</option>
+              <option value="+1">🇺🇸 +1</option>
+            </select>
+            <input type="tel" id="acctPhone" placeholder="123 456789" class="acct-phone-number">
+          </div>
         </div>
         <div class="acct-field">
           <label>Geburtsdatum</label>
@@ -2066,6 +2085,43 @@
           <span class="acct-info-label">Kunden-ID</span>
           <span class="acct-info-value" id="acctUid" style="font-family:var(--font-mono);font-size:11px;">–</span>
         </div>
+      </div>
+    </div>
+
+    <!-- Card: Vereinsflieger -->
+    <div class="acct-card">
+      <div class="acct-card-title">
+        <svg class="acct-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        Vereinsflieger
+      </div>
+      <div id="acctVfSection">
+        <!-- Zustand: Verbunden -->
+        <div id="acctVfConnected" style="display:none;">
+          <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;background:rgba(120,155,110,0.08);border-radius:var(--radius-sm);margin-bottom:14px;">
+            <div style="width:36px;height:36px;border-radius:50%;background:var(--success);color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <div>
+              <div style="font-size:14px;font-weight:600;color:var(--c-ink);" id="acctVfName">Verbunden</div>
+              <div style="font-size:12px;color:var(--c-ink-3);">Dein Vereinsflieger-Konto ist verknüpft.</div>
+            </div>
+          </div>
+          <button class="btn btn-sm" onclick="acctDisconnectVf()" id="acctVfDisconnectBtn" style="color:var(--c-rejected);">Verknüpfung aufheben</button>
+        </div>
+        <!-- Zustand: Nicht verbunden -->
+        <div id="acctVfDisconnected">
+          <p style="font-size:13px;color:var(--c-ink-3);line-height:1.5;margin-bottom:16px;">Verknüpfe dein Vereinsflieger-Konto, um dein persönliches Flugbuch einzusehen und künftige Funktionen zu nutzen.</p>
+          <div class="acct-field">
+            <label>Vereinsflieger Benutzername</label>
+            <input type="text" id="acctVfUser" placeholder="Dein VF-Benutzername" autocomplete="username">
+          </div>
+          <div class="acct-field">
+            <label>Vereinsflieger Passwort</label>
+            <input type="password" id="acctVfPass" placeholder="Dein VF-Passwort" autocomplete="current-password">
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="acctConnectVf()" id="acctVfConnectBtn">Konto verknüpfen</button>
+        </div>
+        <div id="acctVfMsg" style="font-size:12px;margin-top:10px;"></div>
       </div>
     </div>
 
@@ -5635,7 +5691,28 @@ function renderAccountView() {
   // Persönliche Daten
   document.getElementById('acctName').value = customerProfile.name || '';
   document.getElementById('acctEmail').value = customerProfile.email || '';
-  document.getElementById('acctPhone').value = customerProfile.phone || '';
+
+  // Telefon: Prefix und Nummer trennen
+  const fullPhone = customerProfile.phone || '';
+  const prefixEl = document.getElementById('acctPhonePrefix');
+  const phoneEl = document.getElementById('acctPhone');
+  if (prefixEl && phoneEl) {
+    const prefixes = ['+49','+43','+41','+39','+33','+44','+31','+48','+1'];
+    let matchedPrefix = '+49', numberPart = fullPhone;
+    for (const p of prefixes) {
+      if (fullPhone.startsWith(p)) { matchedPrefix = p; numberPart = fullPhone.substring(p.length).trim(); break; }
+    }
+    // Auch Varianten ohne + behandeln (0049 etc.)
+    if (fullPhone.startsWith('00')) {
+      for (const p of prefixes) {
+        const alt = '00' + p.substring(1);
+        if (fullPhone.startsWith(alt)) { matchedPrefix = p; numberPart = fullPhone.substring(alt.length).trim(); break; }
+      }
+    }
+    prefixEl.value = matchedPrefix;
+    phoneEl.value = numberPart;
+  }
+
   document.getElementById('acctBirth').value = customerProfile.birthdate || '';
   document.getElementById('acctDisplayName').textContent = customerProfile.name || '';
   document.getElementById('acctDisplayEmail').textContent = customerProfile.email || '';
@@ -5721,13 +5798,18 @@ function renderAccountView() {
   }
 
   document.getElementById('acctMsg').textContent = '';
+
+  // VF-Section rendern
+  renderVfSection();
 }
 
 async function saveAccountProfile() {
   const user = firebase.auth().currentUser;
   if (!user) return;
   const name = document.getElementById('acctName').value.trim();
-  const phone = document.getElementById('acctPhone').value.trim();
+  const phonePrefix = document.getElementById('acctPhonePrefix').value || '+49';
+  const phoneNum = document.getElementById('acctPhone').value.trim().replace(/^0+/, '');
+  const phone = phoneNum ? (phonePrefix + ' ' + phoneNum) : '';
   const birth = document.getElementById('acctBirth').value;
   const street = document.getElementById('acctStreet').value.trim();
   const zip = document.getElementById('acctZip').value.trim();
@@ -5787,6 +5869,81 @@ async function uploadAccountPhoto(input) {
     }
   };
   reader.readAsDataURL(file);
+}
+
+// ── Vereinsflieger-Verknüpfung in Mein Konto ──
+function renderVfSection() {
+  const connEl = document.getElementById('acctVfConnected');
+  const discEl = document.getElementById('acctVfDisconnected');
+  if (!connEl || !discEl) return;
+  if (vfConnected === true) {
+    connEl.style.display = 'block';
+    discEl.style.display = 'none';
+  } else {
+    connEl.style.display = 'none';
+    discEl.style.display = 'block';
+  }
+}
+
+async function acctConnectVf() {
+  const user = document.getElementById('acctVfUser').value.trim();
+  const pass = document.getElementById('acctVfPass').value;
+  const msgEl = document.getElementById('acctVfMsg');
+  const btn = document.getElementById('acctVfConnectBtn');
+  if (!user || !pass) { msgEl.innerHTML = '<span style="color:var(--c-rejected);">Benutzername und Passwort erforderlich.</span>'; return; }
+  btn.disabled = true; btn.textContent = 'Verbinde…';
+  msgEl.textContent = '';
+  try {
+    const token = await getFirebaseToken();
+    const res = await fetch('/.netlify/functions/vereinsflieger-sync', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'saveVfCredentials', firebaseToken: token, vfUsername: user, vfPassword: pass })
+    });
+    const json = await res.json();
+    if (json.ok) {
+      vfConnected = true;
+      const nameEl = document.getElementById('acctVfName');
+      if (nameEl && json.data && json.data.displayName) nameEl.textContent = json.data.displayName;
+      renderVfSection();
+      renderAccountView();
+      document.getElementById('acctVfUser').value = '';
+      document.getElementById('acctVfPass').value = '';
+      msgEl.innerHTML = '<span style="color:var(--success);">Erfolgreich verknüpft!</span>';
+      setTimeout(() => { msgEl.textContent = ''; }, 3000);
+    } else {
+      throw new Error(json.error || 'Verknüpfung fehlgeschlagen');
+    }
+  } catch (e) {
+    msgEl.innerHTML = '<span style="color:var(--c-rejected);">' + e.message + '</span>';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Konto verknüpfen';
+  }
+}
+
+async function acctDisconnectVf() {
+  const btn = document.getElementById('acctVfDisconnectBtn');
+  const msgEl = document.getElementById('acctVfMsg');
+  if (!confirm('Vereinsflieger-Verknüpfung wirklich aufheben?')) return;
+  btn.disabled = true;
+  try {
+    const token = await getFirebaseToken();
+    const res = await fetch('/.netlify/functions/vereinsflieger-sync', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'deleteVfCredentials', firebaseToken: token })
+    });
+    const json = await res.json();
+    if (json.ok) {
+      vfConnected = false;
+      renderVfSection();
+      renderAccountView();
+      msgEl.innerHTML = '<span style="color:var(--c-ink-3);">Verknüpfung aufgehoben.</span>';
+      setTimeout(() => { msgEl.textContent = ''; }, 3000);
+    }
+  } catch (e) {
+    msgEl.innerHTML = '<span style="color:var(--c-rejected);">' + e.message + '</span>';
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 function autofillBookingForm() {
