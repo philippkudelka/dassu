@@ -8,6 +8,7 @@
  */
 
 const SHEET_ID = '1-NrJq8-751d4QI-ZT_vl1Hf1PYAzTAOqQdx0G_MajEU';
+const XLSX_FILE_ID = '1SanxAMschcXgYc-tgtVz-TbTjkLAoeba'; // .xlsx Datei die alle nutzen
 const SHEET_NAME = 'Tabelle1';
 const DATE_START = new Date(2026, 3, 28); // 28.04.2026
 const DATE_END = new Date(2026, 4, 1);   // 01.06.2026
@@ -214,18 +215,23 @@ function readDayBookings(sheet, startCol, dateStr) {
 }
 
 /**
- * Schreibt eine Buchung in die Tabelle
+ * Schreibt eine Buchung in native Sheet, dann sync nach xlsx via Drive API
  * @param {Object} booking - { date, aircraft, startTime, endTime, name, instructor }
  */
 function writeBooking(booking) {
-  const ss = SpreadsheetApp.openById(SHEET_ID);
+  // Schreibe in native Sheet
+  writeToSheet(SHEET_ID, booking);
+  // Sync native → xlsx via Drive API Export (SpreadsheetApp.openById crasht bei xlsx im Web-App-Kontext)
+  syncNativeToXlsx();
+}
+
+function writeToSheet(sheetId, booking) {
+  const ss = SpreadsheetApp.openById(sheetId);
   const sheet = ss.getSheetByName(SHEET_NAME);
 
-  // Parse Datum
   const dateParts = booking.date.split('-');
   const bookingDate = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
 
-  // Finde Spalten-Index für diesen Tag
   const maxCol = sheet.getLastColumn();
   const headerRange = sheet.getRange(2, 1, 1, maxCol);
   const headerValues = headerRange.getValues()[0];
@@ -241,18 +247,16 @@ function writeBooking(booking) {
   }
 
   if (dateColIndex === -1) {
-    throw new Error('Date not found in sheet');
+    throw new Error('Date not found in sheet: ' + booking.date);
   }
 
-  // Finde Flugzeug-Spalte
   const aircraftIndex = AIRCRAFT_NAMES.indexOf(booking.aircraft);
   if (aircraftIndex === -1) {
-    throw new Error('Aircraft not found');
+    throw new Error('Aircraft not found: ' + booking.aircraft);
   }
 
-  const dataCol = dateColIndex + aircraftIndex + 2; // +2 weil +1 für Zeit-Spalte, +1 für 1-basiert
+  const dataCol = dateColIndex + aircraftIndex + 2;
 
-  // Berechne Row-Range aus Start- und End-Zeit
   const startRow = calculateRowFromTime(booking.startTime);
   const endRow = calculateRowFromTime(booking.endTime);
 
@@ -260,17 +264,8 @@ function writeBooking(booking) {
     throw new Error('Invalid time format');
   }
 
-  // Bestimme Farbe
-  const bgColor = booking.instructor === 'ja' ? COLOR_WITH_INSTRUCTOR : COLOR_WITHOUT_INSTRUCTOR;
-
-  // Schreibe Name in erste Zeile
+  // Schreibe Name in erste Zeile (Farben werden manuell im Sheet gesetzt)
   sheet.getRange(startRow, dataCol).setValue(booking.name);
-
-  // Schreibe Farbe für alle Zeilen im Range
-  const numRows = endRow - startRow + 1;
-  const colorRange = sheet.getRange(startRow, dataCol, numRows, 1);
-  const colors = Array(numRows).fill(null).map(() => [bgColor]);
-  colorRange.setBackgrounds(colors);
 }
 
 /**
@@ -278,14 +273,19 @@ function writeBooking(booking) {
  * @param {Object} booking - { date, aircraft, startTime, endTime }
  */
 function deleteBooking(booking) {
-  const ss = SpreadsheetApp.openById(SHEET_ID);
+  // Lösche aus native Sheet
+  deleteFromSheet(SHEET_ID, booking);
+  // Sync native → xlsx via Drive API Export
+  syncNativeToXlsx();
+}
+
+function deleteFromSheet(sheetId, booking) {
+  const ss = SpreadsheetApp.openById(sheetId);
   const sheet = ss.getSheetByName(SHEET_NAME);
 
-  // Parse Datum
   const dateParts = booking.date.split('-');
   const bookingDate = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
 
-  // Finde Spalten-Index für diesen Tag
   const maxCol = sheet.getLastColumn();
   const headerRange = sheet.getRange(2, 1, 1, maxCol);
   const headerValues = headerRange.getValues()[0];
@@ -301,18 +301,16 @@ function deleteBooking(booking) {
   }
 
   if (dateColIndex === -1) {
-    throw new Error('Date not found in sheet');
+    throw new Error('Date not found in sheet: ' + booking.date);
   }
 
-  // Finde Flugzeug-Spalte
   const aircraftIndex = AIRCRAFT_NAMES.indexOf(booking.aircraft);
   if (aircraftIndex === -1) {
-    throw new Error('Aircraft not found');
+    throw new Error('Aircraft not found: ' + booking.aircraft);
   }
 
   const dataCol = dateColIndex + aircraftIndex + 2;
 
-  // Berechne Row-Range
   const startRow = calculateRowFromTime(booking.startTime);
   const endRow = calculateRowFromTime(booking.endTime);
 
@@ -320,11 +318,10 @@ function deleteBooking(booking) {
     throw new Error('Invalid time format');
   }
 
-  // Lösche Inhalte und Farben
+  // Lösche nur Inhalte, nicht Farben
   const numRows = endRow - startRow + 1;
   const clearRange = sheet.getRange(startRow, dataCol, numRows, 1);
   clearRange.clearContent();
-  clearRange.setBackground('#ffffff');
 }
 
 /**
@@ -368,4 +365,52 @@ function isSameDay(date1, date2) {
   return date1.getFullYear() === date2.getFullYear() &&
          date1.getMonth() === date2.getMonth() &&
          date1.getDate() === date2.getDate();
+}
+
+/**
+ * Exportiert die native Google Sheet als .xlsx und überschreibt die .xlsx-Datei in Drive.
+ * So sehen alle, die die .xlsx-Datei nutzen, die aktuellen Buchungen.
+ */
+function syncNativeToXlsx() {
+  try {
+    // WICHTIG: ss.getBlob() gibt PDF zurück, NICHT xlsx!
+    // Stattdessen Export-URL mit format=xlsx nutzen
+    const token = ScriptApp.getOAuthToken();
+    const exportUrl = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/export?format=xlsx';
+
+    const xlsxResponse = UrlFetchApp.fetch(exportUrl, {
+      headers: { 'Authorization': 'Bearer ' + token },
+      muteHttpExceptions: true
+    });
+
+    if (xlsxResponse.getResponseCode() !== 200) {
+      console.log('xlsx export failed: ' + xlsxResponse.getResponseCode());
+      return;
+    }
+
+    const xlsxBlob = xlsxResponse.getBlob();
+    console.log('xlsx blob size: ' + xlsxBlob.getBytes().length);
+
+    // Force drive scope (nötig für OAuth Token)
+    const xlsxFile = DriveApp.getFileById(XLSX_FILE_ID);
+    console.log('Target file: ' + xlsxFile.getName());
+
+    // Drive API v3 zum Überschreiben des Datei-Inhalts
+    const updateUrl = 'https://www.googleapis.com/upload/drive/v3/files/' + XLSX_FILE_ID + '?uploadType=media';
+    const updateResponse = UrlFetchApp.fetch(updateUrl, {
+      method: 'patch',
+      headers: { 'Authorization': 'Bearer ' + token },
+      contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      payload: xlsxBlob.getBytes(),
+      muteHttpExceptions: true
+    });
+
+    if (updateResponse.getResponseCode() !== 200) {
+      console.log('Drive update failed: ' + updateResponse.getResponseCode() + ' ' + updateResponse.getContentText());
+    } else {
+      console.log('syncNativeToXlsx OK — ' + xlsxBlob.getBytes().length + ' bytes written');
+    }
+  } catch (e) {
+    console.log('syncNativeToXlsx error: ' + e.toString());
+  }
 }
