@@ -4245,14 +4245,20 @@ function cancelBookingById(bookingId) {
     notify('Diese Buchung wurde bereits abgelehnt.', 'info');
     return;
   }
-  booking.status = 'rejected';
-  booking.cancelledByUser = true;
-  saveData();
+
+  // Copy booking data for email before deleting
+  const bookingCopy = { ...booking };
+
+  // Delete from bookings array and Firebase
+  bookings = bookings.filter(b => b.id !== bookingId);
+  db.ref('bookings/' + bookingId).remove();
+  localStorage.setItem('flugkalender_bookings', JSON.stringify(bookings));
   renderCalendar();
   notify('Deine Buchung wurde erfolgreich storniert.', 'success');
 
   // Notify admin + customer about cancellation
   if (isEmailConfigured()) {
+    const booking = bookingCopy;
     const timeDisplay = booking.startTime ? `${booking.startTime} – ${booking.endTime}` : '';
     const adminMessage = `
 <div style="font-family: 'Georgia', 'Times New Roman', serif; max-width: 560px; margin: 0 auto; background: #ffffff;">
