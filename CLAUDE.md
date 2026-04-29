@@ -35,7 +35,7 @@ Die Bash-Sandbox hat KEINEN GitHub-Zugriff (403 Proxy-Fehler). Niemals versuchen
 - Reines HTML/CSS/JS (kein Framework, kein Build-Schritt)
 - Firebase Realtime Database + Firebase Auth
 - Netlify (Hosting + Serverless Functions)
-- SheetJS (xlsx.full.min.js) — NUR für Zeiterfassungs-Excel-Export in staff.html, NICHT für Google Sheet Sync
+- SheetJS (xlsx.full.min.js) — für Zeiterfassungs-Excel-Export in staff.html
 
 ## Wichtige Hinweise
 - Firebase Web-API-Keys sind öffentlich/client-seitig → Secret-Scanner ist in netlify.toml deaktiviert

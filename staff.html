@@ -985,7 +985,6 @@ body.dev-mode { padding-bottom: 48px; }
   <button class="view-tab" id="tabStats" onclick="switchView('stats')" style="display:none;">Statistik</button>
   <button class="view-tab" id="tabMessages" onclick="switchView('messages')" style="display:none;">Nachrichten</button>
   <button class="view-tab" id="tabAccount" onclick="switchView('account')">Mein Konto</button>
-  <button class="view-tab" id="tabSheet" onclick="switchView('sheet')" style="background:#E8A86A;color:#fff;border-radius:6px;">Buchungsplan</button>
 </div>
 
 <div id="viewOverview" class="overview">
@@ -1307,15 +1306,6 @@ body.dev-mode { padding-bottom: 48px; }
 </div>
 
 <!-- Mein Konto -->
-<div id="viewSheet" style="display:none;padding:0;">
-  <div style="padding:12px 16px 8px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-    <span style="font-size:14px;font-weight:600;color:var(--ink);">Google Sheet Buchungsplan</span>
-    <a href="https://docs.google.com/spreadsheets/d/1-NrJq8-751d4QI-ZT_vl1Hf1PYAzTAOqQdx0G_MajEU/edit?gid=1504989523#gid=1504989523" target="_blank" rel="noopener" style="font-size:12px;color:var(--primary);text-decoration:none;">In neuem Tab öffnen ↗</a>
-    <button id="sheetSyncBtn" onclick="syncFromSheet()" style="background:var(--primary);color:#fff;border:none;padding:5px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-weight:500;">↻ Sheet Sync</button>
-    <span style="font-size:11px;color:var(--muted);margin-left:auto;">Übergangsphase · wird nach Umstellung entfernt</span>
-  </div>
-  <iframe src="https://docs.google.com/spreadsheets/d/1-NrJq8-751d4QI-ZT_vl1Hf1PYAzTAOqQdx0G_MajEU/edit?gid=1504989523#gid=1504989523&widget=true&headers=false" style="width:100%;height:calc(100vh - 140px);border:none;border-top:1px solid var(--c-line);"></iframe>
-</div>
 
 <div id="viewAccount" style="display:none;">
   <div id="accountMsg" class="account-msg" style="margin:12px 16px 0;"></div>
@@ -2423,7 +2413,7 @@ function renderCalPicker() {
 // ============================================================
 function switchView(view) {
   currentView = view;
-  ['Overview','Book','Manage','Theory','Team','Time','Stats','Messages','Account','Sheet'].forEach(v => {
+  ['Overview','Book','Manage','Theory','Team','Time','Stats','Messages','Account'].forEach(v => {
     const tab = document.getElementById('tab' + v);
     const cont = document.getElementById('view' + v);
     if (!tab || !cont) return;
@@ -4744,9 +4734,6 @@ function submitQuick() {
   addAuditEntry(booking.id, 'erstellt', `${name}, ${selectedAircraft}, ${startTime}–${endTime}`);
   logActivity('create', `Buchung erstellt: ${name}, ${selectedAircraft}, ${startTime}–${endTime}`, booking.id);
 
-  // Sheet Sync: auch ins Google Sheet schreiben
-  syncBookingToSheet(booking);
-
   closeQuick();
   notify(`${name} gebucht: ${startTime}–${endTime}`, 'success');
 }
@@ -4856,12 +4843,6 @@ function submitEdit() {
     addAuditEntry(id, 'bearbeitet', changes.join('; '));
     logActivity('edit', `Buchung bearbeitet: ${name} (${b.aircraft})`, id);
   }
-
-  // Sheet Sync: alte Buchung löschen, neue schreiben
-  if (b.startTime !== startTime || b.endTime !== endTime || b.name !== name) {
-    deleteBookingFromSheet(b);
-  }
-  syncBookingToSheet(updated);
 
   closeEdit();
   notify('Buchung aktualisiert.', 'success');
@@ -5045,9 +5026,6 @@ function deleteBooking(id) {
   addAuditEntry(id, 'gelöscht', b ? `${b.name}, ${b.aircraft}, ${b.startTime || ''}–${b.endTime || ''}` : '');
   logActivity('delete', `Buchung gelöscht: ${b ? b.name + ', ' + b.aircraft + ', ' + (b.startTime || '') + '–' + (b.endTime || '') : id}`, id);
   db.ref('bookings/' + id).remove();
-
-  // Sheet Sync: auch aus Sheet löschen
-  if (b) deleteBookingFromSheet(b);
 
   closeDetail();
   notify('Buchung gelöscht.', 'success');
@@ -5631,134 +5609,6 @@ async function staffDeleteMsg(id) {
 
 function escHtml(t) { const d = document.createElement('div'); d.textContent = t || ''; return d.innerHTML; }
 
-// ============================================================
-// GOOGLE SHEET SYNC (Übergangsphase 28.04.–01.06.2026)
-// ============================================================
-const SHEET_SYNC_START = '2026-04-28';
-const SHEET_SYNC_END = '2026-06-01';
-let sheetSyncRunning = false;
-
-function isInSyncRange(dateStr) {
-  return dateStr >= SHEET_SYNC_START && dateStr <= SHEET_SYNC_END;
-}
-
-// Sheet → Firebase: Buchungen aus dem Sheet importieren
-async function syncFromSheet() {
-  if (sheetSyncRunning) return;
-  sheetSyncRunning = true;
-  const btn = document.getElementById('sheetSyncBtn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Sync läuft…'; }
-  try {
-    const res = await fetch('/.netlify/functions/sheet-sync?action=read');
-    const json = await res.json();
-    if (!json.ok) { console.warn('Sheet sync read error:', json.error); return; }
-
-    const sheetBookings = json.data || [];
-    let imported = 0;
-
-    for (const sb of sheetBookings) {
-      if (!isInSyncRange(sb.date)) continue;
-      // Prüfe ob diese Buchung schon in Firebase existiert
-      const exists = bookings.find(b =>
-        b.aircraft === sb.aircraft &&
-        b.date === sb.date &&
-        b.startTime === sb.startTime &&
-        b.endTime === sb.endTime
-      );
-      if (!exists && sb.name) {
-        // Importiere als neue Buchung
-        const id = 'sheet_' + sb.date.replace(/-/g,'') + '_' + sb.aircraft.replace(/-/g,'') + '_' + sb.startTime.replace(':','');
-        const booking = {
-          id,
-          aircraft: sb.aircraft,
-          date: sb.date,
-          slot: sb.startTime + ' - ' + sb.endTime,
-          startTime: sb.startTime,
-          endTime: sb.endTime,
-          name: sb.name,
-          email: '', phone: '',
-          instructor: sb.instructor || 'nein',
-          instructorName: sb.instructor === 'ja' ? sb.name.split('/')[1] || '' : '',
-          status: 'approved',
-          cancelToken: '',
-          quickBook: true,
-          sheetSync: true,
-          createdBy: 'Sheet Import',
-          createdAt: new Date().toISOString()
-        };
-        await db.ref('bookings/' + id).set(booking);
-        imported++;
-      }
-    }
-    if (imported > 0) {
-      notify(imported + ' Buchung(en) aus Sheet importiert.', 'success');
-    } else {
-      notify('Sheet-Sync abgeschlossen. Keine neuen Buchungen.', 'info');
-    }
-  } catch (e) {
-    console.error('Sheet sync error:', e);
-    notify('Sheet-Sync fehlgeschlagen: ' + e.message, 'error');
-  } finally {
-    sheetSyncRunning = false;
-    if (btn) { btn.disabled = false; btn.textContent = '↻ Sheet Sync'; }
-  }
-}
-
-// Firebase → Sheet: Buchung ins Sheet schreiben
-async function syncBookingToSheet(booking) {
-  if (!isInSyncRange(booking.date)) return;
-  try {
-    await fetch('/.netlify/functions/sheet-sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'write',
-        date: booking.date,
-        aircraft: booking.aircraft,
-        startTime: booking.startTime,
-        endTime: booking.endTime,
-        name: booking.name,
-        instructor: booking.instructor || 'nein'
-      })
-    });
-  } catch (e) {
-    console.warn('Sheet write failed:', e);
-  }
-}
-
-// Firebase → Sheet: Buchung aus Sheet löschen
-async function deleteBookingFromSheet(booking) {
-  if (!isInSyncRange(booking.date)) return;
-  try {
-    await fetch('/.netlify/functions/sheet-sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'delete',
-        date: booking.date,
-        aircraft: booking.aircraft,
-        startTime: booking.startTime,
-        endTime: booking.endTime
-      })
-    });
-  } catch (e) {
-    console.warn('Sheet delete failed:', e);
-  }
-}
-
-// Auto-Sync beim Laden (einmal nach erstem Firebase-Load)
-let sheetSyncDone = false;
-const origRender = typeof render === 'function' ? render : null;
-if (origRender) {
-  // Nach dem ersten Render: einmal Sheet-Sync starten
-  const _origBookingsHandler = null;
-  setTimeout(() => {
-    if (!sheetSyncDone) {
-      sheetSyncDone = true;
-      syncFromSheet().catch(e => console.warn('Initial sheet sync failed:', e));
-    }
-  }, 3000); // 3 Sek. nach Laden, damit Firebase zuerst geladen ist
-}
 </script>
 
 <!-- Dev-Toolbar (nur mit ?dev=1) -->
