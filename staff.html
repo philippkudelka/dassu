@@ -1281,11 +1281,11 @@ body.dev-mode { padding-bottom: 48px; }
   <div class="stats-header" style="margin-top:32px;">
     <h3>Fluglehrer — Auswertung (Vereinsflieger)</h3>
     <button class="btn-book" onclick="loadInstructorStats()" id="fiStatsSyncBtn" style="padding:8px 16px;font-size:13px;">
-      <span id="fiStatsSyncLabel">Laden</span>
+      <span id="fiStatsSyncLabel">Aktualisieren</span>
     </button>
   </div>
   <div id="fiStatsContent">
-    <div class="empty-msg">Klicke "Laden" um die Fluglehrer-Statistik abzurufen.</div>
+    <div class="empty-msg">Fluglehrer-Statistik wird geladen…</div>
   </div>
 
   <!-- Vereinsflieger Jahresvergleich -->
@@ -2442,7 +2442,7 @@ function switchView(view) {
     tab.classList.toggle('active', isActive);
     cont.style.display = isActive ? '' : 'none';
   });
-  if (view === 'stats') loadVfCache();
+  if (view === 'stats') { loadVfCache(); if (!fiStatsData) loadInstructorStats(); }
   if (view === 'messages') staffRenderMessages();
   if (view === 'account') renderAccountTab();
   render();
@@ -4651,11 +4651,11 @@ function renderInstructorStats() {
     });
 
     const arrow = sortAsc ? ' ▲' : ' ▼';
-    const thBaseStyle = 'text-align:center; font-size:9px; cursor:pointer; user-select:none; background:var(--c-card); vertical-align:bottom;';
+    const thBaseStyle = 'text-align:center; font-size:9px; cursor:pointer; user-select:none; background:#fff; vertical-align:bottom;';
     const thActiveStyle = thBaseStyle + ' color:var(--c-accent); font-weight:800;';
 
     document.getElementById('fiTableBody').innerHTML = rows +
-      `<tr style="border-top:2px solid var(--c-line); position:sticky; bottom:0; background:var(--c-card); z-index:2;">${sumCells}</tr>`;
+      `<tr style="border-top:2px solid var(--c-line); position:sticky; bottom:0; background:#fff; z-index:2;">${sumCells}</tr>`;
 
     // Header-Pfeile aktualisieren (Span mit Jahreszahl erhalten)
     document.querySelectorAll('.fi-sort-th').forEach(th => {
@@ -4692,18 +4692,18 @@ function renderInstructorStats() {
       <div style="max-height:400px; overflow-y:auto; overflow-x:auto; border:1px solid var(--c-line); border-radius:8px;">
         <table class="stats-table" style="margin:0; border-collapse:separate; border-spacing:0;">
           <thead>
-            <tr style="position:sticky; top:0; z-index:4;">
-              <th style="position:sticky; left:0; background:var(--c-card); z-index:5; vertical-align:bottom;">Fluglehrer</th>
+            <tr style="position:sticky; top:0; z-index:4; background:#fff;">
+              <th style="position:sticky; left:0; background:#fff; z-index:5; vertical-align:bottom;">Fluglehrer</th>
               ${years.map(yr => `
-                <th class="fi-sort-th" data-col="days_${yr}" data-label="Tage" style="${thStyle} background:var(--c-card); vertical-align:bottom; border-left:2px solid var(--c-line);" onclick="sortFiTable('days_${yr}')"><span style="display:block;font-size:11px;font-weight:700;color:var(--ink);margin-bottom:2px;">${yr}</span>Tage</th>
-                <th class="fi-sort-th" data-col="starts_${yr}" data-label="Starts" style="${thStyle} background:var(--c-card); vertical-align:bottom;" onclick="sortFiTable('starts_${yr}')"><span style="display:block;font-size:11px;font-weight:700;color:var(--ink);margin-bottom:2px;">&nbsp;</span>Starts</th>
-                <th class="fi-sort-th" data-col="hours_${yr}" data-label="Stunden" style="${thStyle} background:var(--c-card); vertical-align:bottom;" onclick="sortFiTable('hours_${yr}')"><span style="display:block;font-size:11px;font-weight:700;color:var(--ink);margin-bottom:2px;">&nbsp;</span>Stunden</th>
+                <th class="fi-sort-th" data-col="days_${yr}" data-label="Tage" style="${thStyle} background:#fff; vertical-align:bottom; border-left:2px solid var(--c-line);" onclick="sortFiTable('days_${yr}')"><span style="display:block;font-size:11px;font-weight:700;color:var(--ink);margin-bottom:2px;">${yr}</span>Tage</th>
+                <th class="fi-sort-th" data-col="starts_${yr}" data-label="Starts" style="${thStyle} background:#fff; vertical-align:bottom;" onclick="sortFiTable('starts_${yr}')"><span style="display:block;font-size:11px;font-weight:700;color:var(--ink);margin-bottom:2px;">&nbsp;</span>Starts</th>
+                <th class="fi-sort-th" data-col="hours_${yr}" data-label="Stunden" style="${thStyle} background:#fff; vertical-align:bottom;" onclick="sortFiTable('hours_${yr}')"><span style="display:block;font-size:11px;font-weight:700;color:var(--ink);margin-bottom:2px;">&nbsp;</span>Stunden</th>
               `).join('')}
             </tr>
           </thead>
           <tbody id="fiTableBody">
             ${tableRows}
-            <tr style="border-top:2px solid var(--c-line); position:sticky; bottom:0; background:var(--c-card); z-index:2;">${sumCells}</tr>
+            <tr style="border-top:2px solid var(--c-line); position:sticky; bottom:0; background:#fff; z-index:2;">${sumCells}</tr>
           </tbody>
         </table>
       </div>
