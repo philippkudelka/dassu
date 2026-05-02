@@ -4651,8 +4651,8 @@ function renderInstructorStats() {
     });
 
     const arrow = sortAsc ? ' ▲' : ' ▼';
-    const thStyle = 'text-align:center; font-size:9px; cursor:pointer; user-select:none;';
-    const activeStyle = thStyle + ' color:var(--c-accent); font-weight:800;';
+    const thBaseStyle = 'text-align:center; font-size:9px; cursor:pointer; user-select:none; background:var(--c-card);';
+    const thActiveStyle = thBaseStyle + ' color:var(--c-accent); font-weight:800;';
 
     document.getElementById('fiTableBody').innerHTML = rows +
       `<tr style="border-top:2px solid var(--c-line); position:sticky; bottom:0; background:var(--c-card); z-index:2;">${sumCells}</tr>`;
@@ -4660,7 +4660,7 @@ function renderInstructorStats() {
     // Header-Pfeile aktualisieren
     document.querySelectorAll('.fi-sort-th').forEach(th => {
       const col = th.dataset.col;
-      th.style.cssText = col === sortCol ? activeStyle : thStyle;
+      th.style.cssText = col === sortCol ? thActiveStyle : thBaseStyle;
       th.textContent = th.dataset.label + (col === sortCol ? arrow : '');
     });
   }
@@ -4687,18 +4687,18 @@ function renderInstructorStats() {
     <div class="stats-card">
       <h4>Fluglehrer — 3-Jahresvergleich</h4>
       <div style="max-height:400px; overflow-y:auto; overflow-x:auto; border:1px solid var(--c-line); border-radius:8px;">
-        <table class="stats-table" style="margin:0;">
-          <thead style="position:sticky; top:0; background:var(--c-card); z-index:2;">
-            <tr>
-              <th style="position:sticky; left:0; background:var(--c-card); z-index:3;">Fluglehrer</th>
-              ${years.map(yr => `<th colspan="3" style="text-align:center; border-bottom:2px solid var(--c-line);">${yr}</th>`).join('')}
+        <table class="stats-table" style="margin:0; border-collapse:separate; border-spacing:0;">
+          <thead>
+            <tr style="position:sticky; top:0; z-index:4;">
+              <th style="position:sticky; left:0; background:var(--c-card); z-index:5;">Fluglehrer</th>
+              ${years.map(yr => `<th colspan="3" style="text-align:center; border-bottom:2px solid var(--c-line); background:var(--c-card);">${yr}</th>`).join('')}
             </tr>
-            <tr>
-              <th style="position:sticky; left:0; background:var(--c-card); z-index:3;"></th>
+            <tr style="position:sticky; top:28px; z-index:4;">
+              <th style="position:sticky; left:0; background:var(--c-card); z-index:5;"></th>
               ${years.map(yr => `
-                <th class="fi-sort-th" data-col="days_${yr}" data-label="Tage" style="${thStyle}" onclick="sortFiTable('days_${yr}')">Tage</th>
-                <th class="fi-sort-th" data-col="starts_${yr}" data-label="Starts" style="${thStyle}" onclick="sortFiTable('starts_${yr}')">Starts</th>
-                <th class="fi-sort-th" data-col="hours_${yr}" data-label="Stunden" style="${thStyle}" onclick="sortFiTable('hours_${yr}')">Stunden</th>
+                <th class="fi-sort-th" data-col="days_${yr}" data-label="Tage" style="${thStyle} background:var(--c-card);" onclick="sortFiTable('days_${yr}')">Tage</th>
+                <th class="fi-sort-th" data-col="starts_${yr}" data-label="Starts" style="${thStyle} background:var(--c-card);" onclick="sortFiTable('starts_${yr}')">Starts</th>
+                <th class="fi-sort-th" data-col="hours_${yr}" data-label="Stunden" style="${thStyle} background:var(--c-card);" onclick="sortFiTable('hours_${yr}')">Stunden</th>
               `).join('')}
             </tr>
           </thead>
