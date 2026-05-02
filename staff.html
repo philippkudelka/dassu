@@ -4524,24 +4524,6 @@ function renderInstructorStats() {
   const content = document.getElementById('fiStatsContent');
   if (!content || !fiStatsData) return;
 
-  // Debug-Modus
-  if (fiStatsData.debug) {
-    content.innerHTML = `<div class="stats-card" style="font-family:monospace; font-size:12px; white-space:pre-wrap; max-height:600px; overflow:auto;">
-<b>DEBUG: Flugart-Analyse ${new Date().getFullYear()}</b>
-Gesamt Flüge: ${fiStatsData.totalFlights}
-
-<b>flightmode Werte:</b>
-${Object.entries(fiStatsData.flightmodes || {}).sort((a,b) => b[1]-a[1]).map(([k,v]) => '  "' + k + '": ' + v).join('\n')}
-
-<b>ft_education Werte:</b>
-${Object.entries(fiStatsData.ftEducation || {}).sort((a,b) => b[1]-a[1]).map(([k,v]) => '  "' + k + '": ' + v).join('\n')}
-
-<b>Sample-Flüge pro flightmode (mit Begleiter):</b>
-${JSON.stringify(fiStatsData.samplesByMode, null, 2)}
-    </div>`;
-    return;
-  }
-
   const { byYear, years } = fiStatsData;
   const currentYear = years[0];
   const currentData = byYear[currentYear] || {};
