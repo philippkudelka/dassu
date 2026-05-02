@@ -4524,6 +4524,44 @@ function renderInstructorStats() {
   const content = document.getElementById('fiStatsContent');
   if (!content || !fiStatsData) return;
 
+  // Debug-Modus: Rohdaten anzeigen
+  if (fiStatsData.debug) {
+    const fs = fiStatsData.fieldStats;
+    content.innerHTML = `<div class="stats-card" style="font-family:monospace; font-size:12px; white-space:pre-wrap; max-height:600px; overflow:auto;">
+<b>DEBUG: Flugdaten-Analyse ${new Date().getFullYear()}</b>
+
+Gesamt Flüge: ${fs.totalFlights}
+
+<b>Feld-Belegung:</b>
+  pilotname:     ${fs.withPilotName} / ${fs.totalFlights}
+  uidpilot:      ${fs.withUidPilot} / ${fs.totalFlights}
+  attendantname: ${fs.withAttendantName} / ${fs.totalFlights}
+  uidattendant:  ${fs.withUidAttendant} / ${fs.totalFlights}
+  finame:        ${fs.withFiName} / ${fs.totalFlights}
+  uidfi:         ${fs.withUidFi} / ${fs.totalFlights}
+  flighttype:    ${fs.withFlightType} / ${fs.totalFlights}
+  ftid:          ${fs.withFtid} / ${fs.totalFlights}
+  comment:       ${fs.withComment} / ${fs.totalFlights}
+  Pilot + Begleiter: ${fs.withBothPilotAndAttendant} / ${fs.totalFlights}
+
+<b>Flight Types:</b>
+${Object.entries(fs.flightTypes || {}).sort((a,b) => b[1]-a[1]).map(([k,v]) => '  ' + k + ': ' + v).join('\\n')}
+
+<b>FTIDs:</b>
+${Object.entries(fs.ftids || {}).sort((a,b) => b[1]-a[1]).map(([k,v]) => '  ' + k + ': ' + v).join('\\n')}
+
+<b>Alle Feldnamen:</b>
+${(fs.allFieldNames || []).join(', ')}
+
+<b>Sample-Flüge mit FI:</b>
+${JSON.stringify(fs.sampleFlightsWithFI, null, 2)}
+
+<b>Sample-Flüge mit Begleiter:</b>
+${JSON.stringify(fs.sampleFlightsWithAttendant, null, 2)}
+    </div>`;
+    return;
+  }
+
   const { byYear, years } = fiStatsData;
   const currentYear = years[0];
   const currentData = byYear[currentYear] || {};

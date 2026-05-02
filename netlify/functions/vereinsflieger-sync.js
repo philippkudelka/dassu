@@ -653,61 +653,83 @@ exports.handler = async (event) => {
         break;
       }
       case 'instructorStats': {
-        // Fluglehrer-Statistik: 3 Jahre einzeln
-        // Nutzt uidfi UND finame um Fluglehrer korrekt zu identifizieren
+        // DEBUG-Modus: Erstmal Flugdaten-Struktur analysieren
         const today = new Date();
         const y = today.getFullYear();
-        const years = [y, y - 1, y - 2];
 
-        // User-Liste holen um UID → Name aufzulösen
-        const users = await vfGetUserList(accesstoken);
-        const uidToName = {};
-        users.forEach(u => {
-          const uid = String(u.uid || '').trim();
-          const name = ((u.firstname || '') + ' ' + (u.lastname || '')).trim();
-          if (uid && name) uidToName[uid] = name;
+        // Nur aktuelles Jahr für Debug
+        const flights2026 = await vfGetFlightsDateRange(accesstoken, `${y}-01-01`, `${y}-12-31`);
+
+        // Felder analysieren: Wie oft ist welches Feld befüllt?
+        const fieldStats = {
+          totalFlights: flights2026.length,
+          withFiName: 0,
+          withUidFi: 0,
+          withAttendantName: 0,
+          withUidAttendant: 0,
+          withPilotName: 0,
+          withUidPilot: 0,
+          withFlightType: 0,
+          withFtid: 0,
+          withComment: 0,
+          // Wie viele Flüge haben SOWOHL Pilot als auch Begleiter?
+          withBothPilotAndAttendant: 0,
+          flightTypes: {},
+          ftids: {},
+          sampleFlightsWithFI: [],
+          sampleFlightsWithAttendant: [],
+          allFieldNames: new Set()
+        };
+
+        flights2026.forEach(f => {
+          // Alle vorhandenen Felder sammeln
+          Object.keys(f).forEach(k => fieldStats.allFieldNames.add(k));
+
+          if ((f.finame || '').trim()) fieldStats.withFiName++;
+          if ((String(f.uidfi || '')).trim() && String(f.uidfi) !== '0') fieldStats.withUidFi++;
+          if ((f.attendantname || '').trim()) fieldStats.withAttendantName++;
+          if ((String(f.uidattendant || '')).trim() && String(f.uidattendant) !== '0') fieldStats.withUidAttendant++;
+          if ((f.pilotname || '').trim()) fieldStats.withPilotName++;
+          if ((String(f.uidpilot || '')).trim() && String(f.uidpilot) !== '0') fieldStats.withUidPilot++;
+          if ((f.flighttype || '').trim()) {
+            fieldStats.withFlightType++;
+            const ft = f.flighttype;
+            fieldStats.flightTypes[ft] = (fieldStats.flightTypes[ft] || 0) + 1;
+          }
+          if ((String(f.ftid || '')).trim() && String(f.ftid) !== '0') {
+            fieldStats.withFtid++;
+            const ftid = String(f.ftid);
+            fieldStats.ftids[ftid] = (fieldStats.ftids[ftid] || 0) + 1;
+          }
+          if ((f.comment || '').trim()) fieldStats.withComment++;
+
+          if ((f.pilotname || '').trim() && (f.attendantname || '').trim()) {
+            fieldStats.withBothPilotAndAttendant++;
+          }
+
+          // Sample-Flüge mit FI
+          if ((f.finame || '').trim() && fieldStats.sampleFlightsWithFI.length < 3) {
+            fieldStats.sampleFlightsWithFI.push({
+              date: f.dateofflight, pilot: f.pilotname, attendant: f.attendantname,
+              fi: f.finame, uidfi: f.uidfi, flighttype: f.flighttype, ftid: f.ftid,
+              callsign: f.callsign, flighttime: f.flighttime, comment: f.comment
+            });
+          }
+
+          // Sample-Flüge mit Begleiter
+          if ((f.attendantname || '').trim() && fieldStats.sampleFlightsWithAttendant.length < 5) {
+            fieldStats.sampleFlightsWithAttendant.push({
+              date: f.dateofflight, pilot: f.pilotname, attendant: f.attendantname,
+              uidattendant: f.uidattendant, fi: f.finame, uidfi: f.uidfi,
+              flighttype: f.flighttype, ftid: f.ftid, callsign: f.callsign,
+              flighttime: f.flighttime, comment: f.comment
+            });
+          }
         });
 
-        const yearFlights = await Promise.all(
-          years.map(yr => vfGetFlightsDateRange(accesstoken, `${yr}-01-01`, `${yr}-12-31`))
-        );
+        fieldStats.allFieldNames = Array.from(fieldStats.allFieldNames).sort();
 
-        // Aggregate per instructor per year
-        const byYear = {};
-        years.forEach((yr, idx) => {
-          const flights = yearFlights[idx];
-          const instructors = {};
-          flights.forEach(f => {
-            // FI identifizieren: uidfi hat Priorität, dann finame als Fallback
-            const uidfi = String(f.uidfi || '').trim();
-            let fiName = '';
-            if (uidfi && uidfi !== '0') {
-              fiName = uidToName[uidfi] || (f.finame || '').trim();
-            } else {
-              fiName = (f.finame || '').trim();
-            }
-            if (!fiName) return; // Kein Fluglehrer → überspringen
-            if (!instructors[fiName]) instructors[fiName] = { flights: 0, minutes: 0, landings: 0, dates: new Set() };
-            instructors[fiName].flights++;
-            instructors[fiName].minutes += parseDuration(f);
-            instructors[fiName].landings += parseInt(f.landingcount) || 0;
-            const d = f.dateofflight || '';
-            if (d) instructors[fiName].dates.add(d);
-          });
-          // Convert Sets to counts
-          const instrResult = {};
-          Object.entries(instructors).forEach(([name, data]) => {
-            instrResult[name] = {
-              flights: data.flights,
-              minutes: data.minutes,
-              landings: data.landings,
-              flyingDays: data.dates.size
-            };
-          });
-          byYear[yr] = instrResult;
-        });
-
-        result = { byYear, years, fetchedAt: new Date().toISOString() };
+        result = { debug: true, fieldStats, fetchedAt: new Date().toISOString() };
         break;
       }
       case 'yearCompare': {
