@@ -1256,6 +1256,7 @@
     border-right: none;
   }
   .gantt-col-header {
+    position: relative;
     height: 72px;
     display: flex;
     flex-direction: column;
@@ -1957,6 +1958,17 @@
     <div id="msgModalFiles" style="margin-bottom:16px;"></div>
     <div style="text-align:right;">
       <button class="btn" onclick="closeModal('messageModal')" style="font-size:13px;">Schlie&szlig;en</button>
+    </div>
+  </div>
+</div>
+
+<!-- Flugzeug-Dokumente Modal -->
+<div class="modal-overlay" id="aircraftDocsModal">
+  <div class="modal" style="max-width:480px;">
+    <h3 id="docsModalTitle" style="margin-bottom:12px;"></h3>
+    <div id="docsModalContent"></div>
+    <div style="text-align:right;margin-top:16px;">
+      <button class="btn" onclick="closeModal('aircraftDocsModal')" style="font-size:13px;">Schlie&szlig;en</button>
     </div>
   </div>
 </div>
@@ -3316,6 +3328,7 @@ function renderGanttCalendar(dk, aircraft) {
           ${img}
           <div class="gantt-col-reg">${a}</div>
           <div class="gantt-col-type">${type}</div>
+          <button onclick="event.stopPropagation();showAircraftDocs('${a}')" style="position:absolute;top:4px;right:4px;background:rgba(255,255,255,0.85);border:none;border-radius:50%;width:24px;height:24px;cursor:pointer;font-size:13px;line-height:24px;padding:0;box-shadow:0 1px 3px rgba(0,0,0,0.15);" title="Dokumente">📄</button>
         </div>
         <div class="gantt-col-timeline" id="gantt-timeline-${aIdx}">
           ${slotsHtml}
@@ -5363,6 +5376,37 @@ firebase.auth().onAuthStateChanged(user => {
 // ============================================================
 function closeModal(id) {
   document.getElementById(id).classList.remove('active');
+}
+
+// === Flugzeug-Dokumente anzeigen ===
+function showAircraftDocs(aircraft) {
+  const modal = document.getElementById('aircraftDocsModal');
+  const title = document.getElementById('docsModalTitle');
+  const content = document.getElementById('docsModalContent');
+  title.textContent = aircraft + ' — ' + (AIRCRAFT_TYPES[aircraft] || '') + ' Dokumente';
+  content.innerHTML = '<div style="text-align:center;color:var(--c-muted);padding:20px;">Lade Dokumente…</div>';
+  modal.classList.add('active');
+
+  firebase.database().ref('aircraft-docs/' + aircraft).once('value').then(snap => {
+    const docs = snap.val() || {};
+    const entries = Object.entries(docs).sort((a, b) => (a[1].name || '').localeCompare(b[1].name || ''));
+    if (!entries.length) {
+      content.innerHTML = '<div style="text-align:center;color:var(--c-muted);padding:20px;">Keine Dokumente vorhanden.</div>';
+      return;
+    }
+    content.innerHTML = entries.map(([id, doc]) => `
+      <a href="${doc.url}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--c-paper);border:1px solid var(--c-line);border-radius:8px;margin-bottom:6px;text-decoration:none;color:var(--ink);transition:background 0.15s;">
+        <span style="font-size:22px;">📄</span>
+        <div style="flex:1;">
+          <div style="font-size:13px;font-weight:600;">${doc.name}</div>
+          <div style="font-size:11px;color:var(--c-muted);">${doc.size ? (doc.size / 1024).toFixed(0) + ' KB' : 'PDF'}</div>
+        </div>
+        <span style="font-size:11px;color:var(--c-accent);">Öffnen ↗</span>
+      </a>
+    `).join('');
+  }).catch(() => {
+    content.innerHTML = '<div style="text-align:center;color:var(--danger);padding:20px;">Fehler beim Laden.</div>';
+  });
 }
 
 function notify(msg, type, duration) {

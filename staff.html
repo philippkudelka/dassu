@@ -1015,6 +1015,20 @@ body.dev-mode { padding-bottom: 48px; }
   <input type="text" class="search-input" id="searchInput" placeholder="Suchen nach Name, Flugzeug..." oninput="renderManage()">
   <div class="filter-row" id="filterRow"></div>
   <div id="manageContent"></div>
+
+  <!-- Flugzeug-Dokumente (nur Admin) -->
+  <div id="aircraftDocsAdmin" style="margin-top:24px;">
+    <h3 style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--gray-500);margin:0 0 12px;">Flugzeug-Dokumente</h3>
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+      <select id="docAircraftSelect" onchange="renderAircraftDocs()" style="padding:8px 12px;border:1px solid var(--c-line);border-radius:8px;font-size:13px;background:#fff;">
+      </select>
+      <label class="btn-book" style="padding:8px 14px;font-size:13px;cursor:pointer;margin:0;">
+        + PDF hochladen
+        <input type="file" id="docFileInput" accept=".pdf" style="display:none;" onchange="uploadAircraftDoc()">
+      </label>
+    </div>
+    <div id="aircraftDocsList"></div>
+  </div>
 </div>
 
 <!-- Theorie-Modul -->
@@ -2443,6 +2457,7 @@ function switchView(view) {
     cont.style.display = isActive ? '' : 'none';
   });
   if (view === 'stats') { loadVfCache(); if (!fiStatsData) loadInstructorStats(); }
+  if (view === 'manage') initAircraftDocsAdmin();
   if (view === 'messages') staffRenderMessages();
   if (view === 'account') renderAccountTab();
   render();
@@ -4713,6 +4728,91 @@ function renderInstructorStats() {
 
   // Initial-Sortierung markieren
   window._fiBuildTable(window._fiSortCol, window._fiSortAsc);
+}
+
+// ============================================================
+// FLUGZEUG-DOKUMENTE (Admin: Upload/Löschen)
+// ============================================================
+function initAircraftDocsAdmin() {
+  const sel = document.getElementById('docAircraftSelect');
+  if (!sel) return;
+  if (!sel.options.length) {
+    sel.innerHTML = AIRCRAFT.map(a => `<option value="${a}">${a} — ${AIRCRAFT_TYPES[a] || ''}</option>`).join('');
+  }
+  renderAircraftDocs();
+}
+
+function renderAircraftDocs() {
+  const aircraft = document.getElementById('docAircraftSelect')?.value;
+  const list = document.getElementById('aircraftDocsList');
+  if (!aircraft || !list) return;
+  list.innerHTML = '<div class="empty-msg">Lade Dokumente…</div>';
+  const db = firebase.database();
+  db.ref('aircraft-docs/' + aircraft).once('value').then(snap => {
+    const docs = snap.val() || {};
+    const entries = Object.entries(docs).sort((a, b) => (a[1].name || '').localeCompare(b[1].name || ''));
+    if (!entries.length) {
+      list.innerHTML = '<div class="empty-msg">Keine Dokumente hinterlegt.</div>';
+      return;
+    }
+    list.innerHTML = entries.map(([id, doc]) => `
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#fff;border:1px solid var(--c-line);border-radius:8px;margin-bottom:6px;">
+        <span style="font-size:18px;">📄</span>
+        <a href="${escapeHtml(doc.url)}" target="_blank" rel="noopener" style="flex:1;font-size:13px;font-weight:600;color:var(--c-accent);text-decoration:none;">${escapeHtml(doc.name)}</a>
+        <span style="font-size:11px;color:var(--gray-400);">${doc.size ? (doc.size / 1024).toFixed(0) + ' KB' : ''}</span>
+        <button onclick="deleteAircraftDoc('${aircraft}','${id}','${escapeHtml(doc.storagePath || '')}')" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--danger);padding:4px;" title="Löschen">✕</button>
+      </div>
+    `).join('');
+  });
+}
+
+async function uploadAircraftDoc() {
+  const input = document.getElementById('docFileInput');
+  const aircraft = document.getElementById('docAircraftSelect')?.value;
+  if (!input.files.length || !aircraft) return;
+  const file = input.files[0];
+  if (file.type !== 'application/pdf') { alert('Nur PDF-Dateien erlaubt.'); input.value = ''; return; }
+  if (file.size > 20 * 1024 * 1024) { alert('Datei zu groß (max. 20 MB).'); input.value = ''; return; }
+
+  const list = document.getElementById('aircraftDocsList');
+  list.innerHTML = '<div class="empty-msg">Lade hoch…</div>';
+
+  try {
+    const storageRef = firebase.storage().ref();
+    const fileName = Date.now() + '_' + file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const path = 'aircraft-docs/' + aircraft + '/' + fileName;
+    const fileRef = storageRef.child(path);
+    await fileRef.put(file);
+    const url = await fileRef.getDownloadURL();
+
+    const db = firebase.database();
+    await db.ref('aircraft-docs/' + aircraft).push({
+      name: file.name,
+      url: url,
+      storagePath: path,
+      size: file.size,
+      uploadedBy: currentUser?.email || '',
+      uploadedAt: new Date().toISOString()
+    });
+    renderAircraftDocs();
+  } catch (err) {
+    alert('Fehler beim Hochladen: ' + err.message);
+    renderAircraftDocs();
+  }
+  input.value = '';
+}
+
+async function deleteAircraftDoc(aircraft, docId, storagePath) {
+  if (!confirm('Dokument wirklich löschen?')) return;
+  try {
+    if (storagePath) {
+      await firebase.storage().ref().child(storagePath).delete();
+    }
+    await firebase.database().ref('aircraft-docs/' + aircraft + '/' + docId).remove();
+    renderAircraftDocs();
+  } catch (err) {
+    alert('Fehler: ' + err.message);
+  }
 }
 
 // ============================================================
