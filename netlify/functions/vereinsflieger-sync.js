@@ -654,9 +654,20 @@ exports.handler = async (event) => {
       }
       case 'instructorStats': {
         // Fluglehrer-Statistik: 3 Jahre einzeln
+        // Nutzt uidfi UND finame um Fluglehrer korrekt zu identifizieren
         const today = new Date();
         const y = today.getFullYear();
         const years = [y, y - 1, y - 2];
+
+        // User-Liste holen um UID → Name aufzulösen
+        const users = await vfGetUserList(accesstoken);
+        const uidToName = {};
+        users.forEach(u => {
+          const uid = String(u.uid || '').trim();
+          const name = ((u.firstname || '') + ' ' + (u.lastname || '')).trim();
+          if (uid && name) uidToName[uid] = name;
+        });
+
         const yearFlights = await Promise.all(
           years.map(yr => vfGetFlightsDateRange(accesstoken, `${yr}-01-01`, `${yr}-12-31`))
         );
@@ -667,8 +678,14 @@ exports.handler = async (event) => {
           const flights = yearFlights[idx];
           const instructors = {};
           flights.forEach(f => {
-            // FI (Fluglehrer) identifizieren
-            const fiName = (f.finame || '').trim();
+            // FI identifizieren: uidfi hat Priorität, dann finame als Fallback
+            const uidfi = String(f.uidfi || '').trim();
+            let fiName = '';
+            if (uidfi && uidfi !== '0') {
+              fiName = uidToName[uidfi] || (f.finame || '').trim();
+            } else {
+              fiName = (f.finame || '').trim();
+            }
             if (!fiName) return; // Kein Fluglehrer → überspringen
             if (!instructors[fiName]) instructors[fiName] = { flights: 0, minutes: 0, landings: 0, dates: new Set() };
             instructors[fiName].flights++;
