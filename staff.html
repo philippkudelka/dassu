@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen + VF-Cache erneuern
 (function() {
-  var APP_VERSION = 47;
+  var APP_VERSION = 48;
   try {
     var stored = parseInt(localStorage.getItem('dassu_staff_v') || '0');
     if (stored < APP_VERSION) {
@@ -4755,9 +4755,9 @@ function renderAircraftDocs() {
   list.innerHTML = entries.map(([id, doc]) => `
     <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#fff;border:1px solid var(--c-line);border-radius:8px;margin-bottom:6px;">
       <span style="font-size:18px;">📄</span>
-      <a href="${escapeHtml(doc.url)}" target="_blank" rel="noopener" style="flex:1;font-size:13px;font-weight:600;color:var(--c-accent);text-decoration:none;">${escapeHtml(doc.name)}</a>
+      <a href="#" onclick="event.preventDefault();openPdfData('${id}','${aircraft}')" style="flex:1;font-size:13px;font-weight:600;color:var(--c-accent);text-decoration:none;">${escapeHtml(doc.name)}</a>
       <span style="font-size:11px;color:var(--gray-400);">${doc.size ? (doc.size / 1024).toFixed(0) + ' KB' : ''}</span>
-      <button onclick="deleteAircraftDoc('${aircraft}','${id}','${escapeHtml(doc.storagePath || '')}')" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--danger);padding:4px;" title="Löschen">✕</button>
+      <button onclick="deleteAircraftDoc('${aircraft}','${id}')" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--danger);padding:4px;" title="Löschen">✕</button>
     </div>
   `).join('');
 }
@@ -4768,24 +4768,24 @@ async function uploadAircraftDoc() {
   if (!input.files.length || !aircraft) return;
   const file = input.files[0];
   if (file.type !== 'application/pdf') { alert('Nur PDF-Dateien erlaubt.'); input.value = ''; return; }
-  if (file.size > 20 * 1024 * 1024) { alert('Datei zu groß (max. 20 MB).'); input.value = ''; return; }
+  if (file.size > 5 * 1024 * 1024) { alert('Datei zu groß (max. 5 MB).'); input.value = ''; return; }
 
   const list = document.getElementById('aircraftDocsList');
   list.innerHTML = '<div class="empty-msg">Lade hoch…</div>';
 
   try {
-    const storageRef = firebase.storage().ref();
-    const fileName = Date.now() + '_' + file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const path = 'aircraft-docs/' + aircraft + '/' + fileName;
-    const fileRef = storageRef.child(path);
-    await fileRef.put(file);
-    const url = await fileRef.getDownloadURL();
+    // PDF als Base64 in Realtime DB speichern (kein Firebase Storage nötig)
+    const dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error('Datei konnte nicht gelesen werden'));
+      reader.readAsDataURL(file);
+    });
 
     const db = firebase.database();
     await db.ref('settings/aircraftDocs/' + aircraft).push({
       name: file.name,
-      url: url,
-      storagePath: path,
+      data: dataUrl,
       size: file.size,
       uploadedBy: currentUser?.email || '',
       uploadedAt: new Date().toISOString()
@@ -4798,17 +4798,28 @@ async function uploadAircraftDoc() {
   input.value = '';
 }
 
-async function deleteAircraftDoc(aircraft, docId, storagePath) {
+async function deleteAircraftDoc(aircraft, docId) {
   if (!confirm('Dokument wirklich löschen?')) return;
   try {
-    if (storagePath) {
-      await firebase.storage().ref().child(storagePath).delete();
-    }
     await firebase.database().ref('settings/aircraftDocs/' + aircraft + '/' + docId).remove();
     renderAircraftDocs();
   } catch (err) {
     alert('Fehler: ' + err.message);
   }
+}
+
+function openPdfData(docId, aircraft) {
+  const docs = (appSettings.aircraftDocs && appSettings.aircraftDocs[aircraft]) || {};
+  const doc = docs[docId];
+  if (!doc || !doc.data) { alert('PDF-Daten nicht gefunden.'); return; }
+  // Base64 DataURL → Blob → neues Fenster
+  const byteString = atob(doc.data.split(',')[1]);
+  const ab = new ArrayBuffer(byteString.length);
+  const ia = new Uint8Array(ab);
+  for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
+  const blob = new Blob([ab], { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank');
 }
 
 // ============================================================

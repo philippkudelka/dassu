@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen
 (function() {
-  var APP_VERSION = 49;
+  var APP_VERSION = 50;
   try {
     var stored = parseInt(localStorage.getItem('dassu_v') || '0');
     if (stored < APP_VERSION) {
@@ -5393,7 +5393,7 @@ function showAircraftDocs(aircraft) {
     return;
   }
   content.innerHTML = entries.map(([id, doc]) => `
-    <a href="${doc.url}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--c-paper);border:1px solid var(--c-line);border-radius:8px;margin-bottom:6px;text-decoration:none;color:var(--ink);transition:background 0.15s;">
+    <a href="#" onclick="event.preventDefault();openPdfBlob(settings.aircraftDocs['${aircraft}']['${id}'])" style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--c-paper);border:1px solid var(--c-line);border-radius:8px;margin-bottom:6px;text-decoration:none;color:var(--ink);transition:background 0.15s;">
       <span style="font-size:22px;">📄</span>
       <div style="flex:1;">
         <div style="font-size:13px;font-weight:600;">${doc.name}</div>
@@ -5402,6 +5402,16 @@ function showAircraftDocs(aircraft) {
       <span style="font-size:11px;color:var(--c-accent);">Öffnen ↗</span>
     </a>
   `).join('');
+}
+
+function openPdfBlob(doc) {
+  if (!doc || !doc.data) { alert('PDF-Daten nicht verfügbar.'); return; }
+  const byteString = atob(doc.data.split(',')[1]);
+  const ab = new ArrayBuffer(byteString.length);
+  const ia = new Uint8Array(ab);
+  for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
+  const blob = new Blob([ab], { type: 'application/pdf' });
+  window.open(URL.createObjectURL(blob), '_blank');
 }
 
 function notify(msg, type, duration) {
