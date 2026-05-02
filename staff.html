@@ -4596,22 +4596,87 @@ function renderInstructorStats() {
   });
 
   // Balkendiagramm: Flugtage pro Lehrer (aktuelles Jahr), sortiert
+  // Max auf 85% begrenzen damit Werte rechts immer Platz haben
   const maxDays = Math.max(...Object.values(currentData).map(d => d.flyingDays), 1);
   const bars = instructors.map((name, idx) => {
     const d = currentData[name];
     if (!d) return '';
-    const pct = Math.round((d.flyingDays / maxDays) * 100);
+    const pct = Math.min(Math.round((d.flyingDays / maxDays) * 100), 100);
     const color = fiColors[idx % fiColors.length];
-    return `<div class="stats-bar-row">
-      <span class="stats-bar-label">${lastName(name)}</span>
-      <div class="stats-bar-track">
-        <div class="stats-bar-fill" style="width:${pct}%;background:${color}"></div>
-        <span class="stats-bar-val">${d.flyingDays} Tage · ${d.landings} Starts · ${fmtH(d.minutes)}h</span>
+    return `<div class="stats-bar-row" style="display:flex; align-items:center; gap:8px;">
+      <span class="stats-bar-label" style="min-width:80px; text-align:right;">${lastName(name)}</span>
+      <div class="stats-bar-track" style="flex:1; position:relative;">
+        <div class="stats-bar-fill" style="width:${pct * 0.75}%;background:${color}"></div>
       </div>
+      <span style="font-size:11px; color:var(--ink); white-space:nowrap; min-width:180px; text-align:right;">${d.flyingDays} Tage · ${d.landings} Starts · ${fmtH(d.minutes)}h</span>
     </div>`;
   }).filter(Boolean).join('');
 
   const fetchedAt = fiStatsData.fetchedAt ? new Date(fiStatsData.fetchedAt).toLocaleString('de-DE') : '—';
+
+  // Sortier-State für die Tabelle
+  window._fiSortCol = window._fiSortCol || 'days_' + currentYear;
+  window._fiSortAsc = window._fiSortAsc !== undefined ? window._fiSortAsc : false;
+
+  window._fiBuildTable = function buildFiTable(sortCol, sortAsc) {
+    // Sortierung anwenden
+    const sorted = [...instructors].sort((a, b) => {
+      const parts = sortCol.split('_');
+      const field = parts[0]; // days, starts, hours
+      const yr = parseInt(parts[1]);
+      const da = (byYear[yr] || {})[a] || {};
+      const db = (byYear[yr] || {})[b] || {};
+      let va, vb;
+      if (field === 'days') { va = da.flyingDays || 0; vb = db.flyingDays || 0; }
+      else if (field === 'starts') { va = da.landings || 0; vb = db.landings || 0; }
+      else { va = da.minutes || 0; vb = db.minutes || 0; }
+      return sortAsc ? va - vb : vb - va;
+    });
+
+    let rows = '';
+    sorted.forEach((name, idx) => {
+      const color = fiColors[idx % fiColors.length];
+      let cells = `<td style="font-weight:700; color:${color}; white-space:nowrap; position:sticky; left:0; background:var(--c-card); z-index:1;">${escapeHtml(lastName(name))}</td>`;
+      years.forEach(yr => {
+        const d = (byYear[yr] || {})[name];
+        if (d) {
+          cells += `<td style="text-align:center;">${d.flyingDays}</td>`;
+          cells += `<td style="text-align:center;">${d.landings}</td>`;
+          cells += `<td style="text-align:center; font-weight:600;">${fmtH(d.minutes)}h</td>`;
+        } else {
+          cells += `<td style="text-align:center; color:var(--gray-400);">—</td><td style="text-align:center; color:var(--gray-400);">—</td><td style="text-align:center; color:var(--gray-400);">—</td>`;
+        }
+      });
+      rows += `<tr>${cells}</tr>`;
+    });
+
+    const arrow = sortAsc ? ' ▲' : ' ▼';
+    const thStyle = 'text-align:center; font-size:9px; cursor:pointer; user-select:none;';
+    const activeStyle = thStyle + ' color:var(--c-accent); font-weight:800;';
+
+    document.getElementById('fiTableBody').innerHTML = rows +
+      `<tr style="border-top:2px solid var(--c-line); position:sticky; bottom:0; background:var(--c-card); z-index:2;">${sumCells}</tr>`;
+
+    // Header-Pfeile aktualisieren
+    document.querySelectorAll('.fi-sort-th').forEach(th => {
+      const col = th.dataset.col;
+      th.style.cssText = col === sortCol ? activeStyle : thStyle;
+      th.textContent = th.dataset.label + (col === sortCol ? arrow : '');
+    });
+  }
+
+  // Klick-Handler für Sortierung
+  window.sortFiTable = function(col) {
+    if (window._fiSortCol === col) {
+      window._fiSortAsc = !window._fiSortAsc;
+    } else {
+      window._fiSortCol = col;
+      window._fiSortAsc = false;
+    }
+    window._fiBuildTable(window._fiSortCol, window._fiSortAsc);
+  };
+
+  const thStyle = 'text-align:center; font-size:9px; cursor:pointer; user-select:none;';
 
   content.innerHTML = `
     <div class="stats-card">
@@ -4620,7 +4685,7 @@ function renderInstructorStats() {
     </div>
 
     <div class="stats-card">
-      <h4>Fluglehrer — 3-Jahresvergleich (sortiert nach Flugtagen ${currentYear})</h4>
+      <h4>Fluglehrer — 3-Jahresvergleich</h4>
       <div style="max-height:400px; overflow-y:auto; overflow-x:auto; border:1px solid var(--c-line); border-radius:8px;">
         <table class="stats-table" style="margin:0;">
           <thead style="position:sticky; top:0; background:var(--c-card); z-index:2;">
@@ -4630,10 +4695,14 @@ function renderInstructorStats() {
             </tr>
             <tr>
               <th style="position:sticky; left:0; background:var(--c-card); z-index:3;"></th>
-              ${years.map(() => `<th style="text-align:center; font-size:9px;">Tage</th><th style="text-align:center; font-size:9px;">Starts</th><th style="text-align:center; font-size:9px;">Stunden</th>`).join('')}
+              ${years.map(yr => `
+                <th class="fi-sort-th" data-col="days_${yr}" data-label="Tage" style="${thStyle}" onclick="sortFiTable('days_${yr}')">Tage</th>
+                <th class="fi-sort-th" data-col="starts_${yr}" data-label="Starts" style="${thStyle}" onclick="sortFiTable('starts_${yr}')">Starts</th>
+                <th class="fi-sort-th" data-col="hours_${yr}" data-label="Stunden" style="${thStyle}" onclick="sortFiTable('hours_${yr}')">Stunden</th>
+              `).join('')}
             </tr>
           </thead>
-          <tbody>
+          <tbody id="fiTableBody">
             ${tableRows}
             <tr style="border-top:2px solid var(--c-line); position:sticky; bottom:0; background:var(--c-card); z-index:2;">${sumCells}</tr>
           </tbody>
@@ -4642,6 +4711,9 @@ function renderInstructorStats() {
       <div style="font-size:10px; color:var(--gray-500); margin-top:8px; text-align:right;">${instructors.length} Fluglehrer · Stand: ${fetchedAt}</div>
     </div>
   `;
+
+  // Initial-Sortierung markieren
+  window._fiBuildTable(window._fiSortCol, window._fiSortAsc);
 }
 
 // ============================================================
