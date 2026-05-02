@@ -652,6 +652,47 @@ exports.handler = async (event) => {
           .sort((a, b) => (a.lastname || '').localeCompare(b.lastname || ''));
         break;
       }
+      case 'instructorStats': {
+        // Fluglehrer-Statistik: 3 Jahre einzeln
+        const today = new Date();
+        const y = today.getFullYear();
+        const years = [y, y - 1, y - 2];
+        const yearFlights = await Promise.all(
+          years.map(yr => vfGetFlightsDateRange(accesstoken, `${yr}-01-01`, `${yr}-12-31`))
+        );
+
+        // Aggregate per instructor per year
+        const byYear = {};
+        years.forEach((yr, idx) => {
+          const flights = yearFlights[idx];
+          const instructors = {};
+          flights.forEach(f => {
+            // FI (Fluglehrer) identifizieren
+            const fiName = (f.finame || '').trim();
+            if (!fiName) return; // Kein Fluglehrer → überspringen
+            if (!instructors[fiName]) instructors[fiName] = { flights: 0, minutes: 0, landings: 0, dates: new Set() };
+            instructors[fiName].flights++;
+            instructors[fiName].minutes += parseDuration(f);
+            instructors[fiName].landings += parseInt(f.landingcount) || 0;
+            const d = f.dateofflight || '';
+            if (d) instructors[fiName].dates.add(d);
+          });
+          // Convert Sets to counts
+          const instrResult = {};
+          Object.entries(instructors).forEach(([name, data]) => {
+            instrResult[name] = {
+              flights: data.flights,
+              minutes: data.minutes,
+              landings: data.landings,
+              flyingDays: data.dates.size
+            };
+          });
+          byYear[yr] = instrResult;
+        });
+
+        result = { byYear, years, fetchedAt: new Date().toISOString() };
+        break;
+      }
       case 'yearCompare': {
         // Flüge für aktuelles Jahr + Vorjahr abrufen (bis zum heutigen Tag)
         const today = new Date();

@@ -1277,6 +1277,17 @@ body.dev-mode { padding-bottom: 48px; }
   </div>
   <div id="statsContent"></div>
 
+  <!-- Fluglehrer-Statistik (VF) -->
+  <div class="stats-header" style="margin-top:32px;">
+    <h3>Fluglehrer — Auswertung (Vereinsflieger)</h3>
+    <button class="btn-book" onclick="loadInstructorStats()" id="fiStatsSyncBtn" style="padding:8px 16px;font-size:13px;">
+      <span id="fiStatsSyncLabel">Laden</span>
+    </button>
+  </div>
+  <div id="fiStatsContent">
+    <div class="empty-msg">Klicke "Laden" um die Fluglehrer-Statistik abzurufen.</div>
+  </div>
+
   <!-- Vereinsflieger Jahresvergleich -->
   <div class="stats-header" style="margin-top:32px;">
     <h3>Vereinsflieger — Jahresvergleich</h3>
@@ -4349,7 +4360,7 @@ function renderStats() {
     }
   });
   const maxMin = Math.max(...Object.values(byAircraft).map(v => v.minutes), 1);
-  const acColors = ['#3D9991', '#1B3A5C', '#F5A623', '#E74C3C', '#8E44AD'];
+  const acColors = ['#2A6B5E', '#8B6E4F', '#5B8C6E', '#C4854C', '#6B7F94'];
 
   const acBars = AIRCRAFT.map((a, i) => {
     const d = byAircraft[a];
@@ -4379,7 +4390,7 @@ function renderStats() {
     return `<div class="stats-bar-row">
       <span class="stats-bar-label">${slot}</span>
       <div class="stats-bar-track">
-        <div class="stats-bar-fill" style="width:${pct}%;background:var(--accent)"></div>
+        <div class="stats-bar-fill" style="width:${pct}%;background:#8B6E4F"></div>
         <span class="stats-bar-val">${count}</span>
       </div>
     </div>`;
@@ -4396,7 +4407,7 @@ function renderStats() {
   const maxDay = Math.max(...dayCounts, 1);
   const dayHeat = dayNames.map((name, i) => {
     const intensity = dayCounts[i] / maxDay;
-    const bg = `rgba(30,75,78,${0.1 + intensity * 0.7})`;
+    const bg = `rgba(42,107,94,${0.1 + intensity * 0.75})`;
     const textColor = intensity > 0.5 ? 'white' : 'var(--navy)';
     return `<div class="stats-heat-cell" style="background:${bg};color:${textColor}">${name}<br>${dayCounts[i]}</div>`;
   }).join('');
@@ -4429,7 +4440,7 @@ function renderStats() {
       return `<div class="stats-bar-row">
         <span class="stats-bar-label">${label}</span>
         <div class="stats-bar-track">
-          <div class="stats-bar-fill" style="width:${pct}%;background:var(--primary)"></div>
+          <div class="stats-bar-fill" style="width:${pct}%;background:#5B8C6E"></div>
           <span class="stats-bar-val">${count}</span>
         </div>
       </div>`;
@@ -4472,6 +4483,147 @@ function renderStats() {
         <thead><tr><th>#</th><th>Name</th><th style="text-align:right">Buchungen</th></tr></thead>
         <tbody>${custRows}</tbody>
       </table>
+    </div>
+  `;
+}
+
+// ============================================================
+// FLUGLEHRER-STATISTIK (Vereinsflieger)
+// ============================================================
+let fiStatsData = null;
+
+async function loadInstructorStats() {
+  const btn = document.getElementById('fiStatsSyncBtn');
+  const label = document.getElementById('fiStatsSyncLabel');
+  const content = document.getElementById('fiStatsContent');
+  if (!btn) return;
+
+  btn.disabled = true;
+  label.textContent = 'Lade…';
+
+  try {
+    const res = await fetch('/.netlify/functions/vereinsflieger-sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'instructorStats' })
+    });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'Unbekannter Fehler');
+
+    fiStatsData = json.data;
+    renderInstructorStats();
+    label.textContent = 'Aktualisieren';
+  } catch (err) {
+    content.innerHTML = `<div class="empty-msg" style="color:var(--danger);">Fehler: ${err.message}</div>`;
+    label.textContent = 'Erneut versuchen';
+  }
+  btn.disabled = false;
+}
+
+function renderInstructorStats() {
+  const content = document.getElementById('fiStatsContent');
+  if (!content || !fiStatsData) return;
+
+  const { byYear, years } = fiStatsData;
+
+  // Alle Fluglehrer-Namen sammeln
+  const allInstructors = new Set();
+  years.forEach(yr => {
+    Object.keys(byYear[yr] || {}).forEach(name => allInstructors.add(name));
+  });
+  const instructors = Array.from(allInstructors).sort();
+
+  if (!instructors.length) {
+    content.innerHTML = '<div class="empty-msg">Keine Fluglehrer-Daten gefunden.</div>';
+    return;
+  }
+
+  // Farben für Fluglehrer
+  const fiColors = ['#2A6B5E', '#8B6E4F', '#5B8C6E', '#C4854C', '#6B7F94', '#7B6B8A', '#5A7D7C', '#A67B5B'];
+
+  // Pro Fluglehrer: Zeile mit allen 3 Jahren
+  let tableRows = '';
+  instructors.forEach((name, idx) => {
+    const color = fiColors[idx % fiColors.length];
+    let cells = `<td style="font-weight:700; color:${color}; white-space:nowrap;">${escapeHtml(name)}</td>`;
+    years.forEach(yr => {
+      const d = (byYear[yr] || {})[name];
+      if (d) {
+        cells += `<td style="text-align:center;">${d.flyingDays}</td>`;
+        cells += `<td style="text-align:center;">${d.landings}</td>`;
+        cells += `<td style="text-align:center; font-weight:600;">${fmtH(d.minutes)}h</td>`;
+      } else {
+        cells += `<td style="text-align:center; color:var(--gray-400);">—</td>`;
+        cells += `<td style="text-align:center; color:var(--gray-400);">—</td>`;
+        cells += `<td style="text-align:center; color:var(--gray-400);">—</td>`;
+      }
+    });
+    tableRows += `<tr>${cells}</tr>`;
+  });
+
+  // Summenzeile
+  let sumCells = '<td style="font-weight:800;">Gesamt</td>';
+  years.forEach(yr => {
+    const data = byYear[yr] || {};
+    let totalDays = 0, totalLandings = 0, totalMin = 0;
+    // Flugtage = Vereinigung aller Tage aller FIs (aber wir haben nur pro FI)
+    Object.values(data).forEach(d => {
+      totalDays += d.flyingDays;
+      totalLandings += d.landings;
+      totalMin += d.minutes;
+    });
+    sumCells += `<td style="text-align:center; font-weight:700;">${totalDays}</td>`;
+    sumCells += `<td style="text-align:center; font-weight:700;">${totalLandings}</td>`;
+    sumCells += `<td style="text-align:center; font-weight:800;">${fmtH(totalMin)}h</td>`;
+  });
+
+  // Balkendiagramm: Flugstunden pro Lehrer (aktuelles Jahr)
+  const currentYear = years[0];
+  const currentData = byYear[currentYear] || {};
+  const maxMinutes = Math.max(...Object.values(currentData).map(d => d.minutes), 1);
+  const bars = instructors.map((name, idx) => {
+    const d = currentData[name];
+    if (!d) return '';
+    const pct = Math.round((d.minutes / maxMinutes) * 100);
+    const color = fiColors[idx % fiColors.length];
+    return `<div class="stats-bar-row">
+      <span class="stats-bar-label">${name.split(' ').pop()}</span>
+      <div class="stats-bar-track">
+        <div class="stats-bar-fill" style="width:${pct}%;background:${color}"></div>
+        <span class="stats-bar-val">${fmtH(d.minutes)}h (${d.landings} Starts)</span>
+      </div>
+    </div>`;
+  }).filter(Boolean).join('');
+
+  const fetchedAt = fiStatsData.fetchedAt ? new Date(fiStatsData.fetchedAt).toLocaleString('de-DE') : '—';
+
+  content.innerHTML = `
+    <div class="stats-card">
+      <h4>Flugstunden ${currentYear} nach Fluglehrer</h4>
+      <div class="stats-bar-chart">${bars}</div>
+    </div>
+
+    <div class="stats-card">
+      <h4>Fluglehrer — 3-Jahresvergleich</h4>
+      <div style="overflow-x:auto;">
+        <table class="stats-table">
+          <thead>
+            <tr>
+              <th>Fluglehrer</th>
+              ${years.map(yr => `<th colspan="3" style="text-align:center; border-bottom:2px solid var(--c-line);">${yr}</th>`).join('')}
+            </tr>
+            <tr>
+              <th></th>
+              ${years.map(() => `<th style="text-align:center; font-size:9px;">Tage</th><th style="text-align:center; font-size:9px;">Starts</th><th style="text-align:center; font-size:9px;">Stunden</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRows}
+            <tr style="border-top:2px solid var(--c-line);">${sumCells}</tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="font-size:10px; color:var(--gray-500); margin-top:8px; text-align:right;">Stand: ${fetchedAt}</div>
     </div>
   `;
 }
