@@ -4748,7 +4748,7 @@ function renderAircraftDocs() {
   if (!aircraft || !list) return;
   list.innerHTML = '<div class="empty-msg">Lade Dokumente…</div>';
   const db = firebase.database();
-  db.ref('aircraft-docs/' + aircraft).once('value').then(snap => {
+  db.ref('settings/aircraftDocs/' + aircraft).once('value').then(snap => {
     const docs = snap.val() || {};
     const entries = Object.entries(docs).sort((a, b) => (a[1].name || '').localeCompare(b[1].name || ''));
     if (!entries.length) {
@@ -4763,6 +4763,9 @@ function renderAircraftDocs() {
         <button onclick="deleteAircraftDoc('${aircraft}','${id}','${escapeHtml(doc.storagePath || '')}')" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--danger);padding:4px;" title="Löschen">✕</button>
       </div>
     `).join('');
+  }).catch(err => {
+    console.error('Aircraft docs error:', err);
+    list.innerHTML = `<div class="empty-msg" style="color:var(--danger);">Fehler: ${err.message}<br><small>Firebase Rules müssen evtl. angepasst werden.</small></div>`;
   });
 }
 
@@ -4786,7 +4789,7 @@ async function uploadAircraftDoc() {
     const url = await fileRef.getDownloadURL();
 
     const db = firebase.database();
-    await db.ref('aircraft-docs/' + aircraft).push({
+    await db.ref('settings/aircraftDocs/' + aircraft).push({
       name: file.name,
       url: url,
       storagePath: path,
@@ -4808,7 +4811,7 @@ async function deleteAircraftDoc(aircraft, docId, storagePath) {
     if (storagePath) {
       await firebase.storage().ref().child(storagePath).delete();
     }
-    await firebase.database().ref('aircraft-docs/' + aircraft + '/' + docId).remove();
+    await firebase.database().ref('settings/aircraftDocs/' + aircraft + '/' + docId).remove();
     renderAircraftDocs();
   } catch (err) {
     alert('Fehler: ' + err.message);

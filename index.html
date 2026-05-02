@@ -5387,7 +5387,7 @@ function showAircraftDocs(aircraft) {
   content.innerHTML = '<div style="text-align:center;color:var(--c-muted);padding:20px;">Lade Dokumente…</div>';
   modal.classList.add('active');
 
-  firebase.database().ref('aircraft-docs/' + aircraft).once('value').then(snap => {
+  firebase.database().ref('settings/aircraftDocs/' + aircraft).once('value').then(snap => {
     const docs = snap.val() || {};
     const entries = Object.entries(docs).sort((a, b) => (a[1].name || '').localeCompare(b[1].name || ''));
     if (!entries.length) {
