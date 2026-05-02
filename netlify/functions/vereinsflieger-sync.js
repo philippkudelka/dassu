@@ -653,47 +653,39 @@ exports.handler = async (event) => {
         break;
       }
       case 'instructorStats': {
-        // Fluglehrer-Statistik: 3 Jahre einzeln
-        // Bei DASSU: finame/uidfi werden NICHT verwendet.
-        // Fluglehrer = attendantname auf Flügen mit Begleiter (Doppelsitzer-Schulungsflüge).
-        // Alle Flüge mit attendantname zählen den Begleiter als Fluglehrer.
+        // Quick debug: flightmode + ft_education Werte analysieren
         const today = new Date();
         const y = today.getFullYear();
-        const years = [y, y - 1, y - 2];
+        const flights = await vfGetFlightsDateRange(accesstoken, `${y}-01-01`, `${y}-12-31`);
 
-        const yearFlights = await Promise.all(
-          years.map(yr => vfGetFlightsDateRange(accesstoken, `${yr}-01-01`, `${yr}-12-31`))
-        );
+        const flightmodes = {};
+        const ftEducation = {};
+        const samplesByMode = {};
 
-        // Aggregate per instructor (= attendantname) per year
-        const byYear = {};
-        years.forEach((yr, idx) => {
-          const flights = yearFlights[idx];
-          const instructors = {};
-          flights.forEach(f => {
-            const fiName = (f.attendantname || '').trim();
-            if (!fiName) return; // Solo-Flug → überspringen
-            if (!instructors[fiName]) instructors[fiName] = { flights: 0, minutes: 0, landings: 0, dates: new Set() };
-            instructors[fiName].flights++;
-            instructors[fiName].minutes += parseDuration(f);
-            instructors[fiName].landings += parseInt(f.landingcount) || 0;
-            const d = f.dateofflight || '';
-            if (d) instructors[fiName].dates.add(d);
-          });
-          // Convert Sets to counts
-          const instrResult = {};
-          Object.entries(instructors).forEach(([name, data]) => {
-            instrResult[name] = {
-              flights: data.flights,
-              minutes: data.minutes,
-              landings: data.landings,
-              flyingDays: data.dates.size
+        flights.forEach(f => {
+          const fm = (f.flightmode || '(leer)').toString();
+          flightmodes[fm] = (flightmodes[fm] || 0) + 1;
+
+          const fe = (f.ft_education !== undefined && f.ft_education !== null) ? String(f.ft_education) : '(leer)';
+          ftEducation[fe] = (ftEducation[fe] || 0) + 1;
+
+          if (!samplesByMode[fm] && (f.attendantname || '').trim()) {
+            samplesByMode[fm] = {
+              date: f.dateofflight, pilot: f.pilotname, attendant: f.attendantname,
+              flightmode: f.flightmode, ft_education: f.ft_education, ftid: f.ftid,
+              callsign: f.callsign
             };
-          });
-          byYear[yr] = instrResult;
+          }
         });
 
-        result = { byYear, years, fetchedAt: new Date().toISOString() };
+        result = {
+          debug: true,
+          totalFlights: flights.length,
+          flightmodes,
+          ftEducation,
+          samplesByMode,
+          fetchedAt: new Date().toISOString()
+        };
         break;
       }
       case 'yearCompare': {
