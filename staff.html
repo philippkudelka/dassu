@@ -4746,27 +4746,20 @@ function renderAircraftDocs() {
   const aircraft = document.getElementById('docAircraftSelect')?.value;
   const list = document.getElementById('aircraftDocsList');
   if (!aircraft || !list) return;
-  list.innerHTML = '<div class="empty-msg">Lade Dokumente…</div>';
-  const db = firebase.database();
-  db.ref('settings/aircraftDocs/' + aircraft).once('value').then(snap => {
-    const docs = snap.val() || {};
-    const entries = Object.entries(docs).sort((a, b) => (a[1].name || '').localeCompare(b[1].name || ''));
-    if (!entries.length) {
-      list.innerHTML = '<div class="empty-msg">Keine Dokumente hinterlegt.</div>';
-      return;
-    }
-    list.innerHTML = entries.map(([id, doc]) => `
-      <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#fff;border:1px solid var(--c-line);border-radius:8px;margin-bottom:6px;">
-        <span style="font-size:18px;">📄</span>
-        <a href="${escapeHtml(doc.url)}" target="_blank" rel="noopener" style="flex:1;font-size:13px;font-weight:600;color:var(--c-accent);text-decoration:none;">${escapeHtml(doc.name)}</a>
-        <span style="font-size:11px;color:var(--gray-400);">${doc.size ? (doc.size / 1024).toFixed(0) + ' KB' : ''}</span>
-        <button onclick="deleteAircraftDoc('${aircraft}','${id}','${escapeHtml(doc.storagePath || '')}')" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--danger);padding:4px;" title="Löschen">✕</button>
-      </div>
-    `).join('');
-  }).catch(err => {
-    console.error('Aircraft docs error:', err);
-    list.innerHTML = `<div class="empty-msg" style="color:var(--danger);">Fehler: ${err.message}<br><small>Firebase Rules müssen evtl. angepasst werden.</small></div>`;
-  });
+  const docs = (appSettings.aircraftDocs && appSettings.aircraftDocs[aircraft]) || {};
+  const entries = Object.entries(docs).sort((a, b) => (a[1].name || '').localeCompare(b[1].name || ''));
+  if (!entries.length) {
+    list.innerHTML = '<div class="empty-msg">Keine Dokumente hinterlegt.</div>';
+    return;
+  }
+  list.innerHTML = entries.map(([id, doc]) => `
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#fff;border:1px solid var(--c-line);border-radius:8px;margin-bottom:6px;">
+      <span style="font-size:18px;">📄</span>
+      <a href="${escapeHtml(doc.url)}" target="_blank" rel="noopener" style="flex:1;font-size:13px;font-weight:600;color:var(--c-accent);text-decoration:none;">${escapeHtml(doc.name)}</a>
+      <span style="font-size:11px;color:var(--gray-400);">${doc.size ? (doc.size / 1024).toFixed(0) + ' KB' : ''}</span>
+      <button onclick="deleteAircraftDoc('${aircraft}','${id}','${escapeHtml(doc.storagePath || '')}')" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--danger);padding:4px;" title="Löschen">✕</button>
+    </div>
+  `).join('');
 }
 
 async function uploadAircraftDoc() {

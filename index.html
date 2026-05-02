@@ -5384,29 +5384,24 @@ function showAircraftDocs(aircraft) {
   const title = document.getElementById('docsModalTitle');
   const content = document.getElementById('docsModalContent');
   title.textContent = aircraft + ' — ' + (AIRCRAFT_TYPES[aircraft] || '') + ' Dokumente';
-  content.innerHTML = '<div style="text-align:center;color:var(--c-muted);padding:20px;">Lade Dokumente…</div>';
   modal.classList.add('active');
 
-  firebase.database().ref('settings/aircraftDocs/' + aircraft).once('value').then(snap => {
-    const docs = snap.val() || {};
-    const entries = Object.entries(docs).sort((a, b) => (a[1].name || '').localeCompare(b[1].name || ''));
-    if (!entries.length) {
-      content.innerHTML = '<div style="text-align:center;color:var(--c-muted);padding:20px;">Keine Dokumente vorhanden.</div>';
-      return;
-    }
-    content.innerHTML = entries.map(([id, doc]) => `
-      <a href="${doc.url}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--c-paper);border:1px solid var(--c-line);border-radius:8px;margin-bottom:6px;text-decoration:none;color:var(--ink);transition:background 0.15s;">
-        <span style="font-size:22px;">📄</span>
-        <div style="flex:1;">
-          <div style="font-size:13px;font-weight:600;">${doc.name}</div>
-          <div style="font-size:11px;color:var(--c-muted);">${doc.size ? (doc.size / 1024).toFixed(0) + ' KB' : 'PDF'}</div>
-        </div>
-        <span style="font-size:11px;color:var(--c-accent);">Öffnen ↗</span>
-      </a>
-    `).join('');
-  }).catch(() => {
-    content.innerHTML = '<div style="text-align:center;color:var(--danger);padding:20px;">Fehler beim Laden.</div>';
-  });
+  const docs = (settings.aircraftDocs && settings.aircraftDocs[aircraft]) || {};
+  const entries = Object.entries(docs).sort((a, b) => (a[1].name || '').localeCompare(b[1].name || ''));
+  if (!entries.length) {
+    content.innerHTML = '<div style="text-align:center;color:var(--c-muted);padding:20px;">Keine Dokumente vorhanden.</div>';
+    return;
+  }
+  content.innerHTML = entries.map(([id, doc]) => `
+    <a href="${doc.url}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--c-paper);border:1px solid var(--c-line);border-radius:8px;margin-bottom:6px;text-decoration:none;color:var(--ink);transition:background 0.15s;">
+      <span style="font-size:22px;">📄</span>
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:600;">${doc.name}</div>
+        <div style="font-size:11px;color:var(--c-muted);">${doc.size ? (doc.size / 1024).toFixed(0) + ' KB' : 'PDF'}</div>
+      </div>
+      <span style="font-size:11px;color:var(--c-accent);">Öffnen ↗</span>
+    </a>
+  `).join('');
 }
 
 function notify(msg, type, duration) {
