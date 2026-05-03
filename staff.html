@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen + VF-Cache erneuern
 (function() {
-  var APP_VERSION = 48;
+  var APP_VERSION = 49;
   try {
     var stored = parseInt(localStorage.getItem('dassu_staff_v') || '0');
     if (stored < APP_VERSION) {
@@ -1020,7 +1020,7 @@ body.dev-mode { padding-bottom: 48px; }
   <div id="aircraftDocsAdmin" style="margin-top:24px;">
     <h3 style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--gray-500);margin:0 0 12px;">Flugzeug-Dokumente</h3>
     <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
-      <select id="docAircraftSelect" onchange="renderAircraftDocs()" style="padding:8px 12px;border:1px solid var(--c-line);border-radius:8px;font-size:13px;background:#fff;">
+      <select id="docAircraftSelect" onchange="renderAircraftDocs();renderDocAccess()" style="padding:8px 12px;border:1px solid var(--c-line);border-radius:8px;font-size:13px;background:#fff;">
       </select>
       <label class="btn-book" style="padding:8px 14px;font-size:13px;cursor:pointer;margin:0;">
         + PDF hochladen
@@ -1028,6 +1028,14 @@ body.dev-mode { padding-bottom: 48px; }
       </label>
     </div>
     <div id="aircraftDocsList"></div>
+
+    <h3 style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--gray-500);margin:18px 0 10px;">Dokument-Zugriff</h3>
+    <p style="font-size:12px;color:var(--gray-400);margin:0 0 10px;">Staff & Fluglehrer sehen Dokumente immer. Kunden nur, wenn sie eine genehmigte Buchung für das Flugzeug haben oder hier explizit freigeschaltet sind.</p>
+    <div id="docAccessList"></div>
+    <div style="display:flex;gap:6px;margin-top:8px;">
+      <input id="docAccessEmail" type="email" placeholder="E-Mail-Adresse des Kunden" style="flex:1;padding:8px 12px;border:1px solid var(--c-line);border-radius:8px;font-size:13px;">
+      <button class="btn-book" onclick="grantDocAccess()" style="padding:8px 14px;font-size:13px;white-space:nowrap;">Zugriff geben</button>
+    </div>
   </div>
 </div>
 
@@ -4740,6 +4748,7 @@ function initAircraftDocsAdmin() {
     sel.innerHTML = AIRCRAFT.map(a => `<option value="${a}">${a} — ${AIRCRAFT_TYPES[a] || ''}</option>`).join('');
   }
   renderAircraftDocs();
+  renderDocAccess();
 }
 
 function renderAircraftDocs() {
@@ -4806,6 +4815,46 @@ async function deleteAircraftDoc(aircraft, docId) {
   } catch (err) {
     alert('Fehler: ' + err.message);
   }
+}
+
+// === Dokument-Zugriff verwalten ===
+function renderDocAccess() {
+  const aircraft = document.getElementById('docAircraftSelect')?.value;
+  const list = document.getElementById('docAccessList');
+  if (!aircraft || !list) return;
+  const access = (appSettings.aircraftDocAccess && appSettings.aircraftDocAccess[aircraft]) || {};
+  const entries = Object.entries(access).filter(([k, v]) => v === true);
+  if (!entries.length) {
+    list.innerHTML = '<div class="empty-msg">Keine expliziten Freigaben.</div>';
+    return;
+  }
+  list.innerHTML = entries.map(([key, _]) => {
+    const email = key.replace(/,/g, '.');
+    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:#fff;border:1px solid var(--c-line);border-radius:8px;margin-bottom:4px;">
+      <span style="flex:1;font-size:13px;">${escapeHtml(email)}</span>
+      <button onclick="revokeDocAccess('${aircraft}','${key}')" style="background:none;border:none;cursor:pointer;font-size:14px;color:var(--danger);padding:2px 6px;" title="Zugriff entziehen">✕</button>
+    </div>`;
+  }).join('');
+}
+
+async function grantDocAccess() {
+  const aircraft = document.getElementById('docAircraftSelect')?.value;
+  const input = document.getElementById('docAccessEmail');
+  const email = (input?.value || '').toLowerCase().trim();
+  if (!aircraft || !email) { alert('Bitte Flugzeug und E-Mail angeben.'); return; }
+  const key = email.replace(/\./g, ',');
+  try {
+    await firebase.database().ref('settings/aircraftDocAccess/' + aircraft + '/' + key).set(true);
+    input.value = '';
+    renderDocAccess();
+  } catch (err) { alert('Fehler: ' + err.message); }
+}
+
+async function revokeDocAccess(aircraft, key) {
+  try {
+    await firebase.database().ref('settings/aircraftDocAccess/' + aircraft + '/' + key).remove();
+    renderDocAccess();
+  } catch (err) { alert('Fehler: ' + err.message); }
 }
 
 function openPdfData(docId, aircraft) {

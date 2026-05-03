@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen
 (function() {
-  var APP_VERSION = 50;
+  var APP_VERSION = 51;
   try {
     var stored = parseInt(localStorage.getItem('dassu_v') || '0');
     if (stored < APP_VERSION) {
@@ -3328,7 +3328,7 @@ function renderGanttCalendar(dk, aircraft) {
           ${img}
           <div class="gantt-col-reg">${a}</div>
           <div class="gantt-col-type">${type}</div>
-          <button onclick="event.stopPropagation();showAircraftDocs('${a}')" style="position:absolute;top:4px;right:4px;background:rgba(255,255,255,0.85);border:none;border-radius:50%;width:24px;height:24px;cursor:pointer;font-size:13px;line-height:24px;padding:0;box-shadow:0 1px 3px rgba(0,0,0,0.15);" title="Dokumente">📄</button>
+          ${canViewAircraftDocs(a) && settings.aircraftDocs && settings.aircraftDocs[a] && Object.keys(settings.aircraftDocs[a]).length ? `<button onclick="event.stopPropagation();showAircraftDocs('${a}')" style="position:absolute;top:4px;right:4px;background:rgba(255,255,255,0.85);border:none;border-radius:50%;width:24px;height:24px;cursor:pointer;font-size:13px;line-height:24px;padding:0;box-shadow:0 1px 3px rgba(0,0,0,0.15);" title="Dokumente">📄</button>` : ''}
         </div>
         <div class="gantt-col-timeline" id="gantt-timeline-${aIdx}">
           ${slotsHtml}
@@ -5376,6 +5376,24 @@ firebase.auth().onAuthStateChanged(user => {
 // ============================================================
 function closeModal(id) {
   document.getElementById(id).classList.remove('active');
+}
+
+// === Flugzeug-Dokumente: Zugriffsprüfung ===
+function canViewAircraftDocs(aircraft) {
+  // Staff/Admin/Fluglehrer → immer
+  const role = typeof getEffectiveRole === 'function' ? getEffectiveRole() : currentStaffRole;
+  if (role === 'admin' || role === 'team' || role === 'staff' || role === 'guestGlider' || role === 'guestMotor') return true;
+  const user = firebase.auth().currentUser;
+  if (!user) return false;
+  const email = (user.email || '').toLowerCase().trim();
+  // Expliziter Admin-Grant?
+  const access = settings.aircraftDocAccess && settings.aircraftDocAccess[aircraft];
+  if (access) {
+    const key = email.replace(/\./g, ',');
+    if (access[key] === true) return true;
+  }
+  // Hat der User eine (genehmigte) Buchung für dieses Flugzeug?
+  return bookings.some(b => b.aircraft === aircraft && (b.email || '').toLowerCase().trim() === email && b.status === 'approved');
 }
 
 // === Flugzeug-Dokumente anzeigen ===
