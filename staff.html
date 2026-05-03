@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen + VF-Cache erneuern
 (function() {
-  var APP_VERSION = 51;
+  var APP_VERSION = 52;
   try {
     var stored = parseInt(localStorage.getItem('dassu_staff_v') || '0');
     if (stored < APP_VERSION) {
@@ -3537,43 +3537,54 @@ function openMemberDetail(uid, isCustomer) {
 async function changeMemberRole(uid, newRole, wasCustomer) {
   if (!isAdmin()) return;
 
-  if (newRole === 'customer' && !wasCustomer) {
-    // Staff -> Kunde
-    const u = staffUsers.find(s => s.id === uid);
-    if (!u) return;
-    if (u.role === 'admin') {
-      const adminCount = staffUsers.filter(s => s.role === 'admin').length;
-      if (adminCount <= 1) { notify('Mindestens ein Admin muss bleiben.', 'error'); openMemberDetail(uid, false); return; }
-    }
-    if (!confirm('"' + u.name + '" wird als Staff entfernt und ist nur noch Kunde. Fortfahren?')) {
-      openMemberDetail(uid, false); return;
-    }
-    const email = (u.email || '').toLowerCase().trim();
-    const existingCust = customerUsers.find(c => (c.email || '').toLowerCase() === email);
-    if (!existingCust) {
-      await db.ref('customers/' + uid).set({
-        name: u.name || '', email: u.email || '',
-        createdAt: u.createdAt || new Date().toISOString()
+  try {
+    if (newRole === 'customer' && !wasCustomer) {
+      // Staff -> Kunde
+      const u = staffUsers.find(s => s.id === uid);
+      if (!u) return;
+      if (u.role === 'admin') {
+        const adminCount = staffUsers.filter(s => s.role === 'admin').length;
+        if (adminCount <= 1) { notify('Mindestens ein Admin muss bleiben.', 'error'); openMemberDetail(uid, false); return; }
+      }
+      if (!confirm('"' + u.name + '" wird als Staff entfernt und ist nur noch Kunde. Fortfahren?')) {
+        openMemberDetail(uid, false); return;
+      }
+      // Ensure customer record exists
+      const email = (u.email || '').toLowerCase().trim();
+      const existingCust = customerUsers.find(c => (c.email || '').toLowerCase() === email);
+      if (!existingCust) {
+        try {
+          await db.ref('customers/' + uid).set({
+            name: u.name || '', email: u.email || '',
+            phone: u.phone || '', createdAt: u.createdAt || new Date().toISOString()
+          });
+        } catch (custErr) {
+          console.warn('Kunden-Eintrag konnte nicht erstellt werden:', custErr);
+          // Continue anyway - user can still be removed from staff
+        }
+      }
+      await db.ref('staffUsers/' + uid).remove();
+      notify('Benutzer ist jetzt Kunde.', 'success');
+      closeTeamDetail();
+    } else if (newRole !== 'customer' && wasCustomer) {
+      // Kunde -> Staff
+      const c = customerUsers.find(x => x.id === uid);
+      if (!c) return;
+      await db.ref('staffUsers/' + uid).set({
+        name: c.name || '', email: c.email || '', role: newRole,
+        createdAt: c.createdAt || new Date().toISOString()
       });
+      notify('Benutzer ist jetzt ' + (roleMeta(newRole).label) + '.', 'success');
+      setTimeout(() => { openMemberDetail(uid, false); }, 500);
+    } else if (!wasCustomer) {
+      // Staff role change (within staff roles)
+      setUserRole(uid, newRole);
+      setTimeout(() => openMemberDetail(uid, false), 300);
     }
-    await db.ref('staffUsers/' + uid).remove();
-    notify('Benutzer ist jetzt Kunde.', 'success');
-    setTimeout(() => { renderTeamView(); }, 500);
-    closeTeamDetail();
-  } else if (newRole !== 'customer' && wasCustomer) {
-    // Kunde -> Staff
-    const c = customerUsers.find(x => x.id === uid);
-    if (!c) return;
-    await db.ref('staffUsers/' + uid).set({
-      name: c.name || '', email: c.email || '', role: newRole,
-      createdAt: c.createdAt || new Date().toISOString()
-    });
-    notify('Benutzer ist jetzt ' + (roleMeta(newRole).label) + '.', 'success');
-    setTimeout(() => { openMemberDetail(uid, false); renderTeamView(); }, 500);
-  } else if (!wasCustomer) {
-    // Staff role change
-    setUserRole(uid, newRole);
-    setTimeout(() => openMemberDetail(uid, false), 300);
+  } catch (err) {
+    console.error('Rollenwechsel fehlgeschlagen:', err);
+    notify('Fehler beim Rollenwechsel: ' + err.message, 'error');
+    openMemberDetail(uid, wasCustomer);
   }
 }
 
