@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen + VF-Cache erneuern
 (function() {
-  var APP_VERSION = 57;
+  var APP_VERSION = 58;
   try {
     var stored = parseInt(localStorage.getItem('dassu_staff_v') || '0');
     if (stored < APP_VERSION) {
@@ -1970,8 +1970,14 @@ function updateUserUI() {
     document.body.classList.add('dev-mode');
     var tb = document.getElementById('devToolbar');
     if (tb) tb.classList.add('visible');
-    var info = document.getElementById('devToolbarInfo');
-    if (info && !info.textContent) info.textContent = 'Ansicht: Admin (voller Zugriff)';
+    // Rolle aus URL-Parameter übernehmen (z.B. ?dev=1&role=team)
+    var urlRole = new URLSearchParams(window.location.search).get('role');
+    if (urlRole && urlRole !== 'admin') {
+      devStaffSwitch(urlRole);
+    } else {
+      var info = document.getElementById('devToolbarInfo');
+      if (info && !info.textContent) info.textContent = 'Ansicht: Admin (voller Zugriff)';
+    }
   }
 }
 

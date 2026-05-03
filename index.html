@@ -1713,7 +1713,7 @@
     <h1>DASSU <span style="color:rgba(201,168,76,0.7); font-weight:300; font-size:11px; font-family:var(--font-ui); letter-spacing:0.12em; text-transform:uppercase; margin-left:4px;">Buchungskalender</span></h1>
   </div>
   <div class="header-actions">
-    <button id="staffAdminBtn" class="btn btn-sm header-desktop-only" onclick="window.location.href='staff.html?' + (devMode ? 'dev=1' : 'staff=1')" style="font-size:11px; letter-spacing:0.04em; text-transform:uppercase; display:none;">Verwaltung</button>
+    <button id="staffAdminBtn" class="btn btn-sm header-desktop-only" onclick="window.location.href='staff.html?' + (devMode ? 'dev=1&role=' + (devPerspective||'admin') : 'staff=1')" style="font-size:11px; letter-spacing:0.04em; text-transform:uppercase; display:none;">Verwaltung</button>
     <button id="customerAuthBtn" class="btn btn-sm header-desktop-only" onclick="openCustomerAuth()" style="font-size:11px; letter-spacing:0.04em; text-transform:uppercase; background:var(--navy); color:white; border-color:var(--navy);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span id="custAuthLabel">Login</span></button>
     <div id="customerUserMenu" class="customer-user-menu header-desktop-only" style="display:none;">
       <button class="customer-user-btn" onclick="toggleCustomerDropdown()">
@@ -1746,7 +1746,7 @@
     <button class="mobile-menu-item fluglehrer-only" id="mobileTabTheory" onclick="showView('theory'); closeMobileMenu();" style="display:none;">Theorie</button>
     <button class="mobile-menu-item fluglehrer-only" id="mobileTabMessages" onclick="showView('messages'); closeMobileMenu();" style="display:none;">Nachrichten</button>
     <hr class="mobile-menu-divider">
-    <button class="mobile-menu-item" id="mobileStaffAdminBtn" onclick="window.location.href='staff.html?' + (devMode ? 'dev=1' : 'staff=1')" style="display:none;">Verwaltung</button>
+    <button class="mobile-menu-item" id="mobileStaffAdminBtn" onclick="window.location.href='staff.html?' + (devMode ? 'dev=1&role=' + (devPerspective||'admin') : 'staff=1')" style="display:none;">Verwaltung</button>
     <button class="mobile-menu-item" id="mobileLoginBtn" onclick="openCustomerAuth(); closeMobileMenu();"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> <span id="mobileAuthLabel">Login</span></button>
     <button class="mobile-menu-item" id="mobileAccountBtn" onclick="showView('account'); closeMobileMenu();" style="display:none;">Mein Konto</button>
     <button class="mobile-menu-item" id="mobileLogoutBtn" onclick="customerLogout(); closeMobileMenu();" style="display:none;color:#B36A5B;">Abmelden</button>
