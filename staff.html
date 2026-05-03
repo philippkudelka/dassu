@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen + VF-Cache erneuern
 (function() {
-  var APP_VERSION = 56;
+  var APP_VERSION = 57;
   try {
     var stored = parseInt(localStorage.getItem('dassu_staff_v') || '0');
     if (stored < APP_VERSION) {
@@ -6304,10 +6304,9 @@ function escHtml(t) { const d = document.createElement('div'); d.textContent = t
   <span class="dev-toolbar-label">DEV</span>
   <div class="dev-toolbar-btns">
     <button class="dev-toolbar-btn" onclick="window.location.href='/?dev=1'"><span class="dot c-kunde"></span>Kunde</button>
-    <button class="dev-toolbar-btn" onclick="window.location.href='/?dev=1#fluglehrer'"><span class="dot c-fluglehrer"></span>Fluglehrer</button>
+    <button class="dev-toolbar-btn" data-dev-role="guestGlider" onclick="devStaffSwitch('guestGlider')"><span class="dot c-fluglehrer"></span>Gast Segel</button>
+    <button class="dev-toolbar-btn" data-dev-role="guestMotor" onclick="devStaffSwitch('guestMotor')"><span class="dot c-fluglehrer"></span>Gast Motor</button>
     <button class="dev-toolbar-btn" data-dev-role="team" onclick="devStaffSwitch('team')"><span class="dot c-staff"></span>Team</button>
-    <button class="dev-toolbar-btn" data-dev-role="guestGlider" onclick="devStaffSwitch('guestGlider')"><span class="dot c-guest"></span>Gast Segel</button>
-    <button class="dev-toolbar-btn" data-dev-role="guestMotor" onclick="devStaffSwitch('guestMotor')"><span class="dot c-guest"></span>Gast Motor</button>
     <button class="dev-toolbar-btn active" data-dev-role="admin" onclick="devStaffSwitch('admin')"><span class="dot c-admin"></span>Admin</button>
   </div>
   <span class="dev-toolbar-info" id="devToolbarInfo"></span>

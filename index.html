@@ -2544,7 +2544,7 @@ const DEFAULT_AIRCRAFT = ['D-KYGL', 'D-KYCK', 'D-KYSS', 'D-MYUW', 'D-MYIH'];
 
 // Dev-Mode: Perspektivwechsel für Admins (?dev=1 in URL)
 const devMode = new URLSearchParams(window.location.search).has('dev');
-let devPerspective = devMode ? (window.location.hash === '#fluglehrer' ? 'fluglehrer' : 'kunde') : null;
+let devPerspective = devMode ? (window.location.hash === '#fluglehrer' ? 'guestGlider' : 'kunde') : null;
 let devStaffProfile = null; // gespeichertes Staff-Profil im Dev-Modus
 let currentStaffRole = null; // 'admin', 'team', 'guestGlider', 'guestMotor' oder null (Kunde)
 
@@ -5012,15 +5012,16 @@ function devApplyPerspective() {
   if (info) {
     const labels = {
       'kunde': 'Ansicht: Kunde (nur Kalender, Buchungen, Konto)',
-      'fluglehrer': 'Ansicht: Fluglehrer (+ Schüler, Theorie, Nachrichten)',
-      'staff': 'Ansicht: Staff (+ Verwaltung)',
+      'guestGlider': 'Ansicht: Gastfluglehrer Segelflug (+ Schüler, Theorie)',
+      'guestMotor': 'Ansicht: Gastfluglehrer Motor/UL (+ Schüler, Theorie)',
+      'team': 'Ansicht: Team/Staff (+ Verwaltung)',
       'admin': 'Ansicht: Admin (voller Zugriff)'
     };
     info.textContent = labels[p] || '';
   }
 
-  const isStaffOrAdmin = p === 'staff' || p === 'admin';
-  const isFluglehrer = p === 'fluglehrer';
+  const isStaffOrAdmin = p === 'team' || p === 'admin';
+  const isFluglehrer = p === 'guestGlider' || p === 'guestMotor';
 
   // Fluglehrer-spezifische Tabs (Schüler-Buchungen, Theorie)
   document.querySelectorAll('.fluglehrer-only').forEach(el => {
@@ -6608,8 +6609,9 @@ if ('serviceWorker' in navigator) {
   <span class="dev-toolbar-label">DEV</span>
   <div class="dev-toolbar-btns">
     <button class="dev-toolbar-btn active" data-perspective="kunde" onclick="devSwitchPerspective('kunde')"><span class="dot c-kunde"></span>Kunde</button>
-    <button class="dev-toolbar-btn" data-perspective="fluglehrer" onclick="devSwitchPerspective('fluglehrer')"><span class="dot c-fluglehrer"></span>Fluglehrer</button>
-    <button class="dev-toolbar-btn" data-perspective="staff" onclick="devSwitchPerspective('staff')"><span class="dot c-staff"></span>Staff</button>
+    <button class="dev-toolbar-btn" data-perspective="guestGlider" onclick="devSwitchPerspective('guestGlider')"><span class="dot c-fluglehrer"></span>Gast Segel</button>
+    <button class="dev-toolbar-btn" data-perspective="guestMotor" onclick="devSwitchPerspective('guestMotor')"><span class="dot c-fluglehrer"></span>Gast Motor</button>
+    <button class="dev-toolbar-btn" data-perspective="team" onclick="devSwitchPerspective('team')"><span class="dot c-staff"></span>Team</button>
     <button class="dev-toolbar-btn" data-perspective="admin" onclick="devSwitchPerspective('admin')"><span class="dot c-admin"></span>Admin</button>
   </div>
   <span class="dev-toolbar-info" id="devToolbarInfo"></span>
