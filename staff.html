@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen + VF-Cache erneuern
 (function() {
-  var APP_VERSION = 49;
+  var APP_VERSION = 51;
   try {
     var stored = parseInt(localStorage.getItem('dassu_staff_v') || '0');
     if (stored < APP_VERSION) {
@@ -1793,7 +1793,11 @@ function saveMemberName(id, prefix) {
   if (!input) return;
   const newName = input.value.trim();
   if (!newName) return notify('Name darf nicht leer sein.', 'error');
-  db.ref('staffUsers/' + id + '/name').set(newName);
+  // Update in correct node (staff or customer)
+  const isStaff = staffUsers.some(u => u.id === id);
+  const isCust = customerUsers.some(c => c.id === id);
+  if (isStaff) db.ref('staffUsers/' + id + '/name').set(newName);
+  if (isCust) db.ref('customers/' + id + '/name').set(newName);
   notify('Name aktualisiert.', 'success');
 }
 
@@ -3339,7 +3343,7 @@ function renderTeamView() {
     const badgeLabel = isCustomer ? 'Kunde' : (roleMeta(u.role).short || roleMeta(u.role).label);
     const isMe = currentUser && u.id === currentUser.id;
     const youTag = isMe ? '<span class="you-tag">(du)</span>' : '';
-    const clickFn = isCustomer ? `openCustomerDetail('${u.id}')` : `openTeamDetail('${u.id}')`;
+    const clickFn = `openMemberDetail('${u.id}', ${isCustomer ? 'true' : 'false'})`;
 
     let metaText = escapeHtml(u.email || '\u2014');
     if (isCustomer) {
@@ -3368,126 +3372,132 @@ function toggleTeamInvite() {
   if (panel) panel.style.display = panel.style.display === 'none' ? '' : 'none';
 }
 
-function openTeamDetail(uid) {
-  const u = staffUsers.find(s => s.id === uid);
-  if (!u) return;
+function openMemberDetail(uid, isCustomer) {
   const panel = document.getElementById('teamDetailPanel');
   const overlay = document.getElementById('teamDetailOverlay');
   if (!panel || !overlay) return;
 
-  const isAdm = u.role === 'admin';
-  const adminCount = staffUsers.filter(s => s.role === 'admin').length;
-  const isMe = currentUser && u.id === currentUser.id;
-  const lockedToAdmin = isAdm && adminCount === 1;
-  const canDelete = !isMe && !(isAdm && adminCount === 1);
-  const avatarCls = isAdm ? 'role-admin' : (u.role === 'team' ? 'role-team' : 'role-guest');
-  const createdAt = u.createdAt ? new Date(u.createdAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '\u2014';
+  const staffUser = staffUsers.find(s => s.id === uid);
+  const custUser = customerUsers.find(c => c.id === uid);
+  const staffEmail = staffUser ? (staffUser.email || '').toLowerCase() : '';
+  const matchedCust = staffUser && !custUser ? customerUsers.find(c => (c.email || '').toLowerCase() === staffEmail) : null;
 
-  // Permissions
-  const permsHtml = DASSU_PERMISSIONS.map(p => {
-    const effective = hasPermission(u, staffUsers, p.key);
-    const explicit = !isAdm && isPermissionExplicit(u, p.key);
-    const hint = isAdm ? '<span class="team-perm-hint">(immer an)</span>' : (explicit ? '' : '<span class="team-perm-hint">(Standard)</span>');
-    const toggleCls = 'perm-toggle' + (effective ? ' on' : '') + (isAdm ? ' disabled' : '');
-    const onClick = isAdm ? '' : `onclick="togglePermission('${u.id}','${p.key}');openTeamDetail('${u.id}');"`;
-    return `<div class="team-perm-row">
-      <div class="team-perm-label">${p.label} ${hint}<small>${p.desc}</small></div>
-      <div class="${toggleCls}" ${onClick}></div>
-    </div>`;
-  }).join('');
-
-  // Role options
-  const roleOpts = DASSU_ROLES.filter(r => !r.legacy || r.id === u.role);
-  const roleDisabled = lockedToAdmin ? 'disabled' : '';
+  const u = isCustomer ? custUser : staffUser;
+  if (!u) return;
 
   const canEdit = currentUserHas('manageUsers');
+  const isMe = currentUser && u.id === currentUser.id;
+  const email = (u.email || '').toLowerCase().trim();
+
+  const custData = custUser || matchedCust || {};
+
+  const currentRole = isCustomer ? 'customer' : (u.role || 'team');
+  const isAdm = currentRole === 'admin';
+  const adminCount = staffUsers.filter(s => s.role === 'admin').length;
+  const lockedToAdmin = isAdm && adminCount === 1;
+
+  const avatarCls = isCustomer ? 'role-customer' : (isAdm ? 'role-admin' : (u.role === 'team' ? 'role-team' : 'role-guest'));
+
+  const createdAt = u.createdAt ? new Date(u.createdAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
+
+  // Booking stats for everyone
+  const stats = email ? (() => {
+    const bs = bookings.filter(b => (b.email || '').toLowerCase().trim() === email);
+    bs.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    return { count: bs.length, lastBooking: bs.length ? bs[0].date : null, bookings: bs };
+  })() : { count: 0, lastBooking: null, bookings: [] };
+  const lastBooking = stats.lastBooking ? new Date(stats.lastBooking + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' }) : '—';
+  const recentBookings = (stats.bookings || []).slice(0, 5);
+
+  // Role selector (all roles + Kunde)
+  const allRoles = [
+    { id: 'customer', label: 'Kunde' },
+    ...DASSU_ROLES.filter(r => !r.legacy || r.id === currentRole)
+  ];
+  const roleDisabled = lockedToAdmin ? 'disabled' : '';
+  const roleSelectHtml = canEdit ? `<div class="td-section">
+    <div class="td-section-title">Rolle</div>
+    <select class="team-role-select" ${roleDisabled} onchange="changeMemberRole('${uid}', this.value, ${isCustomer});" style="width:100%;">
+      ${allRoles.map(r => `<option value="${r.id}" ${currentRole === r.id ? 'selected' : ''}>${r.label}</option>`).join('')}
+    </select>
+  </div>` : '';
+
+  // Permissions (only for staff roles)
+  let permsHtml = '';
+  if (!isCustomer && staffUser) {
+    permsHtml = DASSU_PERMISSIONS.map(p => {
+      const effective = hasPermission(staffUser, staffUsers, p.key);
+      const explicit = !isAdm && isPermissionExplicit(staffUser, p.key);
+      const hint = isAdm ? '<span class="team-perm-hint">(immer an)</span>' : (explicit ? '' : '<span class="team-perm-hint">(Standard)</span>');
+      const toggleCls = 'perm-toggle' + (effective ? ' on' : '') + (isAdm ? ' disabled' : '');
+      const onClick = isAdm ? '' : `onclick="togglePermission('${uid}','${p.key}');openMemberDetail('${uid}', false);"`;
+      return `<div class="team-perm-row">
+        <div class="team-perm-label">${p.label} ${hint}<small>${p.desc}</small></div>
+        <div class="${toggleCls}" ${onClick}></div>
+      </div>`;
+    }).join('');
+  }
+
+  // Document access
+  const docAccessHtml = buildDocAccessSection(email, uid, isCustomer);
+
+  // Contact data (merge from customer record if available)
+  const phone = custData.phone || u.phone || '';
+  const birthdate = custData.birthdate || u.birthdate || '';
+  const street = custData.street || u.street || '';
+  const zip = custData.zip || u.zip || '';
+  const city = custData.city || u.city || '';
+  const hasAddress = street || city;
+
+  // Name edit
+  const nameEditHtml = canEdit ? `<div class="td-section">
+    <div class="td-section-title">Name bearbeiten</div>
+    <div style="display:flex;gap:8px;">
+      <input type="text" class="team-edit-input" id="tdName_${uid}" value="${escapeHtml(u.name || '')}" style="flex:1;">
+      <button class="team-btn-save" style="padding:8px 14px;" onclick="saveMemberName('${uid}','tdName_');openMemberDetail('${uid}', ${isCustomer});">Speichern</button>
+    </div>
+  </div>` : '';
+
+  // Delete button
+  const canDelete = canEdit && !isMe && !(isAdm && adminCount === 1);
+  const deleteHtml = canDelete ? `<div class="td-section">
+    <button class="team-btn-delete" onclick="${isCustomer ? `deleteCustomer('${uid}')` : `deleteStaffUser('${uid}')`};closeTeamDetail();" style="width:100%;padding:10px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);background:#fdecec;color:var(--danger);">Benutzer entfernen</button>
+  </div>` : '';
+
+  // Badge
+  const badgeCls = isCustomer ? 'badge-customer' : (isAdm ? 'badge-admin' : (u.role === 'team' ? 'badge-team' : 'badge-guest'));
+  const badgeLabel = isCustomer ? 'Kunde' : (roleMeta(currentRole).short || roleMeta(currentRole).label);
 
   panel.innerHTML = `
     <div class="td-header" style="position:relative;">
       <div class="td-avatar ${avatarCls}">${(u.name || '?').charAt(0).toUpperCase()}</div>
-      <div>
-        <div class="td-name">${escapeHtml(u.name)}${isMe ? ' <span style="font-size:11px;color:var(--gray-500);font-weight:400;">(du)</span>' : ''}</div>
-        <div class="td-email">${escapeHtml(u.email || '\u2014')}</div>
+      <div style="flex:1;">
+        <div class="td-name">${escapeHtml(u.name || 'Unbekannt')}${isMe ? ' <span style="font-size:11px;color:var(--gray-500);font-weight:400;">(du)</span>' : ''}</div>
+        <div class="td-email">${escapeHtml(u.email || '—')}</div>
       </div>
-      <button class="td-close" onclick="closeTeamDetail()">\u2715</button>
+      <span class="team-row-badge ${badgeCls}" style="align-self:flex-start;margin-top:4px;">${badgeLabel}</span>
+      <button class="td-close" onclick="closeTeamDetail()">✕</button>
     </div>
 
-    ${canEdit ? `<div class="td-section">
-      <div class="td-section-title">Name bearbeiten</div>
-      <div style="display:flex;gap:8px;">
-        <input type="text" class="team-edit-input" id="tdName_${u.id}" value="${escapeHtml(u.name || '')}" style="flex:1;">
-        <button class="team-btn-save" style="padding:8px 14px;" onclick="saveMemberName('${u.id}','tdName_');openTeamDetail('${u.id}');">Speichern</button>
-      </div>
-    </div>` : ''}
-
-    <div class="td-section">
-      <div class="td-section-title">Informationen</div>
-      <div class="td-info-grid">
-        <div class="td-info-item"><div class="td-label">E-Mail</div><div class="td-value">${escapeHtml(u.email || '\u2014')}</div></div>
-        <div class="td-info-item"><div class="td-label">Erstellt am</div><div class="td-value">${createdAt}</div></div>
-        <div class="td-info-item" style="grid-column:1/-1;"><div class="td-label">ID</div><div class="td-value mono">${u.id}</div></div>
-      </div>
-    </div>
-
-    ${canEdit ? `<div class="td-section">
-      <div class="td-section-title">Rolle</div>
-      <select class="team-role-select" ${roleDisabled} onchange="setUserRole('${u.id}', this.value);openTeamDetail('${u.id}');" style="width:100%;">
-        ${roleOpts.map(r => `<option value="${r.id}" ${u.role === r.id ? 'selected' : ''}>${r.label}</option>`).join('')}
-      </select>
-    </div>
-
-    <div class="td-section">
-      <div class="td-section-title">Berechtigungen</div>
-      ${permsHtml}
-    </div>` : ''}
-
-    ${canDelete && canEdit ? `<div class="td-section">
-      <button class="team-btn-delete" onclick="deleteStaffUser('${u.id}');closeTeamDetail();" style="width:100%;padding:10px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);background:#fdecec;color:var(--danger);">Benutzer entfernen</button>
-    </div>` : ''}
-  `;
-
-  overlay.classList.add('active');
-}
-
-function closeTeamDetail() {
-  const overlay = document.getElementById('teamDetailOverlay');
-  if (overlay) overlay.classList.remove('active');
-  renderTeamView(); // refresh list in case changes were made
-}
-
-function openCustomerDetail(uid) {
-  const c = customerUsers.find(x => x.id === uid);
-  if (!c) return;
-  const panel = document.getElementById('teamDetailPanel');
-  const overlay = document.getElementById('teamDetailOverlay');
-  if (!panel || !overlay) return;
-
-  const stats = getCustomerStats(uid);
-  const createdAt = c.createdAt ? new Date(c.createdAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
-  const lastBooking = stats.lastBooking ? new Date(stats.lastBooking + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' }) : '—';
-
-  // Recent bookings from stats
-  const custBookings = (stats.bookings || []).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-  const recentBookings = custBookings.slice(0, 5);
-
-  panel.innerHTML = `
-    <button class="td-close" onclick="closeTeamDetail()">✕</button>
-    <div class="td-header">
-      <div class="td-avatar role-customer">${(c.name || '?').charAt(0).toUpperCase()}</div>
-      <div class="td-name">${escapeHtml(c.name || 'Unbekannt')}</div>
-      <span class="team-row-badge badge-customer">Kunde</span>
-    </div>
+    ${nameEditHtml}
 
     <div class="td-section">
       <div class="td-section-title">Kontaktdaten</div>
       <div class="td-info-grid">
-        <div class="td-info-item"><div class="td-label">E-Mail</div><div class="td-value">${escapeHtml(c.email || '—')}</div></div>
-        <div class="td-info-item"><div class="td-label">Telefon</div><div class="td-value">${escapeHtml(c.phone || '—')}</div></div>
-        <div class="td-info-item"><div class="td-label">Geburtstag</div><div class="td-value">${c.birthdate || '—'}</div></div>
-        ${c.street || c.city ? `<div class="td-info-item"><div class="td-label">Adresse</div><div class="td-value">${escapeHtml(c.street || '')}${c.zip || c.city ? '<br>' + escapeHtml((c.zip || '') + ' ' + (c.city || '')).trim() : ''}</div></div>` : ''}
+        <div class="td-info-item"><div class="td-label">E-Mail</div><div class="td-value">${escapeHtml(u.email || '—')}</div></div>
+        ${phone ? `<div class="td-info-item"><div class="td-label">Telefon</div><div class="td-value">${escapeHtml(phone)}</div></div>` : ''}
+        ${birthdate ? `<div class="td-info-item"><div class="td-label">Geburtstag</div><div class="td-value">${birthdate}</div></div>` : ''}
+        ${hasAddress ? `<div class="td-info-item"><div class="td-label">Adresse</div><div class="td-value">${escapeHtml(street)}${zip || city ? '<br>' + escapeHtml((zip + ' ' + city).trim()) : ''}</div></div>` : ''}
         <div class="td-info-item"><div class="td-label">Registriert am</div><div class="td-value">${createdAt}</div></div>
       </div>
     </div>
+
+    ${roleSelectHtml}
+
+    ${!isCustomer && permsHtml ? `<div class="td-section">
+      <div class="td-section-title">Berechtigungen</div>
+      ${permsHtml}
+    </div>` : ''}
 
     <div class="td-section">
       <div class="td-section-title">Buchungsstatistik</div>
@@ -3511,13 +3521,127 @@ function openCustomerDetail(uid) {
       </div>
     </div>` : ''}
 
-    <div class="td-section" style="margin-top:8px;">
+    ${docAccessHtml}
+
+    <div class="td-section" style="margin-top:4px;">
       <div class="td-info-item"><div class="td-label">ID</div><div class="td-value mono" style="font-size:10px;word-break:break-all;">${uid}</div></div>
     </div>
+
+    ${deleteHtml}
   `;
+
   overlay.classList.add('active');
 }
 
+// Rolle aendern (Staff <-> Kunde)
+async function changeMemberRole(uid, newRole, wasCustomer) {
+  if (!isAdmin()) return;
+
+  if (newRole === 'customer' && !wasCustomer) {
+    // Staff -> Kunde
+    const u = staffUsers.find(s => s.id === uid);
+    if (!u) return;
+    if (u.role === 'admin') {
+      const adminCount = staffUsers.filter(s => s.role === 'admin').length;
+      if (adminCount <= 1) { notify('Mindestens ein Admin muss bleiben.', 'error'); openMemberDetail(uid, false); return; }
+    }
+    if (!confirm('"' + u.name + '" wird als Staff entfernt und ist nur noch Kunde. Fortfahren?')) {
+      openMemberDetail(uid, false); return;
+    }
+    const email = (u.email || '').toLowerCase().trim();
+    const existingCust = customerUsers.find(c => (c.email || '').toLowerCase() === email);
+    if (!existingCust) {
+      await db.ref('customers/' + uid).set({
+        name: u.name || '', email: u.email || '',
+        createdAt: u.createdAt || new Date().toISOString()
+      });
+    }
+    await db.ref('staffUsers/' + uid).remove();
+    notify('Benutzer ist jetzt Kunde.', 'success');
+    setTimeout(() => { renderTeamView(); }, 500);
+    closeTeamDetail();
+  } else if (newRole !== 'customer' && wasCustomer) {
+    // Kunde -> Staff
+    const c = customerUsers.find(x => x.id === uid);
+    if (!c) return;
+    await db.ref('staffUsers/' + uid).set({
+      name: c.name || '', email: c.email || '', role: newRole,
+      createdAt: c.createdAt || new Date().toISOString()
+    });
+    notify('Benutzer ist jetzt ' + (roleMeta(newRole).label) + '.', 'success');
+    setTimeout(() => { openMemberDetail(uid, false); renderTeamView(); }, 500);
+  } else if (!wasCustomer) {
+    // Staff role change
+    setUserRole(uid, newRole);
+    setTimeout(() => openMemberDetail(uid, false), 300);
+  }
+}
+
+// Kunde loeschen
+async function deleteCustomer(uid) {
+  if (!isAdmin()) return;
+  const c = customerUsers.find(x => x.id === uid);
+  if (!c) return;
+  if (!confirm('Kunde "' + c.name + '" wirklich loeschen?')) return;
+  await db.ref('customers/' + uid).remove();
+  notify('Kunde geloescht.', 'success');
+  closeTeamDetail();
+}
+
+function closeTeamDetail() {
+  const overlay = document.getElementById('teamDetailOverlay');
+  if (overlay) overlay.classList.remove('active');
+  renderTeamView();
+}
+
+// Document access section (for all user types)
+function buildDocAccessSection(email, uid, isCustomer) {
+  if (!email) return '';
+  const emailKey = email.replace(/\./g, ',');
+  const userBookings = bookings.filter(b => (b.email || '').toLowerCase().trim() === email);
+
+  const rows = AIRCRAFT.map(a => {
+    const hasApprovedBooking = userBookings.some(b => b.aircraft === a && b.status === 'approved');
+    const explicitAccess = appSettings.aircraftDocAccess && appSettings.aircraftDocAccess[a] && appSettings.aircraftDocAccess[a][emailKey] === true;
+    const hasDocs = appSettings.aircraftDocs && appSettings.aircraftDocs[a] && Object.keys(appSettings.aircraftDocs[a]).length > 0;
+    const type = AIRCRAFT_TYPES[a] || '';
+
+    let statusHtml = '';
+    if (!isCustomer) {
+      statusHtml = '<span style="font-size:10px;color:var(--success);font-weight:600;">Staff — immer Zugriff</span>';
+    } else if (hasApprovedBooking && explicitAccess) {
+      statusHtml = '<span style="font-size:10px;color:var(--success);font-weight:600;">Buchung + Manuell</span>';
+    } else if (hasApprovedBooking) {
+      statusHtml = '<span style="font-size:10px;color:var(--success);">via Buchung</span>';
+    } else if (explicitAccess) {
+      statusHtml = '<span style="font-size:10px;color:var(--primary);font-weight:600;">Manuell freigeschaltet</span>';
+    } else {
+      statusHtml = '<span style="font-size:10px;color:var(--gray-400);">Kein Zugriff</span>';
+    }
+
+    const toggleCls = 'perm-toggle' + (explicitAccess ? ' on' : '');
+    const docsNote = !hasDocs ? ' <span style="font-size:9px;color:var(--gray-400);">(keine Docs)</span>' : '';
+
+    const toggleHtml = isCustomer
+      ? `<div class="${toggleCls}" onclick="toggleCustomerDocAccess('${uid}','${a}',${explicitAccess ? 'false' : 'true'});"></div>`
+      : '';
+
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--gray-100);">
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:600;color:var(--navy);">${a}${docsNote}</div>
+        <div style="font-size:11px;color:var(--gray-500);">${type}</div>
+        <div style="margin-top:2px;">${statusHtml}</div>
+      </div>
+      ${toggleHtml}
+    </div>`;
+  }).join('');
+
+  return `<div class="td-section">
+    <div class="td-section-title">Dokument-Zugriff</div>
+    <p style="font-size:11px;color:var(--gray-500);margin:0 0 8px 0;">${isCustomer ? 'Kunden mit genehmigter Buchung sehen Docs automatisch. Hier manuell Zugriff geben.' : 'Staff-Mitglieder haben immer Zugriff auf alle Dokumente.'}</p>
+    ${rows}
+  </div>`;
+}
 function renderTeamInvitations() {
   const el = document.getElementById('teamInvitationsList');
   if (!el) return;
@@ -4854,6 +4978,21 @@ async function revokeDocAccess(aircraft, key) {
   try {
     await firebase.database().ref('settings/aircraftDocAccess/' + aircraft + '/' + key).remove();
     renderDocAccess();
+  } catch (err) { alert('Fehler: ' + err.message); }
+}
+
+async function toggleCustomerDocAccess(customerId, aircraft, grantAccess) {
+  const c = customerUsers.find(x => x.id === customerId);
+  if (!c || !c.email) return;
+  const emailKey = c.email.toLowerCase().trim().replace(/\./g, ',');
+  try {
+    if (grantAccess) {
+      await firebase.database().ref('settings/aircraftDocAccess/' + aircraft + '/' + emailKey).set(true);
+    } else {
+      await firebase.database().ref('settings/aircraftDocAccess/' + aircraft + '/' + emailKey).remove();
+    }
+    // Short delay to let appSettings update via listener, then refresh panel
+    setTimeout(() => openMemberDetail(customerId, true), 300);
   } catch (err) { alert('Fehler: ' + err.message); }
 }
 
