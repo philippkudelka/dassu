@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen + VF-Cache erneuern
 (function() {
-  var APP_VERSION = 55;
+  var APP_VERSION = 56;
   try {
     var stored = parseInt(localStorage.getItem('dassu_staff_v') || '0');
     if (stored < APP_VERSION) {
@@ -1965,6 +1965,14 @@ function updateUserUI() {
   if (typeof updateStatsTabVisibility === 'function') updateStatsTabVisibility();
   // Nachrichten-Tab für Admins
   if (typeof setupMessagesTab === 'function') setupMessagesTab();
+  // Dev-Toolbar für Admins anzeigen
+  if (_devStaffMode && isAdmin()) {
+    document.body.classList.add('dev-mode');
+    var tb = document.getElementById('devToolbar');
+    if (tb) tb.classList.add('visible');
+    var info = document.getElementById('devToolbarInfo');
+    if (info && !info.textContent) info.textContent = 'Ansicht: Admin (voller Zugriff)';
+  }
 }
 
 function toggleUserMenu() {
@@ -6297,7 +6305,7 @@ function escHtml(t) { const d = document.createElement('div'); d.textContent = t
   <div class="dev-toolbar-btns">
     <button class="dev-toolbar-btn" onclick="window.location.href='/?dev=1'"><span class="dot c-kunde"></span>Kunde</button>
     <button class="dev-toolbar-btn" onclick="window.location.href='/?dev=1#fluglehrer'"><span class="dot c-fluglehrer"></span>Fluglehrer</button>
-    <button class="dev-toolbar-btn" data-dev-role="team" onclick="devStaffSwitch('team')"><span class="dot c-staff"></span>Staff</button>
+    <button class="dev-toolbar-btn" data-dev-role="team" onclick="devStaffSwitch('team')"><span class="dot c-staff"></span>Team</button>
     <button class="dev-toolbar-btn" data-dev-role="guestGlider" onclick="devStaffSwitch('guestGlider')"><span class="dot c-guest"></span>Gast Segel</button>
     <button class="dev-toolbar-btn" data-dev-role="guestMotor" onclick="devStaffSwitch('guestMotor')"><span class="dot c-guest"></span>Gast Motor</button>
     <button class="dev-toolbar-btn active" data-dev-role="admin" onclick="devStaffSwitch('admin')"><span class="dot c-admin"></span>Admin</button>
@@ -6309,12 +6317,14 @@ function escHtml(t) { const d = document.createElement('div'); d.textContent = t
 var _devStaffMode = false;
 var _devStaffRole = null;
 
+// Dev-Toolbar aktiviert sich bei ?dev=1 ODER wenn Admin über ?staff=1 kommt
+// (wird nach Auth-Check nochmal geprüft, hier nur frühes Flag)
 (function() {
-  if (!new URLSearchParams(window.location.search).has('dev')) return;
-  _devStaffMode = true;
-  document.body.classList.add('dev-mode');
-  document.getElementById('devToolbar').classList.add('visible');
-  document.getElementById('devToolbarInfo').textContent = 'Ansicht: Admin (voller Zugriff)';
+  var params = new URLSearchParams(window.location.search);
+  if (params.has('dev') || params.has('staff')) {
+    // Toolbar wird nach Auth sichtbar gemacht (nur für Admins)
+    _devStaffMode = true;
+  }
 })();
 
 function devStaffSwitch(role) {
