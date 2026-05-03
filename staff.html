@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen + VF-Cache erneuern
 (function() {
-  var APP_VERSION = 53;
+  var APP_VERSION = 54;
   try {
     var stored = parseInt(localStorage.getItem('dassu_staff_v') || '0');
     if (stored < APP_VERSION) {
@@ -2099,7 +2099,6 @@ db.ref('staffUsers').on('value', snap => {
 db.ref('customers').on('value', snap => {
   const data = snap.val();
   customerUsers = data ? Object.entries(data).map(([id, c]) => ({ id, ...c, _type: 'customer' })) : [];
-  console.log('[DASSU] customers loaded:', customerUsers.length, data ? 'data exists' : 'no data');
   if (currentView === 'team') renderTeamView();
 }, err => {
   console.error('[DASSU] customers listener error:', err.code, err.message);
@@ -2472,7 +2471,11 @@ function switchView(view) {
     cont.style.display = isActive ? '' : 'none';
   });
   if (view === 'stats') { loadVfCache(); if (!fiStatsData) loadInstructorStats(); }
-  if (view === 'manage') initAircraftDocsAdmin();
+  if (view === 'manage') {
+    initAircraftDocsAdmin();
+    const docsAdmin = document.getElementById('aircraftDocsAdmin');
+    if (docsAdmin) docsAdmin.style.display = isAdmin() ? '' : 'none';
+  }
   if (view === 'messages') staffRenderMessages();
   if (view === 'account') renderAccountTab();
   render();
@@ -4910,6 +4913,7 @@ function renderAircraftDocs() {
 }
 
 async function uploadAircraftDoc() {
+  if (!isAdmin()) { alert('Nur Admins dürfen Dokumente hochladen.'); return; }
   const input = document.getElementById('docFileInput');
   const aircraft = document.getElementById('docAircraftSelect')?.value;
   if (!input.files.length || !aircraft) return;
@@ -4946,6 +4950,7 @@ async function uploadAircraftDoc() {
 }
 
 async function deleteAircraftDoc(aircraft, docId) {
+  if (!isAdmin()) { alert('Nur Admins dürfen Dokumente löschen.'); return; }
   if (!confirm('Dokument wirklich löschen?')) return;
   try {
     await firebase.database().ref('settings/aircraftDocs/' + aircraft + '/' + docId).remove();
@@ -4976,6 +4981,7 @@ function renderDocAccess() {
 }
 
 async function grantDocAccess() {
+  if (!isAdmin()) { alert('Nur Admins dürfen Dokument-Zugriff verwalten.'); return; }
   const aircraft = document.getElementById('docAircraftSelect')?.value;
   const input = document.getElementById('docAccessEmail');
   const email = (input?.value || '').toLowerCase().trim();
@@ -4989,6 +4995,7 @@ async function grantDocAccess() {
 }
 
 async function revokeDocAccess(aircraft, key) {
+  if (!isAdmin()) { alert('Nur Admins dürfen Dokument-Zugriff verwalten.'); return; }
   try {
     await firebase.database().ref('settings/aircraftDocAccess/' + aircraft + '/' + key).remove();
     renderDocAccess();
