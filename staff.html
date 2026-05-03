@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen + VF-Cache erneuern
 (function() {
-  var APP_VERSION = 52;
+  var APP_VERSION = 53;
   try {
     var stored = parseInt(localStorage.getItem('dassu_staff_v') || '0');
     if (stored < APP_VERSION) {
@@ -2099,7 +2099,10 @@ db.ref('staffUsers').on('value', snap => {
 db.ref('customers').on('value', snap => {
   const data = snap.val();
   customerUsers = data ? Object.entries(data).map(([id, c]) => ({ id, ...c, _type: 'customer' })) : [];
+  console.log('[DASSU] customers loaded:', customerUsers.length, data ? 'data exists' : 'no data');
   if (currentView === 'team') renderTeamView();
+}, err => {
+  console.error('[DASSU] customers listener error:', err.code, err.message);
 });
 
 db.ref('dailyNotes').on('value', snap => {
