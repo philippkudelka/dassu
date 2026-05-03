@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen
 (function() {
-  var APP_VERSION = 51;
+  var APP_VERSION = 52;
   try {
     var stored = parseInt(localStorage.getItem('dassu_v') || '0');
     if (stored < APP_VERSION) {
@@ -1770,6 +1770,10 @@
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
     </button>
     <button class="btn" onclick="goToToday()" style="background:var(--navy); color:white; border-color:var(--navy);">Heute</button>
+    <div class="mode-toggle" style="margin:0 0 0 16px;">
+      <button class="mode-btn" id="modeDayBtn2" onclick="setViewMode('day')">Tag</button>
+      <button class="mode-btn active" id="modeWeekBtn2" onclick="setViewMode('week')">Woche</button>
+    </div>
   </div>
 
   <!-- Legend (for week view) -->
@@ -2830,6 +2834,10 @@ function setViewMode(mode) {
   viewMode = mode;
   document.getElementById('modeDayBtn').classList.toggle('active', mode === 'day');
   document.getElementById('modeWeekBtn').classList.toggle('active', mode === 'week');
+  const d2 = document.getElementById('modeDayBtn2');
+  const w2 = document.getElementById('modeWeekBtn2');
+  if (d2) d2.classList.toggle('active', mode === 'day');
+  if (w2) w2.classList.toggle('active', mode === 'week');
   renderView();
 }
 
