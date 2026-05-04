@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen + VF-Cache erneuern
 (function() {
-  var APP_VERSION = 58;
+  var APP_VERSION = 60;
   try {
     var stored = parseInt(localStorage.getItem('dassu_staff_v') || '0');
     if (stored < APP_VERSION) {
@@ -6355,12 +6355,19 @@ function devApplyStaffRole() {
   // Tab-Sichtbarkeit + Dokumente neu berechnen
   if (typeof updateTeamTabVisibility === 'function') updateTeamTabVisibility();
   if (typeof updateTheoryTabVisibility === 'function') updateTheoryTabVisibility();
+  if (typeof updateStatsTabVisibility === 'function') updateStatsTabVisibility();
+  if (typeof updateTimeTabVisibility === 'function') updateTimeTabVisibility();
+  if (typeof setupMessagesTab === 'function') setupMessagesTab();
   // Dokumente-Bereich im Verwalten-Tab
   var docsAdmin = document.getElementById('aircraftDocsAdmin');
   if (docsAdmin) docsAdmin.style.display = isAdmin() ? '' : 'none';
   // Wenn aktuelle View nicht mehr sichtbar ist, zurück zu Übersicht
-  var activeTab = document.getElementById('tab' + currentView.charAt(0).toUpperCase() + currentView.slice(1));
-  if (activeTab && activeTab.style.display === 'none') switchView('overview');
+  var viewKey = currentView.charAt(0).toUpperCase() + currentView.slice(1);
+  var activeTab = document.getElementById('tab' + viewKey);
+  if (activeTab && activeTab.style.display === 'none') {
+    switchView('overview');
+    return; // switchView ruft render() auf
+  }
   render();
 }
 </script>
