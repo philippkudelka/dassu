@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen + VF-Cache erneuern
 (function() {
-  var APP_VERSION = 61;
+  var APP_VERSION = 62;
   try {
     var stored = parseInt(localStorage.getItem('dassu_staff_v') || '0');
     if (stored < APP_VERSION) {
@@ -2212,7 +2212,7 @@ if ('serviceWorker' in navigator && navigator.serviceWorker) {
 // ============================================================
 // HELPERS
 // ============================================================
-function dateKey(d) { return d.toISOString().split('T')[0]; }
+function dateKey(d) { const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),dd=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${dd}`; }
 function formatDate(d) {
   const days = ['So','Mo','Di','Mi','Do','Fr','Sa'];
   const months = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
