@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen
 (function() {
-  var APP_VERSION = 54;
+  var APP_VERSION = 55;
   try {
     var stored = parseInt(localStorage.getItem('dassu_v') || '0');
     if (stored < APP_VERSION) {
@@ -1150,6 +1150,30 @@
     padding-left: 0;
   }
 
+  /* ===== FLYING INDICATORS ===== */
+  .hero-flying-indicators {
+    position: relative; z-index: 1;
+    display: flex; gap: 10px; flex-shrink: 0;
+  }
+  .flying-indicator {
+    display: flex; align-items: center; gap: 6px;
+    background: rgba(255,255,255,0.65); backdrop-filter: blur(4px);
+    border-radius: 8px; padding: 6px 12px;
+    font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+    color: var(--c-ink); white-space: nowrap;
+    border: 1px solid rgba(0,0,0,0.08);
+  }
+  .fi-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    display: inline-block; flex-shrink: 0;
+  }
+  .fi-dot.green { background: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,0.5); }
+  .fi-dot.yellow { background: #eab308; box-shadow: 0 0 6px rgba(234,179,8,0.5); }
+  .fi-dot.red { background: #ef4444; box-shadow: 0 0 6px rgba(239,68,68,0.5); }
+  .fi-icon { font-size: 14px; line-height: 1; }
+  .fi-label { color: var(--c-muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .fi-value { font-size: 11px; }
+
   /* ===== GANTT CALENDAR ===== */
   .gantt-wrap {
     background: var(--c-paper);
@@ -1802,6 +1826,18 @@
       <span class="weather-chip" id="weatherQNH">QNH --</span>
       <span class="weather-chip" id="weatherCeiling">Basis --</span>
       <span class="weather-chip">☀ <span id="weatherSunrise">--:--</span>–<span id="weatherSunset">--:--</span></span>
+    </div>
+    <div class="hero-flying-indicators" id="heroFlyingIndicators" style="display:none;">
+      <div class="flying-indicator" id="indicatorSchulung">
+        <span class="fi-dot" id="schulungDot"></span>
+        <span class="fi-label">Schulung</span>
+        <span class="fi-value" id="schulungValue">—</span>
+      </div>
+      <div class="flying-indicator" id="indicatorThermik">
+        <span class="fi-icon">↑</span>
+        <span class="fi-label">Thermik</span>
+        <span class="fi-value" id="thermikValue">—</span>
+      </div>
     </div>
   </div>
 
@@ -3138,9 +3174,9 @@ async function fetchWeather(date, dk) {
 
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`
       + `&daily=sunrise,sunset,temperature_2m_max,temperature_2m_min,windspeed_10m_max,windgusts_10m_max,winddirection_10m_dominant,weathercode`
-      + `&hourly=temperature_2m,dewpoint_2m,surface_pressure,cloudcover,windspeed_10m,windgusts_10m,winddirection_10m,weathercode`
+      + `&hourly=temperature_2m,dewpoint_2m,surface_pressure,cloudcover,cloudcover_low,cloudcover_mid,cloudcover_high,windspeed_10m,windgusts_10m,winddirection_10m,weathercode,precipitation_probability,visibility,cape,shortwave_radiation`
       + `&start_date=${startDate}&end_date=${endDate}`
-      + `&timezone=Europe%2FBerlin&windspeed_unit=kn`;
+      + `&timezone=Europe%2FBerlin&windspeed_unit=kn&models=icon_seamless`;
 
     const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -3239,6 +3275,164 @@ function applyWeather(data, date) {
   // Weather icon based on weather code
   const wCode = daily.weathercode?.[0] ?? 0;
   updateWeatherIcon(wCode, avgCloud);
+
+  // ===== FLYING INDICATORS =====
+  computeFlyingIndicators(hourly, relevantIdx, temps, dews, clouds, avgWind, maxGust);
+}
+
+function computeFlyingIndicators(hourly, relevantIdx, temps, dews, clouds, avgWind, maxGust) {
+  const container = document.getElementById('heroFlyingIndicators');
+  if (!container) return;
+  container.style.display = 'flex';
+
+  // ── 1. SCHULUNGS-AMPEL ──
+  // Kriterien: Regen, Wolkenbasis, Wind, Böen
+  const precips = relevantIdx.map(i => hourly.precipitation_probability?.[i]).filter(v => v != null);
+  const avgPrecip = precips.length ? precips.reduce((a,b) => a+b, 0) / precips.length : 0;
+  const maxPrecip = precips.length ? Math.max(...precips) : 0;
+
+  const vis = relevantIdx.map(i => hourly.visibility?.[i]).filter(v => v != null);
+  const minVis = vis.length ? Math.min(...vis) : 99999;
+
+  const avgTemp = temps.length ? temps.reduce((a,b) => a+b, 0) / temps.length : 15;
+  const avgDew = dews.length ? dews.reduce((a,b) => a+b, 0) / dews.length : 10;
+  const spread = avgTemp - avgDew;
+  const ceilingFt = Math.round(spread * 400); // AGL
+  const ceilingAmsl = ceilingFt + 1800; // + station elevation
+
+  const avgCloud = clouds.length ? clouds.reduce((a,b) => a+b, 0) / clouds.length : 0;
+  const lowClouds = relevantIdx.map(i => hourly.cloudcover_low?.[i]).filter(v => v != null);
+  const avgLowCloud = lowClouds.length ? lowClouds.reduce((a,b) => a+b, 0) / lowClouds.length : 0;
+
+  const wind = avgWind || 0;
+  const gust = maxGust || 0;
+
+  let schulScore = 100;
+  let schulReasons = [];
+
+  // Regen
+  if (maxPrecip > 60) { schulScore -= 50; schulReasons.push('Regen'); }
+  else if (maxPrecip > 30) { schulScore -= 20; schulReasons.push('Schauer mögl.'); }
+
+  // Ceiling
+  if (avgCloud > 20) {
+    if (ceilingAmsl < 2500) { schulScore -= 40; schulReasons.push('tiefe Wolken'); }
+    else if (ceilingAmsl < 3500) { schulScore -= 15; schulReasons.push('Basis ' + ceilingAmsl + 'ft'); }
+  }
+
+  // Wind
+  if (gust > 30) { schulScore -= 40; schulReasons.push('starke Böen'); }
+  else if (gust > 20) { schulScore -= 15; schulReasons.push('böig'); }
+  if (wind > 20) { schulScore -= 25; schulReasons.push('starker Wind'); }
+  else if (wind > 12) { schulScore -= 10; }
+
+  // Sicht
+  if (minVis < 3000) { schulScore -= 40; schulReasons.push('schlechte Sicht'); }
+  else if (minVis < 5000) { schulScore -= 15; schulReasons.push('mäßige Sicht'); }
+
+  // Low clouds blocking
+  if (avgLowCloud > 70) { schulScore -= 25; schulReasons.push('tiefe Bewölkung'); }
+
+  schulScore = Math.max(0, Math.min(100, schulScore));
+
+  const dotEl = document.getElementById('schulungDot');
+  const schulVal = document.getElementById('schulungValue');
+  if (dotEl && schulVal) {
+    if (schulScore >= 70) {
+      dotEl.className = 'fi-dot green';
+      schulVal.textContent = schulReasons.length ? 'Gut' : 'Sehr gut';
+    } else if (schulScore >= 40) {
+      dotEl.className = 'fi-dot yellow';
+      schulVal.textContent = schulReasons.slice(0, 2).join(', ') || 'Eingeschränkt';
+    } else {
+      dotEl.className = 'fi-dot red';
+      schulVal.textContent = schulReasons.slice(0, 2).join(', ') || 'Nicht fliegbar';
+    }
+  }
+
+  // ── 2. THERMIK-PROGNOSE ──
+  // Kernstunden für Thermik: 11:00–16:00
+  const thermHours = [];
+  hourly.time.forEach((t, i) => {
+    const h = parseInt(t.split('T')[1].split(':')[0]);
+    if (h >= 11 && h <= 16) thermHours.push(i);
+  });
+  const thermIdx = thermHours.length > 0 ? thermHours : relevantIdx;
+
+  // CAPE (Convective Available Potential Energy)
+  const capes = thermIdx.map(i => hourly.cape?.[i]).filter(v => v != null);
+  const avgCape = capes.length ? capes.reduce((a,b) => a+b, 0) / capes.length : 0;
+  const maxCape = capes.length ? Math.max(...capes) : 0;
+
+  // Solarstrahlung (W/m²)
+  const radiation = thermIdx.map(i => hourly.shortwave_radiation?.[i]).filter(v => v != null);
+  const avgRad = radiation.length ? radiation.reduce((a,b) => a+b, 0) / radiation.length : 0;
+
+  // Thermik-Höhe: aus Spread + CAPE approximieren
+  // Cumulusbasis als Thermik-Arbeitsbereich
+  const thermTopM = Math.round((ceilingFt * 0.3048) + 560); // AGL in Meter + Platzhöhe
+  // Bei starker CAPE kann die Thermik über die Basis hinaus reichen
+  const capeBonus = Math.min(avgCape / 5, 300); // Max 300m Bonus
+  const estimatedTop = Math.round((thermTopM + capeBonus) / 100) * 100;
+
+  // Thermik-Score berechnen
+  let thermScore = 0;
+
+  // CAPE-Beitrag (0-40 Punkte)
+  if (avgCape > 800) thermScore += 40;
+  else if (avgCape > 400) thermScore += 30;
+  else if (avgCape > 150) thermScore += 20;
+  else if (avgCape > 50) thermScore += 10;
+
+  // Solarstrahlung (0-25 Punkte)
+  if (avgRad > 600) thermScore += 25;
+  else if (avgRad > 400) thermScore += 18;
+  else if (avgRad > 200) thermScore += 10;
+  else thermScore += 3;
+
+  // Spread-Beitrag (0-20 Punkte) — guter Spread = gute Thermik
+  if (spread > 8) thermScore += 20;
+  else if (spread > 5) thermScore += 15;
+  else if (spread > 3) thermScore += 8;
+
+  // Wind-Malus (Streckenflug bei starkem Wind schwierig)
+  if (wind > 20) thermScore -= 15;
+  else if (wind > 15) thermScore -= 8;
+
+  // Regen-Malus
+  if (maxPrecip > 50) thermScore -= 20;
+  else if (maxPrecip > 30) thermScore -= 10;
+
+  // Bewölkung: hohe Bewölkung blockt Einstrahlung
+  const midClouds = thermIdx.map(i => hourly.cloudcover_mid?.[i]).filter(v => v != null);
+  const highClouds = thermIdx.map(i => hourly.cloudcover_high?.[i]).filter(v => v != null);
+  const avgMidCloud = midClouds.length ? midClouds.reduce((a,b) => a+b, 0) / midClouds.length : 0;
+  const avgHighCloud = highClouds.length ? highClouds.reduce((a,b) => a+b, 0) / highClouds.length : 0;
+  if (avgMidCloud > 60 || avgHighCloud > 70) thermScore -= 10;
+
+  thermScore = Math.max(0, Math.min(100, thermScore));
+
+  const thermVal = document.getElementById('thermikValue');
+  const thermIcon = document.querySelector('#indicatorThermik .fi-icon');
+  if (thermVal) {
+    if (thermScore >= 60) {
+      thermVal.textContent = `Gut · ~${estimatedTop}m`;
+      if (thermIcon) thermIcon.textContent = '↑↑';
+      if (thermIcon) thermIcon.style.color = '#22c55e';
+    } else if (thermScore >= 35) {
+      thermVal.textContent = `Mäßig · ~${estimatedTop}m`;
+      if (thermIcon) thermIcon.textContent = '↑';
+      if (thermIcon) thermIcon.style.color = '#eab308';
+    } else if (thermScore >= 15) {
+      thermVal.textContent = `Schwach · ~${estimatedTop}m`;
+      if (thermIcon) thermIcon.textContent = '↑';
+      if (thermIcon) thermIcon.style.color = '#f97316';
+    } else {
+      thermVal.textContent = 'Keine';
+      if (thermIcon) thermIcon.textContent = '—';
+      if (thermIcon) thermIcon.style.color = '#94a3b8';
+    }
+  }
 }
 
 function degToCompass(deg) {
