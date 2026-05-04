@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen
 (function() {
-  var APP_VERSION = 56;
+  var APP_VERSION = 57;
   try {
     var stored = parseInt(localStorage.getItem('dassu_v') || '0');
     if (stored < APP_VERSION) {
@@ -1164,17 +1164,25 @@
     border: 1px solid rgba(0,0,0,0.08);
   }
   .fi-dot {
-    width: 10px; height: 10px; border-radius: 50%;
+    width: 12px; height: 12px; border-radius: 50%;
     display: inline-block; flex-shrink: 0;
   }
-  .fi-dot.green { background: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,0.5); }
-  .fi-dot.yellow { background: #eab308; box-shadow: 0 0 6px rgba(234,179,8,0.5); }
-  .fi-dot.red { background: #ef4444; box-shadow: 0 0 6px rgba(239,68,68,0.5); }
-  .fi-icon { font-size: 14px; line-height: 1; }
+  .fi-dot.green { background: #22c55e; box-shadow: 0 0 8px rgba(34,197,94,0.6); }
+  .fi-dot.yellow { background: #eab308; box-shadow: 0 0 8px rgba(234,179,8,0.6); }
+  .fi-dot.red { background: #ef4444; box-shadow: 0 0 8px rgba(239,68,68,0.6); }
   .fi-label { color: var(--c-muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
-  .fi-value { font-size: 11px; }
+  .fi-value { font-size: 12px; font-weight: 700; }
+  .fi-tap { font-size: 13px; color: var(--c-muted); margin-left: 2px; }
   .flying-indicator { cursor: pointer; transition: transform 0.1s; }
   .flying-indicator:hover { transform: scale(1.03); }
+  .schulung-indicator {
+    padding: 8px 16px;
+    background: rgba(255,255,255,0.8);
+    border: 1.5px solid rgba(0,0,0,0.1);
+  }
+  .schulung-indicator.green-glow { border-color: rgba(34,197,94,0.3); }
+  .schulung-indicator.yellow-glow { border-color: rgba(234,179,8,0.3); }
+  .schulung-indicator.red-glow { border-color: rgba(239,68,68,0.3); }
 
   /* ===== FLYING INFO POPUP ===== */
   .fi-popup-overlay {
@@ -1189,7 +1197,7 @@
     left: 50%; top: 50%; transform: translate(-50%, -50%) scale(0.95);
     background: var(--c-paper); border-radius: 16px;
     box-shadow: 0 20px 60px rgba(0,0,0,0.25);
-    max-width: 380px; width: calc(100% - 32px);
+    max-width: 440px; width: calc(100% - 32px); max-height: 90vh; overflow-y: auto;
     padding: 0; overflow: hidden;
     opacity: 0; transition: opacity 0.2s, transform 0.2s;
     pointer-events: none;
@@ -1891,15 +1899,11 @@
       <span class="weather-chip">☀ <span id="weatherSunrise">--:--</span>–<span id="weatherSunset">--:--</span></span>
     </div>
     <div class="hero-flying-indicators" id="heroFlyingIndicators" style="display:none;">
-      <div class="flying-indicator" id="indicatorSchulung">
+      <div class="flying-indicator schulung-indicator" id="indicatorSchulung">
         <span class="fi-dot" id="schulungDot"></span>
-        <span class="fi-label">Schulung</span>
+        <span class="fi-label">Lohnt sich Schulung?</span>
         <span class="fi-value" id="schulungValue">—</span>
-      </div>
-      <div class="flying-indicator" id="indicatorThermik">
-        <span class="fi-icon">↑</span>
-        <span class="fi-label">Thermik</span>
-        <span class="fi-value" id="thermikValue">—</span>
+        <span class="fi-tap">ⓘ</span>
       </div>
     </div>
   </div>
@@ -3412,118 +3416,38 @@ function computeFlyingIndicators(hourly, relevantIdx, temps, dews, clouds, avgWi
 
   schulScore = Math.max(0, Math.min(100, schulScore));
 
-  const dotEl = document.getElementById('schulungDot');
-  const schulVal = document.getElementById('schulungValue');
-  if (dotEl && schulVal) {
-    if (schulScore >= 70) {
-      dotEl.className = 'fi-dot green';
-      schulVal.textContent = schulReasons.length ? 'Gut' : 'Sehr gut';
-    } else if (schulScore >= 40) {
-      dotEl.className = 'fi-dot yellow';
-      schulVal.textContent = schulReasons.slice(0, 2).join(', ') || 'Eingeschränkt';
-    } else {
-      dotEl.className = 'fi-dot red';
-      schulVal.textContent = schulReasons.slice(0, 2).join(', ') || 'Nicht fliegbar';
-    }
-  }
-
-  // ── 2. THERMIK-PROGNOSE ──
-  // Kernstunden für Thermik: 11:00–16:00
-  const thermHours = [];
-  hourly.time.forEach((t, i) => {
-    const h = parseInt(t.split('T')[1].split(':')[0]);
-    if (h >= 11 && h <= 16) thermHours.push(i);
-  });
-  const thermIdx = thermHours.length > 0 ? thermHours : relevantIdx;
-
-  // CAPE (Convective Available Potential Energy)
-  const capes = thermIdx.map(i => hourly.cape?.[i]).filter(v => v != null);
-  const avgCape = capes.length ? capes.reduce((a,b) => a+b, 0) / capes.length : 0;
-  const maxCape = capes.length ? Math.max(...capes) : 0;
-
-  // Solarstrahlung (W/m²)
-  const radiation = thermIdx.map(i => hourly.shortwave_radiation?.[i]).filter(v => v != null);
-  const avgRad = radiation.length ? radiation.reduce((a,b) => a+b, 0) / radiation.length : 0;
-
-  // Thermik-Höhe: aus Spread + CAPE approximieren
-  // Cumulusbasis als Thermik-Arbeitsbereich
-  const thermTopM = Math.round((ceilingFt * 0.3048) + 560); // AGL in Meter + Platzhöhe
-  // Bei starker CAPE kann die Thermik über die Basis hinaus reichen
-  const capeBonus = Math.min(avgCape / 5, 300); // Max 300m Bonus
-  const estimatedTop = Math.round((thermTopM + capeBonus) / 100) * 100;
-
-  // Thermik-Score berechnen
-  let thermScore = 0;
-
-  // CAPE-Beitrag (0-40 Punkte)
-  if (avgCape > 800) thermScore += 40;
-  else if (avgCape > 400) thermScore += 30;
-  else if (avgCape > 150) thermScore += 20;
-  else if (avgCape > 50) thermScore += 10;
-
-  // Solarstrahlung (0-25 Punkte)
-  if (avgRad > 600) thermScore += 25;
-  else if (avgRad > 400) thermScore += 18;
-  else if (avgRad > 200) thermScore += 10;
-  else thermScore += 3;
-
-  // Spread-Beitrag (0-20 Punkte) — guter Spread = gute Thermik
-  if (spread > 8) thermScore += 20;
-  else if (spread > 5) thermScore += 15;
-  else if (spread > 3) thermScore += 8;
-
-  // Wind-Malus (Streckenflug bei starkem Wind schwierig)
-  if (wind > 20) thermScore -= 15;
-  else if (wind > 15) thermScore -= 8;
-
-  // Regen-Malus
-  if (maxPrecip > 50) thermScore -= 20;
-  else if (maxPrecip > 30) thermScore -= 10;
-
-  // Bewölkung: hohe Bewölkung blockt Einstrahlung
-  const midClouds = thermIdx.map(i => hourly.cloudcover_mid?.[i]).filter(v => v != null);
-  const highClouds = thermIdx.map(i => hourly.cloudcover_high?.[i]).filter(v => v != null);
-  const avgMidCloud = midClouds.length ? midClouds.reduce((a,b) => a+b, 0) / midClouds.length : 0;
-  const avgHighCloud = highClouds.length ? highClouds.reduce((a,b) => a+b, 0) / highClouds.length : 0;
-  if (avgMidCloud > 60 || avgHighCloud > 70) thermScore -= 10;
-
-  thermScore = Math.max(0, Math.min(100, thermScore));
-
   // Daten für Info-Popup speichern
   _fiData = {
     schulScore, schulReasons, maxPrecip, avgPrecip,
     ceilingAmsl, ceilingFt, avgCloud, avgLowCloud,
     wind, gust, minVis, spread: spread,
-    avgTemp, avgDew,
-    thermScore, avgCape, maxCape, avgRad,
-    avgMidCloud, avgHighCloud, estimatedTop
+    avgTemp, avgDew
   };
 
-  const thermVal = document.getElementById('thermikValue');
-  const thermIcon = document.querySelector('#indicatorThermik .fi-icon');
-  if (thermVal) {
-    if (thermScore >= 60) {
-      thermVal.textContent = `Gut · ~${estimatedTop}m`;
-      if (thermIcon) thermIcon.textContent = '↑↑';
-      if (thermIcon) thermIcon.style.color = '#22c55e';
-    } else if (thermScore >= 35) {
-      thermVal.textContent = `Mäßig · ~${estimatedTop}m`;
-      if (thermIcon) thermIcon.textContent = '↑';
-      if (thermIcon) thermIcon.style.color = '#eab308';
-    } else if (thermScore >= 15) {
-      thermVal.textContent = `Schwach · ~${estimatedTop}m`;
-      if (thermIcon) thermIcon.textContent = '↑';
-      if (thermIcon) thermIcon.style.color = '#f97316';
+  const dotEl = document.getElementById('schulungDot');
+  const schulVal = document.getElementById('schulungValue');
+  const indicator = document.getElementById('indicatorSchulung');
+  if (dotEl && schulVal) {
+    // Glow-Klassen zurücksetzen
+    indicator?.classList.remove('green-glow', 'yellow-glow', 'red-glow');
+    if (schulScore >= 70) {
+      dotEl.className = 'fi-dot green';
+      schulVal.textContent = schulReasons.length ? 'Ja, gute Bedingungen' : 'Ja, ideale Bedingungen';
+      indicator?.classList.add('green-glow');
+    } else if (schulScore >= 40) {
+      dotEl.className = 'fi-dot yellow';
+      schulVal.textContent = 'Eingeschränkt' + (schulReasons.length ? ' · ' + schulReasons.slice(0, 2).join(', ') : '');
+      indicator?.classList.add('yellow-glow');
     } else {
-      thermVal.textContent = 'Keine';
-      if (thermIcon) thermIcon.textContent = '—';
-      if (thermIcon) thermIcon.style.color = '#94a3b8';
+      dotEl.className = 'fi-dot red';
+      schulVal.textContent = 'Eher nicht' + (schulReasons.length ? ' · ' + schulReasons.slice(0, 2).join(', ') : '');
+      indicator?.classList.add('red-glow');
     }
   }
 }
 
-// ===== FLYING INDICATOR INFO POPUP =====
-function openFiPopup(type) {
+// ===== SCHULUNGS-INFO POPUP =====
+function openSchulungPopup() {
   const overlay = document.getElementById('fiPopupOverlay');
   const popup = document.getElementById('fiPopup');
   const icon = document.getElementById('fiPopupIcon');
@@ -3534,114 +3458,79 @@ function openFiPopup(type) {
   const d = _fiData;
   if (!d.schulScore && d.schulScore !== 0) return;
 
-  if (type === 'schulung') {
-    icon.className = 'fi-popup-icon schulung';
-    icon.textContent = '🎓';
-    title.textContent = 'Schulungsbewertung';
+  icon.className = 'fi-popup-icon schulung';
+  icon.textContent = '🎓';
+  title.textContent = 'Lohnt sich heute Schulung?';
 
-    const scoreColor = d.schulScore >= 70 ? '#22c55e' : d.schulScore >= 40 ? '#eab308' : '#ef4444';
-    const scoreLabel = d.schulScore >= 70 ? (d.schulReasons.length ? 'Gut' : 'Sehr gut')
-                     : d.schulScore >= 40 ? 'Eingeschränkt' : 'Nicht fliegbar';
+  const scoreColor = d.schulScore >= 70 ? '#22c55e' : d.schulScore >= 40 ? '#eab308' : '#ef4444';
+  const scoreLabel = d.schulScore >= 70 ? (d.schulReasons.length ? 'Ja, gute Bedingungen' : 'Ja, ideale Bedingungen')
+                   : d.schulScore >= 40 ? 'Eingeschränkt möglich' : 'Eher nicht';
 
-    const visKm = d.minVis >= 99999 ? '> 10' : (d.minVis / 1000).toFixed(1);
+  const visKm = d.minVis >= 99999 ? '> 10' : (d.minVis / 1000).toFixed(1);
 
-    body.innerHTML = `
-      <p>Für die Flugausbildung brauchen wir <b>keine Sonne</b> — im Gegenteil: leicht bedecktes Wetter ist ideal, weil die Luft ruhig bleibt und es wenig Turbulenz gibt. Wichtig sind vor allem: kein Regen, ausreichende Wolkenbasis, moderate Windverhältnisse und gute Sicht.</p>
-      <div class="fi-score-bar">
-        <div class="fi-score-fill" style="width:${d.schulScore}%; background:${scoreColor};"></div>
-      </div>
-      <p style="text-align:center; margin-top:8px; font-weight:700; color:${scoreColor}; font-size:14px;">
-        ${d.schulScore}/100 — ${scoreLabel}
-      </p>
-      <div class="fi-param-grid">
-        <div class="fi-param-card">
-          <span class="fi-param-label">Regenrisiko</span>
-          <span class="fi-param-val">${d.maxPrecip}%</span>
-          <span class="fi-param-note">${d.maxPrecip > 60 ? '⛔ zu hoch' : d.maxPrecip > 30 ? '⚠ Schauer mögl.' : '✓ gering'}</span>
-        </div>
-        <div class="fi-param-card">
-          <span class="fi-param-label">Wolkenbasis</span>
-          <span class="fi-param-val">${d.ceilingAmsl} ft</span>
-          <span class="fi-param-note">${d.ceilingAmsl < 2500 ? '⛔ zu tief' : d.ceilingAmsl < 3500 ? '⚠ niedrig' : '✓ ausreichend'}</span>
-        </div>
-        <div class="fi-param-card">
-          <span class="fi-param-label">Böen</span>
-          <span class="fi-param-val">${d.gust} kt</span>
-          <span class="fi-param-note">${d.gust > 30 ? '⛔ zu stark' : d.gust > 20 ? '⚠ böig' : '✓ moderat'}</span>
-        </div>
-        <div class="fi-param-card">
-          <span class="fi-param-label">Mittl. Wind</span>
-          <span class="fi-param-val">${d.wind} kt</span>
-          <span class="fi-param-note">${d.wind > 20 ? '⛔ stark' : d.wind > 12 ? '⚠ frisch' : '✓ leicht'}</span>
-        </div>
-        <div class="fi-param-card">
-          <span class="fi-param-label">Sicht</span>
-          <span class="fi-param-val">${visKm} km</span>
-          <span class="fi-param-note">${d.minVis < 3000 ? '⛔ schlecht' : d.minVis < 5000 ? '⚠ mäßig' : '✓ gut'}</span>
-        </div>
-        <div class="fi-param-card">
-          <span class="fi-param-label">Tiefe Wolken</span>
-          <span class="fi-param-val">${Math.round(d.avgLowCloud)}%</span>
-          <span class="fi-param-note">${d.avgLowCloud > 70 ? '⛔ dicht' : d.avgLowCloud > 40 ? '⚠ bewölkt' : '✓ wenig'}</span>
-        </div>
-      </div>
-      <p style="margin-top:14px; font-size:11px; color:var(--c-muted);">
-        Spread ${d.spread.toFixed(1)}°C (${d.avgTemp.toFixed(1)}° − ${d.avgDew.toFixed(1)}°) · Daten: Open-Meteo ICON
-      </p>
-    `;
+  // Dynamische Einschätzung je nach Wetterlage
+  let situationText = '';
+  if (d.schulScore >= 85 && d.avgCloud > 30) {
+    situationText = 'Heute ist ein <b>perfekter Schulungstag</b>. Die Bewölkung sorgt für ruhige, turbulenznfreie Luft — genau das, was Flugschüler brauchen. Wenig Wind, gute Sicht, kein Regen.';
+  } else if (d.schulScore >= 85) {
+    situationText = 'Heute ist ein <b>sehr guter Schulungstag</b>. Die Bedingungen sind ruhig mit guter Sicht und wenig Wind. Beachte: bei Sonnenschein kann es nachmittags durch Thermik etwas turbulenter werden.';
+  } else if (d.schulScore >= 70) {
+    situationText = 'Heute sind die <b>Bedingungen gut für Schulung</b>. Kleinere Einschränkungen gibt es, aber insgesamt ist es ein lohnenswerter Tag zum Fliegen.';
+  } else if (d.schulScore >= 40) {
+    situationText = 'Heute ist Schulung <b>eingeschränkt möglich</b>. Es gibt Faktoren, die den Flugbetrieb erschweren. Rücksprache mit dem Fluglehrer ist sinnvoll — für fortgeschrittene Schüler kann es trotzdem lehrreich sein.';
   } else {
-    icon.className = 'fi-popup-icon thermik';
-    icon.textContent = '↑';
-    title.textContent = 'Thermik-Prognose';
-
-    const scoreColor = d.thermScore >= 60 ? '#22c55e' : d.thermScore >= 35 ? '#eab308' : d.thermScore >= 15 ? '#f97316' : '#94a3b8';
-    const scoreLabel = d.thermScore >= 60 ? 'Gut' : d.thermScore >= 35 ? 'Mäßig' : d.thermScore >= 15 ? 'Schwach' : 'Keine Thermik';
-
-    body.innerHTML = `
-      <p>Die Thermik-Prognose zeigt, wie gut die Bedingungen für Streckenflug im Segelflug sind. Entscheidend sind <b>Einstrahlung</b> (Sonne heizt den Boden → Thermik), <b>CAPE</b> (Energiepotenzial für Aufwinde), großer <b>Spread</b> (hohe Basis) und moderater Wind.</p>
-      <div class="fi-score-bar">
-        <div class="fi-score-fill" style="width:${d.thermScore}%; background:${scoreColor};"></div>
-      </div>
-      <p style="text-align:center; margin-top:8px; font-weight:700; color:${scoreColor}; font-size:14px;">
-        ${d.thermScore}/100 — ${scoreLabel}
-      </p>
-      <div class="fi-param-grid">
-        <div class="fi-param-card">
-          <span class="fi-param-label">CAPE</span>
-          <span class="fi-param-val">${Math.round(d.avgCape)} J/kg</span>
-          <span class="fi-param-note">${d.avgCape > 800 ? '🔥 stark' : d.avgCape > 400 ? '✓ gut' : d.avgCape > 150 ? '~ mäßig' : d.avgCape > 50 ? '↓ schwach' : '— gering'}</span>
-        </div>
-        <div class="fi-param-card">
-          <span class="fi-param-label">Einstrahlung</span>
-          <span class="fi-param-val">${Math.round(d.avgRad)} W/m²</span>
-          <span class="fi-param-note">${d.avgRad > 600 ? '☀ stark' : d.avgRad > 400 ? '✓ gut' : d.avgRad > 200 ? '⛅ mäßig' : '☁ schwach'}</span>
-        </div>
-        <div class="fi-param-card">
-          <span class="fi-param-label">Spread</span>
-          <span class="fi-param-val">${d.spread.toFixed(1)}°C</span>
-          <span class="fi-param-note">Basis ~${d.ceilingAmsl} ft AMSL</span>
-        </div>
-        <div class="fi-param-card">
-          <span class="fi-param-label">Thermik-Top</span>
-          <span class="fi-param-val">~${d.estimatedTop} m</span>
-          <span class="fi-param-note">${d.estimatedTop > 2000 ? '✓ hoch' : d.estimatedTop > 1500 ? '~ mittel' : '↓ niedrig'}</span>
-        </div>
-        <div class="fi-param-card">
-          <span class="fi-param-label">Hohe Wolken</span>
-          <span class="fi-param-val">${Math.round(d.avgHighCloud)}%</span>
-          <span class="fi-param-note">${d.avgHighCloud > 70 ? '⛔ blockt Sonne' : '✓ frei'}</span>
-        </div>
-        <div class="fi-param-card">
-          <span class="fi-param-label">Mittl. Wind</span>
-          <span class="fi-param-val">${d.wind} kt</span>
-          <span class="fi-param-note">${d.wind > 20 ? '⛔ zu stark' : d.wind > 15 ? '⚠ frisch' : '✓ moderat'}</span>
-        </div>
-      </div>
-      <p style="margin-top:14px; font-size:11px; color:var(--c-muted);">
-        Max CAPE ${Math.round(d.maxCape)} J/kg · Kernzeit 11–16 Uhr · Daten: Open-Meteo ICON
-      </p>
-    `;
+    situationText = 'Heute ist <b>kein guter Tag für Schulung</b>. Die Bedingungen sind zu anspruchsvoll für den Ausbildungsbetrieb. Lieber einen besseren Tag abwarten.';
   }
+
+  body.innerHTML = `
+    <p>${situationText}</p>
+    <div class="fi-score-bar">
+      <div class="fi-score-fill" style="width:${d.schulScore}%; background:${scoreColor};"></div>
+    </div>
+    <p style="text-align:center; margin-top:8px; font-weight:700; color:${scoreColor}; font-size:14px;">
+      ${d.schulScore}/100 — ${scoreLabel}
+    </p>
+    <div class="fi-param-grid">
+      <div class="fi-param-card">
+        <span class="fi-param-label">Regenrisiko</span>
+        <span class="fi-param-val">${d.maxPrecip}%</span>
+        <span class="fi-param-note">${d.maxPrecip > 60 ? '⛔ zu hoch' : d.maxPrecip > 30 ? '⚠ Schauer mögl.' : '✓ gering'}</span>
+      </div>
+      <div class="fi-param-card">
+        <span class="fi-param-label">Wolkenbasis</span>
+        <span class="fi-param-val">${d.ceilingAmsl} ft</span>
+        <span class="fi-param-note">${d.ceilingAmsl < 2500 ? '⛔ zu tief' : d.ceilingAmsl < 3500 ? '⚠ niedrig' : '✓ ausreichend'}</span>
+      </div>
+      <div class="fi-param-card">
+        <span class="fi-param-label">Böen</span>
+        <span class="fi-param-val">${d.gust} kt</span>
+        <span class="fi-param-note">${d.gust > 30 ? '⛔ zu stark' : d.gust > 20 ? '⚠ böig' : '✓ moderat'}</span>
+      </div>
+      <div class="fi-param-card">
+        <span class="fi-param-label">Mittl. Wind</span>
+        <span class="fi-param-val">${d.wind} kt</span>
+        <span class="fi-param-note">${d.wind > 20 ? '⛔ stark' : d.wind > 12 ? '⚠ frisch' : '✓ leicht'}</span>
+      </div>
+      <div class="fi-param-card">
+        <span class="fi-param-label">Sicht</span>
+        <span class="fi-param-val">${visKm} km</span>
+        <span class="fi-param-note">${d.minVis < 3000 ? '⛔ schlecht' : d.minVis < 5000 ? '⚠ mäßig' : '✓ gut'}</span>
+      </div>
+      <div class="fi-param-card">
+        <span class="fi-param-label">Tiefe Wolken</span>
+        <span class="fi-param-val">${Math.round(d.avgLowCloud)}%</span>
+        <span class="fi-param-note">${d.avgLowCloud > 70 ? '⛔ dicht' : d.avgLowCloud > 40 ? '⚠ bewölkt' : '✓ wenig'}</span>
+      </div>
+    </div>
+    <div style="margin-top:16px; padding:12px 14px; background:rgba(0,0,0,0.03); border-radius:10px; font-size:12px; line-height:1.6; color:var(--c-ink);">
+      <b>Gut zu wissen:</b> Für die Flugausbildung brauchen wir keine Sonne — im Gegenteil. Leicht bedecktes Wetter mit einer geschlossenen Wolkendecke ist sogar <b>ideal</b>, weil die Luft dann gleichmäßig temperiert ist und kaum Thermik oder Turbulenz entsteht. Das Flugzeug liegt ruhig in der Luft und Schüler können sich voll auf die Übungen konzentrieren.<br><br>
+      Problematisch wird es bei: <b>Regen</b> (nasse Piste, schlechte Sicht), <b>starkem Wind oder Böen</b> (erschwerte Steuerung bei Start und Landung, besonders für Anfänger), <b>zu tiefer Wolkenbasis</b> (zu wenig Höhe für Platzrunden — wir brauchen mindestens ca. 2.500 ft AMSL) und <b>schlechter Sicht</b> (unter 5 km wird es für VFR-Schulung eng).<br><br>
+      Die Bewertung berücksichtigt all diese Faktoren automatisch und gibt eine Empfehlung ab. An sonnigen, thermisch aktiven Tagen ist die Luft unruhiger — das ist für erfahrene Piloten kein Problem, aber für Flugschüler oft anstrengend und weniger lerneffektiv.
+    </div>
+    <p style="margin-top:12px; font-size:11px; color:var(--c-muted);">
+      Wolkenbasis geschätzt aus Spread ${d.spread.toFixed(1)}°C (${d.avgTemp.toFixed(1)}° − ${d.avgDew.toFixed(1)}°) · Daten: Open-Meteo ICON · Zeitraum 08–18 Uhr · Diese Bewertung ersetzt nicht die Einschätzung des Fluglehrers.
+    </p>
+  `;
 
   overlay.classList.add('open');
   popup.classList.add('open');
@@ -3654,8 +3543,7 @@ function closeFiPopup() {
 
 // Event-Listener für Popup
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('indicatorSchulung')?.addEventListener('click', () => openFiPopup('schulung'));
-  document.getElementById('indicatorThermik')?.addEventListener('click', () => openFiPopup('thermik'));
+  document.getElementById('indicatorSchulung')?.addEventListener('click', openSchulungPopup);
   document.getElementById('fiPopupOverlay')?.addEventListener('click', closeFiPopup);
   document.getElementById('fiPopupClose')?.addEventListener('click', closeFiPopup);
 });
