@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen
 (function() {
-  var APP_VERSION = 55;
+  var APP_VERSION = 56;
   try {
     var stored = parseInt(localStorage.getItem('dassu_v') || '0');
     if (stored < APP_VERSION) {
@@ -1173,6 +1173,69 @@
   .fi-icon { font-size: 14px; line-height: 1; }
   .fi-label { color: var(--c-muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
   .fi-value { font-size: 11px; }
+  .flying-indicator { cursor: pointer; transition: transform 0.1s; }
+  .flying-indicator:hover { transform: scale(1.03); }
+
+  /* ===== FLYING INFO POPUP ===== */
+  .fi-popup-overlay {
+    position: fixed; inset: 0; z-index: 9998;
+    background: rgba(0,0,0,0.35); backdrop-filter: blur(2px);
+    opacity: 0; transition: opacity 0.2s;
+    pointer-events: none;
+  }
+  .fi-popup-overlay.open { opacity: 1; pointer-events: auto; }
+  .fi-popup {
+    position: fixed; z-index: 9999;
+    left: 50%; top: 50%; transform: translate(-50%, -50%) scale(0.95);
+    background: var(--c-paper); border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+    max-width: 380px; width: calc(100% - 32px);
+    padding: 0; overflow: hidden;
+    opacity: 0; transition: opacity 0.2s, transform 0.2s;
+    pointer-events: none;
+  }
+  .fi-popup.open { opacity: 1; transform: translate(-50%, -50%) scale(1); pointer-events: auto; }
+  .fi-popup-header {
+    padding: 16px 20px 12px;
+    display: flex; align-items: center; gap: 10px;
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+  }
+  .fi-popup-header .fi-popup-icon {
+    width: 36px; height: 36px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 700; flex-shrink: 0;
+  }
+  .fi-popup-header .fi-popup-icon.schulung { background: rgba(34,197,94,0.12); }
+  .fi-popup-header .fi-popup-icon.thermik { background: rgba(234,179,8,0.12); }
+  .fi-popup-header h3 { margin: 0; font-size: 16px; font-weight: 700; color: var(--c-ink); }
+  .fi-popup-header .fi-popup-close {
+    margin-left: auto; background: none; border: none;
+    font-size: 20px; color: var(--c-muted); cursor: pointer;
+    width: 32px; height: 32px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .fi-popup-header .fi-popup-close:hover { background: rgba(0,0,0,0.06); }
+  .fi-popup-body { padding: 16px 20px 20px; }
+  .fi-popup-body p {
+    margin: 0 0 12px; font-size: 13px; line-height: 1.55; color: var(--c-ink);
+  }
+  .fi-popup-body p:last-child { margin-bottom: 0; }
+  .fi-popup-body .fi-param-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    margin-top: 14px;
+  }
+  .fi-param-card {
+    background: rgba(0,0,0,0.03); border-radius: 10px;
+    padding: 10px 12px; display: flex; flex-direction: column; gap: 2px;
+  }
+  .fi-param-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--c-muted); font-weight: 600; }
+  .fi-param-val { font-size: 14px; font-weight: 700; font-family: var(--font-mono); color: var(--c-ink); }
+  .fi-param-note { font-size: 10px; color: var(--c-muted); }
+  .fi-score-bar {
+    margin-top: 14px; height: 6px; border-radius: 3px;
+    background: rgba(0,0,0,0.06); overflow: hidden;
+  }
+  .fi-score-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
 
   /* ===== GANTT CALENDAR ===== */
   .gantt-wrap {
@@ -1839,6 +1902,17 @@
         <span class="fi-value" id="thermikValue">—</span>
       </div>
     </div>
+  </div>
+
+  <!-- Flying Info Popup -->
+  <div class="fi-popup-overlay" id="fiPopupOverlay"></div>
+  <div class="fi-popup" id="fiPopup">
+    <div class="fi-popup-header">
+      <div class="fi-popup-icon" id="fiPopupIcon"></div>
+      <h3 id="fiPopupTitle"></h3>
+      <button class="fi-popup-close" id="fiPopupClose">×</button>
+    </div>
+    <div class="fi-popup-body" id="fiPopupBody"></div>
   </div>
 
   <!-- Main Content: Gantt + Sidebar -->
@@ -3280,6 +3354,9 @@ function applyWeather(data, date) {
   computeFlyingIndicators(hourly, relevantIdx, temps, dews, clouds, avgWind, maxGust);
 }
 
+// Gespeicherte Wetter-Parameter für Info-Popup
+let _fiData = {};
+
 function computeFlyingIndicators(hourly, relevantIdx, temps, dews, clouds, avgWind, maxGust) {
   const container = document.getElementById('heroFlyingIndicators');
   if (!container) return;
@@ -3412,6 +3489,16 @@ function computeFlyingIndicators(hourly, relevantIdx, temps, dews, clouds, avgWi
 
   thermScore = Math.max(0, Math.min(100, thermScore));
 
+  // Daten für Info-Popup speichern
+  _fiData = {
+    schulScore, schulReasons, maxPrecip, avgPrecip,
+    ceilingAmsl, ceilingFt, avgCloud, avgLowCloud,
+    wind, gust, minVis, spread: spread,
+    avgTemp, avgDew,
+    thermScore, avgCape, maxCape, avgRad,
+    avgMidCloud, avgHighCloud, estimatedTop
+  };
+
   const thermVal = document.getElementById('thermikValue');
   const thermIcon = document.querySelector('#indicatorThermik .fi-icon');
   if (thermVal) {
@@ -3434,6 +3521,144 @@ function computeFlyingIndicators(hourly, relevantIdx, temps, dews, clouds, avgWi
     }
   }
 }
+
+// ===== FLYING INDICATOR INFO POPUP =====
+function openFiPopup(type) {
+  const overlay = document.getElementById('fiPopupOverlay');
+  const popup = document.getElementById('fiPopup');
+  const icon = document.getElementById('fiPopupIcon');
+  const title = document.getElementById('fiPopupTitle');
+  const body = document.getElementById('fiPopupBody');
+  if (!overlay || !popup) return;
+
+  const d = _fiData;
+  if (!d.schulScore && d.schulScore !== 0) return;
+
+  if (type === 'schulung') {
+    icon.className = 'fi-popup-icon schulung';
+    icon.textContent = '🎓';
+    title.textContent = 'Schulungsbewertung';
+
+    const scoreColor = d.schulScore >= 70 ? '#22c55e' : d.schulScore >= 40 ? '#eab308' : '#ef4444';
+    const scoreLabel = d.schulScore >= 70 ? (d.schulReasons.length ? 'Gut' : 'Sehr gut')
+                     : d.schulScore >= 40 ? 'Eingeschränkt' : 'Nicht fliegbar';
+
+    const visKm = d.minVis >= 99999 ? '> 10' : (d.minVis / 1000).toFixed(1);
+
+    body.innerHTML = `
+      <p>Für die Flugausbildung brauchen wir <b>keine Sonne</b> — im Gegenteil: leicht bedecktes Wetter ist ideal, weil die Luft ruhig bleibt und es wenig Turbulenz gibt. Wichtig sind vor allem: kein Regen, ausreichende Wolkenbasis, moderate Windverhältnisse und gute Sicht.</p>
+      <div class="fi-score-bar">
+        <div class="fi-score-fill" style="width:${d.schulScore}%; background:${scoreColor};"></div>
+      </div>
+      <p style="text-align:center; margin-top:8px; font-weight:700; color:${scoreColor}; font-size:14px;">
+        ${d.schulScore}/100 — ${scoreLabel}
+      </p>
+      <div class="fi-param-grid">
+        <div class="fi-param-card">
+          <span class="fi-param-label">Regenrisiko</span>
+          <span class="fi-param-val">${d.maxPrecip}%</span>
+          <span class="fi-param-note">${d.maxPrecip > 60 ? '⛔ zu hoch' : d.maxPrecip > 30 ? '⚠ Schauer mögl.' : '✓ gering'}</span>
+        </div>
+        <div class="fi-param-card">
+          <span class="fi-param-label">Wolkenbasis</span>
+          <span class="fi-param-val">${d.ceilingAmsl} ft</span>
+          <span class="fi-param-note">${d.ceilingAmsl < 2500 ? '⛔ zu tief' : d.ceilingAmsl < 3500 ? '⚠ niedrig' : '✓ ausreichend'}</span>
+        </div>
+        <div class="fi-param-card">
+          <span class="fi-param-label">Böen</span>
+          <span class="fi-param-val">${d.gust} kt</span>
+          <span class="fi-param-note">${d.gust > 30 ? '⛔ zu stark' : d.gust > 20 ? '⚠ böig' : '✓ moderat'}</span>
+        </div>
+        <div class="fi-param-card">
+          <span class="fi-param-label">Mittl. Wind</span>
+          <span class="fi-param-val">${d.wind} kt</span>
+          <span class="fi-param-note">${d.wind > 20 ? '⛔ stark' : d.wind > 12 ? '⚠ frisch' : '✓ leicht'}</span>
+        </div>
+        <div class="fi-param-card">
+          <span class="fi-param-label">Sicht</span>
+          <span class="fi-param-val">${visKm} km</span>
+          <span class="fi-param-note">${d.minVis < 3000 ? '⛔ schlecht' : d.minVis < 5000 ? '⚠ mäßig' : '✓ gut'}</span>
+        </div>
+        <div class="fi-param-card">
+          <span class="fi-param-label">Tiefe Wolken</span>
+          <span class="fi-param-val">${Math.round(d.avgLowCloud)}%</span>
+          <span class="fi-param-note">${d.avgLowCloud > 70 ? '⛔ dicht' : d.avgLowCloud > 40 ? '⚠ bewölkt' : '✓ wenig'}</span>
+        </div>
+      </div>
+      <p style="margin-top:14px; font-size:11px; color:var(--c-muted);">
+        Spread ${d.spread.toFixed(1)}°C (${d.avgTemp.toFixed(1)}° − ${d.avgDew.toFixed(1)}°) · Daten: Open-Meteo ICON
+      </p>
+    `;
+  } else {
+    icon.className = 'fi-popup-icon thermik';
+    icon.textContent = '↑';
+    title.textContent = 'Thermik-Prognose';
+
+    const scoreColor = d.thermScore >= 60 ? '#22c55e' : d.thermScore >= 35 ? '#eab308' : d.thermScore >= 15 ? '#f97316' : '#94a3b8';
+    const scoreLabel = d.thermScore >= 60 ? 'Gut' : d.thermScore >= 35 ? 'Mäßig' : d.thermScore >= 15 ? 'Schwach' : 'Keine Thermik';
+
+    body.innerHTML = `
+      <p>Die Thermik-Prognose zeigt, wie gut die Bedingungen für Streckenflug im Segelflug sind. Entscheidend sind <b>Einstrahlung</b> (Sonne heizt den Boden → Thermik), <b>CAPE</b> (Energiepotenzial für Aufwinde), großer <b>Spread</b> (hohe Basis) und moderater Wind.</p>
+      <div class="fi-score-bar">
+        <div class="fi-score-fill" style="width:${d.thermScore}%; background:${scoreColor};"></div>
+      </div>
+      <p style="text-align:center; margin-top:8px; font-weight:700; color:${scoreColor}; font-size:14px;">
+        ${d.thermScore}/100 — ${scoreLabel}
+      </p>
+      <div class="fi-param-grid">
+        <div class="fi-param-card">
+          <span class="fi-param-label">CAPE</span>
+          <span class="fi-param-val">${Math.round(d.avgCape)} J/kg</span>
+          <span class="fi-param-note">${d.avgCape > 800 ? '🔥 stark' : d.avgCape > 400 ? '✓ gut' : d.avgCape > 150 ? '~ mäßig' : d.avgCape > 50 ? '↓ schwach' : '— gering'}</span>
+        </div>
+        <div class="fi-param-card">
+          <span class="fi-param-label">Einstrahlung</span>
+          <span class="fi-param-val">${Math.round(d.avgRad)} W/m²</span>
+          <span class="fi-param-note">${d.avgRad > 600 ? '☀ stark' : d.avgRad > 400 ? '✓ gut' : d.avgRad > 200 ? '⛅ mäßig' : '☁ schwach'}</span>
+        </div>
+        <div class="fi-param-card">
+          <span class="fi-param-label">Spread</span>
+          <span class="fi-param-val">${d.spread.toFixed(1)}°C</span>
+          <span class="fi-param-note">Basis ~${d.ceilingAmsl} ft AMSL</span>
+        </div>
+        <div class="fi-param-card">
+          <span class="fi-param-label">Thermik-Top</span>
+          <span class="fi-param-val">~${d.estimatedTop} m</span>
+          <span class="fi-param-note">${d.estimatedTop > 2000 ? '✓ hoch' : d.estimatedTop > 1500 ? '~ mittel' : '↓ niedrig'}</span>
+        </div>
+        <div class="fi-param-card">
+          <span class="fi-param-label">Hohe Wolken</span>
+          <span class="fi-param-val">${Math.round(d.avgHighCloud)}%</span>
+          <span class="fi-param-note">${d.avgHighCloud > 70 ? '⛔ blockt Sonne' : '✓ frei'}</span>
+        </div>
+        <div class="fi-param-card">
+          <span class="fi-param-label">Mittl. Wind</span>
+          <span class="fi-param-val">${d.wind} kt</span>
+          <span class="fi-param-note">${d.wind > 20 ? '⛔ zu stark' : d.wind > 15 ? '⚠ frisch' : '✓ moderat'}</span>
+        </div>
+      </div>
+      <p style="margin-top:14px; font-size:11px; color:var(--c-muted);">
+        Max CAPE ${Math.round(d.maxCape)} J/kg · Kernzeit 11–16 Uhr · Daten: Open-Meteo ICON
+      </p>
+    `;
+  }
+
+  overlay.classList.add('open');
+  popup.classList.add('open');
+}
+
+function closeFiPopup() {
+  document.getElementById('fiPopupOverlay')?.classList.remove('open');
+  document.getElementById('fiPopup')?.classList.remove('open');
+}
+
+// Event-Listener für Popup
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('indicatorSchulung')?.addEventListener('click', () => openFiPopup('schulung'));
+  document.getElementById('indicatorThermik')?.addEventListener('click', () => openFiPopup('thermik'));
+  document.getElementById('fiPopupOverlay')?.addEventListener('click', closeFiPopup);
+  document.getElementById('fiPopupClose')?.addEventListener('click', closeFiPopup);
+});
 
 function degToCompass(deg) {
   const dirs = ['N','NNO','NO','ONO','O','OSO','SO','SSO','S','SSW','SW','WSW','W','WNW','NW','NNW'];
