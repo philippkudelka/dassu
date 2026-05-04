@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen
 (function() {
-  var APP_VERSION = 58;
+  var APP_VERSION = 59;
   try {
     var stored = parseInt(localStorage.getItem('dassu_v') || '0');
     if (stored < APP_VERSION) {
@@ -1197,7 +1197,8 @@
     left: 50%; top: 50%; transform: translate(-50%, -50%) scale(0.95);
     background: var(--c-paper); border-radius: 16px;
     box-shadow: 0 20px 60px rgba(0,0,0,0.25);
-    max-width: 440px; width: calc(100% - 32px); max-height: 90vh; overflow-y: auto;
+    max-width: 440px; width: calc(100% - 32px); max-height: 85vh; overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     padding: 0; overflow: hidden;
     opacity: 0; transition: opacity 0.2s, transform 0.2s;
     pointer-events: none;
@@ -1223,7 +1224,7 @@
     display: flex; align-items: center; justify-content: center;
   }
   .fi-popup-header .fi-popup-close:hover { background: rgba(0,0,0,0.06); }
-  .fi-popup-body { padding: 16px 20px 20px; }
+  .fi-popup-body { padding: 16px 20px 20px; overflow-y: auto; max-height: calc(85vh - 70px); -webkit-overflow-scrolling: touch; }
   .fi-popup-body p {
     margin: 0 0 12px; font-size: 13px; line-height: 1.55; color: var(--c-ink);
   }
@@ -3525,7 +3526,7 @@ function openSchulungPopup() {
     <div style="margin-top:16px; padding:12px 14px; background:rgba(0,0,0,0.03); border-radius:10px; font-size:12px; line-height:1.6; color:var(--c-ink);">
       <b>Was steckt dahinter?</b> Viele denken, man braucht Sonnenschein zum Fliegen lernen. Stimmt nicht — ein grauer, bedeckter Tag ist zum Schulen oft <b>besser</b> als strahlender Sonnenschein. Warum? Wenn die Sonne knallt, heizt sich der Boden auf und es entstehen Thermikblasen. Die Luft wird böig und turbulent, das Flugzeug schaukelt. Klar, das gehört zum Fliegen dazu — aber wenn du gerade lernst, geradeaus zu fliegen oder deine erste Platzrunde fliegst, willst du nicht gleichzeitig gegen Turbulenzen kämpfen.<br><br>
       Bei bedecktem Himmel ist die Luft ruhig, der Flieger macht was du willst, und du kannst dich auf das Wesentliche konzentrieren. Perfekt zum Üben.<br><br>
-      <b>Wann wird's schwierig?</b> Bei <b>Regen</b> geht gar nix — nasse Graspiste, schlechte Sicht, kein Spaß. <b>Starker Wind und Böen</b> machen vor allem Start und Landung knifflig, gerade am Anfang. Wenn die <b>Wolken zu tief hängen</b> (unter ~2.500 ft über Meer), bleibt nicht genug Platz für Platzrunden. Und bei <b>Sicht unter 5 km</b> macht VFR-Schulung keinen Sinn.<br><br>
+      <b>Wann wird's schwierig?</b> Bei <b>Regen</b> geht gar nix — nasse Piste, schlechte Sicht, kein Spaß. <b>Starker Wind und Böen</b> machen vor allem Start und Landung knifflig, gerade am Anfang. Wenn die <b>Wolken zu tief hängen</b> (unter ~2.500 ft über Meer), bleibt nicht genug Platz für Platzrunden. Und bei <b>Sicht unter 5 km</b> macht VFR-Schulung keinen Sinn.<br><br>
       Die Ampel hier oben rechnet das alles zusammen. Grün heißt: kommt vorbei. Gelb: geht vielleicht, fragt euren Fluglehrer. Rot: bleibt daheim.
     </div>
     <p style="margin-top:12px; font-size:11px; color:var(--c-muted);">
