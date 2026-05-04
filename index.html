@@ -3311,7 +3311,7 @@ function renderGanttCalendar(dk, aircraft) {
   // --- Platzrunden-Legende ---
   const legendDetail = document.getElementById('ganttPlatzrundenDetail');
   if (legendDetail) {
-    const prInfo = getPlatzrundenInfo(viewDate);
+    const prInfo = getPlatzrundenInfo(dk);
     legendDetail.innerHTML = `<span>${prInfo}</span> · <span>Sonn- &amp; Feiertage: keine Platzrunden, buchbar ab 09:00</span>`;
   }
 
