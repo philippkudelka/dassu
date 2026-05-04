@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen
 (function() {
-  var APP_VERSION = 57;
+  var APP_VERSION = 58;
   try {
     var stored = parseInt(localStorage.getItem('dassu_v') || '0');
     if (stored < APP_VERSION) {
@@ -3471,15 +3471,15 @@ function openSchulungPopup() {
   // Dynamische Einschätzung je nach Wetterlage
   let situationText = '';
   if (d.schulScore >= 85 && d.avgCloud > 30) {
-    situationText = 'Heute ist ein <b>perfekter Schulungstag</b>. Die Bewölkung sorgt für ruhige, turbulenznfreie Luft — genau das, was Flugschüler brauchen. Wenig Wind, gute Sicht, kein Regen.';
+    situationText = 'Top Tag zum Schulen! <b>Bewölkt und ruhig</b> — die Flieger liegen satt in der Luft, wenig Wind, kein Regen. Kommt vorbei.';
   } else if (d.schulScore >= 85) {
-    situationText = 'Heute ist ein <b>sehr guter Schulungstag</b>. Die Bedingungen sind ruhig mit guter Sicht und wenig Wind. Beachte: bei Sonnenschein kann es nachmittags durch Thermik etwas turbulenter werden.';
+    situationText = '<b>Sehr guter Schulungstag.</b> Ruhige Verhältnisse, gute Sicht, wenig Wind. Wenn die Sonne rauskommt, kann es nachmittags durch Thermik etwas wackeliger werden — morgens ist dann am angenehmsten.';
   } else if (d.schulScore >= 70) {
-    situationText = 'Heute sind die <b>Bedingungen gut für Schulung</b>. Kleinere Einschränkungen gibt es, aber insgesamt ist es ein lohnenswerter Tag zum Fliegen.';
+    situationText = '<b>Guter Tag für Schulung.</b> Ein paar kleine Einschränkungen, aber es lohnt sich auf jeden Fall rauszufahren.';
   } else if (d.schulScore >= 40) {
-    situationText = 'Heute ist Schulung <b>eingeschränkt möglich</b>. Es gibt Faktoren, die den Flugbetrieb erschweren. Rücksprache mit dem Fluglehrer ist sinnvoll — für fortgeschrittene Schüler kann es trotzdem lehrreich sein.';
+    situationText = '<b>Geht so.</b> Fliegen ist möglich, aber nicht optimal. Sprecht am besten vorher kurz mit eurem Fluglehrer — wer schon ein paar Stunden hat, kann trotzdem was mitnehmen.';
   } else {
-    situationText = 'Heute ist <b>kein guter Tag für Schulung</b>. Die Bedingungen sind zu anspruchsvoll für den Ausbildungsbetrieb. Lieber einen besseren Tag abwarten.';
+    situationText = '<b>Heute lieber nicht.</b> Die Bedingungen sind nix für die Schulung. Spart euch die Fahrt und wartet auf einen besseren Tag.';
   }
 
   body.innerHTML = `
@@ -3523,12 +3523,13 @@ function openSchulungPopup() {
       </div>
     </div>
     <div style="margin-top:16px; padding:12px 14px; background:rgba(0,0,0,0.03); border-radius:10px; font-size:12px; line-height:1.6; color:var(--c-ink);">
-      <b>Gut zu wissen:</b> Für die Flugausbildung brauchen wir keine Sonne — im Gegenteil. Leicht bedecktes Wetter mit einer geschlossenen Wolkendecke ist sogar <b>ideal</b>, weil die Luft dann gleichmäßig temperiert ist und kaum Thermik oder Turbulenz entsteht. Das Flugzeug liegt ruhig in der Luft und Schüler können sich voll auf die Übungen konzentrieren.<br><br>
-      Problematisch wird es bei: <b>Regen</b> (nasse Piste, schlechte Sicht), <b>starkem Wind oder Böen</b> (erschwerte Steuerung bei Start und Landung, besonders für Anfänger), <b>zu tiefer Wolkenbasis</b> (zu wenig Höhe für Platzrunden — wir brauchen mindestens ca. 2.500 ft AMSL) und <b>schlechter Sicht</b> (unter 5 km wird es für VFR-Schulung eng).<br><br>
-      Die Bewertung berücksichtigt all diese Faktoren automatisch und gibt eine Empfehlung ab. An sonnigen, thermisch aktiven Tagen ist die Luft unruhiger — das ist für erfahrene Piloten kein Problem, aber für Flugschüler oft anstrengend und weniger lerneffektiv.
+      <b>Was steckt dahinter?</b> Viele denken, man braucht Sonnenschein zum Fliegen lernen. Stimmt nicht — ein grauer, bedeckter Tag ist zum Schulen oft <b>besser</b> als strahlender Sonnenschein. Warum? Wenn die Sonne knallt, heizt sich der Boden auf und es entstehen Thermikblasen. Die Luft wird böig und turbulent, das Flugzeug schaukelt. Klar, das gehört zum Fliegen dazu — aber wenn du gerade lernst, geradeaus zu fliegen oder deine erste Platzrunde fliegst, willst du nicht gleichzeitig gegen Turbulenzen kämpfen.<br><br>
+      Bei bedecktem Himmel ist die Luft ruhig, der Flieger macht was du willst, und du kannst dich auf das Wesentliche konzentrieren. Perfekt zum Üben.<br><br>
+      <b>Wann wird's schwierig?</b> Bei <b>Regen</b> geht gar nix — nasse Graspiste, schlechte Sicht, kein Spaß. <b>Starker Wind und Böen</b> machen vor allem Start und Landung knifflig, gerade am Anfang. Wenn die <b>Wolken zu tief hängen</b> (unter ~2.500 ft über Meer), bleibt nicht genug Platz für Platzrunden. Und bei <b>Sicht unter 5 km</b> macht VFR-Schulung keinen Sinn.<br><br>
+      Die Ampel hier oben rechnet das alles zusammen. Grün heißt: kommt vorbei. Gelb: geht vielleicht, fragt euren Fluglehrer. Rot: bleibt daheim.
     </div>
     <p style="margin-top:12px; font-size:11px; color:var(--c-muted);">
-      Wolkenbasis geschätzt aus Spread ${d.spread.toFixed(1)}°C (${d.avgTemp.toFixed(1)}° − ${d.avgDew.toFixed(1)}°) · Daten: Open-Meteo ICON · Zeitraum 08–18 Uhr · Diese Bewertung ersetzt nicht die Einschätzung des Fluglehrers.
+      Wolkenbasis geschätzt aus Spread ${d.spread.toFixed(1)}°C (${d.avgTemp.toFixed(1)}° − ${d.avgDew.toFixed(1)}°) · Wetterdaten: Open-Meteo ICON · 08–18 Uhr · Immer auch auf euren Fluglehrer hören!
     </p>
   `;
 
