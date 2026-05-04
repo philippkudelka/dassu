@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen
 (function() {
-  var APP_VERSION = 52;
+  var APP_VERSION = 53;
   try {
     var stored = parseInt(localStorage.getItem('dassu_v') || '0');
     if (stored < APP_VERSION) {
@@ -45,6 +45,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
 <script src="shared/permissions.js"></script>
+<script src="shared/holidays.js"></script>
 <script src="shared/auth.js"></script>
 <script src="shared/messages.js"></script>
 <link rel="preconnect" href="https://fonts.bunny.net">
@@ -935,6 +936,7 @@
   .week-grid-header:not(:first-child):hover { background: var(--c-alpine); color: white; }
   .week-grid-header.today { background: var(--c-confirmed); color: white; }
   .week-grid-header.today:hover { background: var(--c-alpine); }
+  .week-grid-header.holiday-header { background: #FFF3E0; }
   .week-grid-aircraft {
     background: var(--c-paper);
     padding: 10px 4px;
@@ -2627,6 +2629,9 @@ function isRestrictedSlot(date, slotStartTime) {
   const min = parseInt(slotStartTime.split(':')[1]);
   const timeMinutes = hour * 60 + min; // minutes since midnight
 
+  // Feiertage: vor 09:00 gesperrt, ab 09:00 buchbar (keine Platzrunden)
+  if (DASSU_HOLIDAYS && DASSU_HOLIDAYS.isHoliday(date)) return timeMinutes < 540;
+
   // Sonntag: vor 09:00 gesperrt, ab 09:00 buchbar (keine Platzrunden)
   if (dayOfWeek === 0) return timeMinutes < 540;
 
@@ -2639,6 +2644,17 @@ function isRestrictedSlot(date, slotStartTime) {
   // Eingeschränkt = 12:00–15:00
   if (timeMinutes >= 720 && timeMinutes < 900) return true; // 12:00–14:59
 
+  return false;
+}
+
+// Check if a slot is blocked (before 09:00 on Sunday/holiday)
+function isHolidayOrSundayBlocked(date, slotStartTime) {
+  const hour = parseInt(slotStartTime.split(':')[0]);
+  const min = parseInt(slotStartTime.split(':')[1]);
+  const timeMinutes = hour * 60 + min;
+  if (DASSU_HOLIDAYS && DASSU_HOLIDAYS.isHoliday(date)) return timeMinutes < 540;
+  const d = new Date(date + 'T12:00:00');
+  if (d.getDay() === 0) return timeMinutes < 540;
   return false;
 }
 
@@ -2664,6 +2680,8 @@ function getMorningBlock(aircraft, dateStr, slotStart) {
 
 // Get Platzrunden info text for a given day
 function getPlatzrundenInfo(date) {
+  const holiday = DASSU_HOLIDAYS ? DASSU_HOLIDAYS.isHoliday(date) : null;
+  if (holiday) return holiday.name + ': Buchbar ab 09:00, keine Platzrunden';
   const d = new Date(date + 'T12:00:00');
   const dayOfWeek = d.getDay();
   if (dayOfWeek === 0) return 'Sonntag: Buchbar ab 09:00, keine Platzrunden';
@@ -2964,11 +2982,14 @@ function renderWeekView() {
     const isToday = dk === todayKey;
     const isPast = dk < todayKey;
     const dow = d.getDay();
+    const wkHoliday = DASSU_HOLIDAYS ? DASSU_HOLIDAYS.isHoliday(dk) : null;
     // Show small indicator for restricted days
-    const restrictionHint = dow === 0 ? '<br><span style="font-size:8px;color:#bbb;">ab 09:00</span>' :
+    const restrictionHint = (wkHoliday || dow === 0) ? '<br><span style="font-size:8px;color:#E65100;">ab 09:00</span>' :
                             dow === 6 ? '<br><span style="font-size:8px;color:#bbb;">PR bis 12h</span>' : '';
+    const holidayHint = wkHoliday ? `<br><span style="font-size:8px;color:#E65100;font-weight:600;">${wkHoliday.name}</span>` : '';
     const pastClass = isPast ? ' past-day' : '';
-    html += `<div class="week-grid-header${isToday ? ' today' : ''}${pastClass}" onclick="goToDay('${dk}')" style="cursor:pointer;" title="Tagesansicht öffnen">${dayNames[i]}<br>${d.getDate()}.${d.getMonth()+1}.${restrictionHint}</div>`;
+    const holidayClass = wkHoliday ? ' holiday-header' : '';
+    html += `<div class="week-grid-header${isToday ? ' today' : ''}${pastClass}${holidayClass}" onclick="goToDay('${dk}')" style="cursor:pointer;" title="${wkHoliday ? wkHoliday.name + ' — ' : ''}Tagesansicht öffnen">${dayNames[i]}<br>${d.getDate()}.${d.getMonth()+1}.${holidayHint}${restrictionHint}</div>`;
   });
 
   // One row per aircraft
@@ -2980,7 +3001,8 @@ function renderWeekView() {
       const isToday = dk === todayKey;
       const isPast = dk < todayKey;
       const dow = d.getDay();
-      const hasRestriction = dow === 0 || dow === 6; // So/Sa have partial/full restrictions
+      const cellHoliday = DASSU_HOLIDAYS ? DASSU_HOLIDAYS.isHoliday(dk) : null;
+      const hasRestriction = dow === 0 || dow === 6 || cellHoliday; // So/Sa/Feiertage have restrictions
       const dayBookings = getBookingsForDay(d, a);
 
       let cellContent = '';
@@ -3013,7 +3035,7 @@ function renderWeekView() {
     <span style="color: var(--gray-300);">|</span>
     <span>Sa: Platzrunden 08:00–12:00</span>
     <span style="color: var(--gray-300);">|</span>
-    <span>So: ab 09:00, keine Platzrunden</span>
+    <span>So &amp; Feiertage: ab 09:00, keine Platzrunden</span>
   </div>`;
   html += '<div style="padding: 8px 16px 12px; font-size: 12px; color: #999; line-height: 1.5;"><span style="color: var(--primary);">*</span> Platzrunden können problemlos an den umliegenden Flugplätzen (EDPK, EDNV, EDMY, EDME u.&thinsp;a.) geflogen werden — der Shuttle dorthin ist kurz.<br>Für Buchungen, die über diesen Kalender nicht möglich sind (längere Flüge, Übernachtungen, Sonderwünsche), meldet euch bitte bei uns: <a href="tel:+498641698787" style="color:var(--primary);text-decoration:none;font-weight:500;">+49 8641 698787</a> oder <a href="mailto:info@dassu.de" style="color:var(--primary);text-decoration:none;font-weight:500;">info@dassu.de</a></div>';
 
@@ -3074,7 +3096,9 @@ function renderHeroBand(date, dk) {
   const dayName = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'][date.getDay()];
   const day = String(date.getDate()).padStart(2, '0');
 
-  document.getElementById('heroMeta').textContent = `${dayName.toUpperCase()} · ${day}. ${['JAN','FEB','MÄR','APR','MAI','JUN','JUL','AUG','SEP','OKT','NOV','DEZ'][date.getMonth()]} ${date.getFullYear()}`;
+  const holiday = DASSU_HOLIDAYS ? DASSU_HOLIDAYS.isHoliday(dk) : null;
+  const holidaySuffix = holiday ? ` · ${holiday.name}` : '';
+  document.getElementById('heroMeta').textContent = `${dayName.toUpperCase()} · ${day}. ${['JAN','FEB','MÄR','APR','MAI','JUN','JUL','AUG','SEP','OKT','NOV','DEZ'][date.getMonth()]} ${date.getFullYear()}${holidaySuffix}`;
 
   // Reset weather icon while loading
   const iconEl = document.getElementById('heroWeatherIcon');
@@ -3288,17 +3312,18 @@ function renderGanttCalendar(dk, aircraft) {
   const legendDetail = document.getElementById('ganttPlatzrundenDetail');
   if (legendDetail) {
     const prInfo = getPlatzrundenInfo(viewDate);
-    legendDetail.innerHTML = `<span>${prInfo}</span> · <span>* Sonn- & Feiertage: Flugbetrieb Motorsegler ab 09:00</span>`;
+    legendDetail.innerHTML = `<span>${prInfo}</span> · <span>Sonn- &amp; Feiertage: keine Platzrunden, buchbar ab 09:00</span>`;
   }
 
   // --- Compute restricted (non-Platzrunden) time ranges for this day ---
-  function getRestrictedRanges(date) {
+  function getRestrictedRanges(date, dateKey) {
+    const isHoliday = DASSU_HOLIDAYS && DASSU_HOLIDAYS.isHoliday(dateKey);
     const dow = date.getDay();
-    if (dow === 0) return [[firstHour * 60, 9 * 60]];
+    if (isHoliday || dow === 0) return [[firstHour * 60, 9 * 60]];
     if (dow === 6) return [[12 * 60, lastHour * 60]];
     return [[12 * 60, 15 * 60]];
   }
-  const restrictedRanges = getRestrictedRanges(viewDate);
+  const restrictedRanges = getRestrictedRanges(viewDate, dk);
 
   // Build restricted zone HTML (horizontal overlays per column)
   let restrictedZonesHtml = '';
@@ -3586,8 +3611,13 @@ function openBooking(aircraft, slot, date, evt) {
       return;
     }
   }
-  // Sonntag vor 09:00: nicht buchbar
+  // Sonntag/Feiertag vor 09:00: nicht buchbar
   const bookDate = new Date(date + 'T12:00:00');
+  const bookHoliday = DASSU_HOLIDAYS ? DASSU_HOLIDAYS.isHoliday(date) : null;
+  if (bookHoliday && slotStart < '09:00') {
+    notify(bookHoliday.name + ': Buchung erst ab 09:00 möglich.', 'info');
+    return;
+  }
   if (bookDate.getDay() === 0 && slotStart < '09:00') {
     notify('Sonntags ist eine Buchung erst ab 09:00 möglich.', 'info');
     return;
@@ -3607,6 +3637,8 @@ function openBooking(aircraft, slot, date, evt) {
   fromSel.innerHTML = '';
   const bookingDate = new Date(date);
   const isSunday = bookingDate.getDay() === 0;
+  const isBookHoliday = DASSU_HOLIDAYS && DASSU_HOLIDAYS.isHoliday(date);
+  const isSundayOrHoliday = isSunday || isBookHoliday;
   const sundayStart = '09:00';
   const clickedStart = slot.split(' - ')[0];
   const morningBlock = getMorningBlock(aircraft, date, clickedStart);
@@ -3618,7 +3650,7 @@ function openBooking(aircraft, slot, date, evt) {
     fromSel.disabled = false;
     toSel.disabled = false;
     for (let i = 0; i < TIME_POINTS.length - 1; i++) {
-      if (isSunday && TIME_POINTS[i] < sundayStart) continue;
+      if (isSundayOrHoliday && TIME_POINTS[i] < sundayStart) continue;
       const opt = document.createElement('option');
       opt.value = TIME_POINTS[i];
       opt.textContent = TIME_POINTS[i];
@@ -3633,7 +3665,7 @@ function openBooking(aircraft, slot, date, evt) {
     fromSel.innerHTML = '';
     const blocks = [{ start: '08:00', end: '10:00' }, { start: '10:00', end: '12:00' }];
     blocks.forEach(b => {
-      if (isSunday) return; // Sonntag kein Block
+      if (isSundayOrHoliday) return; // Sonntag/Feiertag kein Block
       const opt = document.createElement('option');
       opt.value = b.start;
       opt.textContent = `${b.start} – ${b.end}  (2h)`;
@@ -3653,7 +3685,7 @@ function openBooking(aircraft, slot, date, evt) {
     toSel.disabled = false;
     fromSel.onchange = function() { updateTimeTo(); };
     for (let i = 0; i < TIME_POINTS.length - 1; i++) {
-      if (isSunday && TIME_POINTS[i] < sundayStart) continue;
+      if (isSundayOrHoliday && TIME_POINTS[i] < sundayStart) continue;
       if (isTowingBlocked(aircraft, TIME_POINTS[i])) continue;
       const mbTest = getMorningBlock(aircraft, date, TIME_POINTS[i]);
       if (mbTest) continue;
@@ -3662,7 +3694,7 @@ function openBooking(aircraft, slot, date, evt) {
       opt.textContent = TIME_POINTS[i];
       fromSel.appendChild(opt);
     }
-    if (isSunday && clickedStart < sundayStart) {
+    if (isSundayOrHoliday && clickedStart < sundayStart) {
       fromSel.value = sundayStart;
     } else {
       fromSel.value = clickedStart;

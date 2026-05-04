@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen + VF-Cache erneuern
 (function() {
-  var APP_VERSION = 60;
+  var APP_VERSION = 61;
   try {
     var stored = parseInt(localStorage.getItem('dassu_staff_v') || '0');
     if (stored < APP_VERSION) {
@@ -58,6 +58,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
 <script src="shared/permissions.js"></script>
+<script src="shared/holidays.js"></script>
 <script src="shared/auth.js"></script>
 <script src="shared/messages.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
@@ -139,6 +140,8 @@ body { font-family: var(--font); background: var(--c-bg); color: var(--c-ink); m
 .cal-picker-grid .cal-day.today { font-weight: 700; color: var(--c-alpine); background: rgba(30,75,78,0.08); }
 .cal-picker-grid .cal-day.selected { background: var(--c-alpine); color: white; font-weight: 600; }
 .cal-picker-grid .cal-day.has-bookings::after { content: ''; display: block; width: 4px; height: 4px; border-radius: 50%; background: var(--c-amber); margin: 1px auto 0; }
+.cal-picker-grid .cal-day.cal-holiday { color: #E65100; font-weight: 600; }
+.cal-picker-grid .cal-day.cal-holiday:not(.selected) { background: #FFF3E0; }
 
 /* View Tabs */
 .view-tabs { display: flex; gap: 4px; background: var(--c-paper); padding: 8px 12px; border-bottom: 1px solid var(--c-line); }
@@ -251,6 +254,7 @@ body { font-family: var(--font); background: var(--c-bg); color: var(--c-ink); m
 .wk-day-header.wk-today { background: rgba(30,75,78,0.06); }
 .wk-day-header.wk-today .wk-day-date { color: var(--primary); }
 .wk-day-header.wk-weekend .wk-day-name { color: var(--accent); }
+.wk-holiday-name { font-size: 9px; color: #E65100; font-weight: 600; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 .wk-time { font-size: 11px; font-weight: 700; color: var(--navy); padding: 0 4px; display: flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums; border-right: 2px solid var(--navy); border-bottom: 1px solid var(--c-line); min-height: 32px; background: var(--gray-100); }
 .wk-time.wk-hour { font-size: 11px; color: var(--navy); }
 .wk-time.wk-half { color: var(--gray-500); font-weight: 600; font-size: 9px; border-bottom-color: var(--gray-400); }
@@ -341,6 +345,11 @@ body { font-family: var(--font); background: var(--c-bg); color: var(--c-ink); m
 .daily-notes .dn-text { color: var(--c-ink-2); line-height: 1.4; white-space: pre-wrap; word-break: break-word; }
 .daily-notes .dn-empty { color: var(--c-stone); font-style: italic; }
 .daily-notes .dn-edit { font-size: 11px; color: var(--c-alpine); font-weight: 600; flex-shrink: 0; }
+
+/* Holiday banner */
+.holiday-banner { background: linear-gradient(90deg, #FFF3E0 0%, #FFE0B2 100%); border-bottom: 1px solid #FFCC80; padding: 8px 16px; display: flex; align-items: center; gap: 8px; font-size: 13px; color: #E65100; }
+.holiday-banner .hb-icon { font-size: 15px; flex-shrink: 0; }
+.holiday-banner strong { font-weight: 700; }
 
 /* Notes edit sheet */
 .notes-textarea { width: 100%; min-height: 140px; padding: 12px 14px; font-size: 15px; border: 2px solid var(--c-line); border-radius: var(--radius); font-family: var(--font); outline: none; resize: vertical; line-height: 1.5; }
@@ -943,6 +952,11 @@ body.dev-mode { padding-bottom: 48px; }
     <button class="btn-book" onclick="saveNotes()" style="width:100%;margin-top:14px;padding:16px;font-size:16px;">Speichern</button>
     <button class="btn-cancel" onclick="closeNotesEdit()" style="width:100%;margin-top:6px;padding:12px;text-align:center;">Abbrechen</button>
   </div>
+</div>
+
+<!-- Holiday Banner -->
+<div class="holiday-banner" id="holidayBanner" style="display:none;">
+  <span class="hb-icon">&#127937;</span> <strong></strong>
 </div>
 
 <!-- Guest Instructors Strip -->
@@ -2242,18 +2256,28 @@ function isPlatzrundenRestricted(dateStr, slotStart) {
   const d = new Date(dateStr + 'T12:00:00');
   const dow = d.getDay(); // 0=So, 6=Sa
   const m = parseInt(slotStart.split(':')[0]) * 60 + parseInt(slotStart.split(':')[1]);
+  // Feiertage: komplett keine Platzrunden
+  if (DASSU_HOLIDAYS && DASSU_HOLIDAYS.isHoliday(dateStr)) return true;
   if (dow === 0) return true; // Sonntag: komplett keine Platzrunden
   if (dow === 6) return m >= 720; // Samstag: ab 12:00 keine Platzrunden
   return m >= 720 && m < 900; // Mo–Fr: 12:00–15:00 keine Platzrunden
 }
-// Sonntag vor 09:00: komplett gesperrt (nicht buchbar)
-function isSundayBlocked(dateStr, slotStart) {
+// Sonntag/Feiertag vor 09:00: komplett gesperrt (nicht buchbar)
+function isHolidayOrSundayBlocked(dateStr, slotStart) {
+  const m = parseInt(slotStart.split(':')[0]) * 60 + parseInt(slotStart.split(':')[1]);
+  // Feiertage: vor 09:00 gesperrt
+  if (DASSU_HOLIDAYS && DASSU_HOLIDAYS.isHoliday(dateStr)) return m < 540;
   const d = new Date(dateStr + 'T12:00:00');
   if (d.getDay() !== 0) return false;
-  const m = parseInt(slotStart.split(':')[0]) * 60 + parseInt(slotStart.split(':')[1]);
-  return m < 540; // vor 09:00
+  return m < 540; // Sonntag vor 09:00
+}
+// Legacy alias
+function isSundayBlocked(dateStr, slotStart) {
+  return isHolidayOrSundayBlocked(dateStr, slotStart);
 }
 function getPlatzrundenInfo(dateStr) {
+  const holiday = DASSU_HOLIDAYS ? DASSU_HOLIDAYS.isHoliday(dateStr) : null;
+  if (holiday) return holiday.name + ': keine Platzrunden · erst ab 09:00 buchbar';
   const d = new Date(dateStr + 'T12:00:00');
   const dow = d.getDay();
   if (dow === 0) return 'Sonntag: keine Platzrunden · erst ab 09:00 buchbar';
@@ -2462,7 +2486,10 @@ function renderCalPicker() {
     if (dk === today) classes.push('today');
     if (dk === sel) classes.push('selected');
     if (bookingDates.has(dk)) classes.push('has-bookings');
-    html += `<button class="${classes.join(' ')}" onclick="selectCalDay(${y},${m},${d})">${d}</button>`;
+    const hol = DASSU_HOLIDAYS ? DASSU_HOLIDAYS.isHoliday(dk) : null;
+    if (hol) classes.push('cal-holiday');
+    const holTitle = hol ? ` title="${hol.name}"` : '';
+    html += `<button class="${classes.join(' ')}"${holTitle} onclick="selectCalDay(${y},${m},${d})">${d}</button>`;
   }
 
   // Next month leading days
@@ -2594,6 +2621,7 @@ function paintOverviewGrid(dk, lookup) {
     legendEl.id = 'ovLegend';
     grid.parentNode.insertBefore(legendEl, grid.nextSibling);
   }
+  const holidayInfo = DASSU_HOLIDAYS ? DASSU_HOLIDAYS.isHoliday(dk) : null;
   legendEl.innerHTML = `<div class="ov-legend">
     <div class="ov-legend-item"><div class="ov-legend-swatch sw-booked"></div> Bestätigt</div>
     <div class="ov-legend-item"><div class="ov-legend-swatch sw-pending"></div> Angefragt</div>
@@ -2601,7 +2629,7 @@ function paintOverviewGrid(dk, lookup) {
     <div class="ov-legend-item"><div class="ov-legend-swatch sw-towing"></div> Schleppbetrieb</div>
     <div class="ov-legend-item"><div class="ov-legend-swatch sw-restricted"></div> Keine Platzrunden</div>
   </div>
-  <div class="ov-legend-info"><strong>${infoText}</strong><br>Mo–Fr: Platzrunden 08:00–12:00 &amp; 15:00–18:00 · Sa: Platzrunden 08:00–12:00 · So: keine Platzrunden, buchbar ab 09:00<br>Platzrunden an umliegenden Plätzen (EDPK, EDNV, EDMY, EDME) jederzeit möglich.</div>`;
+  <div class="ov-legend-info"><strong>${infoText}</strong><br>Mo–Fr: Platzrunden 08:00–12:00 &amp; 15:00–18:00 · Sa: Platzrunden 08:00–12:00 · So &amp; Feiertage: keine Platzrunden, buchbar ab 09:00<br>Platzrunden an umliegenden Plätzen (EDPK, EDNV, EDMY, EDME) jederzeit möglich.</div>`;
 }
 
 function renderOverview() {
@@ -2684,12 +2712,15 @@ function renderWeekOverview() {
     const dk = dateKey(wd);
     const isToday = dk === todayDk;
     const isWeekend = i >= 5;
+    const holiday = DASSU_HOLIDAYS ? DASSU_HOLIDAYS.isHoliday(dk) : null;
     let cls = 'wk-day-header';
     if (isToday) cls += ' wk-today';
-    if (isWeekend) cls += ' wk-weekend';
+    if (isWeekend || holiday) cls += ' wk-weekend';
+    const holidayLabel = holiday ? `<div class="wk-holiday-name">${holiday.name}</div>` : '';
     html += `<div class="${cls}">
       <div class="wk-day-name">${dayNames[i]}</div>
       <div class="wk-day-date">${wd.getDate()}.${wd.getMonth() + 1}.</div>
+      ${holidayLabel}
     </div>`;
   });
 
@@ -2702,7 +2733,7 @@ function renderWeekOverview() {
     weekDates.forEach(wd => {
       const dk = dateKey(wd);
       const entry = weekLookup[dk][tp];
-      const sundayBlocked = isSundayBlocked(dk, tp);
+      const sundayBlocked = isHolidayOrSundayBlocked(dk, tp);
       const towingBlocked = isTowingBlocked(weekAircraft, tp);
       const restricted = isPlatzrundenRestricted(dk, tp);
 
@@ -5329,7 +5360,20 @@ function renderVfCompare() {
 // MAIN RENDER
 // ============================================================
 function render() {
-  document.getElementById('dateDisplay').textContent = formatDate(currentDate);
+  const dk = dateKey(currentDate);
+  const holiday = DASSU_HOLIDAYS ? DASSU_HOLIDAYS.isHoliday(dk) : null;
+  const dateText = formatDate(currentDate);
+  document.getElementById('dateDisplay').textContent = holiday ? dateText + ' · ' + holiday.name : dateText;
+  // Holiday banner
+  const holidayBanner = document.getElementById('holidayBanner');
+  if (holidayBanner) {
+    if (holiday) {
+      holidayBanner.style.display = '';
+      holidayBanner.innerHTML = '<span class="hb-icon">&#127937;</span> <strong>' + holiday.name + '</strong> — Keine Platzrunden · Buchbar ab 09:00';
+    } else {
+      holidayBanner.style.display = 'none';
+    }
+  }
   renderDailyNotes();
   renderGuestStrip();
   if (currentView === 'overview') { if (ovMode === 'week') renderWeekOverview(); else renderOverview(); }
