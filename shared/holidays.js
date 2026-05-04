@@ -77,7 +77,16 @@
    * @returns {object|null} – { name } oder null
    */
   function isHoliday(dateStr) {
-    if (!dateStr || dateStr.length < 10) return null;
+    if (!dateStr) return null;
+    // Date-Objekt → String konvertieren
+    if (typeof dateStr !== 'string') {
+      if (dateStr instanceof Date) {
+        dateStr = dateStr.getFullYear() + '-' + String(dateStr.getMonth() + 1).padStart(2, '0') + '-' + String(dateStr.getDate()).padStart(2, '0');
+      } else {
+        return null;
+      }
+    }
+    if (dateStr.length < 10) return null;
     var year = parseInt(dateStr.substring(0, 4), 10);
     if (!_cache[year]) _cache[year] = getBavarianHolidays(year);
     return _cache[year][dateStr] || null;
