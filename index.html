@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen
 (function() {
-  var APP_VERSION = 59;
+  var APP_VERSION = 60;
   try {
     var stored = parseInt(localStorage.getItem('dassu_v') || '0');
     if (stored < APP_VERSION) {
@@ -3524,10 +3524,55 @@ function openSchulungPopup() {
       </div>
     </div>
     <div style="margin-top:16px; padding:12px 14px; background:rgba(0,0,0,0.03); border-radius:10px; font-size:12px; line-height:1.6; color:var(--c-ink);">
-      <b>Was steckt dahinter?</b> Viele denken, man braucht Sonnenschein zum Fliegen lernen. Stimmt nicht — ein grauer, bedeckter Tag ist zum Schulen oft <b>besser</b> als strahlender Sonnenschein. Warum? Wenn die Sonne knallt, heizt sich der Boden auf und es entstehen Thermikblasen. Die Luft wird böig und turbulent, das Flugzeug schaukelt. Klar, das gehört zum Fliegen dazu — aber wenn du gerade lernst, geradeaus zu fliegen oder deine erste Platzrunde fliegst, willst du nicht gleichzeitig gegen Turbulenzen kämpfen.<br><br>
-      Bei bedecktem Himmel ist die Luft ruhig, der Flieger macht was du willst, und du kannst dich auf das Wesentliche konzentrieren. Perfekt zum Üben.<br><br>
-      <b>Wann wird's schwierig?</b> Bei <b>Regen</b> geht gar nix — nasse Piste, schlechte Sicht, kein Spaß. <b>Starker Wind und Böen</b> machen vor allem Start und Landung knifflig, gerade am Anfang. Wenn die <b>Wolken zu tief hängen</b> (unter ~2.500 ft über Meer), bleibt nicht genug Platz für Platzrunden. Und bei <b>Sicht unter 5 km</b> macht VFR-Schulung keinen Sinn.<br><br>
-      Die Ampel hier oben rechnet das alles zusammen. Grün heißt: kommt vorbei. Gelb: geht vielleicht, fragt euren Fluglehrer. Rot: bleibt daheim.
+      <b>Heutige Einschätzung im Detail:</b><br><br>
+      ${(() => {
+        let details = [];
+
+        // Wind-Einschätzung
+        if (d.gust > 30) {
+          details.push('Der <b>Wind ist heute das Hauptproblem</b>: Böen bis ' + d.gust + ' kt sind für Flugschüler echt heftig. Da wird jede Landung zum Abenteuer, und das ist nicht der Sinn der Sache.');
+        } else if (d.gust > 20) {
+          details.push('Die <b>Böen mit ' + d.gust + ' kt</b> sind schon spürbar. Für Schüler mit ein paar Stunden geht das, aber Anfänger tun sich bei der Landung damit schwer. Am besten morgens fliegen, da ist es oft noch ruhiger.');
+        } else if (d.wind > 12) {
+          details.push('Wind mit ' + d.wind + ' kt im Schnitt ist okay — da merkt man was, aber nichts Wildes. Gute Übung für Seitenwindlandungen, wenn der Fluglehrer das für sinnvoll hält.');
+        } else {
+          details.push('Beim <b>Wind sieht es super aus</b>: nur ' + d.wind + ' kt im Mittel' + (d.gust > 5 ? ', Böen bis ' + d.gust + ' kt' : '') + '. Da wackelt nix, perfekt zum Üben.');
+        }
+
+        // Wolken/Bewölkung
+        if (d.avgCloud > 60) {
+          details.push('Der Himmel ist <b>ordentlich bedeckt</b> (' + Math.round(d.avgCloud) + '% Bewölkung) — und das ist für uns gut! Keine Thermik, die Luft bleibt ruhig. Die Wolkenbasis liegt bei ca. ' + d.ceilingAmsl + ' ft' + (d.ceilingAmsl < 2500 ? ', das ist allerdings schon ziemlich tief für Platzrunden.' : d.ceilingAmsl < 3500 ? ', reicht knapp für Platzrunden, aber viel Spielraum ist da nicht.' : ', das ist genug Platz nach oben.'));
+        } else if (d.avgCloud > 20) {
+          details.push('Bewölkung liegt bei ' + Math.round(d.avgCloud) + '%, also <b>ein Mix aus Wolken und Sonne</b>. Basis geschätzt auf ' + d.ceilingAmsl + ' ft — Platz genug. Durch die Sonne kann es nachmittags etwas thermisch werden, also lieber vormittags schulen.');
+        } else {
+          details.push('Heute ist es <b>überwiegend klar</b> (' + Math.round(d.avgCloud) + '% Bewölkung). Die Sonne heizt den Boden auf, ab dem späten Vormittag bilden sich Thermikblasen — die Luft wird dann unruhiger. Tipp: <b>früh morgens fliegen</b>, da ist es noch ruhig.');
+        }
+
+        // Regen
+        if (d.maxPrecip > 60) {
+          details.push('<b>Regen ist heute sehr wahrscheinlich</b> (bis ' + d.maxPrecip + '% Regenwahrscheinlichkeit). Nasse Piste, schlechte Sicht, und Spaß macht es auch nicht. Lieber verschieben.');
+        } else if (d.maxPrecip > 30) {
+          details.push('Es könnten <b>Schauer durchziehen</b> (bis ' + d.maxPrecip + '% Wahrscheinlichkeit). Wenn ihr flexibel seid und ein Auge auf den Regenradar habt, kann man die Lücken nutzen.');
+        } else if (d.maxPrecip > 10) {
+          details.push('Regenrisiko ist gering (' + d.maxPrecip + '%) — sollte trocken bleiben.');
+        }
+
+        // Sicht
+        if (d.minVis < 3000) {
+          details.push('Die <b>Sicht ist schlecht</b> (unter ' + (d.minVis/1000).toFixed(1) + ' km). Für VFR-Schulung brauchen wir deutlich mehr — das geht heute nicht.');
+        } else if (d.minVis < 5000) {
+          details.push('Die <b>Sicht ist mäßig</b> (ca. ' + (d.minVis/1000).toFixed(1) + ' km). Für VFR reicht das gerade so, aber gemütlich ist anders. Orientierung am Boden wird schwieriger.');
+        } else if (d.minVis < 10000) {
+          details.push('Sicht um die ' + (d.minVis/1000).toFixed(0) + ' km — ausreichend, keine Einschränkung.');
+        }
+
+        // Tiefe Wolken
+        if (d.avgLowCloud > 70) {
+          details.push('Dazu kommen <b>viele tiefe Wolken</b> (' + Math.round(d.avgLowCloud) + '%). Das drückt die Basis zusätzlich runter und schränkt den nutzbaren Luftraum ein.');
+        }
+
+        return details.join('<br><br>');
+      })()}
     </div>
     <p style="margin-top:12px; font-size:11px; color:var(--c-muted);">
       Wolkenbasis geschätzt aus Spread ${d.spread.toFixed(1)}°C (${d.avgTemp.toFixed(1)}° − ${d.avgDew.toFixed(1)}°) · Wetterdaten: Open-Meteo ICON · 08–18 Uhr · Immer auch auf euren Fluglehrer hören!
