@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen
 (function() {
-  var APP_VERSION = 61;
+  var APP_VERSION = 62;
   try {
     var stored = parseInt(localStorage.getItem('dassu_v') || '0');
     if (stored < APP_VERSION) {
@@ -3654,7 +3654,14 @@ function renderGanttCalendar(dk, aircraft) {
   const firstHour = 8;
   const lastHour = 18;
   const totalMinutes = (lastHour - firstHour) * 60;
-  const slotHeight = 60; // px per hour
+  // Slot-Höhe dynamisch ermitteln (Mobile: 50px, Desktop: 60px)
+  const _tmpSlot = document.createElement('div');
+  _tmpSlot.className = 'gantt-col-slot';
+  _tmpSlot.style.visibility = 'hidden';
+  _tmpSlot.style.position = 'absolute';
+  document.body.appendChild(_tmpSlot);
+  const slotHeight = _tmpSlot.offsetHeight || 60;
+  document.body.removeChild(_tmpSlot);
 
   // --- Date label in gantt header ---
   const viewDate = new Date(dk.replace(/(\d{4})-(\d{2})-(\d{2})/, '$1/$2/$3'));
