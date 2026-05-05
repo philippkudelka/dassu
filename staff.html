@@ -644,6 +644,30 @@ body { font-family: var(--font); background: var(--c-bg); color: var(--c-ink); m
 /* ===== ZEITERFASSUNG (time tracking) ===== */
 .time-view { padding: 12px 16px 100px; }
 
+/* Vergessen-Warnung */
+.time-forgotten-banner { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: #FFF3E0; border: 1px solid #FFB74D; border-radius: 10px; margin-bottom: 14px; }
+.time-forgotten-banner .forgotten-icon { font-size: 20px; flex-shrink: 0; }
+.time-forgotten-banner .forgotten-text { font-size: 13px; font-weight: 600; color: #E65100; flex: 1; }
+.time-forgotten-banner .forgotten-dismiss { background: none; border: none; font-size: 16px; color: #BF360C; cursor: pointer; padding: 4px; flex-shrink: 0; }
+
+/* View toggle (Woche/Monat) */
+.time-view-toggle { display: flex; gap: 4px; background: var(--gray-100); border-radius: 8px; padding: 3px; margin-bottom: 14px; }
+.time-view-toggle button { flex: 1; padding: 8px 10px; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; font-family: var(--font); cursor: pointer; background: transparent; color: var(--gray-500); transition: all 0.15s; }
+.time-view-toggle button.active { background: var(--c-paper); color: var(--navy); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+
+/* Week chart */
+.time-week-chart { margin-bottom: 14px; }
+.twc-bars { display: flex; gap: 4px; align-items: flex-end; height: 160px; padding: 0 4px; }
+.twc-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; height: 100%; }
+.twc-col.today .twc-day { color: var(--primary); font-weight: 800; }
+.twc-col.today .twc-bar-fill { background: var(--primary) !important; }
+.twc-val { font-size: 10px; font-weight: 700; color: var(--navy); min-height: 14px; font-variant-numeric: tabular-nums; }
+.twc-bar-track { flex: 1; width: 100%; background: var(--gray-100); border-radius: 6px; display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden; min-height: 0; }
+.twc-bar-fill { background: linear-gradient(180deg, var(--accent) 0%, var(--primary) 100%); border-radius: 6px 6px 0 0; transition: height 0.4s ease; min-height: 0; }
+.twc-day { font-size: 11px; font-weight: 600; color: var(--gray-500); }
+.twc-date { font-size: 10px; color: var(--gray-400); }
+.time-week-summary { display: flex; gap: 6px; margin-bottom: 14px; }
+
 /* Clock button area */
 .time-clock-area { text-align: center; padding: 20px 0 24px; }
 .time-clock-status { font-size: 13px; color: var(--gray-500); margin-bottom: 10px; font-weight: 500; }
@@ -667,6 +691,8 @@ body { font-family: var(--font); background: var(--c-bg); color: var(--c-ink); m
 .time-summary-card .ts-value { font-size: 18px; font-weight: 700; color: var(--navy); font-variant-numeric: tabular-nums; }
 .time-summary-card .ts-value.positive { color: var(--green); }
 .time-summary-card .ts-value.negative { color: var(--danger); }
+.time-summary-card.balance-card { background: linear-gradient(135deg, #f0f7f7 0%, #e8f0e4 100%); border-color: var(--primary); }
+.time-summary-card.balance-card .ts-label { color: var(--primary); }
 
 /* Daily entries */
 .time-day-group { margin-bottom: 12px; }
@@ -1167,6 +1193,12 @@ body.dev-mode { padding-bottom: 48px; }
 
   <!-- Personal view -->
   <div id="timePersonalView">
+  <!-- Vergessen-Warnung -->
+  <div class="time-forgotten-banner" id="timeForgottenBanner" style="display:none;">
+    <span class="forgotten-icon">&#9888;</span>
+    <span class="forgotten-text"></span>
+    <button class="forgotten-dismiss" onclick="this.parentElement.style.display='none'" title="Schließen">&#10005;</button>
+  </div>
   <div class="time-clock-area">
     <div class="time-clock-status" id="timeClockStatus">Nicht eingestempelt</div>
     <button class="time-clock-btn clock-in" id="timeClockBtn" onclick="toggleClock()">
@@ -1191,6 +1223,26 @@ body.dev-mode { padding-bottom: 48px; }
     <button class="time-settings-save" onclick="saveTimeSettings()">Speichern</button>
   </details>
 
+  <!-- Ansichts-Toggle: Woche / Monat -->
+  <div class="time-view-toggle">
+    <button class="active" id="timeViewWeek" onclick="setTimeViewMode('week')">Woche</button>
+    <button id="timeViewMonth" onclick="setTimeViewMode('month')">Monat</button>
+  </div>
+
+  <!-- Wochen-Ansicht -->
+  <div id="timeWeekView">
+    <div class="time-month-nav">
+      <button class="nav-btn" onclick="navigateTimeWeek(-1)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
+      <h3 id="timeWeekDisplay"></h3>
+      <button class="nav-btn" onclick="navigateTimeWeek(1)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>
+    </div>
+    <div class="time-week-chart" id="timeWeekChart"></div>
+    <div class="time-week-summary" id="timeWeekSummary"></div>
+    <div id="timeWeekEntries"></div>
+  </div>
+
+  <!-- Monats-Ansicht -->
+  <div id="timeMonthView" style="display:none;">
   <div class="time-month-nav">
     <button class="nav-btn" onclick="navigateTimeMonth(-1)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
     <h3 id="timeMonthDisplay"></h3>
@@ -1204,6 +1256,7 @@ body.dev-mode { padding-bottom: 48px; }
   </div>
 
   <div id="timeEntriesList"></div>
+  </div>
   </div><!-- /timePersonalView -->
 
   <!-- Admin view: all employees -->
@@ -3890,6 +3943,7 @@ function updateClockUI() {
     status.innerHTML = 'Eingestempelt seit <span class="active-since">' + inTime + '</span>';
     elapsed.style.display = '';
     startClockTick(running.clockIn);
+    checkForgottenClock(running);
   } else {
     btn.className = 'time-clock-btn clock-in';
     icon.innerHTML = '&#9654;';
@@ -3897,7 +3951,44 @@ function updateClockUI() {
     status.textContent = 'Nicht eingestempelt';
     elapsed.style.display = 'none';
     stopClockTick();
+    hideForgottenWarning();
   }
+}
+
+// ---- Vergessen-Warnung ----
+let forgottenCheckInterval = null;
+function checkForgottenClock(entry) {
+  clearInterval(forgottenCheckInterval);
+  function doCheck() {
+    if (!entry || !entry.clockIn) return;
+    const now = new Date();
+    const clockIn = new Date(entry.clockIn);
+    const hoursElapsed = (now - clockIn) / 3600000;
+    const hour = now.getHours();
+    let warnMsg = '';
+    if (hoursElapsed >= 12) {
+      warnMsg = 'Du bist seit über ' + Math.floor(hoursElapsed) + ' Stunden eingestempelt — vergessen auszustempeln?';
+    } else if (hour >= 20) {
+      warnMsg = 'Es ist nach 20:00 Uhr und du bist noch eingestempelt — vergessen?';
+    }
+    const banner = document.getElementById('timeForgottenBanner');
+    if (banner) {
+      if (warnMsg) {
+        banner.querySelector('.forgotten-text').textContent = warnMsg;
+        banner.style.display = '';
+      } else {
+        banner.style.display = 'none';
+      }
+    }
+  }
+  doCheck();
+  forgottenCheckInterval = setInterval(doCheck, 60000); // jede Minute prüfen
+}
+
+function hideForgottenWarning() {
+  clearInterval(forgottenCheckInterval);
+  const banner = document.getElementById('timeForgottenBanner');
+  if (banner) banner.style.display = 'none';
 }
 
 function startClockTick(clockInISO) {
@@ -3951,6 +4042,114 @@ function navigateTimeMonth(dir) {
   renderTimeView();
 }
 
+// ---- Wochen-Ansicht ----
+let timeViewMode = 'week'; // 'week' | 'month'
+let timeWeekOffset = 0; // 0 = aktuelle Woche, -1 = letzte Woche, etc.
+
+function setTimeViewMode(mode) {
+  timeViewMode = mode;
+  document.getElementById('timeViewWeek').classList.toggle('active', mode === 'week');
+  document.getElementById('timeViewMonth').classList.toggle('active', mode === 'month');
+  document.getElementById('timeWeekView').style.display = mode === 'week' ? '' : 'none';
+  document.getElementById('timeMonthView').style.display = mode === 'month' ? '' : 'none';
+  if (mode === 'week') renderWeekView();
+  else { renderTimeView(); }
+}
+
+function getWeekRange(offset) {
+  const now = new Date();
+  const day = now.getDay(); // 0=So
+  const diff = (day === 0 ? -6 : 1 - day) + (offset * 7);
+  const mon = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diff);
+  const sun = new Date(mon);
+  sun.setDate(mon.getDate() + 6);
+  return { start: mon, end: sun };
+}
+
+function navigateTimeWeek(dir) {
+  timeWeekOffset += dir;
+  renderWeekView();
+}
+
+function renderWeekView() {
+  const { start, end } = getWeekRange(timeWeekOffset);
+  const weekLabel = start.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) +
+    ' – ' + end.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const dispEl = document.getElementById('timeWeekDisplay');
+  if (dispEl) dispEl.textContent = weekLabel;
+
+  const dayNames = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+  const days = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    const dk = dateKey(d);
+    const dayEntries = timeEntries.filter(e => e.date === dk && e.clockOut);
+    const mins = dayEntries.reduce((s, e) => s + (e.duration || 0), 0);
+    days.push({ name: dayNames[i], date: dk, dateObj: d, minutes: mins, entries: dayEntries });
+  }
+
+  const maxMins = Math.max(...days.map(d => d.minutes), 1);
+  const today = dateKey(new Date());
+  const chartEl = document.getElementById('timeWeekChart');
+  if (chartEl) {
+    chartEl.innerHTML = `<div class="twc-bars">${days.map(d => {
+      const pct = Math.round((d.minutes / Math.max(maxMins, 60)) * 100);
+      const isToday = d.date === today;
+      const hrs = formatDurationHM(d.minutes);
+      return `<div class="twc-col${isToday ? ' today' : ''}">
+        <div class="twc-val">${d.minutes > 0 ? hrs + 'h' : ''}</div>
+        <div class="twc-bar-track"><div class="twc-bar-fill" style="height:${pct}%"></div></div>
+        <div class="twc-day">${d.name}</div>
+        <div class="twc-date">${d.dateObj.getDate()}.</div>
+      </div>`;
+    }).join('')}</div>`;
+  }
+
+  const totalMins = days.reduce((s, d) => s + d.minutes, 0);
+  const workingDays = days.filter(d => d.minutes > 0).length;
+  const summaryEl = document.getElementById('timeWeekSummary');
+  if (summaryEl) {
+    summaryEl.innerHTML = `
+      <div class="time-summary-card"><div class="ts-label">Wochenstunden</div><div class="ts-value">${formatDurationHM(totalMins)}h</div></div>
+      <div class="time-summary-card"><div class="ts-label">Arbeitstage</div><div class="ts-value">${workingDays}</div></div>
+      ${timeSettings.sollHours ? `<div class="time-summary-card"><div class="ts-label">Wochen-Soll</div><div class="ts-value">${formatDurationHM(Math.round(timeSettings.sollHours * 60))}h</div></div>` : ''}
+    `;
+  }
+
+  // Einträge der Woche unter dem Diagramm
+  const entriesEl = document.getElementById('timeWeekEntries');
+  if (entriesEl) {
+    const populated = days.filter(d => d.entries.length > 0).reverse();
+    if (!populated.length) {
+      entriesEl.innerHTML = '<div class="empty-msg">Keine Zeiteinträge diese Woche.</div>';
+    } else {
+      entriesEl.innerHTML = populated.map(d => {
+        const dayLabel = d.dateObj.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
+        const entryRows = d.entries.sort((a, b) => (a.clockIn || '').localeCompare(b.clockIn || '')).map(e => {
+          const inTime = timeOfDay(e.clockIn);
+          const outTime = timeOfDay(e.clockOut);
+          const breakHtml = e.breakMin ? `<span class="te-break">(${e.breakMin}min Pause)</span>` : '';
+          const noteHtml = e.note ? `<span class="te-note">${escapeHtml(e.note)}</span>` : '';
+          return `<div class="time-entry">
+            <span class="te-times">${inTime} – ${outTime} ${breakHtml}</span>
+            ${noteHtml}
+            <span class="te-duration">${formatDurationHM(e.duration || 0)}h</span>
+            <span class="te-actions">
+              <button onclick="openTimeEdit('${e.id}')">&#9998;</button>
+              <button class="te-del" onclick="deleteTimeEntryDirect('${e.id}')">&#10005;</button>
+            </span>
+          </div>`;
+        }).join('');
+        return `<div class="time-day-group">
+          <div class="time-day-header"><span>${dayLabel}</span><span class="day-total">${formatDurationHM(d.minutes)}h</span></div>
+          ${entryRows}
+        </div>`;
+      }).join('');
+    }
+  }
+}
+
 // ---- Soll-Stunden ----
 function saveTimeSettings() {
   if (!currentUser) return;
@@ -3987,7 +4186,32 @@ function getSollMinutesForMonth(year, month) {
   return Math.round(workDays * dailyMinutes);
 }
 
-// ---- Summary ----
+// ---- Summary with cumulative balance ----
+function getCumulativeBalance(upToYear, upToMonth) {
+  // Berechne kumuliertes Stundenkonto von Beginn bis zum angegebenen Monat (inkl.)
+  if (!timeSettings.sollHours) return null; // Kein Saldo ohne Soll-Konfiguration
+  let totalDiff = 0;
+  // Finde frühesten Eintrag
+  const allDates = timeEntries.filter(e => e.date && e.clockOut).map(e => e.date).sort();
+  if (!allDates.length) return null;
+  const first = allDates[0]; // z.B. "2025-03-15"
+  let startYear = parseInt(first.substring(0, 4));
+  let startMonth = parseInt(first.substring(5, 7)) - 1;
+
+  for (let y = startYear; y <= upToYear; y++) {
+    const mStart = (y === startYear) ? startMonth : 0;
+    const mEnd = (y === upToYear) ? upToMonth : 11;
+    for (let m = mStart; m <= mEnd; m++) {
+      const mk = y + '-' + String(m + 1).padStart(2, '0');
+      const mEntries = timeEntries.filter(e => e.date && e.date.startsWith(mk) && e.clockOut);
+      const ist = mEntries.reduce((s, e) => s + (e.duration || 0), 0);
+      const soll = getSollMinutesForMonth(y, m);
+      totalDiff += (ist - soll);
+    }
+  }
+  return totalDiff;
+}
+
 function renderTimeSummary() {
   const el = document.getElementById('timeSummary');
   if (!el) return;
@@ -4007,6 +4231,18 @@ function renderTimeSummary() {
     </div>`;
   }
 
+  // Kumuliertes Stundenkonto
+  let balanceHtml = '';
+  const cumBal = getCumulativeBalance(timeMonth.getFullYear(), timeMonth.getMonth());
+  if (cumBal !== null) {
+    const balClass = cumBal >= 0 ? 'positive' : 'negative';
+    const balSign = cumBal >= 0 ? '+' : '';
+    balanceHtml = `<div class="time-summary-card balance-card">
+      <div class="ts-label">Stundenkonto</div>
+      <div class="ts-value ${balClass}">${balSign}${formatDurationHM(Math.abs(cumBal))}h</div>
+    </div>`;
+  }
+
   el.innerHTML = `
     <div class="time-summary-card">
       <div class="ts-label">Ist-Stunden</div>
@@ -4017,6 +4253,7 @@ function renderTimeSummary() {
       <div class="ts-value">${formatDurationHM(sollMinutes)}h</div>
     </div>` : ''}
     ${diffHtml}
+    ${balanceHtml}
     <div class="time-summary-card">
       <div class="ts-label">Einträge</div>
       <div class="ts-value">${monthEntries.length}</div>
@@ -4038,6 +4275,13 @@ function renderTimeView() {
   }
 
   updateClockUI();
+
+  // Week view rendering
+  if (timeViewMode === 'week') {
+    renderWeekView();
+    return;
+  }
+
   document.getElementById('timeMonthDisplay').textContent = getMonthLabel(timeMonth);
   renderTimeSummary();
 
@@ -4391,88 +4635,99 @@ function renderAdminTimeView() {
   }).join('');
 }
 
-// ---- Admin: export all employees as formatted .xlsx ----
+// ---- Admin: export all employees as formatted .xlsx (multi-sheet) ----
 function exportAllTimeExcel() {
   const mk = getMonthKey(timeMonth);
   const monthLabel = getMonthLabel(timeMonth);
   const wb = XLSX.utils.book_new();
-  const headers = ['Benutzer', 'Datum', 'Wochentag', 'Kommen', 'Gehen', 'Pause (min)', 'Netto (h)', 'Netto (min)', 'Notiz'];
-  const data = [headers];
   let hasData = false;
+
+  // Zusammenfassung
+  const sumHeaders = ['Mitarbeiter', 'Einträge', 'Ist (h)', 'Ist (min)', 'Soll (h)', 'Soll (min)', 'Differenz (h)', 'Differenz (min)'];
+  const sumData = [sumHeaders];
 
   staffUsers.forEach(u => {
     const entries = (allTimeEntries[u.id] || []).filter(e => e.date && e.date.startsWith(mk) && e.clockOut);
     entries.sort((a, b) => (a.date + a.clockIn).localeCompare(b.date + b.clockIn));
     const settings = allTimeSettings[u.id] || {};
 
+    if (!entries.length) return;
+    hasData = true;
+
+    const totalMin = entries.reduce((s, e) => s + (e.duration || 0), 0);
+    const totalBreak = entries.reduce((s, e) => s + (e.breakMin || 0), 0);
+    const sollHours = settings.sollHours || 0;
+    const sollDays = settings.sollDays || 5;
+    let sollMin = 0;
+    if (sollHours) {
+      const dailyMin = (sollHours * 60) / sollDays;
+      const daysInMonth = new Date(timeMonth.getFullYear(), timeMonth.getMonth() + 1, 0).getDate();
+      let workDays = 0;
+      for (let dd = 1; dd <= daysInMonth; dd++) {
+        const dow = new Date(timeMonth.getFullYear(), timeMonth.getMonth(), dd).getDay();
+        if (sollDays >= 7) workDays++;
+        else if (sollDays >= 6 && dow >= 1 && dow <= 6) workDays++;
+        else if (dow >= 1 && dow <= sollDays) workDays++;
+      }
+      sollMin = Math.round(workDays * dailyMin);
+    }
+    const diffMin = totalMin - sollMin;
+
+    // Zusammenfassungszeile
+    sumData.push([
+      u.name, entries.length,
+      parseFloat(formatDurationDecimal(totalMin)), totalMin,
+      sollMin ? parseFloat(formatDurationDecimal(sollMin)) : '',
+      sollMin || '',
+      sollMin ? parseFloat(formatDurationDecimal(diffMin)) : '',
+      sollMin ? diffMin : ''
+    ]);
+
+    // Einzelnes Sheet pro Person
+    const pHeaders = ['Datum', 'Wochentag', 'Kommen', 'Gehen', 'Pause (min)', 'Netto (h)', 'Netto (min)', 'Notiz'];
+    const pData = [pHeaders];
     entries.forEach(e => {
-      hasData = true;
       const d = new Date(e.date + 'T12:00:00');
       const wday = d.toLocaleDateString('de-DE', { weekday: 'long' });
-      data.push([
-        u.name,
-        e.date,
-        wday,
-        timeOfDay(e.clockIn),
-        timeOfDay(e.clockOut),
-        e.breakMin || 0,
-        parseFloat(formatDurationDecimal(e.duration)),
-        e.duration || 0,
-        e.note || ''
+      pData.push([
+        e.date, wday, timeOfDay(e.clockIn), timeOfDay(e.clockOut),
+        e.breakMin || 0, parseFloat(formatDurationDecimal(e.duration)), e.duration || 0, e.note || ''
       ]);
     });
-
-    if (entries.length) {
-      const totalMin = entries.reduce((s, e) => s + (e.duration || 0), 0);
-      const totalBreak = entries.reduce((s, e) => s + (e.breakMin || 0), 0);
-      const sollHours = settings.sollHours || 0;
-      const sollDays = settings.sollDays || 5;
-      let sollMin = 0;
-      if (sollHours) {
-        const dailyMin = (sollHours * 60) / sollDays;
-        const daysInMonth = new Date(timeMonth.getFullYear(), timeMonth.getMonth() + 1, 0).getDate();
-        let workDays = 0;
-        for (let dd = 1; dd <= daysInMonth; dd++) {
-          const dow = new Date(timeMonth.getFullYear(), timeMonth.getMonth(), dd).getDay();
-          if (sollDays >= 7) workDays++;
-          else if (sollDays >= 6 && dow >= 1 && dow <= 6) workDays++;
-          else if (dow >= 1 && dow <= sollDays) workDays++;
-        }
-        sollMin = Math.round(workDays * dailyMin);
-      }
-      data.push([u.name + ' — Gesamt', '', '', '', '', totalBreak, parseFloat(formatDurationDecimal(totalMin)), totalMin, '']);
-      if (sollMin) {
-        data.push([u.name + ' — Soll', '', '', '', '', '', parseFloat(formatDurationDecimal(sollMin)), sollMin, '']);
-        data.push([u.name + ' — Differenz', '', '', '', '', '', parseFloat(formatDurationDecimal(totalMin - sollMin)), totalMin - sollMin, '']);
-      }
-      data.push([]);
+    pData.push([]);
+    pData.push(['Gesamt', '', '', '', totalBreak, parseFloat(formatDurationDecimal(totalMin)), totalMin, '']);
+    if (sollMin) {
+      pData.push(['Soll', '', '', '', '', parseFloat(formatDurationDecimal(sollMin)), sollMin, '']);
+      pData.push(['Differenz', '', '', '', '', parseFloat(formatDurationDecimal(diffMin)), diffMin, '']);
     }
+
+    const pWs = XLSX.utils.aoa_to_sheet(pData);
+    pWs['!cols'] = [{ wch: 12 }, { wch: 12 }, { wch: 8 }, { wch: 8 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 24 }];
+    for (let c = 0; c < pHeaders.length; c++) {
+      const cellRef = XLSX.utils.encode_cell({ r: 0, c });
+      if (pWs[cellRef]) pWs[cellRef].s = { font: { bold: true, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '1B3A5C' } }, alignment: { horizontal: 'center' } };
+    }
+    // Sheet-Name: max 31 Zeichen, keine Sonderzeichen
+    const sheetName = (u.name || 'User').substring(0, 31).replace(/[\\\/\?\*\[\]]/g, '');
+    XLSX.utils.book_append_sheet(wb, pWs, sheetName);
   });
 
   if (!hasData) { notify('Keine Daten zum Exportieren.', 'error'); return; }
 
-  const ws = XLSX.utils.aoa_to_sheet(data);
-  ws['!cols'] = [
-    { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 8 }, { wch: 8 },
-    { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 24 }
-  ];
-
-  // Style header
-  for (let c = 0; c < headers.length; c++) {
+  // Zusammenfassungs-Sheet als erstes einfügen
+  const sumWs = XLSX.utils.aoa_to_sheet(sumData);
+  sumWs['!cols'] = [{ wch: 22 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 12 }];
+  for (let c = 0; c < sumHeaders.length; c++) {
     const cellRef = XLSX.utils.encode_cell({ r: 0, c });
-    if (ws[cellRef]) {
-      ws[cellRef].s = {
-        font: { bold: true, color: { rgb: 'FFFFFF' } },
-        fill: { fgColor: { rgb: '1B3A5C' } },
-        alignment: { horizontal: 'center' }
-      };
-    }
+    if (sumWs[cellRef]) sumWs[cellRef].s = { font: { bold: true, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '1B3A5C' } }, alignment: { horizontal: 'center' } };
   }
+  // Zusammenfassung als erstes Sheet
+  wb.SheetNames.unshift('Zusammenfassung');
+  wb.Sheets['Zusammenfassung'] = sumWs;
 
-  XLSX.utils.book_append_sheet(wb, ws, monthLabel);
   const filename = 'Arbeitszeit_Alle_' + monthLabel.replace(' ', '_') + '.xlsx';
   XLSX.writeFile(wb, filename);
-  notify('Gesamt-Export heruntergeladen.', 'success');
+  notify('Gesamt-Export heruntergeladen (' + (wb.SheetNames.length - 1) + ' Mitarbeiter).', 'success');
 }
 
 // ============================================================
