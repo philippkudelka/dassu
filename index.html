@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen
 (function() {
-  var APP_VERSION = 60;
+  var APP_VERSION = 61;
   try {
     var stored = parseInt(localStorage.getItem('dassu_v') || '0');
     if (stored < APP_VERSION) {
@@ -5925,7 +5925,17 @@ async function resendVerifFromLogin() {
     const pw = document.getElementById('caLoginPendingPw');
     if (!em || !pw) return;
     const cred = await firebase.auth().signInWithEmailAndPassword(em.value, pw.value);
-    await cred.user.sendEmailVerification();
+    // Gebrandete Mail \u00fcber Brevo
+    try {
+      const vRes = await fetch('/.netlify/functions/send-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: em.value, name: cred.user.displayName || '' })
+      });
+      if (!vRes.ok) throw new Error('API failed');
+    } catch (_) {
+      await cred.user.sendEmailVerification();
+    }
     await firebase.auth().signOut();
     caMsg('caLoginMsg', 'success', 'Best\u00e4tigungs-E-Mail wurde erneut gesendet! Bitte pr\u00fcfe deinen Posteingang.');
   } catch (e) {
@@ -5980,6 +5990,7 @@ async function customerRegister() {
     try { await cred.user.updateProfile({ displayName: name }); } catch (_) {}
     // Gebrandete Verifizierungsmail senden + sofort abmelden bis bestätigt
     if (!cred.user.emailVerified) {
+      let emailSent = false;
       try {
         const vRes = await fetch('/.netlify/functions/send-verification', {
           method: 'POST',
@@ -5987,12 +5998,17 @@ async function customerRegister() {
           body: JSON.stringify({ email, name })
         });
         if (!vRes.ok) throw new Error('Verification API failed');
+        emailSent = true;
       } catch (_) {
         // Fallback: Firebase Standard-Mail
-        try { await cred.user.sendEmailVerification(); } catch (__) {}
+        try { await cred.user.sendEmailVerification(); emailSent = true; } catch (fbErr) { console.error('Verification email failed:', fbErr); }
       }
       await firebase.auth().signOut();
-      caMsg('caRegMsg', 'success', 'Fast geschafft! Wir haben dir eine Best\u00e4tigungs-E-Mail an <strong>' + email + '</strong> geschickt. Bitte klicke auf den Link in der E-Mail, um dein Konto zu aktivieren. Danach kannst du dich anmelden.');
+      if (emailSent) {
+        caMsg('caRegMsg', 'success', 'Fast geschafft! Wir haben dir eine Best\u00e4tigungs-E-Mail an <strong>' + email + '</strong> geschickt. Bitte klicke auf den Link in der E-Mail, um dein Konto zu aktivieren. Danach kannst du dich anmelden.<br><small style="color:#6b7280;">Pr\u00fcfe auch deinen Spam-Ordner!</small>');
+      } else {
+        caMsg('caRegMsg', 'error', 'Dein Konto wurde erstellt, aber wir konnten die Best\u00e4tigungs-E-Mail leider nicht senden. Bitte melde dich an und fordere die E-Mail erneut an.');
+      }
       btn.disabled = false; btn.textContent = 'Konto erstellen';
       return;
     } else {
@@ -6077,13 +6093,25 @@ async function resendVerificationEmail() {
   const msgEl = document.getElementById('caVerifyMsg');
   if (!user) return;
   try {
-    await user.sendEmailVerification();
+    // Gebrandete Mail \u00fcber Brevo
+    const vRes = await fetch('/.netlify/functions/send-verification', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: user.email, name: user.displayName || '' })
+    });
+    if (!vRes.ok) throw new Error('API failed');
     msgEl.innerHTML = '<span style="color:#2d7a4a; font-size:12px;">Best\u00e4tigungs-E-Mail wurde erneut gesendet!</span>';
-  } catch (e) {
-    if (e.code === 'auth/too-many-requests') {
-      msgEl.innerHTML = '<span style="color:#b83232; font-size:12px;">Bitte warte einen Moment, bevor du es erneut versuchst.</span>';
-    } else {
-      msgEl.innerHTML = '<span style="color:#b83232; font-size:12px;">Fehler: ' + e.message + '</span>';
+  } catch (_) {
+    // Fallback: Firebase Standard-Mail
+    try {
+      await user.sendEmailVerification();
+      msgEl.innerHTML = '<span style="color:#2d7a4a; font-size:12px;">Best\u00e4tigungs-E-Mail wurde erneut gesendet!</span>';
+    } catch (e) {
+      if (e.code === 'auth/too-many-requests') {
+        msgEl.innerHTML = '<span style="color:#b83232; font-size:12px;">Bitte warte einen Moment, bevor du es erneut versuchst.</span>';
+      } else {
+        msgEl.innerHTML = '<span style="color:#b83232; font-size:12px;">Fehler: ' + e.message + '</span>';
+      }
     }
   }
 }

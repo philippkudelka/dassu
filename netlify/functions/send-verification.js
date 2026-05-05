@@ -1,14 +1,12 @@
 // Netlify Function: Generiert Firebase Email-Verifikationslink
-// und sendet eine gebrandete HTML-Mail über nodemailer
+// und sendet eine gebrandete HTML-Mail über Brevo SMTP
 //
 // POST body: { email: "...", name: "..." }
 // Erfordert Umgebungsvariablen:
 //   FIREBASE_SERVICE_ACCOUNT  - JSON des Service Accounts
 //   FIREBASE_DATABASE_URL     - Firebase DB URL
-//   SMTP_HOST                 - z.B. smtp.office365.com
-//   SMTP_PORT                 - z.B. 587
-//   SMTP_USER                 - z.B. info@dassu.de
-//   SMTP_PASS                 - App-Passwort
+//   BREVO_SMTP_USER           - z.B. a8f6ee001@smtp-brevo.com
+//   BREVO_SMTP_PASS           - SMTP-Passwort
 
 const admin = require('firebase-admin');
 const nodemailer = require('nodemailer');
@@ -18,11 +16,25 @@ function initFirebase() {
   if (initialized) return;
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
   if (!raw) throw new Error('FIREBASE_SERVICE_ACCOUNT env var fehlt');
-  admin.initializeApp({
-    credential: admin.credential.cert(JSON.parse(raw)),
-    databaseURL: process.env.FIREBASE_DATABASE_URL
-  });
+  if (!admin.apps.length) {
+    admin.initializeApp({
+      credential: admin.credential.cert(JSON.parse(raw)),
+      databaseURL: process.env.FIREBASE_DATABASE_URL
+    });
+  }
   initialized = true;
+}
+
+function getTransporter() {
+  return nodemailer.createTransport({
+    host: 'smtp-relay.brevo.com',
+    port: 587,
+    secure: false,
+    auth: {
+      user: process.env.BREVO_SMTP_USER,
+      pass: process.env.BREVO_SMTP_PASS
+    }
+  });
 }
 
 function buildEmail(name, verifyLink) {
@@ -100,6 +112,11 @@ exports.handler = async function(event) {
     const { email, name } = JSON.parse(event.body || '{}');
     if (!email) return { statusCode: 400, headers, body: JSON.stringify({ error: 'email fehlt' }) };
 
+    // Prüfe Brevo-Credentials
+    if (!process.env.BREVO_SMTP_USER || !process.env.BREVO_SMTP_PASS) {
+      return { statusCode: 500, headers, body: JSON.stringify({ error: 'BREVO SMTP nicht konfiguriert' }) };
+    }
+
     initFirebase();
 
     // Verifikationslink generieren
@@ -108,25 +125,10 @@ exports.handler = async function(event) {
       handleCodeInApp: false
     });
 
-    // E-Mail senden
-    const smtpHost = process.env.SMTP_HOST;
-    const smtpPort = parseInt(process.env.SMTP_PORT || '587');
-    const smtpUser = process.env.SMTP_USER;
-    const smtpPass = process.env.SMTP_PASS;
-
-    if (!smtpHost || !smtpUser || !smtpPass) {
-      return { statusCode: 500, headers, body: JSON.stringify({ error: 'SMTP nicht konfiguriert' }) };
-    }
-
-    const transporter = nodemailer.createTransport({
-      host: smtpHost,
-      port: smtpPort,
-      secure: smtpPort === 465,
-      auth: { user: smtpUser, pass: smtpPass }
-    });
-
+    // E-Mail über Brevo senden
+    const transporter = getTransporter();
     await transporter.sendMail({
-      from: `"DASSU Buchungskalender" <${smtpUser}>`,
+      from: '"DASSU Buchungskalender" <info@dassu.de>',
       to: email,
       subject: 'Bestätige deine E-Mail-Adresse – DASSU Buchungskalender',
       html: buildEmail(name, verifyLink)
