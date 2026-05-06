@@ -655,9 +655,32 @@ exports.handler = async (event) => {
         break;
       }
       case 'membersDebug': {
-        // Temporär: Alle Felder eines Users zurückgeben um Rollen-Felder zu finden
+        // Temporär: Alle eindeutigen Rollen/Funktionen/Educations + User die keine "Kunde" sind
         const dbgUsers = await vfGetUserList(accesstoken);
-        result = dbgUsers.slice(0, 5); // Nur erste 5 User, alle Felder
+        const allRoles = new Set();
+        const allFunctions = new Set();
+        const allEducations = new Set();
+        const nonCustomers = [];
+        dbgUsers.forEach(u => {
+          (u.roles || []).forEach(r => { if (r) allRoles.add(r); });
+          (u.functions || []).forEach(f => { if (f) allFunctions.add(f); });
+          (u.educations || []).forEach(e => { if (e) allEducations.add(e); });
+          const roles = (u.roles || []).filter(r => r && r !== 'Kunde');
+          const fns = (u.functions || []).filter(f => f);
+          const edus = (u.educations || []).filter(e => e);
+          if (roles.length || fns.length || edus.length) {
+            nonCustomers.push({
+              name: (u.firstname || '') + ' ' + (u.lastname || ''),
+              roles: u.roles, functions: u.functions, educations: u.educations
+            });
+          }
+        });
+        result = {
+          allRoles: [...allRoles],
+          allFunctions: [...allFunctions],
+          allEducations: [...allEducations],
+          nonCustomers
+        };
         break;
       }
       case 'instructors': {
