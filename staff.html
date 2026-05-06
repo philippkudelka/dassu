@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen + VF-Cache erneuern
 (function() {
-  var APP_VERSION = 64;
+  var APP_VERSION = 65;
   try {
     var stored = parseInt(localStorage.getItem('dassu_staff_v') || '0');
     if (stored < APP_VERSION) {
@@ -1373,8 +1373,10 @@ body.dev-mode { padding-bottom: 48px; }
     <input type="hidden" id="theoryEditId">
     <div style="margin-bottom:10px;">
       <label style="font-size:11px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:4px;">Schüler</label>
-      <input type="text" class="quick-input" id="theoryStudent" placeholder="Name des Schülers" list="theoryStudentSuggestions">
-      <datalist id="theoryStudentSuggestions"></datalist>
+      <div style="position:relative;">
+        <input type="text" class="quick-input" id="theoryStudent" placeholder="Name des Schülers" autocomplete="nope" name="thStudent-noac" oninput="acFilter('theoryStudent')" onfocus="acFilter('theoryStudent')" onkeydown="acKeydown(event,'theoryStudent')">
+        <div class="ac-dropdown" id="theoryStudent-ac"></div>
+      </div>
     </div>
     <div style="margin-bottom:10px;">
       <label style="font-size:11px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:4px;">Thema / Inhalt</label>
@@ -3338,25 +3340,10 @@ function openTheoryForm(id) {
   const errEl = document.getElementById('theoryFormError');
   errEl.style.display = 'none';
 
-  // Vorschläge für Schüler: bisherige Einträge + Kunden + Buchungsnamen
-  const studentsDl = document.getElementById('theoryStudentSuggestions');
+  // Themen-Vorschläge (datalist bleibt für Themen)
   const topicsDl = document.getElementById('theoryTopicSuggestions');
   const myLessons = theoryLessons.filter(t => !currentUser || t.teacherId === currentUser.id);
-  const studentNames = new Set(myLessons.map(t => t.studentName).filter(Boolean));
-  // Kunden-Namen hinzufügen
-  if (typeof customerUsers !== 'undefined' && customerUsers.length) {
-    customerUsers.forEach(c => { if (c.name) studentNames.add(c.name); });
-  }
-  // Vereinsflieger-Mitglieder hinzufügen
-  if (typeof vfMembers !== 'undefined' && vfMembers.length) {
-    vfMembers.forEach(n => { if (n) studentNames.add(n); });
-  }
-  // Buchungs-Namen hinzufügen (letzte 90 Tage)
-  const cutoff90 = dateKey(new Date(Date.now() - 90 * 86400000));
-  bookings.forEach(b => { if (b.name && b.date >= cutoff90) studentNames.add(b.name); });
-  const uniqStudents = [...studentNames].sort();
   const uniqTopics = [...new Set(myLessons.map(t => t.topic).filter(Boolean))].sort();
-  studentsDl.innerHTML = uniqStudents.map(s => `<option value="${escapeHtml(s)}">`).join('');
   topicsDl.innerHTML = uniqTopics.map(s => `<option value="${escapeHtml(s)}">`).join('');
 
   if (id) {
