@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen
 (function() {
-  var APP_VERSION = 63;
+  var APP_VERSION = 64;
   try {
     var stored = parseInt(localStorage.getItem('dassu_v') || '0');
     if (stored < APP_VERSION) {
@@ -5423,9 +5423,10 @@ function devApplyPerspective() {
   const isStaffOrAdmin = p === 'team' || p === 'admin';
   const isFluglehrer = p === 'guestGlider' || p === 'guestMotor';
 
-  // Fluglehrer-spezifische Tabs (Schüler-Buchungen, Theorie)
+  // Fluglehrer-spezifische Tabs (Schüler-Buchungen, Theorie, Nachrichten)
+  // Team/Admin nutzen diese Features über staff.html ("Verwaltung")
   document.querySelectorAll('.fluglehrer-only').forEach(el => {
-    el.style.display = (isFluglehrer || isStaffOrAdmin) ? '' : 'none';
+    el.style.display = isFluglehrer ? '' : 'none';
   });
 
   // Verwaltung-Button (Link zu staff.html)
@@ -5434,12 +5435,15 @@ function devApplyPerspective() {
   const mobileStaffBtn = document.getElementById('mobileStaffAdminBtn');
   if (mobileStaffBtn) mobileStaffBtn.style.display = isStaffOrAdmin ? '' : 'none';
 
-  // Nachrichten-Listener starten wenn Fluglehrer/Staff/Admin
-  if (isFluglehrer || isStaffOrAdmin) initMessagesListener();
+  // Nachrichten-Listener starten wenn Fluglehrer
+  if (isFluglehrer) initMessagesListener();
 
-  // Wenn Kunde und gerade Messages-View offen → zurück zum Kalender
-  if (p === 'kunde' && document.getElementById('messagesView')?.style.display !== 'none') {
-    showView('calendar');
+  // Wenn kein Fluglehrer und gerade auf einer Fluglehrer-View → zurück zum Kalender
+  if (!isFluglehrer) {
+    const flViews = ['theoryView', 'studentBookingsView', 'messagesView'];
+    if (flViews.some(id => document.getElementById(id)?.style.display !== 'none')) {
+      showView('calendar');
+    }
   }
 }
 
