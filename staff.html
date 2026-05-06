@@ -6461,11 +6461,15 @@ function accMsg(text, type) {
 
 async function saveAccountProfile() {
   if (!currentUser) return;
+  const btn = document.querySelector('.account-card .acc-btn-primary');
   const name = document.getElementById('accName').value.trim();
   const phone = document.getElementById('accPhone').value.trim();
   const birthdate = document.getElementById('accBirthdate').value;
 
   if (!name) { accMsg('Name darf nicht leer sein.', 'error'); return; }
+
+  // Button-Feedback: disable + Text ändern
+  if (btn) { btn.disabled = true; btn.textContent = 'Wird gespeichert…'; }
 
   const updates = { name };
   if (phone) updates.phone = phone; else updates.phone = null;
@@ -6478,13 +6482,17 @@ async function saveAccountProfile() {
     if (auth && name !== auth.displayName) {
       await auth.updateProfile({ displayName: name });
     }
-    accMsg('Profil gespeichert.', 'success');
+    // Button-Feedback: Erfolg
+    if (btn) { btn.textContent = 'Gespeichert ✓'; btn.style.background = 'var(--green, #43A047)'; }
+    setTimeout(() => { if (btn) { btn.textContent = 'Speichern'; btn.disabled = false; btn.style.background = ''; } }, 2000);
+    notify('Profil gespeichert.', 'success');
     // Update header
     document.getElementById('headerUserName').textContent = name;
     const initials = name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
     const headerAv = document.getElementById('headerAvatar');
     if (headerAv && !headerAv.querySelector('img')) headerAv.textContent = initials;
   } catch (e) {
+    if (btn) { btn.textContent = 'Speichern'; btn.disabled = false; btn.style.background = ''; }
     accMsg('Fehler beim Speichern: ' + e.message, 'error');
   }
 }
