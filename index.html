@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen
 (function() {
-  var APP_VERSION = 62;
+  var APP_VERSION = 63;
   try {
     var stored = parseInt(localStorage.getItem('dassu_v') || '0');
     if (stored < APP_VERSION) {
@@ -2115,7 +2115,10 @@
       </div>
       <div>
         <label style="font-size:12px; font-weight:600; color:var(--c-muted); text-transform:uppercase; letter-spacing:0.04em;">Schüler</label>
-        <input type="text" id="thFormStudent" class="form-input" placeholder="Name des Schülers" style="width:100%;">
+        <div class="qb-ac-wrap">
+          <input type="text" id="thFormStudent" class="form-input" placeholder="Name des Schülers" style="width:100%;" autocomplete="nope" oninput="acFilterTheoryStudent()" onfocus="acFilterTheoryStudent()" onkeydown="acKeydownTheoryStudent(event)">
+          <div class="qb-ac-list" id="thFormStudent-ac"></div>
+        </div>
       </div>
       <div>
         <label style="font-size:12px; font-weight:600; color:var(--c-muted); text-transform:uppercase; letter-spacing:0.04em;">Thema</label>
@@ -5583,7 +5586,60 @@ function openTheoryForm() {
 
 function closeTheoryForm() {
   document.getElementById('theoryFormModal').classList.remove('active');
+  const acList = document.getElementById('thFormStudent-ac');
+  if (acList) acList.classList.remove('open');
 }
+
+/* Theory-Schüler Autocomplete */
+let thAcIdx = -1;
+function acFilterTheoryStudent() {
+  const input = document.getElementById('thFormStudent');
+  const list = document.getElementById('thFormStudent-ac');
+  if (!input || !list) return;
+  const q = input.value.trim().toLowerCase();
+  if (!q || q.length < 1) { list.classList.remove('open'); thAcIdx = -1; return; }
+  const bookingNames = [...new Set(bookings.map(b => b.name).filter(Boolean))];
+  const allNames = [...new Set([...vfMembers, ...bookingNames])];
+  const filtered = allNames.filter(n => n.toLowerCase().includes(q));
+  filtered.sort((a, b) => {
+    const aStarts = a.toLowerCase().startsWith(q) || a.toLowerCase().split(' ').some(w => w.startsWith(q));
+    const bStarts = b.toLowerCase().startsWith(q) || b.toLowerCase().split(' ').some(w => w.startsWith(q));
+    if (aStarts && !bStarts) return -1;
+    if (!aStarts && bStarts) return 1;
+    return a.localeCompare(b, 'de');
+  });
+  const matches = filtered.slice(0, 12);
+  if (!matches.length) { list.classList.remove('open'); thAcIdx = -1; return; }
+  thAcIdx = -1;
+  list.innerHTML = matches.map(name =>
+    `<div class="ac-item" onmousedown="acSelectTheoryStudent('${name.replace(/'/g, "\\'")}')">${name}</div>`
+  ).join('');
+  list.classList.add('open');
+}
+function acSelectTheoryStudent(name) {
+  const input = document.getElementById('thFormStudent');
+  const list = document.getElementById('thFormStudent-ac');
+  if (input) input.value = name;
+  if (list) list.classList.remove('open');
+  thAcIdx = -1;
+}
+function acKeydownTheoryStudent(e) {
+  const list = document.getElementById('thFormStudent-ac');
+  if (!list || !list.classList.contains('open')) return;
+  const items = list.querySelectorAll('.ac-item');
+  if (!items.length) return;
+  if (e.key === 'ArrowDown') { e.preventDefault(); thAcIdx = Math.min(thAcIdx + 1, items.length - 1); items.forEach((el, i) => el.classList.toggle('active', i === thAcIdx)); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); thAcIdx = Math.max(thAcIdx - 1, 0); items.forEach((el, i) => el.classList.toggle('active', i === thAcIdx)); }
+  else if (e.key === 'Enter' && thAcIdx >= 0) { e.preventDefault(); acSelectTheoryStudent(items[thAcIdx].textContent); }
+  else if (e.key === 'Escape') { list.classList.remove('open'); thAcIdx = -1; }
+}
+document.addEventListener('click', e => {
+  const list = document.getElementById('thFormStudent-ac');
+  if (list && list.classList.contains('open')) {
+    const wrap = list.parentElement;
+    if (wrap && !wrap.contains(e.target)) list.classList.remove('open');
+  }
+});
 
 function saveTheoryLesson() {
   const uid = firebase.auth().currentUser?.uid;
