@@ -3345,6 +3345,10 @@ function openTheoryForm(id) {
   if (typeof customerUsers !== 'undefined' && customerUsers.length) {
     customerUsers.forEach(c => { if (c.name) studentNames.add(c.name); });
   }
+  // Vereinsflieger-Mitglieder hinzufügen
+  if (typeof vfMembers !== 'undefined' && vfMembers.length) {
+    vfMembers.forEach(n => { if (n) studentNames.add(n); });
+  }
   // Buchungs-Namen hinzufügen (letzte 90 Tage)
   const cutoff90 = dateKey(new Date(Date.now() - 90 * 86400000));
   bookings.forEach(b => { if (b.name && b.date >= cutoff90) studentNames.add(b.name); });
