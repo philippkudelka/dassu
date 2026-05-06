@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen + VF-Cache erneuern
 (function() {
-  var APP_VERSION = 67;
+  var APP_VERSION = 68;
   try {
     var stored = parseInt(localStorage.getItem('dassu_staff_v') || '0');
     if (stored < APP_VERSION) {
@@ -3376,58 +3376,71 @@ function openTheoryForm(id) {
 
 function closeTheoryForm() {
   const el = document.getElementById('theoryOverlay');
+  if (!el) return;
   el.classList.remove('active');
-  el.style.display = 'none';
-  setTimeout(() => { el.style.display = ''; }, 50);
+  el.querySelectorAll('.ac-list.open').forEach(l => l.classList.remove('open'));
 }
 
 function saveTheory() {
-  const errEl = document.getElementById('theoryFormError');
-  const id = document.getElementById('theoryEditId').value;
-  const student = document.getElementById('theoryStudent').value.trim();
-  const topic = document.getElementById('theoryTopic').value.trim();
-  const date = document.getElementById('theoryDate').value;
-  const startTime = document.getElementById('theoryStart').value;
-  const endTime = document.getElementById('theoryEnd').value;
-  const notes = document.getElementById('theoryNotes').value.trim();
+  try {
+    const errEl = document.getElementById('theoryFormError');
+    const id = document.getElementById('theoryEditId').value;
+    const student = document.getElementById('theoryStudent').value.trim();
+    const topic = document.getElementById('theoryTopic').value.trim();
+    const date = document.getElementById('theoryDate').value;
+    const startTime = document.getElementById('theoryStart').value;
+    const endTime = document.getElementById('theoryEnd').value;
+    const notes = document.getElementById('theoryNotes').value.trim();
 
-  errEl.style.display = 'none';
-  if (!student) { errEl.textContent = 'Bitte Schüler angeben.'; errEl.style.display = ''; return; }
-  if (!date) { errEl.textContent = 'Bitte Datum angeben.'; errEl.style.display = ''; return; }
-  if (!startTime || !endTime) { errEl.textContent = 'Bitte Von- und Bis-Zeit angeben.'; errEl.style.display = ''; return; }
-  const duration = minutesBetween(startTime, endTime);
-  if (duration <= 0) { errEl.textContent = 'Bis-Zeit muss nach Von-Zeit liegen.'; errEl.style.display = ''; return; }
+    errEl.style.display = 'none';
+    if (!student) { errEl.textContent = 'Bitte Schüler angeben.'; errEl.style.display = ''; return; }
+    if (!date) { errEl.textContent = 'Bitte Datum angeben.'; errEl.style.display = ''; return; }
+    if (!startTime || !endTime) { errEl.textContent = 'Bitte Von- und Bis-Zeit angeben.'; errEl.style.display = ''; return; }
+    const duration = minutesBetween(startTime, endTime);
+    if (duration <= 0) { errEl.textContent = 'Bis-Zeit muss nach Von-Zeit liegen.'; errEl.style.display = ''; return; }
 
-  const now = Date.now();
-  const payload = {
-    studentName: student,
-    topic: topic,
-    date: date,
-    startTime: startTime,
-    endTime: endTime,
-    duration: duration,
-    notes: notes,
-    updatedAt: now,
-  };
+    const now = Date.now();
+    const payload = {
+      studentName: student,
+      topic: topic,
+      date: date,
+      startTime: startTime,
+      endTime: endTime,
+      duration: duration,
+      notes: notes,
+      updatedAt: now,
+    };
 
-  if (id) {
-    // Nur erlauben, wenn Besitzer oder Admin
-    const existing = theoryLessons.find(t => t.id === id);
-    if (!existing) { notify('Eintrag nicht gefunden.', 'error'); return; }
-    const canEdit = (currentUser && existing.teacherId === currentUser.id) || isAdmin();
-    if (!canEdit) { notify('Keine Berechtigung.', 'error'); return; }
-    db.ref('theoryLessons/' + id).update(payload);
-    notify('Theoriestunde aktualisiert.', 'success');
-  } else {
-    const newId = 't' + now.toString(36) + Math.random().toString(36).slice(2, 6);
-    payload.id = newId;
-    payload.teacherId = currentUser ? currentUser.id : null;
-    payload.teacherName = currentUser ? currentUser.name : null;
-    payload.createdAt = now;
-    db.ref('theoryLessons/' + newId).set(payload);
-    notify('Theoriestunde gespeichert.', 'success');
+    if (id) {
+      const existing = theoryLessons.find(t => t.id === id);
+      if (!existing) { notify('Eintrag nicht gefunden.', 'error'); return; }
+      const canEdit = (currentUser && existing.teacherId === currentUser.id) || isAdmin();
+      if (!canEdit) { notify('Keine Berechtigung.', 'error'); return; }
+      db.ref('theoryLessons/' + id).update(payload).then(() => {
+        notify('Theoriestunde aktualisiert.', 'success');
+        closeTheoryForm();
+      }).catch(err => {
+        console.error('Theory update Fehler:', err);
+        notify('Fehler: ' + err.message, 'error');
+      });
+    } else {
+      const newId = 't' + now.toString(36) + Math.random().toString(36).slice(2, 6);
+      payload.id = newId;
+      payload.teacherId = currentUser ? currentUser.id : null;
+      payload.teacherName = currentUser ? currentUser.name : null;
+      payload.createdAt = now;
+      db.ref('theoryLessons/' + newId).set(payload).then(() => {
+        notify('Theoriestunde gespeichert.', 'success');
+        closeTheoryForm();
+      }).catch(err => {
+        console.error('Theory save Fehler:', err);
+        notify('Fehler: ' + err.message, 'error');
+      });
+    }
+  } catch (ex) {
+    console.error('saveTheory Ausnahme:', ex);
+    notify('Unerwarteter Fehler: ' + ex.message, 'error');
   }
-  closeTheoryForm();
 }
 
 function deleteTheoryFromForm() {
@@ -5842,12 +5855,17 @@ function submitQuick() {
     createdAt: new Date().toISOString()
   };
 
-  db.ref('bookings/' + booking.id).set(booking);
-  addAuditEntry(booking.id, 'erstellt', `${name}, ${selectedAircraft}, ${startTime}–${endTime}`);
-  logActivity('create', `Buchung erstellt: ${name}, ${selectedAircraft}, ${startTime}–${endTime}`, booking.id);
-
-  closeQuick();
-  notify(`${name} gebucht: ${startTime}–${endTime}`, 'success');
+  db.ref('bookings/' + booking.id).set(booking).then(() => {
+    try {
+      addAuditEntry(booking.id, 'erstellt', `${name}, ${selectedAircraft}, ${startTime}–${endTime}`);
+      logActivity('create', `Buchung erstellt: ${name}, ${selectedAircraft}, ${startTime}–${endTime}`, booking.id);
+    } catch (e) { console.error('Audit/Log Fehler:', e); }
+    closeQuick();
+    notify(`${name} gebucht: ${startTime}–${endTime}`, 'success');
+  }).catch(err => {
+    console.error('Buchung Fehler:', err);
+    notify('Fehler beim Buchen: ' + err.message, 'error');
+  });
 }
 
 function closeQuick() {
@@ -5954,14 +5972,19 @@ function submitEdit() {
     instructorName: needInstructor ? instructorName : ''
   };
 
-  db.ref('bookings/' + id).set(updated);
-  if (changes.length) {
-    addAuditEntry(id, 'bearbeitet', changes.join('; '));
-    logActivity('edit', `Buchung bearbeitet: ${name} (${b.aircraft})`, id);
-  }
-
-  closeEdit();
-  notify('Buchung aktualisiert.', 'success');
+  db.ref('bookings/' + id).set(updated).then(() => {
+    try {
+      if (changes.length) {
+        addAuditEntry(id, 'bearbeitet', changes.join('; '));
+        logActivity('edit', `Buchung bearbeitet: ${name} (${b.aircraft})`, id);
+      }
+    } catch (e) { console.error('Audit/Log Fehler:', e); }
+    closeEdit();
+    notify('Buchung aktualisiert.', 'success');
+  }).catch(err => {
+    console.error('Buchung Update Fehler:', err);
+    notify('Fehler: ' + err.message, 'error');
+  });
 }
 
 function closeEdit() {
