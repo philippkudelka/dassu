@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen + VF-Cache erneuern
 (function() {
-  var APP_VERSION = 68;
+  var APP_VERSION = 69;
   try {
     var stored = parseInt(localStorage.getItem('dassu_staff_v') || '0');
     if (stored < APP_VERSION) {
@@ -1650,6 +1650,11 @@ let theoryFilterMode = 'mine'; // 'mine' | 'all' (nur für Admins/Berechtigte)
 let appSettings = {};
 let appInvitations = [];
 let currentUser = null;
+// Fallback: wenn Auth-Callback currentUser nicht gesetzt hat, aus localStorage wiederherstellen
+try {
+  const cached = localStorage.getItem('dassu_staff_user');
+  if (cached) currentUser = JSON.parse(cached);
+} catch(e) {}
 let currentDate = new Date();
 let selectedAircraft = AIRCRAFT[0];
 let currentView = 'overview';
@@ -1708,30 +1713,41 @@ function hideSplash() {
 // Auth-Guard: überwacht Firebase Auth-Status und redirected bei fehlendem Login.
 function setupAuthGuard() {
   DASSU_AUTH.onAuthChange(async (authUser) => {
-    if (!authUser) {
-      // Nicht eingeloggt → zur welcome-Seite
-      currentUser = null;
-      localStorage.removeItem('dassu_staff_user');
-      window.location.href = 'welcome.html';
-      return;
+    try {
+      if (!authUser) {
+        // Nicht eingeloggt → zur welcome-Seite
+        currentUser = null;
+        localStorage.removeItem('dassu_staff_user');
+        window.location.href = 'welcome.html';
+        return;
+      }
+      // Eingeloggt → staffUsers-Profil holen
+      const profile = await DASSU_AUTH.currentStaffProfile();
+      if (!profile) {
+        showSplash('Dein Account ist noch nicht freigeschaltet. Bitte beim Admin melden.');
+        await DASSU_AUTH.signOut();
+        setTimeout(() => { window.location.href = 'welcome.html'; }, 2500);
+        return;
+      }
+      currentUser = { id: profile.id, name: profile.name, email: profile.email, role: profile.role || '', phone: profile.phone || '', birthdate: profile.birthdate || '', photoURL: profile.photoURL || '' };
+      localStorage.setItem('dassu_staff_user', JSON.stringify(currentUser));
+      hideSplash();
+      updateUserUI();
+      maybeShowNotifBanner();
+      setTimeout(autoRegisterFcmIfReady, 2000);
+      // Setup time tracking listeners for this user
+      if (typeof setupTimeListeners === 'function') setupTimeListeners();
+      render();
+    } catch (err) {
+      console.error('Auth-Callback Fehler:', err);
+      // Trotzdem Splash ausblenden — falls currentUser aus Cache vorhanden, UI nutzbar machen
+      hideSplash();
+      if (currentUser) {
+        updateUserUI();
+        if (typeof setupTimeListeners === 'function') setupTimeListeners();
+        render();
+      }
     }
-    // Eingeloggt → staffUsers-Profil holen
-    const profile = await DASSU_AUTH.currentStaffProfile();
-    if (!profile) {
-      showSplash('Dein Account ist noch nicht freigeschaltet. Bitte beim Admin melden.');
-      await DASSU_AUTH.signOut();
-      setTimeout(() => { window.location.href = 'welcome.html'; }, 2500);
-      return;
-    }
-    currentUser = { id: profile.id, name: profile.name, email: profile.email, role: profile.role || '', phone: profile.phone || '', birthdate: profile.birthdate || '', photoURL: profile.photoURL || '' };
-    localStorage.setItem('dassu_staff_user', JSON.stringify(currentUser));
-    hideSplash();
-    updateUserUI();
-    maybeShowNotifBanner();
-    setTimeout(autoRegisterFcmIfReady, 2000);
-    // Setup time tracking listeners for this user
-    if (typeof setupTimeListeners === 'function') setupTimeListeners();
-    render();
   });
 }
 
