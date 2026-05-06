@@ -1663,7 +1663,7 @@ function setupAuthGuard() {
       setTimeout(() => { window.location.href = 'welcome.html'; }, 2500);
       return;
     }
-    currentUser = { id: profile.id, name: profile.name, email: profile.email, role: profile.role || '' };
+    currentUser = { id: profile.id, name: profile.name, email: profile.email, role: profile.role || '', phone: profile.phone || '', birthdate: profile.birthdate || '', photoURL: profile.photoURL || '' };
     localStorage.setItem('dassu_staff_user', JSON.stringify(currentUser));
     hideSplash();
     updateUserUI();
@@ -2149,14 +2149,37 @@ function renderGuestStrip() {
 
   const presentGIs = guestInstructors.filter(gi => gi.from <= dk && gi.to >= dk);
 
-  if (presentGIs.length === 0) {
-    chipsEl.innerHTML = '<span class="gi-none">Keine Gastfluglehrer</span>';
+  // Auch Fluglehrer aus heutigen Buchungen sammeln
+  const bookingInstructors = new Set();
+  const giNames = new Set(presentGIs.map(gi => gi.name.toLowerCase().trim()));
+  bookings.forEach(b => {
+    if (b.date === dk && b.instructorName && b.instructorName.trim()) {
+      const name = b.instructorName.trim();
+      // Nur hinzufügen wenn nicht schon als Gastfluglehrer vorhanden
+      if (!giNames.has(name.toLowerCase())) {
+        bookingInstructors.add(name);
+      }
+    }
+  });
+
+  let chipsHtml = '';
+  // Gastfluglehrer
+  chipsHtml += presentGIs.map(gi => `
+    <div class="gi-chip" style="background-color: ${gi.color};">
+      ✈ ${escapeHtml(gi.name.substring(0, 10))}
+    </div>
+  `).join('');
+  // Fluglehrer aus Buchungen
+  chipsHtml += Array.from(bookingInstructors).map(name => `
+    <div class="gi-chip" style="background-color: #B5CEAA;">
+      ✈ ${escapeHtml(name.split(' ').pop().substring(0, 10))}
+    </div>
+  `).join('');
+
+  if (!chipsHtml) {
+    chipsEl.innerHTML = '<span class="gi-none">Keine Fluglehrer</span>';
   } else {
-    chipsEl.innerHTML = presentGIs.map(gi => `
-      <div class="gi-chip" style="background-color: ${gi.color};">
-        ✈ ${escapeHtml(gi.name.substring(0, 10))}
-      </div>
-    `).join('');
+    chipsEl.innerHTML = chipsHtml;
   }
 
   addBtn.style.display = isAdmin() ? '' : 'none';
@@ -2179,7 +2202,18 @@ db.ref('staffUsers').on('value', snap => {
   // Refresh team view if active
   if (currentView === 'team') renderTeamView();
   // Header-Badge & Menue-Sichtbarkeit aktualisieren wenn sich Rollen ändern
-  if (currentUser) updateUserUI();
+  if (currentUser) {
+    // Eigenes Profil aktualisieren (phone, birthdate etc. könnten sich geändert haben)
+    const myProfile = staffUsers.find(u => u.id === currentUser.id);
+    if (myProfile) {
+      currentUser.name = myProfile.name || currentUser.name;
+      currentUser.phone = myProfile.phone || '';
+      currentUser.birthdate = myProfile.birthdate || '';
+      currentUser.photoURL = myProfile.photoURL || '';
+      currentUser.role = myProfile.role || currentUser.role;
+    }
+    updateUserUI();
+  }
   // Wenn dein Profil entfernt wurde (Admin hat gelöscht) → ausloggen
   if (currentUser && !staffUsers.find(u => u.id === currentUser.id)) {
     DASSU_AUTH.signOut(); // Auth-Guard leitet auf welcome.html
@@ -2937,12 +2971,13 @@ function renderManage() {
     );
   }
 
-  // Sort: pending first, then by date+time
+  // Sort: pending first, then by date+time; past = newest first
   filtered.sort((a, b) => {
     if (a.status === 'pending' && b.status !== 'pending') return -1;
     if (b.status === 'pending' && a.status !== 'pending') return 1;
     const ad = (a.date || '') + (a.startTime || a.slot || '');
     const bd = (b.date || '') + (b.startTime || b.slot || '');
+    if (manageFilter === 'past') return bd.localeCompare(ad); // neueste oben
     return ad.localeCompare(bd);
   });
 
@@ -3116,7 +3151,10 @@ function openNotesEdit() {
 }
 
 function closeNotesEdit() {
-  document.getElementById('notesOverlay').classList.remove('active');
+  const el = document.getElementById('notesOverlay');
+  el.classList.remove('active');
+  el.style.display = 'none';
+  setTimeout(() => { el.style.display = ''; }, 50);
 }
 
 function saveNotes() {
@@ -3242,11 +3280,19 @@ function openTheoryForm(id) {
   const errEl = document.getElementById('theoryFormError');
   errEl.style.display = 'none';
 
-  // Vorschläge für Schüler/Themen aus bisherigen Einträgen
+  // Vorschläge für Schüler: bisherige Einträge + Kunden + Buchungsnamen
   const studentsDl = document.getElementById('theoryStudentSuggestions');
   const topicsDl = document.getElementById('theoryTopicSuggestions');
   const myLessons = theoryLessons.filter(t => !currentUser || t.teacherId === currentUser.id);
-  const uniqStudents = [...new Set(myLessons.map(t => t.studentName).filter(Boolean))].sort();
+  const studentNames = new Set(myLessons.map(t => t.studentName).filter(Boolean));
+  // Kunden-Namen hinzufügen
+  if (typeof customerUsers !== 'undefined' && customerUsers.length) {
+    customerUsers.forEach(c => { if (c.name) studentNames.add(c.name); });
+  }
+  // Buchungs-Namen hinzufügen (letzte 90 Tage)
+  const cutoff90 = dateKey(new Date(Date.now() - 90 * 86400000));
+  bookings.forEach(b => { if (b.name && b.date >= cutoff90) studentNames.add(b.name); });
+  const uniqStudents = [...studentNames].sort();
   const uniqTopics = [...new Set(myLessons.map(t => t.topic).filter(Boolean))].sort();
   studentsDl.innerHTML = uniqStudents.map(s => `<option value="${escapeHtml(s)}">`).join('');
   topicsDl.innerHTML = uniqTopics.map(s => `<option value="${escapeHtml(s)}">`).join('');
@@ -3280,7 +3326,10 @@ function openTheoryForm(id) {
 }
 
 function closeTheoryForm() {
-  document.getElementById('theoryOverlay').classList.remove('active');
+  const el = document.getElementById('theoryOverlay');
+  el.classList.remove('active');
+  el.style.display = 'none';
+  setTimeout(() => { el.style.display = ''; }, 50);
 }
 
 function saveTheory() {
@@ -4354,7 +4403,10 @@ function openTimeEdit(id) {
 }
 
 function closeTimeEdit() {
-  document.getElementById('timeEditOverlay').classList.remove('active');
+  const el = document.getElementById('timeEditOverlay');
+  el.classList.remove('active');
+  el.style.display = 'none';
+  setTimeout(() => { el.style.display = ''; }, 50);
 }
 
 function saveTimeEdit() {
@@ -5732,7 +5784,10 @@ function submitQuick() {
 }
 
 function closeQuick() {
-  document.getElementById('quickOverlay').classList.remove('active');
+  const el = document.getElementById('quickOverlay');
+  el.classList.remove('active');
+  el.style.display = 'none';
+  setTimeout(() => { el.style.display = ''; }, 50);
 }
 
 // ============================================================
@@ -5842,7 +5897,10 @@ function submitEdit() {
 }
 
 function closeEdit() {
-  document.getElementById('editOverlay').classList.remove('active');
+  const el = document.getElementById('editOverlay');
+  el.classList.remove('active');
+  el.style.display = 'none';
+  setTimeout(() => { el.style.display = ''; }, 50);
   currentEditId = null;
 }
 
@@ -6025,7 +6083,10 @@ function deleteBooking(id) {
 }
 
 function closeDetail() {
-  document.getElementById('detailOverlay').classList.remove('active');
+  const el = document.getElementById('detailOverlay');
+  el.classList.remove('active');
+  el.style.display = 'none';
+  setTimeout(() => { el.style.display = ''; }, 50);
 }
 
 // ============================================================
