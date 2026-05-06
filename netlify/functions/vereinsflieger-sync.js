@@ -654,44 +654,15 @@ exports.handler = async (event) => {
           .sort((a, b) => (a.lastname || '').localeCompare(b.lastname || ''));
         break;
       }
-      case 'membersDebug': {
-        // Temporär: Alle eindeutigen Rollen/Funktionen/Educations + User die keine "Kunde" sind
-        const dbgUsers = await vfGetUserList(accesstoken);
-        const allRoles = new Set();
-        const allFunctions = new Set();
-        const allEducations = new Set();
-        const nonCustomers = [];
-        dbgUsers.forEach(u => {
-          (u.roles || []).forEach(r => { if (r) allRoles.add(r); });
-          (u.functions || []).forEach(f => { if (f) allFunctions.add(f); });
-          (u.educations || []).forEach(e => { if (e) allEducations.add(e); });
-          const roles = (u.roles || []).filter(r => r && r !== 'Kunde');
-          const fns = (u.functions || []).filter(f => f);
-          const edus = (u.educations || []).filter(e => e);
-          if (roles.length || fns.length || edus.length) {
-            nonCustomers.push({
-              name: (u.firstname || '') + ' ' + (u.lastname || ''),
-              roles: u.roles, functions: u.functions, educations: u.educations
-            });
-          }
-        });
-        result = {
-          allRoles: [...allRoles],
-          allFunctions: [...allFunctions],
-          allEducations: [...allEducations],
-          nonCustomers
-        };
-        break;
-      }
       case 'instructors': {
-        // Alle Fluglehrer-Namen aus Schulungsflügen der letzten 3 Jahre
-        const now = new Date();
-        const yr = now.getFullYear();
-        const allFlightsForInstr = await vfGetFlightsDateRange(accesstoken, `${yr - 2}-01-01`, `${yr}-12-31`);
+        // Fluglehrer aus VF-Mitgliederliste anhand der Rollen
+        const instrUsers = await vfGetUserList(accesstoken);
+        const instrRoles = ['Fluglehrer', 'Ausbildungsleiter', 'DASS TMG/UL Lehrer'];
         const instrNames = new Set();
-        allFlightsForInstr.forEach(f => {
-          if (String(f.ft_education) === '1') {
-            const name = (f.attendantname || '').trim();
+        instrUsers.forEach(u => {
+          const roles = (u.roles || []).map(r => r.trim());
+          if (roles.some(r => instrRoles.includes(r))) {
+            const name = [(u.firstname || '').trim(), (u.lastname || '').trim()].filter(Boolean).join(' ');
             if (name) instrNames.add(name);
           }
         });
