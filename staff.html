@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen + VF-Cache erneuern
 (function() {
-  var APP_VERSION = 69;
+  var APP_VERSION = 70;
   try {
     var stored = parseInt(localStorage.getItem('dassu_staff_v') || '0');
     if (stored < APP_VERSION) {
@@ -1721,15 +1721,39 @@ function setupAuthGuard() {
         window.location.href = 'welcome.html';
         return;
       }
-      // Eingeloggt → staffUsers-Profil holen
-      const profile = await DASSU_AUTH.currentStaffProfile();
-      if (!profile) {
-        showSplash('Dein Account ist noch nicht freigeschaltet. Bitte beim Admin melden.');
-        await DASSU_AUTH.signOut();
-        setTimeout(() => { window.location.href = 'welcome.html'; }, 2500);
-        return;
+
+      // SOFORT Minimal-User setzen damit Buttons (Einstempeln etc.) sofort funktionieren
+      // — auch wenn das DB-Profil noch lädt oder fehlschlägt
+      if (!currentUser) {
+        currentUser = {
+          id: authUser.uid,
+          name: authUser.displayName || authUser.email || '',
+          email: authUser.email || '',
+          role: '',
+          phone: '',
+          birthdate: '',
+          photoURL: authUser.photoURL || ''
+        };
+        console.log('Auth: Minimal-User gesetzt:', currentUser.email);
       }
-      currentUser = { id: profile.id, name: profile.name, email: profile.email, role: profile.role || '', phone: profile.phone || '', birthdate: profile.birthdate || '', photoURL: profile.photoURL || '' };
+
+      // Eingeloggt → staffUsers-Profil holen (erweitert currentUser mit Rolle etc.)
+      let profile = null;
+      try {
+        profile = await DASSU_AUTH.currentStaffProfile();
+      } catch (profileErr) {
+        console.error('Profil-Laden fehlgeschlagen:', profileErr);
+        // Weiter mit Minimal-User — besser als gar kein User
+      }
+
+      if (profile) {
+        currentUser = { id: profile.id, name: profile.name, email: profile.email, role: profile.role || '', phone: profile.phone || '', birthdate: profile.birthdate || '', photoURL: profile.photoURL || '' };
+      } else if (!currentUser.role && currentUser.id) {
+        // Kein Profil gefunden aber authUser existiert — nicht ausloggen,
+        // sondern mit Minimal-User weitermachen (könnte ein DB-Timeout sein)
+        console.warn('Auth: Kein staffUsers-Profil gefunden für', authUser.uid, '— nutze Minimal-User');
+      }
+
       localStorage.setItem('dassu_staff_user', JSON.stringify(currentUser));
       hideSplash();
       updateUserUI();
@@ -1740,7 +1764,7 @@ function setupAuthGuard() {
       render();
     } catch (err) {
       console.error('Auth-Callback Fehler:', err);
-      // Trotzdem Splash ausblenden — falls currentUser aus Cache vorhanden, UI nutzbar machen
+      // Trotzdem Splash ausblenden — falls currentUser aus Cache oder Minimal-User vorhanden
       hideSplash();
       if (currentUser) {
         updateUserUI();
