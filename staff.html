@@ -6427,14 +6427,12 @@ function acFilterInstructor(inputId) {
 
   const q = input.value.trim().toLowerCase();
 
-  // Gastfluglehrer-Namen dazumischen (die aktuell aktiv sind)
-  const today = new Date().toISOString().slice(0, 10);
-  const activeGuests = (typeof guestInstructors !== 'undefined' ? guestInstructors : [])
-    .filter(g => g.from <= today && g.to >= today)
-    .map(g => g.name);
+  // Alle Gastfluglehrer-Namen dazumischen (auch vergangene/zukünftige)
+  const allGuests = (typeof guestInstructors !== 'undefined' ? guestInstructors : [])
+    .map(g => g.name).filter(Boolean);
   // Staff-Flugleiter-Namen (Rolle flugleiter) hinzufügen
   const staffFlugleiter = staffUsers.filter(u => u.role === 'flugleiter' && u.name).map(u => u.name);
-  const allInstructors = [...new Set([...fluglehrerNames, ...activeGuests, ...staffFlugleiter])].sort((a, b) => a.localeCompare(b, 'de'));
+  const allInstructors = [...new Set([...fluglehrerNames, ...allGuests, ...staffFlugleiter])].sort((a, b) => a.localeCompare(b, 'de'));
 
   // Bei leerem Input: alle zeigen (max 15)
   let matches;
