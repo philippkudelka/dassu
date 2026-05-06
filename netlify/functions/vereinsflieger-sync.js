@@ -654,6 +654,12 @@ exports.handler = async (event) => {
           .sort((a, b) => (a.lastname || '').localeCompare(b.lastname || ''));
         break;
       }
+      case 'membersDebug': {
+        // Temporär: Alle Felder eines Users zurückgeben um Rollen-Felder zu finden
+        const dbgUsers = await vfGetUserList(accesstoken);
+        result = dbgUsers.slice(0, 5); // Nur erste 5 User, alle Felder
+        break;
+      }
       case 'instructors': {
         // Alle Fluglehrer-Namen aus Schulungsflügen der letzten 3 Jahre
         const now = new Date();
