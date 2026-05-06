@@ -879,6 +879,62 @@ body { font-family: var(--font); background: var(--c-bg); color: var(--c-ink); m
 .dot.c-guest { background: #c49bde; }
 .dev-toolbar-info { margin-left: auto; color: rgba(255,255,255,0.35); font-size: 11px; }
 body.dev-mode { padding-bottom: 48px; }
+
+/* ===== Mobile Responsive ===== */
+@media (max-width: 600px) {
+  /* Tab-Leiste: horizontal scrollbar statt gequetscht */
+  .view-tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    gap: 6px;
+    padding: 8px 12px;
+    flex-wrap: nowrap;
+  }
+  .view-tabs::-webkit-scrollbar { display: none; }
+  .view-tab {
+    flex: 0 0 auto;
+    padding: 9px 14px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  /* Header kompakter */
+  .header { padding: 10px 12px; }
+  .header h1 { font-size: 14px; }
+  .header .user-pill { padding: 4px 8px; font-size: 10px; }
+
+  /* Datum-Navigation */
+  .date-nav { padding: 10px 12px; }
+  .date-nav h2 { font-size: 14px; min-width: 160px; }
+
+  /* Fluglehrer-Strip */
+  .guest-instructors-strip { padding: 8px 12px; }
+
+  /* Mein Konto: Cards volle Breite */
+  .account-card { margin: 10px 10px; padding: 16px; }
+  .account-avatar-section { gap: 12px; }
+  .account-avatar { width: 60px; height: 60px; font-size: 24px; }
+  .account-avatar-info .acc-name { font-size: 16px; }
+  .account-field input { font-size: 16px; padding: 10px; }
+  .account-actions { flex-direction: column; }
+  .account-actions button { width: 100%; text-align: center; }
+
+  /* Übersicht / Kalender */
+  .ov-day-cards, .gantt-scroll { padding: 0 8px; }
+
+  /* Overlays: volle Breite auf Mobile */
+  .quick-sheet, .detail-sheet, .notes-sheet { width: 96vw; max-width: 96vw; max-height: 90vh; margin: auto; }
+
+  /* Zeiterfassung */
+  .time-summary-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .time-view-toggle { margin: 0 10px; }
+
+  /* Dev-Toolbar scrollbar */
+  .dev-toolbar { padding: 6px 10px; overflow-x: auto; }
+  .dev-toolbar-btns { flex-wrap: nowrap; }
+  .dev-toolbar-btn { padding: 5px 10px; font-size: 11px; white-space: nowrap; }
+}
 </style>
 </head>
 <body>
