@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen + VF-Cache erneuern
 (function() {
-  var APP_VERSION = 65;
+  var APP_VERSION = 66;
   try {
     var stored = parseInt(localStorage.getItem('dassu_staff_v') || '0');
     if (stored < APP_VERSION) {
@@ -1375,7 +1375,7 @@ body.dev-mode { padding-bottom: 48px; }
       <label style="font-size:11px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:4px;">Schüler</label>
       <div style="position:relative;">
         <input type="text" class="quick-input" id="theoryStudent" placeholder="Name des Schülers" autocomplete="nope" name="thStudent-noac" oninput="acFilter('theoryStudent')" onfocus="acFilter('theoryStudent')" onkeydown="acKeydown(event,'theoryStudent')">
-        <div class="ac-dropdown" id="theoryStudent-ac"></div>
+        <div class="ac-list" id="theoryStudent-ac"></div>
       </div>
     </div>
     <div style="margin-bottom:10px;">
@@ -5834,9 +5834,10 @@ function submitQuick() {
 
 function closeQuick() {
   const el = document.getElementById('quickOverlay');
+  if (!el) return;
   el.classList.remove('active');
-  el.style.display = 'none';
-  setTimeout(() => { el.style.display = ''; }, 50);
+  // Close any open autocomplete dropdowns inside
+  el.querySelectorAll('.ac-list.open').forEach(l => l.classList.remove('open'));
 }
 
 // ============================================================
@@ -5947,9 +5948,9 @@ function submitEdit() {
 
 function closeEdit() {
   const el = document.getElementById('editOverlay');
+  if (!el) return;
   el.classList.remove('active');
-  el.style.display = 'none';
-  setTimeout(() => { el.style.display = ''; }, 50);
+  el.querySelectorAll('.ac-list.open').forEach(l => l.classList.remove('open'));
   currentEditId = null;
 }
 
@@ -6133,9 +6134,8 @@ function deleteBooking(id) {
 
 function closeDetail() {
   const el = document.getElementById('detailOverlay');
+  if (!el) return;
   el.classList.remove('active');
-  el.style.display = 'none';
-  setTimeout(() => { el.style.display = ''; }, 50);
 }
 
 // ============================================================
