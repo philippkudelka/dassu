@@ -17,6 +17,8 @@
       // VF-Members-Cache löschen damit frische Daten geladen werden
       localStorage.removeItem('vfMembers');
       localStorage.removeItem('vfMembersCachedAt');
+      localStorage.removeItem('vfInstructors');
+      localStorage.removeItem('vfInstructorsCachedAt');
       if (navigator.serviceWorker) {
         navigator.serviceWorker.getRegistrations().then(function(regs) {
           regs.forEach(function(r) { r.unregister(); });
@@ -6331,6 +6333,36 @@ async function loadVfMembers() {
   }
 }
 
+// VF-Fluglehrer aus Schulungsflügen laden
+let vfInstructors = [];
+async function loadVfInstructors() {
+  try {
+    const cached = localStorage.getItem('vfInstructors');
+    const cachedAt = parseInt(localStorage.getItem('vfInstructorsCachedAt') || '0');
+    if (cached && (Date.now() - cachedAt) < 86400000) {
+      vfInstructors = JSON.parse(cached);
+      console.log(`VF-Fluglehrer aus Cache: ${vfInstructors.length}`);
+      return;
+    }
+  } catch (_) {}
+  try {
+    const res = await fetch('/.netlify/functions/vereinsflieger-sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'instructors' })
+    });
+    const json = await res.json();
+    if (json.ok && json.data) {
+      vfInstructors = json.data;
+      localStorage.setItem('vfInstructors', JSON.stringify(vfInstructors));
+      localStorage.setItem('vfInstructorsCachedAt', String(Date.now()));
+      console.log(`VF-Fluglehrer geladen: ${vfInstructors.length}`);
+    }
+  } catch (err) {
+    console.warn('VF-Fluglehrer laden fehlgeschlagen:', err);
+  }
+}
+
 // Firebase-registrierte Kunden laden
 async function loadFirebaseCustomers() {
   try {
@@ -6432,7 +6464,9 @@ function acFilterInstructor(inputId) {
     .map(g => g.name).filter(Boolean);
   // Staff-Flugleiter-Namen (Rolle flugleiter) hinzufügen
   const staffFlugleiter = staffUsers.filter(u => u.role === 'flugleiter' && u.name).map(u => u.name);
-  const allInstructors = [...new Set([...fluglehrerNames, ...allGuests, ...staffFlugleiter])].sort((a, b) => a.localeCompare(b, 'de'));
+  // VF-Fluglehrer aus Schulungsflügen
+  const vfFl = (typeof vfInstructors !== 'undefined') ? vfInstructors : [];
+  const allInstructors = [...new Set([...fluglehrerNames, ...allGuests, ...staffFlugleiter, ...vfFl])].sort((a, b) => a.localeCompare(b, 'de'));
 
   // Bei leerem Input: alle zeigen (max 15)
   let matches;
@@ -6624,8 +6658,9 @@ function resizeImage(file, maxSize) {
   });
 }
 
-// Vereinsflieger-Mitglieder + Firebase-Kunden im Hintergrund laden
+// Vereinsflieger-Mitglieder, Fluglehrer + Firebase-Kunden im Hintergrund laden
 loadVfMembers();
+loadVfInstructors();
 loadFirebaseCustomers();
 
 // Enter-Taste im Einladungsformular

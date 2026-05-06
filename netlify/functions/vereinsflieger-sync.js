@@ -654,6 +654,21 @@ exports.handler = async (event) => {
           .sort((a, b) => (a.lastname || '').localeCompare(b.lastname || ''));
         break;
       }
+      case 'instructors': {
+        // Alle Fluglehrer-Namen aus Schulungsflügen der letzten 3 Jahre
+        const now = new Date();
+        const yr = now.getFullYear();
+        const allFlightsForInstr = await vfGetFlightsDateRange(accesstoken, `${yr - 2}-01-01`, `${yr}-12-31`);
+        const instrNames = new Set();
+        allFlightsForInstr.forEach(f => {
+          if (String(f.ft_education) === '1') {
+            const name = (f.attendantname || '').trim();
+            if (name) instrNames.add(name);
+          }
+        });
+        result = [...instrNames].sort((a, b) => a.localeCompare(b, 'de'));
+        break;
+      }
       case 'instructorStats': {
         // Fluglehrer-Statistik: 3 Jahre einzeln
         // Fluglehrer = attendantname auf Schulungsflügen (ft_education === "1")
