@@ -6432,7 +6432,9 @@ function acFilterInstructor(inputId) {
   const activeGuests = (typeof guestInstructors !== 'undefined' ? guestInstructors : [])
     .filter(g => g.from <= today && g.to >= today)
     .map(g => g.name);
-  const allInstructors = [...new Set([...fluglehrerNames, ...activeGuests])].sort((a, b) => a.localeCompare(b, 'de'));
+  // Staff-Flugleiter-Namen (Rolle flugleiter) hinzufügen
+  const staffFlugleiter = staffUsers.filter(u => u.role === 'flugleiter' && u.name).map(u => u.name);
+  const allInstructors = [...new Set([...fluglehrerNames, ...activeGuests, ...staffFlugleiter])].sort((a, b) => a.localeCompare(b, 'de'));
 
   // Bei leerem Input: alle zeigen (max 15)
   let matches;

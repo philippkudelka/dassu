@@ -4375,7 +4375,8 @@ function acFilterFluglehrer(inputId) {
   const list = document.getElementById(inputId + '-ac');
   if (!input || !list) return;
   const q = input.value.trim().toLowerCase();
-  const allFl = (settings.fluglehrerList || []).slice().sort((a, b) => a.localeCompare(b, 'de'));
+  const staffFl = staffUsers.filter(u => u.role === 'flugleiter' && u.name).map(u => u.name);
+  const allFl = [...new Set([...(settings.fluglehrerList || []), ...staffFl])].sort((a, b) => a.localeCompare(b, 'de'));
   let matches = !q ? allFl.slice(0, 15) : allFl.filter(n => n.toLowerCase().includes(q));
   if (!matches.length) { list.style.display = 'none'; flAcIdx = -1; return; }
   flAcIdx = -1;
