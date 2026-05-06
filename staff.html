@@ -9,7 +9,7 @@
 <script>
 // Nuclear Cache Bust v29 — einmalig alle alten SW + Caches löschen + VF-Cache erneuern
 (function() {
-  var APP_VERSION = 66;
+  var APP_VERSION = 67;
   try {
     var stored = parseInt(localStorage.getItem('dassu_staff_v') || '0');
     if (stored < APP_VERSION) {
@@ -3986,41 +3986,59 @@ function getRunningEntry() {
 }
 
 function toggleClock() {
-  if (!currentUser) return;
-  const running = getRunningEntry();
-  if (running) {
-    // Clock OUT
-    const now = new Date();
-    const clockInTime = new Date(running.clockIn);
-    const duration = Math.round((now - clockInTime) / 60000);
-    db.ref('timeEntries/' + currentUser.id + '/' + running.id).update({
-      clockOut: now.toISOString(),
-      duration: duration
-    }).then(() => {
-      notify('Ausgestempelt. ' + formatDurationHM(duration), 'success');
-    }).catch(err => {
-      console.error('Clock-out Fehler:', err);
-      notify('Fehler beim Ausstempeln: ' + err.message, 'error');
-    });
-  } else {
-    // Clock IN
-    const now = new Date();
-    const id = 'te' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
-    db.ref('timeEntries/' + currentUser.id + '/' + id).set({
-      id: id,
-      userId: currentUser.id,
-      userName: currentUser.name,
-      date: dateKey(now),
-      clockIn: now.toISOString(),
-      clockOut: null,
-      duration: 0,
-      note: ''
-    }).then(() => {
-      notify('Eingestempelt!', 'success');
-    }).catch(err => {
-      console.error('Clock-in Fehler:', err);
-      notify('Fehler beim Einstempeln: ' + err.message, 'error');
-    });
+  try {
+    if (!currentUser) {
+      notify('Bitte erst einloggen.', 'error');
+      console.error('toggleClock: currentUser ist null');
+      return;
+    }
+    if (!currentUser.id) {
+      notify('Fehler: Benutzer-ID fehlt. Bitte Seite neu laden.', 'error');
+      console.error('toggleClock: currentUser.id ist leer', currentUser);
+      return;
+    }
+    const running = getRunningEntry();
+    if (running) {
+      // Clock OUT
+      const now = new Date();
+      const clockInTime = new Date(running.clockIn);
+      const duration = Math.round((now - clockInTime) / 60000);
+      const ref = 'timeEntries/' + currentUser.id + '/' + running.id;
+      console.log('Clock OUT →', ref);
+      db.ref(ref).update({
+        clockOut: now.toISOString(),
+        duration: duration
+      }).then(() => {
+        notify('Ausgestempelt. ' + formatDurationHM(duration), 'success');
+      }).catch(err => {
+        console.error('Clock-out Fehler:', err);
+        notify('Fehler beim Ausstempeln: ' + err.message, 'error');
+      });
+    } else {
+      // Clock IN
+      const now = new Date();
+      const id = 'te' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+      const ref = 'timeEntries/' + currentUser.id + '/' + id;
+      console.log('Clock IN →', ref, 'user:', currentUser.name);
+      db.ref(ref).set({
+        id: id,
+        userId: currentUser.id,
+        userName: currentUser.name,
+        date: dateKey(now),
+        clockIn: now.toISOString(),
+        clockOut: null,
+        duration: 0,
+        note: ''
+      }).then(() => {
+        notify('Eingestempelt!', 'success');
+      }).catch(err => {
+        console.error('Clock-in Fehler:', err);
+        notify('Fehler beim Einstempeln: ' + err.message, 'error');
+      });
+    }
+  } catch (ex) {
+    console.error('toggleClock Ausnahme:', ex);
+    notify('Unerwarteter Fehler: ' + ex.message, 'error');
   }
 }
 
