@@ -624,110 +624,115 @@ exports.handler = async (event) => {
   // login-debug braucht kein Login
   if (action === 'login-debug') {
     try {
-      // Wird direkt im switch behandelt — aber vor dem Login
-      const uname = process.env.VF_WEB_USERNAME || process.env.VF_USERNAME || '';
-      const pwd = process.env.VF_WEB_PASSWORD || process.env.VF_PASSWORD || '';
+      const VF_REST = 'https://www.vereinsflieger.de/interface/rest';
+      const uname = process.env.VF_USERNAME || '';
+      const pwd = process.env.VF_PASSWORD || '';
+      const appkey = process.env.VF_APPKEY || '';
+      const results = {};
 
-      const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36';
-      const DBG_HEADERS = {
-        'User-Agent': BROWSER_UA,
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'de-DE,de;q=0.9,en;q=0.7',
-        'Sec-Fetch-Dest': 'document',
-        'Sec-Fetch-Mode': 'navigate',
-        'Sec-Fetch-Site': 'none',
-        'Sec-Fetch-User': '?1',
-        'Upgrade-Insecure-Requests': '1'
+      // Schritt 1: REST API accesstoken holen
+      const tokenRes = await fetch(VF_REST + '/auth/accesstoken', { method: 'GET' });
+      const tokenCookies = mergeCookies('', tokenRes);
+      const tokenData = await tokenRes.json();
+      const accesstoken = tokenData.accesstoken || '';
+      results.step1_token = {
+        hasToken: !!accesstoken,
+        tokenLen: accesstoken.length,
+        cookiesFromToken: tokenCookies ? tokenCookies.split('; ').map(c => c.split('=')[0]) : []
       };
 
-      const dbgPageRes = await fetch(VF_WEB_BASE + '/member/', {
-        method: 'GET', redirect: 'manual',
-        headers: DBG_HEADERS
+      // Schritt 2: REST API signin
+      const signinRes = await fetch(VF_REST + '/auth/signin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          accesstoken, appkey, username: uname,
+          password: md5(pwd), auth_secret: '', cid: ''
+        }).toString()
       });
-      let dbgCookies = mergeCookies('', dbgPageRes);
-      // VF bot-detection: Browser-Dimensions-Cookies
-      dbgCookies = mergeCookies(dbgCookies, { headers: { getSetCookie: () => ['cw=1920', 'ch=1080'] } });
-      const dbgHtml = await dbgPageRes.text();
-      const dbgFields = extractFormFields(dbgHtml);
-      const dbgActionMatch = dbgHtml.match(/<form[^>]*action=["']([^"']+)["']/i);
-      const dbgFormAction = dbgActionMatch ? dbgActionMatch[1] : '/member/';
+      const signinCookies = mergeCookies(tokenCookies, signinRes);
+      const signinData = await signinRes.json();
+      const signinOk = !signinData.error_code || signinData.error_code === '0';
+      results.step2_signin = {
+        success: signinOk,
+        errorCode: signinData.error_code,
+        errorMsg: signinData.error_msg,
+        httpheader: signinData.httpheader ? signinData.httpheader.substring(0, 20) + '...' : 'none',
+        cookiesAfterSignin: signinCookies ? signinCookies.split('; ').map(c => c.split('=')[0]) : [],
+        signinSetCookieNames: (signinRes.headers.getSetCookie ? signinRes.headers.getSetCookie() : []).map(c => c.split('=')[0])
+      };
 
-      // Versuch einen Login mit MD5-Hash + realistischen Headers
-      dbgFields.user = uname;
-      dbgFields.pwinput = pwd;
-      const dbgSalt = dbgFields.pwdsalt || '';
-      if (dbgSalt) {
-        dbgFields.pw = md5(pwd + dbgSalt);
-        dbgFields.pwdcrypt = 'true';
+      if (!signinOk) {
+        return ok(results);
       }
-      const loginUrl = dbgFormAction.startsWith('http') ? dbgFormAction : VF_WEB_BASE + dbgFormAction;
-      const loginRes = await fetch(loginUrl, {
-        method: 'POST', redirect: 'manual',
+
+      // Schritt 3: Mit REST-Session-Cookies die Web-UI aufrufen
+      // Versuch A: Cookies vom REST-Signin direkt verwenden
+      const webResA = await fetch(VF_WEB_BASE + '/member/flightdataentry/flightlog.php', {
+        method: 'GET', redirect: 'manual',
         headers: {
-          ...DBG_HEADERS,
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Cookie': dbgCookies,
-          'Origin': VF_WEB_BASE,
-          'Referer': VF_WEB_BASE + '/member/',
-          'Sec-Fetch-Site': 'same-origin',
-          'Cache-Control': 'max-age=0'
-        },
-        body: new URLSearchParams(dbgFields).toString()
-      });
-      const loginBody = await loginRes.text();
-      const loginLocation = loginRes.headers.get('location') || '';
-
-      // Auch: Cookie-Diagnostik
-      const getSetCookieRaw = dbgPageRes.headers.getSetCookie ? dbgPageRes.headers.getSetCookie() : [];
-      const postSetCookieRaw = loginRes.headers.getSetCookie ? loginRes.headers.getSetCookie() : [];
-      const getPagePreview = dbgHtml.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 200);
-      // Check if GET returned login form or public page
-      const getHasLoginForm = dbgHtml.includes('pwinput');
-      const getHasAbmelden = dbgHtml.includes('Abmelden');
-      const getTitle = (dbgHtml.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || '';
-
-      return ok({
-        envVars: {
-          hasVfWebUsername: !!process.env.VF_WEB_USERNAME,
-          hasVfWebPassword: !!process.env.VF_WEB_PASSWORD,
-          hasVfUsername: !!process.env.VF_USERNAME,
-          hasVfPassword: !!process.env.VF_PASSWORD,
-          usernamePreview: uname ? uname[0] + '***' + uname.slice(-1) : 'EMPTY',
-          passwordLen: pwd.length
-        },
-        getResponse: {
-          status: dbgPageRes.status,
-          location: dbgPageRes.headers.get('location') || '',
-          htmlLen: dbgHtml.length,
-          title: getTitle,
-          hasLoginForm: getHasLoginForm,
-          hasAbmelden: getHasAbmelden,
-          bodyPreview: getPagePreview,
-          setCookieCount: getSetCookieRaw.length,
-          setCookieNames: getSetCookieRaw.map(c => c.split('=')[0]),
-          setCookieRaw: getSetCookieRaw.map(c => c.substring(0, 80))
-        },
-        cookiesSent: dbgCookies,
-        loginPage: {
-          formAction: dbgFormAction,
-          fieldNames: Object.keys(dbgFields),
-          fieldCount: Object.keys(dbgFields).length,
-          saltLen: (dbgFields.pwdsalt || '').length
-        },
-        loginResponse: {
-          status: loginRes.status,
-          location: loginLocation,
-          bodyLen: loginBody.length,
-          hasAbmelden: loginBody.includes('Abmelden'),
-          hasPwinput: loginBody.includes('pwinput'),
-          hasAnmeldungFehlgeschlagen: loginBody.includes('Anmeldung fehlgeschlagen'),
-          hasFalschesPasswort: loginBody.includes('falsches Passwort'),
-          titleMatch: (loginBody.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || '',
-          bodyPreview: loginBody.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 300),
-          postSetCookieCount: postSetCookieRaw.length,
-          postSetCookieNames: postSetCookieRaw.map(c => c.split('=')[0])
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Cookie': signinCookies
         }
       });
+      const webBodyA = await webResA.text();
+      results.step3a_restCookies = {
+        status: webResA.status,
+        location: webResA.headers.get('location') || '',
+        bodyLen: webBodyA.length,
+        hasAbmelden: webBodyA.includes('Abmelden'),
+        hasFlightlog: webBodyA.includes('flightlog') || webBodyA.includes('Hauptflugbuch'),
+        hasOGN: webBodyA.includes('liveimport'),
+        title: (webBodyA.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || '',
+        preview: webBodyA.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 150)
+      };
+
+      // Versuch B: accesstoken als PHPSESSID setzen
+      const webResB = await fetch(VF_WEB_BASE + '/member/flightdataentry/flightlog.php', {
+        method: 'GET', redirect: 'manual',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Cookie': 'PHPSESSID=' + accesstoken + '; cw=1920; ch=1080'
+        }
+      });
+      const webBodyB = await webResB.text();
+      results.step3b_tokenAsPHPSESSID = {
+        status: webResB.status,
+        location: webResB.headers.get('location') || '',
+        bodyLen: webBodyB.length,
+        hasAbmelden: webBodyB.includes('Abmelden'),
+        hasFlightlog: webBodyB.includes('flightlog') || webBodyB.includes('Hauptflugbuch'),
+        hasOGN: webBodyB.includes('liveimport'),
+        title: (webBodyB.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || '',
+        preview: webBodyB.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 150)
+      };
+
+      // Versuch C: httpheader (Auth-Header) als PHPSESSID
+      const httpheader = signinData.httpheader || accesstoken;
+      if (httpheader !== accesstoken) {
+        const webResC = await fetch(VF_WEB_BASE + '/member/flightdataentry/flightlog.php', {
+          method: 'GET', redirect: 'manual',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Cookie': 'PHPSESSID=' + httpheader + '; cw=1920; ch=1080'
+          }
+        });
+        const webBodyC = await webResC.text();
+        results.step3c_httpheaderAsPHPSESSID = {
+          status: webResC.status,
+          bodyLen: webBodyC.length,
+          hasAbmelden: webBodyC.includes('Abmelden'),
+          hasFlightlog: webBodyC.includes('flightlog') || webBodyC.includes('Hauptflugbuch'),
+          title: (webBodyC.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || ''
+        };
+      }
+
+      // Aufräumen
+      try {
+        await fetch(VF_REST + '/auth/signout/' + accesstoken, { method: 'DELETE' });
+      } catch(e) {}
+
+      return ok(results);
     } catch (err) {
       return fail('login-debug Fehler: ' + err.message);
     }
