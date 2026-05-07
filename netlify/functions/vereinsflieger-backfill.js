@@ -738,12 +738,73 @@ exports.handler = async (event) => {
           hasSalt: formHtml.includes('pwdsalt')
         });
       }
+      // Capture raw button HTML
+      const rawBtnMatch = loginHtml.match(/<button[\s\S]*?<\/button>/i);
+      const rawBtnHtml = rawBtnMatch ? rawBtnMatch[0] : '';
+      const btnName = (rawBtnHtml.match(/name=["']([^"']+)["']/i) || [])[1] || '';
+      const btnValue = (rawBtnHtml.match(/value=["']([^"']*)["']/i) || [])[1] || '';
+
       results.step3b_loginPageForms = {
         finalUrl: loginPageRes.url,
         status: loginPageRes.status,
         formCount: forms.length,
         forms,
-        cookieNames: loginPageCookies.split('; ').map(c => c.split('=')[0])
+        cookieNames: loginPageCookies.split('; ').map(c => c.split('=')[0]),
+        rawButtonHtml: rawBtnHtml.substring(0, 200),
+        btnName, btnValue
+      };
+
+      // Schritt 4: Verbesserter Web-Login-Versuch
+      // Idee: Nutze die Cookies vom Login-Page-GET + realistischen Headers + Button
+      const formFields = extractFormFields(loginHtml);
+      formFields.user = uname;
+      formFields.pwinput = pwd;
+      const salt = formFields.pwdsalt || '';
+      if (salt) {
+        formFields.pw = md5(pwd + salt);
+        formFields.pwdcrypt = 'true';
+      }
+      // Submit-Button inkludieren falls er einen Namen hat
+      if (btnName) {
+        formFields[btnName] = btnValue;
+      }
+      // Browser-Dimension-Cookies hinzufügen
+      let postCookies = mergeCookies(loginPageCookies, { headers: { getSetCookie: () => ['cw=1920', 'ch=1080'] } });
+
+      const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36';
+      const webLoginRes = await fetch(VF_WEB_BASE + '/member/', {
+        method: 'POST',
+        redirect: 'manual',
+        headers: {
+          'User-Agent': BROWSER_UA,
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'de-DE,de;q=0.9,en;q=0.7',
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Cookie': postCookies,
+          'Origin': VF_WEB_BASE,
+          'Referer': VF_WEB_BASE + '/member/',
+          'Sec-Fetch-Dest': 'document',
+          'Sec-Fetch-Mode': 'navigate',
+          'Sec-Fetch-Site': 'same-origin',
+          'Sec-Fetch-User': '?1',
+          'Upgrade-Insecure-Requests': '1',
+          'Cache-Control': 'max-age=0'
+        },
+        body: new URLSearchParams(formFields).toString()
+      });
+      const webLoginBody = await webLoginRes.text();
+      const webLoginLoc = webLoginRes.headers.get('location') || '';
+      results.step4_webLogin = {
+        status: webLoginRes.status,
+        location: webLoginLoc,
+        bodyLen: webLoginBody.length,
+        hasAbmelden: webLoginBody.includes('Abmelden'),
+        hasPwinput: webLoginBody.includes('pwinput'),
+        hasFehlgeschlagen: webLoginBody.includes('Anmeldung fehlgeschlagen') || webLoginBody.includes('falsches Passwort'),
+        title: (webLoginBody.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || '',
+        preview: webLoginBody.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 150),
+        fieldsSubmitted: Object.keys(formFields).length,
+        postSetCookies: (webLoginRes.headers.getSetCookie ? webLoginRes.headers.getSetCookie() : []).map(c => c.split('=')[0])
       };
 
       // Aufräumen
