@@ -123,6 +123,8 @@ async function webLogin() {
     headers: { ...BROWSER_HEADERS, 'Sec-Fetch-Site': 'none' }
   });
   let cookies = mergeCookies('', loginPageRes);
+  // VF's JavaScript setzt Browser-Dimension-Cookies (Bot-Erkennung)
+  cookies = mergeCookies(cookies, { headers: { getSetCookie: () => ['cw=1920', 'ch=1080'] } });
   const loginHtml = await loginPageRes.text();
 
   // Alle Formularfelder extrahieren (inkl. versteckte Honeypot-Felder + Salt)
@@ -642,7 +644,9 @@ exports.handler = async (event) => {
         method: 'GET', redirect: 'manual',
         headers: DBG_HEADERS
       });
-      const dbgCookies = mergeCookies('', dbgPageRes);
+      let dbgCookies = mergeCookies('', dbgPageRes);
+      // VF bot-detection: Browser-Dimensions-Cookies
+      dbgCookies = mergeCookies(dbgCookies, { headers: { getSetCookie: () => ['cw=1920', 'ch=1080'] } });
       const dbgHtml = await dbgPageRes.text();
       const dbgFields = extractFormFields(dbgHtml);
       const dbgActionMatch = dbgHtml.match(/<form[^>]*action=["']([^"']+)["']/i);
