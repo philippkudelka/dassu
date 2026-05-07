@@ -562,6 +562,55 @@ exports.handler = async (event) => {
         });
       }
 
+      case 'debug': {
+        // Debug: Zeigt die rohe HTML-Struktur der Flugbuch-Seite
+        const date = body.date;
+        let url = 'flightlog.php';
+        if (date) url = `flightlog.php?filterdate=${date}`;
+        const html = await webGet(url, cookies);
+
+        const hasLiveimportlist = html.includes('liveimportlist');
+        const hasDiv158 = html.includes('div158');
+        const hasImportOgn = html.includes('import_ogn');
+        const onclickDeleteCount = (html.match(/onclickDelete/g) || []).length;
+        const onclickLinkCount = (html.match(/onclickLink/g) || []).length;
+        const rowIdCount = (html.match(/id="row\d+"/g) || []).length;
+        const hasFlightlogLiveimport = html.includes('flightlogliveimport');
+        const tablelist158Match = html.match(/tablelist_158/g);
+
+        // Extract a sample around liveimportlist
+        let liveimportSnippet = '';
+        const liIdx = html.indexOf('liveimportlist');
+        if (liIdx >= 0) {
+          liveimportSnippet = html.substring(Math.max(0, liIdx - 100), liIdx + 300)
+            .replace(/</g, '&lt;').substring(0, 400);
+        }
+
+        // Extract a sample around import_ogn
+        let importOgnSnippet = '';
+        const ioIdx = html.indexOf('import_ogn');
+        if (ioIdx >= 0) {
+          importOgnSnippet = html.substring(Math.max(0, ioIdx - 50), ioIdx + 200)
+            .replace(/</g, '&lt;').substring(0, 300);
+        }
+
+        return ok({
+          htmlLength: html.length,
+          hasLiveimportlist,
+          hasDiv158,
+          hasImportOgn,
+          onclickDeleteCount,
+          onclickLinkCount,
+          rowIdCount,
+          hasFlightlogLiveimport,
+          tablelist158: tablelist158Match ? tablelist158Match.length : 0,
+          liveimportSnippet,
+          importOgnSnippet,
+          // Also show parsed results
+          parsed: parseFlightlogPage(html)
+        });
+      }
+
       default:
         return fail('Unbekannte Aktion: ' + action, 400);
     }
