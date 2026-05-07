@@ -687,45 +687,64 @@ exports.handler = async (event) => {
         preview: webBodyA.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 150)
       };
 
-      // Versuch B: accesstoken als PHPSESSID setzen
-      const webResB = await fetch(VF_WEB_BASE + '/member/flightdataentry/flightlog.php', {
-        method: 'GET', redirect: 'manual',
+      // Schritt 3b: Analysiere die Login-Seite HTML genau
+      // Hole die /member/ Seite und analysiere ALLE forms
+      const loginPageRes = await fetch(VF_WEB_BASE + '/member/', {
+        method: 'GET', redirect: 'follow',
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          'Cookie': 'PHPSESSID=' + accesstoken + '; cw=1920; ch=1080'
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'de-DE,de;q=0.9,en;q=0.7'
         }
       });
-      const webBodyB = await webResB.text();
-      results.step3b_tokenAsPHPSESSID = {
-        status: webResB.status,
-        location: webResB.headers.get('location') || '',
-        bodyLen: webBodyB.length,
-        hasAbmelden: webBodyB.includes('Abmelden'),
-        hasFlightlog: webBodyB.includes('flightlog') || webBodyB.includes('Hauptflugbuch'),
-        hasOGN: webBodyB.includes('liveimport'),
-        title: (webBodyB.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || '',
-        preview: webBodyB.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 150)
-      };
+      const loginPageCookies = mergeCookies('', loginPageRes);
+      const loginHtml = await loginPageRes.text();
 
-      // Versuch C: httpheader (Auth-Header) als PHPSESSID
-      const httpheader = signinData.httpheader || accesstoken;
-      if (httpheader !== accesstoken) {
-        const webResC = await fetch(VF_WEB_BASE + '/member/flightdataentry/flightlog.php', {
-          method: 'GET', redirect: 'manual',
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            'Cookie': 'PHPSESSID=' + httpheader + '; cw=1920; ch=1080'
-          }
+      // Alle <form> Tags finden
+      const formRegex = /<form[\s\S]*?<\/form>/gi;
+      const forms = [];
+      let fm;
+      while ((fm = formRegex.exec(loginHtml)) !== null) {
+        const formHtml = fm[0];
+        const action = (formHtml.match(/action=["']([^"']+)["']/i) || [])[1] || '';
+        const method = (formHtml.match(/method=["']([^"']+)["']/i) || [])[1] || '';
+        const id = (formHtml.match(/id=["']([^"']+)["']/i) || [])[1] || '';
+        const inputNames = [];
+        const inputRe2 = /<input\s([^>]*?)>/gi;
+        let im;
+        while ((im = inputRe2.exec(formHtml)) !== null) {
+          const name = (im[1].match(/name=["']([^"']+)["']/i) || [])[1] || '';
+          const type = (im[1].match(/type=["']([^"']+)["']/i) || [])[1] || '';
+          const val = (im[1].match(/value=["']([^"']*)["']/i) || [])[1] || '';
+          if (name) inputNames.push(name + '(' + type + ')=' + val.substring(0, 20));
+        }
+        // Check for buttons
+        const buttons = [];
+        const btnRe = /<button[\s\S]*?<\/button>/gi;
+        let bm;
+        while ((bm = btnRe.exec(formHtml)) !== null) {
+          const btnId = (bm[0].match(/id=["']([^"']+)["']/i) || [])[1] || '';
+          const btnType = (bm[0].match(/type=["']([^"']+)["']/i) || [])[1] || '';
+          const btnDisabled = bm[0].includes('disabled');
+          buttons.push(btnId + '(' + btnType + ')' + (btnDisabled ? '[disabled]' : ''));
+        }
+        forms.push({
+          action, method, id,
+          inputCount: inputNames.length,
+          inputs: inputNames,
+          buttons,
+          htmlLen: formHtml.length,
+          hasPwinput: formHtml.includes('pwinput'),
+          hasSalt: formHtml.includes('pwdsalt')
         });
-        const webBodyC = await webResC.text();
-        results.step3c_httpheaderAsPHPSESSID = {
-          status: webResC.status,
-          bodyLen: webBodyC.length,
-          hasAbmelden: webBodyC.includes('Abmelden'),
-          hasFlightlog: webBodyC.includes('flightlog') || webBodyC.includes('Hauptflugbuch'),
-          title: (webBodyC.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || ''
-        };
       }
+      results.step3b_loginPageForms = {
+        finalUrl: loginPageRes.url,
+        status: loginPageRes.status,
+        formCount: forms.length,
+        forms,
+        cookieNames: loginPageCookies.split('; ').map(c => c.split('=')[0])
+      };
 
       // Aufräumen
       try {
