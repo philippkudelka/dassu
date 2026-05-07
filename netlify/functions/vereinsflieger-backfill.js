@@ -599,6 +599,74 @@ exports.handler = async (event) => {
 
   const { action } = body;
 
+  // login-debug braucht kein Login
+  if (action === 'login-debug') {
+    try {
+      // Wird direkt im switch behandelt — aber vor dem Login
+      const uname = process.env.VF_WEB_USERNAME || process.env.VF_USERNAME || '';
+      const pwd = process.env.VF_WEB_PASSWORD || process.env.VF_PASSWORD || '';
+
+      const dbgPageRes = await fetch(VF_WEB_BASE + '/member/', {
+        method: 'GET', redirect: 'manual',
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+      });
+      const dbgCookies = mergeCookies('', dbgPageRes);
+      const dbgHtml = await dbgPageRes.text();
+      const dbgFields = extractFormFields(dbgHtml);
+      const dbgActionMatch = dbgHtml.match(/<form[^>]*action=["']([^"']+)["']/i);
+      const dbgFormAction = dbgActionMatch ? dbgActionMatch[1] : '/member/';
+
+      // Versuch einen Login und gib die rohe Antwort zurück
+      dbgFields.user = uname;
+      dbgFields.pwinput = pwd;
+      const loginUrl = dbgFormAction.startsWith('http') ? dbgFormAction : VF_WEB_BASE + dbgFormAction;
+      const loginRes = await fetch(loginUrl, {
+        method: 'POST', redirect: 'manual',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Cookie': dbgCookies,
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Referer': VF_WEB_BASE + '/member/'
+        },
+        body: new URLSearchParams(dbgFields).toString()
+      });
+      const loginBody = await loginRes.text();
+      const loginLocation = loginRes.headers.get('location') || '';
+
+      return ok({
+        envVars: {
+          hasVfWebUsername: !!process.env.VF_WEB_USERNAME,
+          hasVfWebPassword: !!process.env.VF_WEB_PASSWORD,
+          hasVfUsername: !!process.env.VF_USERNAME,
+          hasVfPassword: !!process.env.VF_PASSWORD,
+          usernamePreview: uname ? uname[0] + '***' + uname.slice(-1) : 'EMPTY',
+          passwordLen: pwd.length
+        },
+        loginPage: {
+          htmlLen: dbgHtml.length,
+          formAction: dbgFormAction,
+          fieldNames: Object.keys(dbgFields),
+          fieldCount: Object.keys(dbgFields).length,
+          saltLen: (dbgFields.pwdsalt || '').length
+        },
+        loginResponse: {
+          status: loginRes.status,
+          location: loginLocation,
+          bodyLen: loginBody.length,
+          hasAbmelden: loginBody.includes('Abmelden'),
+          hasPwinput: loginBody.includes('pwinput'),
+          hasAnmeldungFehlgeschlagen: loginBody.includes('Anmeldung fehlgeschlagen'),
+          hasFalschesPasswort: loginBody.includes('falsches Passwort'),
+          titleMatch: (loginBody.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || '',
+          bodyPreview: loginBody.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 300)
+        },
+        postBody: new URLSearchParams(dbgFields).toString().substring(0, 500)
+      });
+    } catch (err) {
+      return fail('login-debug Fehler: ' + err.message);
+    }
+  }
+
   try {
     // Login
     const cookies = await webLogin();
