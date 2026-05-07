@@ -10,10 +10,6 @@
 [functions]
   node_bundler = "esbuild"
 
-# Cheerio braucht nft-Bundler (esbuild kann es nicht bundlen)
-[functions."vereinsflieger-backfill"]
-  node_bundler = "nft"
-
 # Service Worker: NIEMALS cachen — Browser muss immer frische Version holen
 [[headers]]
   for = "/sw.js"

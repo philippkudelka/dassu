@@ -11,7 +11,7 @@
  *   VF_WEB_USERNAME  – Web-Login Benutzername (oder VF_USERNAME als Fallback)
  *   VF_WEB_PASSWORD  – Web-Login Passwort (oder VF_PASSWORD als Fallback)
  */
-const cheerio = require('cheerio');
+// Kein cheerio — reines Regex/String-Parsing (esbuild-kompatibel)
 
 const VF_WEB_BASE = 'https://www.vereinsflieger.de';
 const VF_FLIGHT_BASE = VF_WEB_BASE + '/member/flightdataentry';
@@ -155,111 +155,130 @@ async function webPost(url, cookies, formData) {
 
 // ---- HTML Parsing ----
 
+// ---- HTML-Hilfsroutinen (kein cheerio nötig) ----
+
+/** Entfernt HTML-Tags und gibt reinen Text zurück */
+function stripTags(s) { return (s || '').replace(/<[^>]*>/g, '').trim(); }
+
+/** Extrahiert alle <td>…</td> Inhalte aus einem TR-String */
+function extractTds(trHtml) {
+  const tds = [];
+  const re = /<td[^>]*>([\s\S]*?)<\/td>/gi;
+  let m;
+  while ((m = re.exec(trHtml)) !== null) tds.push(stripTags(m[1]));
+  return tds;
+}
+
 /**
  * Parst die Flugbuch-Seite (flightlog.php) und extrahiert:
  * - flights: Array von {flid, callsign, pilot, attendant, start, landing, status, ...}
  * - ognTracks: Array von {sourceid, callsign, start, landing, linked}
  */
 function parseFlightlogPage(html) {
-  const $ = cheerio.load(html);
-
   // --- Flugbuch-Einträge (linke Tabelle) ---
   const flights = [];
-  $('tr[id^="row"]').each((_, tr) => {
-    const $tr = $(tr);
-    const flid = $tr.attr('id').replace('row', '');
-    const cells = $tr.find('td');
-    if (cells.length < 10) return;
+  const rowRe = /<tr[^>]*id="row(\d+)"[^>]*>([\s\S]*?)<\/tr>/gi;
+  let rm;
+  while ((rm = rowRe.exec(html)) !== null) {
+    const flid = rm[1];
+    const cells = extractTds(rm[2]);
+    if (cells.length < 10) continue;
 
-    const callsign = $(cells[1]).text().trim();
-    const pilot = $(cells[2]).text().trim();
-    const attendant = $(cells[3]).text().trim();
-    const start = $(cells[4]).text().trim();
-    const landing = $(cells[5]).text().trim();
-    const zeit = $(cells[6]).text().trim();
-    const startart = $(cells[7]).text().trim();
-    const flugart = $(cells[8]).text().trim();
-
-    // Status: gelb = offen (kein Start), grün = abgeschlossen
+    const callsign = cells[1];
+    const pilot = cells[2];
+    const attendant = cells[3];
+    const start = cells[4];
+    const landing = cells[5];
+    const zeit = cells[6];
+    const startart = cells[7];
+    const flugart = cells[8];
     const isOpen = !start;
 
-    flights.push({
-      flid, callsign, pilot, attendant,
-      start, landing, zeit, startart, flugart,
-      isOpen
-    });
-  });
+    flights.push({ flid, callsign, pilot, attendant, start, landing, zeit, startart, flugart, isOpen });
+  }
 
   // --- OGN-Tracks (rechte Tabelle) ---
   const ognTracks = [];
-  // OGN-Tracks haben onclick-Handler mit onclickAdd/onclickLink/onclickDelete
-  $('a[onclick*="onclickDelete"]').each((_, a) => {
-    const onclick = $(a).attr('onclick') || '';
-    const match = onclick.match(/onclickDelete\((\d+),\s*3\)/);
-    if (!match) return;
-    const sourceid = match[1];
+  // Finde alle <tr> die onclickDelete(..., 3) enthalten
+  const trRe = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+  let tm;
+  while ((tm = trRe.exec(html)) !== null) {
+    const trContent = tm[1];
+    const delMatch = trContent.match(/onclickDelete\((\d+),\s*3\)/);
+    if (!delMatch) continue;
 
-    // Prüfe ob der Track unverknüpft ist (hat onclickLink Sibling)
-    const parentCell = $(a).closest('td');
-    const links = parentCell.find('a[onclick]');
-    const hasLink = links.toArray().some(l => ($(l).attr('onclick') || '').includes('onclickLink'));
-    const hasAdd = links.toArray().some(l => ($(l).attr('onclick') || '').includes('onclickAdd'));
-    const linked = !hasLink && !hasAdd; // verknüpft = nur Delete + Karte
+    const sourceid = delMatch[1];
+    const hasLink = /onclickLink\(/.test(trContent);
+    const hasAdd = /onclickAdd\(/.test(trContent);
+    const linked = !hasLink && !hasAdd;
 
-    // Extrahiere Lfz., Start, Landung aus der Zeile
-    const row = $(a).closest('tr');
-    const rowCells = row.find('td');
+    // Lfz. und Zeiten aus der Zeile extrahieren
+    const cells = extractTds(tm[0] || ('<tr>' + trContent + '</tr>'));
     let callsign = '', startTime = '', landTime = '';
 
-    // Die OGN-Tabelle hat: Icons | Quelle | Lfz | Start | Landung | Schlepp
-    rowCells.each((idx, cell) => {
-      const text = $(cell).text().trim();
-      if (text.match(/^D-[A-Z0-9]{3,5}$/)) callsign = text;
-      // Zeitformat: HH:MM
-      if (!callsign && text.match(/^\d{2}:\d{2}$/)) return; // Skip vor Lfz
-      if (callsign && !startTime && text.match(/^\d{2}:\d{2}$/)) startTime = text;
-      else if (callsign && startTime && !landTime && text.match(/^\d{2}:\d{2}$/)) landTime = text;
-    });
-
-    // Fallback: Suche nach Zeitfeldern in der Zeile
-    if (!startTime) {
-      const timeMatches = row.text().match(/\d{2}:\d{2}/g) || [];
-      if (timeMatches.length >= 1) startTime = timeMatches[0];
-      if (timeMatches.length >= 2) landTime = timeMatches[1];
+    for (const text of cells) {
+      if (/^D-[A-Z0-9]{3,5}$/.test(text)) callsign = text;
+      if (callsign && !startTime && /^\d{2}:\d{2}$/.test(text)) startTime = text;
+      else if (callsign && startTime && !landTime && /^\d{2}:\d{2}$/.test(text)) landTime = text;
     }
 
-    // Suche nach Lfz. wenn noch nicht gefunden
+    // Fallback
     if (!callsign) {
-      const csMatch = row.text().match(/D-[A-Z0-9]{3,5}/);
-      if (csMatch) callsign = csMatch[0];
+      const csM = stripTags(trContent).match(/D-[A-Z0-9]{3,5}/);
+      if (csM) callsign = csM[0];
+    }
+    if (!startTime) {
+      const times = stripTags(trContent).match(/\d{2}:\d{2}/g) || [];
+      if (times.length >= 1) startTime = times[0];
+      if (times.length >= 2) landTime = times[1];
     }
 
     ognTracks.push({ sourceid, callsign, start: startTime, landing: landTime, linked });
-  });
+  }
 
   return { flights, ognTracks };
 }
 
 /**
  * Parst das addflight.php Formular und extrahiert alle Felder.
+ * Reines Regex-Parsing — kein cheerio nötig.
  */
 function parseAddFlightForm(html) {
-  const $ = cheerio.load(html);
-  const form = $('form').first();
+  // Erstes <form> finden
+  const formMatch = html.match(/<form[\s\S]*?<\/form>/i);
+  const formHtml = formMatch ? formMatch[0] : html;
   const fields = {};
 
-  form.find('input, select, textarea').each((_, el) => {
-    const $el = $(el);
-    const name = $el.attr('name');
-    if (!name) return;
-    const type = $el.attr('type') || el.tagName;
-    if (type === 'checkbox' && !$el.is(':checked')) return;
-    if (el.tagName === 'select' || el.name === 'select') {
-      fields[name] = $el.find('option:selected').attr('value') || $el.val() || '';
-    } else {
-      fields[name] = $el.val() || '';
-    }
-  });
+  // <input> Felder
+  const inputRe = /<input\s([^>]*?)>/gi;
+  let im;
+  while ((im = inputRe.exec(formHtml)) !== null) {
+    const attrs = im[1];
+    const name = (attrs.match(/name=["']([^"']+)["']/i) || [])[1];
+    if (!name) continue;
+    const type = ((attrs.match(/type=["']([^"']+)["']/i) || [])[1] || 'text').toLowerCase();
+    if (type === 'checkbox' && !/checked/i.test(attrs)) continue;
+    if (type === 'submit' || type === 'button' || type === 'reset') continue;
+    const value = (attrs.match(/value=["']([^"']*)["']/i) || [])[1] || '';
+    fields[name] = value;
+  }
+
+  // <select> Felder — selected option
+  const selRe = /<select\s[^>]*name=["']([^"']+)["'][^>]*>([\s\S]*?)<\/select>/gi;
+  let sm;
+  while ((sm = selRe.exec(formHtml)) !== null) {
+    const name = sm[1];
+    const opts = sm[2];
+    const selectedMatch = opts.match(/<option[^>]*selected[^>]*value=["']([^"']*)["']/i);
+    fields[name] = selectedMatch ? selectedMatch[1] : '';
+  }
+
+  // <textarea> Felder
+  const taRe = /<textarea\s[^>]*name=["']([^"']+)["'][^>]*>([\s\S]*?)<\/textarea>/gi;
+  let tam;
+  while ((tam = taRe.exec(formHtml)) !== null) {
+    fields[tam[1]] = stripTags(tam[2]);
+  }
 
   return fields;
 }
@@ -436,24 +455,20 @@ async function executeBackfill(cookies, actions) {
         // Formular abschicken → neuer gelber Flug
         const resultHtml = await webPost('addflight.php', cookies, formFields);
 
-        // Neuen flid aus der Antwort extrahieren
-        // Die Seite redirected zum Flugbuch — wir parsen die neue flid
-        const $result = cheerio.load(resultHtml);
-        const newRows = $result('tr[id^="row"]');
+        // Neuen flid aus der Antwort extrahieren (Regex-Parsing)
         let newFlid = null;
-
-        // Der neueste offene Flug für dieses Lfz. ist unser Duplikat
-        newRows.each((_, tr) => {
-          const $tr = $result(tr);
-          const rowFlid = $tr.attr('id').replace('row', '');
-          const cells = $tr.find('td');
-          if (cells.length < 5) return;
-          const rowCs = $result(cells[1]).text().trim();
-          const rowStart = $result(cells[4]).text().trim();
+        const rowReExec = /<tr[^>]*id="row(\d+)"[^>]*>([\s\S]*?)<\/tr>/gi;
+        let rowMatch;
+        while ((rowMatch = rowReExec.exec(resultHtml)) !== null) {
+          const rowFlid = rowMatch[1];
+          const tds = extractTds(rowMatch[2]);
+          if (tds.length < 5) continue;
+          const rowCs = tds[1];
+          const rowStart = tds[4];
           if (rowCs === callsign && !rowStart && (!newFlid || parseInt(rowFlid) > parseInt(newFlid))) {
             newFlid = rowFlid;
           }
-        });
+        }
 
         if (!newFlid) {
           throw new Error(`Konnte neuen Flug für ${callsign} nicht finden nach Duplizieren`);
