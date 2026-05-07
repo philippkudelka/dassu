@@ -101,11 +101,26 @@ async function webLogin() {
     throw new Error('VF_WEB_USERNAME/VF_WEB_PASSWORD (oder VF_USERNAME/VF_PASSWORD) nicht konfiguriert');
   }
 
+  // Realistische Browser-Headers für alle Requests
+  const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36';
+  const BROWSER_HEADERS = {
+    'User-Agent': BROWSER_UA,
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+    'Accept-Language': 'de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Connection': 'keep-alive',
+    'Upgrade-Insecure-Requests': '1',
+    'Sec-Fetch-Dest': 'document',
+    'Sec-Fetch-Mode': 'navigate',
+    'Sec-Fetch-Site': 'same-origin',
+    'Sec-Fetch-User': '?1'
+  };
+
   // Schritt 1: Login-Seite laden → Cookies + Formularfelder (Salt, Honeypots) extrahieren
   const loginPageRes = await fetch(VF_WEB_BASE + '/member/', {
     method: 'GET',
     redirect: 'manual',
-    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+    headers: { ...BROWSER_HEADERS, 'Sec-Fetch-Site': 'none' }
   });
   let cookies = mergeCookies('', loginPageRes);
   const loginHtml = await loginPageRes.text();
@@ -113,30 +128,35 @@ async function webLogin() {
   // Alle Formularfelder extrahieren (inkl. versteckte Honeypot-Felder + Salt)
   const formFields = extractFormFields(loginHtml);
 
-  // Schritt 2: Credentials setzen
+  // Schritt 2: Credentials + Passwort-Hash setzen
   formFields.user = username;
   formFields.pwinput = password;
 
-  // Strategie: Klartext-Passwort senden (kein Client-side Hashing).
-  // VF's JS-Encryption nutzt RSA via Web Crypto API (nicht verfügbar in Node.js).
-  // Ohne pwdcrypt akzeptiert der Server das Klartext-Passwort aus pwinput.
-  // pw und pwdcrypt bleiben leer (Default aus dem Formular).
+  // VF hasht das Passwort client-seitig: pw = MD5(pwinput + pwdsalt)
   const salt = formFields.pwdsalt || '';
+  if (salt) {
+    formFields.pw = md5(password + salt);
+    formFields.pwdcrypt = 'true';
+  } else {
+    formFields.pw = password;
+  }
 
   // Form-Action extrahieren (falls vorhanden)
   const actionMatch = loginHtml.match(/<form[^>]*action=["']([^"']+)["']/i);
   const formAction = actionMatch ? actionMatch[1] : '/member/';
   const loginUrl = formAction.startsWith('http') ? formAction : VF_WEB_BASE + formAction;
 
-  // Schritt 3: Login-POST mit allen Feldern
+  // Schritt 3: Login-POST mit allen Feldern + realistischen Browser-Headers
   const loginRes = await fetch(loginUrl, {
     method: 'POST',
     redirect: 'manual',
     headers: {
+      ...BROWSER_HEADERS,
       'Content-Type': 'application/x-www-form-urlencoded',
       'Cookie': cookies,
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      'Referer': VF_WEB_BASE + '/member/'
+      'Origin': VF_WEB_BASE,
+      'Referer': VF_WEB_BASE + '/member/',
+      'Cache-Control': 'max-age=0'
     },
     body: new URLSearchParams(formFields).toString()
   });
@@ -606,9 +626,21 @@ exports.handler = async (event) => {
       const uname = process.env.VF_WEB_USERNAME || process.env.VF_USERNAME || '';
       const pwd = process.env.VF_WEB_PASSWORD || process.env.VF_PASSWORD || '';
 
+      const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36';
+      const DBG_HEADERS = {
+        'User-Agent': BROWSER_UA,
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'de-DE,de;q=0.9,en;q=0.7',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+        'Upgrade-Insecure-Requests': '1'
+      };
+
       const dbgPageRes = await fetch(VF_WEB_BASE + '/member/', {
         method: 'GET', redirect: 'manual',
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+        headers: DBG_HEADERS
       });
       const dbgCookies = mergeCookies('', dbgPageRes);
       const dbgHtml = await dbgPageRes.text();
@@ -616,17 +648,25 @@ exports.handler = async (event) => {
       const dbgActionMatch = dbgHtml.match(/<form[^>]*action=["']([^"']+)["']/i);
       const dbgFormAction = dbgActionMatch ? dbgActionMatch[1] : '/member/';
 
-      // Versuch einen Login und gib die rohe Antwort zurück
+      // Versuch einen Login mit MD5-Hash + realistischen Headers
       dbgFields.user = uname;
       dbgFields.pwinput = pwd;
+      const dbgSalt = dbgFields.pwdsalt || '';
+      if (dbgSalt) {
+        dbgFields.pw = md5(pwd + dbgSalt);
+        dbgFields.pwdcrypt = 'true';
+      }
       const loginUrl = dbgFormAction.startsWith('http') ? dbgFormAction : VF_WEB_BASE + dbgFormAction;
       const loginRes = await fetch(loginUrl, {
         method: 'POST', redirect: 'manual',
         headers: {
+          ...DBG_HEADERS,
           'Content-Type': 'application/x-www-form-urlencoded',
           'Cookie': dbgCookies,
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          'Referer': VF_WEB_BASE + '/member/'
+          'Origin': VF_WEB_BASE,
+          'Referer': VF_WEB_BASE + '/member/',
+          'Sec-Fetch-Site': 'same-origin',
+          'Cache-Control': 'max-age=0'
         },
         body: new URLSearchParams(dbgFields).toString()
       });
