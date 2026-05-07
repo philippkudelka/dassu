@@ -12,6 +12,7 @@
  *   VF_WEB_PASSWORD  – Web-Login Passwort (oder VF_PASSWORD als Fallback)
  */
 // Kein cheerio — reines Regex/String-Parsing (esbuild-kompatibel)
+const crypto = require('crypto');
 
 const VF_WEB_BASE = 'https://www.vereinsflieger.de';
 const VF_FLIGHT_BASE = VF_WEB_BASE + '/member/flightdataentry';
@@ -57,7 +58,41 @@ function mergeCookies(existingCookieStr, response) {
 }
 
 /**
+ * Extrahiert alle <input> Felder aus einem HTML-Formular.
+ * Gibt ein Objekt {name: value, ...} zurück.
+ */
+function extractFormFields(html) {
+  const fields = {};
+  const formMatch = html.match(/<form[\s\S]*?<\/form>/i);
+  const formHtml = formMatch ? formMatch[0] : html;
+
+  const inputRe = /<input\s([^>]*?)>/gi;
+  let m;
+  while ((m = inputRe.exec(formHtml)) !== null) {
+    const attrs = m[1];
+    const name = (attrs.match(/name=["']([^"']+)["']/i) || [])[1];
+    if (!name) continue;
+    const type = ((attrs.match(/type=["']([^"']+)["']/i) || [])[1] || 'text').toLowerCase();
+    if (type === 'submit' || type === 'button' || type === 'reset') continue;
+    const value = (attrs.match(/value=["']([^"']*)["']/i) || [])[1] || '';
+    fields[name] = value;
+  }
+  return fields;
+}
+
+/**
+ * Berechnet MD5-Hash (hex, lowercase).
+ */
+function md5(str) {
+  return crypto.createHash('md5').update(str, 'utf8').digest('hex');
+}
+
+/**
  * Web-Login bei Vereinsflieger. Gibt Session-Cookies zurück.
+ *
+ * VF verschlüsselt das Passwort client-seitig:
+ *   pw = MD5(pwinput + pwdsalt)
+ * Außerdem müssen ALLE versteckten Formularfelder (Honeypot etc.) mitgesendet werden.
  */
 async function webLogin() {
   const username = process.env.VF_WEB_USERNAME || process.env.VF_USERNAME;
@@ -66,41 +101,59 @@ async function webLogin() {
     throw new Error('VF_WEB_USERNAME/VF_WEB_PASSWORD (oder VF_USERNAME/VF_PASSWORD) nicht konfiguriert');
   }
 
-  // Schritt 1: Login-Seite laden um initiale Cookies + ggf. CSRF-Token zu bekommen
+  // Schritt 1: Login-Seite laden → Cookies + Formularfelder (Salt, Honeypots) extrahieren
   const loginPageRes = await fetch(VF_WEB_BASE + '/member/', {
     method: 'GET',
     redirect: 'manual',
-    headers: { 'User-Agent': 'DASSU-StaffApp/1.0' }
+    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
   });
   let cookies = mergeCookies('', loginPageRes);
+  const loginHtml = await loginPageRes.text();
 
-  // Schritt 2: Login-POST
-  const loginRes = await fetch(VF_WEB_BASE + '/member/', {
+  // Alle Formularfelder extrahieren (inkl. versteckte Honeypot-Felder + Salt)
+  const formFields = extractFormFields(loginHtml);
+
+  // Schritt 2: Credentials setzen
+  formFields.user = username;
+  formFields.pwinput = password;
+
+  // Passwort mit MD5 + Salt hashen (wie VF's JavaScript es macht)
+  const salt = formFields.pwdsalt || '';
+  if (salt) {
+    formFields.pw = md5(password + salt);
+    formFields.pwdcrypt = 'true';
+  } else {
+    // Fallback: Klartext
+    formFields.pw = password;
+  }
+
+  // Form-Action extrahieren (falls vorhanden)
+  const actionMatch = loginHtml.match(/<form[^>]*action=["']([^"']+)["']/i);
+  const formAction = actionMatch ? actionMatch[1] : '/member/';
+  const loginUrl = formAction.startsWith('http') ? formAction : VF_WEB_BASE + formAction;
+
+  // Schritt 3: Login-POST mit allen Feldern
+  const loginRes = await fetch(loginUrl, {
     method: 'POST',
     redirect: 'manual',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
       'Cookie': cookies,
-      'User-Agent': 'DASSU-StaffApp/1.0'
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      'Referer': VF_WEB_BASE + '/member/'
     },
-    body: new URLSearchParams({
-      user: username,
-      pwinput: password,
-      submit: 'Anmelden'
-    }).toString()
+    body: new URLSearchParams(formFields).toString()
   });
 
   cookies = mergeCookies(cookies, loginRes);
 
-  // Prüfe ob Login erfolgreich (Redirect zu overview oder 302)
+  // Prüfe ob Login erfolgreich
   const location = loginRes.headers.get('location') || '';
   if (loginRes.status === 200) {
-    // Möglicherweise direkt auf der Seite geblieben → Login-Fehler
     const body = await loginRes.text();
-    if (body.includes('Anmeldung fehlgeschlagen') || body.includes('falsches Passwort')) {
-      throw new Error('VF Web-Login fehlgeschlagen: Falsches Passwort');
+    if (body.includes('Anmeldung fehlgeschlagen') || body.includes('falsches Passwort') || body.includes('Anmelden')) {
+      throw new Error('VF Web-Login fehlgeschlagen — prüfe VF_WEB_USERNAME/VF_WEB_PASSWORD');
     }
-    // Evtl. trotzdem eingeloggt
   }
 
   // Folge Redirects manuell um alle Cookies zu sammeln
@@ -109,9 +162,21 @@ async function webLogin() {
     const followRes = await fetch(redirectUrl, {
       method: 'GET',
       redirect: 'manual',
-      headers: { 'Cookie': cookies, 'User-Agent': 'DASSU-StaffApp/1.0' }
+      headers: { 'Cookie': cookies, 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
     });
     cookies = mergeCookies(cookies, followRes);
+
+    // Evtl. zweiter Redirect (z.B. /member/ → /member/overview.php)
+    const location2 = followRes.headers.get('location') || '';
+    if (followRes.status >= 300 && followRes.status < 400 && location2) {
+      const redirectUrl2 = location2.startsWith('http') ? location2 : VF_WEB_BASE + location2;
+      const followRes2 = await fetch(redirectUrl2, {
+        method: 'GET',
+        redirect: 'manual',
+        headers: { 'Cookie': cookies, 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+      });
+      cookies = mergeCookies(cookies, followRes2);
+    }
   }
 
   return cookies;
@@ -127,7 +192,7 @@ async function webGet(url, cookies) {
     redirect: 'follow',
     headers: {
       'Cookie': cookies,
-      'User-Agent': 'DASSU-StaffApp/1.0'
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
     }
   });
   if (!res.ok) throw new Error(`GET ${url} fehlgeschlagen: ${res.status}`);
@@ -145,7 +210,7 @@ async function webPost(url, cookies, formData) {
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
       'Cookie': cookies,
-      'User-Agent': 'DASSU-StaffApp/1.0'
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
     },
     body: new URLSearchParams(formData).toString()
   });
