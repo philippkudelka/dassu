@@ -594,8 +594,30 @@ exports.handler = async (event) => {
             .replace(/</g, '&lt;').substring(0, 300);
         }
 
+        // Extract page title
+        const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+        const pageTitle = titleMatch ? stripTags(titleMatch[1]) : 'no title';
+
+        // Extract first 500 chars of body text
+        const bodyMatch = html.match(/<body[^>]*>([\s\S]*)/i);
+        const bodyText = bodyMatch ? stripTags(bodyMatch[1]).substring(0, 500) : 'no body';
+
+        // Check for common VF elements
+        const hasFlightdataentry = html.includes('flightdataentry');
+        const hasFlightlog = html.includes('flightlog');
+        const hasTablelist = html.includes('tablelist');
+        const hasDatepicker = html.includes('filterdate');
+        const formActions = (html.match(/action="([^"]+)"/g) || []).slice(0, 5);
+
         return ok({
           htmlLength: html.length,
+          pageTitle,
+          bodyTextPreview: bodyText,
+          hasFlightdataentry,
+          hasFlightlog,
+          hasTablelist,
+          hasDatepicker,
+          formActions,
           hasLiveimportlist,
           hasDiv158,
           hasImportOgn,
@@ -604,9 +626,6 @@ exports.handler = async (event) => {
           rowIdCount,
           hasFlightlogLiveimport,
           tablelist158: tablelist158Match ? tablelist158Match.length : 0,
-          liveimportSnippet,
-          importOgnSnippet,
-          // Also show parsed results
           parsed: parseFlightlogPage(html)
         });
       }
