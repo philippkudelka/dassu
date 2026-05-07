@@ -1450,16 +1450,40 @@ body.dev-mode { padding-bottom: 48px; }
     <div class="empty-msg">Lade Flugdaten…</div>
   </div>
 
-  <!-- Abend-Backfill -->
+  <!-- Abend-Backfill (OGN Autolink) -->
   <div class="stats-header" style="margin-top:32px;">
     <h3>Abend-Backfill (OGN → Flugbuch)</h3>
-    <button class="btn-book" onclick="backfillPreview()" id="bfPreviewBtn" style="padding:8px 16px;font-size:13px;">
-      <span id="bfPreviewLabel">Vorschau laden</span>
-    </button>
   </div>
-  <div id="bfContent">
-    <div class="empty-msg" style="color:var(--stone); font-size:13px; padding:12px 0;">
-      Klicke "Vorschau laden" um unverknüpfte OGN-Tracks für heute abzurufen.
+  <div id="bfContent" style="padding:4px 0;">
+    <div style="background:rgba(30,75,78,0.04); border:1px solid var(--line); border-radius:10px; padding:16px; margin:8px 0;">
+      <div style="font-size:13px; color:var(--ink); margin-bottom:12px;">
+        Verknüpft alle OGN-Tracks automatisch mit passenden Flugbuch-Einträgen in Vereinsflieger.
+      </div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+        <a href="https://www.vereinsflieger.de/member/flightdataentry/flightlog.php"
+           target="_blank" rel="noopener" class="btn-book"
+           style="display:inline-flex; align-items:center; gap:6px; padding:10px 20px; font-size:13px; text-decoration:none; font-weight:600;">
+          VF Flugbuch öffnen ↗
+        </a>
+        <button class="btn-book" onclick="copyAutolinkBookmarklet()"
+          style="padding:10px 16px; font-size:12px; background:var(--gray-100); color:var(--ink);">
+          Bookmarklet kopieren
+        </button>
+      </div>
+      <div id="bfBookmarkletInfo" style="display:none; margin-top:12px; padding:12px; background:rgba(46,125,50,0.06); border-radius:8px; font-size:12px; color:#2e7d32;"></div>
+      <details style="margin-top:14px;">
+        <summary style="font-size:12px; color:var(--stone); cursor:pointer; user-select:none;">Anleitung</summary>
+        <ol style="font-size:12px; color:var(--stone); margin:8px 0 0 0; padding-left:20px; line-height:1.8;">
+          <li>Klicke <strong>"VF Flugbuch öffnen"</strong> — die Flugbuch-Seite öffnet sich in einem neuen Tab</li>
+          <li>In der VF-Toolbar oben auf <strong>"OGN, PPR, V-Tower"</strong> klicken</li>
+          <li>Im erscheinenden Panel <strong>"Autolink"</strong> aktivieren</li>
+          <li>Alle passenden OGN-Tracks werden automatisch mit Flügen verknüpft</li>
+        </ol>
+        <div style="font-size:11px; color:var(--stone); margin-top:8px; padding:8px; background:var(--gray-100); border-radius:6px;">
+          <strong>Schnellweg per Bookmarklet:</strong> Klicke "Bookmarklet kopieren", erstelle ein neues Lesezeichen in deinem Browser und füge den kopierten Code als URL ein.
+          Wenn du auf der VF-Flugbuchseite bist, klicke einfach das Lesezeichen — Autolink wird sofort ausgeführt.
+        </div>
+      </details>
     </div>
   </div>
 </div>
@@ -5565,179 +5589,28 @@ function loadVfCache() {
   syncVereinsflieger();
 }
 
-// ==================== ABEND-BACKFILL ====================
+// ==================== ABEND-BACKFILL (OGN Autolink) ====================
 
-let bfPlanData = null; // Gespeicherter Backfill-Plan
+function copyAutolinkBookmarklet() {
+  // Bookmarklet: Führt VF's Autolink direkt auf der Flugbuchseite aus
+  const code = "javascript:void((function(){if(!location.href.includes('vereinsflieger.de/member')){alert('Bitte zuerst die Vereinsflieger Flugbuch-Seite öffnen!');return;}if(typeof vfbase!=='undefined'&&vfbase.loadContent){vfbase.loadContent('divliveimport','flightlogliveimport?autolink=1');alert('Autolink gestartet — OGN-Tracks werden verknüpft.');}else{var x=new XMLHttpRequest();x.open('GET','flightlogliveimport?autolink=1',true);x.onload=function(){if(x.status===200){var d=document.getElementById('divliveimport')||document.getElementById('liveimportlist');if(d)d.innerHTML=x.responseText;alert('Autolink ausgeführt!');}else{alert('Fehler: '+x.status);}};x.send();}})())";
 
-async function backfillPreview() {
-  const btn = document.getElementById('bfPreviewBtn');
-  const label = document.getElementById('bfPreviewLabel');
-  const content = document.getElementById('bfContent');
-  btn.disabled = true;
-  label.textContent = 'Lade...';
-  content.innerHTML = '<div class="empty-msg">Verbinde mit Vereinsflieger Web-UI...</div>';
-
-  try {
-    const res = await fetch('/.netlify/functions/vereinsflieger-backfill', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'preview' })
+  const info = document.getElementById('bfBookmarkletInfo');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(code).then(() => {
+      info.style.display = 'block';
+      info.innerHTML = '✓ Bookmarklet in die Zwischenablage kopiert!<br><span style="color:var(--stone); font-size:11px;">Erstelle ein neues Lesezeichen → Name: <strong>VF Autolink</strong> → URL: eingefügten Code einfügen</span>';
+    }).catch(() => {
+      showBookmarkletFallback(code, info);
     });
-    const json = await res.json();
-    if (!json.ok) throw new Error(json.error || 'Unbekannter Fehler');
-
-    bfPlanData = json.data;
-    renderBackfillPreview();
-    label.textContent = 'Neu laden';
-  } catch (err) {
-    content.innerHTML = `<div class="empty-msg" style="color:var(--danger);">Fehler: ${err.message}</div>`;
-    label.textContent = 'Erneut versuchen';
+  } else {
+    showBookmarkletFallback(code, info);
   }
-  btn.disabled = false;
 }
 
-function renderBackfillPreview() {
-  const content = document.getElementById('bfContent');
-  if (!bfPlanData) { content.innerHTML = '<div class="empty-msg">Keine Daten.</div>'; return; }
-
-  const { plan, summary } = bfPlanData;
-
-  if (plan.length === 0) {
-    content.innerHTML = `
-      <div style="background:rgba(46,125,50,0.08); border:1px solid rgba(46,125,50,0.2); border-radius:10px; padding:16px; margin:8px 0;">
-        <div style="font-size:14px; font-weight:600; color:#2e7d32;">Alles verknüpft</div>
-        <div style="font-size:12px; color:var(--stone); margin-top:4px;">
-          ${summary.totalOgnTracks} OGN-Tracks, alle verknüpft. Kein Backfill nötig.
-          ${summary.unlinkedTracks > 0 ? `<br>${summary.unlinkedTracks} unverknüpfte Tracks liegen vor dem Cutoff (Tagbetrieb).` : ''}
-        </div>
-      </div>`;
-    return;
-  }
-
-  // Gruppiert nach Lfz.
-  const byCs = {};
-  plan.forEach((p, idx) => {
-    if (!byCs[p.callsign]) byCs[p.callsign] = [];
-    byCs[p.callsign].push({ ...p, idx });
-  });
-
-  let html = `
-    <div style="background:rgba(201,168,76,0.08); border:1px solid rgba(201,168,76,0.2); border-radius:10px; padding:16px; margin:8px 0;">
-      <div style="font-size:14px; font-weight:600; color:var(--accent);">${plan.length} Backfill-Aktion${plan.length > 1 ? 'en' : ''}</div>
-      <div style="font-size:12px; color:var(--stone); margin-top:4px;">
-        ${summary.backfillActions} Verknüpfungen, ${summary.duplicatesNeeded} neue Flüge (Duplikate)
-      </div>
-    </div>
-    <table style="width:100%; border-collapse:collapse; font-size:12px; margin:12px 0;">
-      <thead>
-        <tr style="background:var(--gray-100); text-align:left;">
-          <th style="padding:6px 8px;"></th>
-          <th style="padding:6px 8px;">Lfz.</th>
-          <th style="padding:6px 8px;">OGN Start</th>
-          <th style="padding:6px 8px;">OGN Landung</th>
-          <th style="padding:6px 8px;">Crew (Vorlage)</th>
-          <th style="padding:6px 8px;">Aktion</th>
-        </tr>
-      </thead>
-      <tbody>`;
-
-  plan.forEach((p, idx) => {
-    const actionLabel = p.needsDuplicate
-      ? '<span style="color:var(--accent);">Duplizieren + Verknüpfen</span>'
-      : '<span style="color:#2e7d32;">Verknüpfen</span>';
-    const crewStr = p.crew ? [p.crew.pilot, p.crew.attendant].filter(Boolean).join(' / ') : '—';
-    html += `
-      <tr style="border-bottom:1px solid var(--line);">
-        <td style="padding:6px 8px;"><input type="checkbox" checked data-bf-idx="${idx}"></td>
-        <td style="padding:6px 8px; font-weight:600;">${p.callsign}</td>
-        <td style="padding:6px 8px;">${p.ognStart || '—'}</td>
-        <td style="padding:6px 8px;">${p.ognLanding || '—'}</td>
-        <td style="padding:6px 8px; color:var(--stone);">${crewStr}</td>
-        <td style="padding:6px 8px;">${actionLabel}</td>
-      </tr>`;
-  });
-
-  html += `</tbody></table>
-    <div style="display:flex; gap:8px; margin-top:12px;">
-      <button class="btn-book" onclick="backfillExecute()" id="bfExecBtn" style="padding:10px 24px; font-size:13px; font-weight:600;">
-        Backfill durchführen
-      </button>
-      <button class="btn-book" onclick="backfillPreview()" style="padding:10px 16px; font-size:12px; background:var(--gray-100); color:var(--ink);"
-        Neu laden
-      </button>
-    </div>
-    <div id="bfResultArea"></div>`;
-
-  content.innerHTML = html;
-}
-
-async function backfillExecute() {
-  if (!bfPlanData || !bfPlanData.plan.length) return;
-
-  // Nur angehakte Aktionen
-  const checkboxes = document.querySelectorAll('[data-bf-idx]');
-  const selectedIndices = new Set();
-  checkboxes.forEach(cb => { if (cb.checked) selectedIndices.add(parseInt(cb.dataset.bfIdx)); });
-
-  const actions = bfPlanData.plan
-    .filter((_, idx) => selectedIndices.has(idx))
-    .map(p => ({
-      callsign: p.callsign,
-      ognSourceid: p.ognSourceid,
-      needsDuplicate: p.needsDuplicate,
-      targetFlid: p.targetFlid,
-      templateFlid: p.templateFlid
-    }));
-
-  if (actions.length === 0) {
-    document.getElementById('bfResultArea').innerHTML =
-      '<div style="color:var(--accent); font-size:12px; margin-top:8px;">Keine Aktionen ausgewählt.</div>';
-    return;
-  }
-
-  const btn = document.getElementById('bfExecBtn');
-  btn.disabled = true;
-  btn.textContent = 'Wird ausgeführt...';
-
-  const resultArea = document.getElementById('bfResultArea');
-  resultArea.innerHTML = '<div class="empty-msg">Backfill läuft — Track für Track...</div>';
-
-  try {
-    const res = await fetch('/.netlify/functions/vereinsflieger-backfill', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'execute', actions })
-    });
-    const json = await res.json();
-    if (!json.ok) throw new Error(json.error || 'Unbekannter Fehler');
-
-    const { results, summary } = json.data;
-
-    let html = `
-      <div style="margin-top:16px; padding:16px; border-radius:10px;
-        background:${summary.failed > 0 ? 'rgba(211,47,47,0.08)' : 'rgba(46,125,50,0.08)'};
-        border:1px solid ${summary.failed > 0 ? 'rgba(211,47,47,0.2)' : 'rgba(46,125,50,0.2)'};">
-        <div style="font-size:14px; font-weight:600; color:${summary.failed > 0 ? 'var(--danger)' : '#2e7d32'};">
-          ${summary.succeeded} von ${summary.total} erfolgreich
-          ${summary.failed > 0 ? ` — ${summary.failed} Fehler` : ''}
-        </div>
-        <div style="font-size:12px; color:var(--stone); margin-top:8px;">`;
-
-    results.forEach(r => {
-      const icon = r.success ? '✓' : '✗';
-      const color = r.success ? '#2e7d32' : 'var(--danger)';
-      html += `<div style="color:${color}; margin:2px 0;">${icon} ${r.callsign}: ${r.message}</div>`;
-    });
-
-    html += '</div></div>';
-    resultArea.innerHTML = html;
-    btn.textContent = 'Erledigt';
-
-  } catch (err) {
-    resultArea.innerHTML = `<div style="color:var(--danger); font-size:13px; margin-top:8px;">Fehler: ${err.message}</div>`;
-    btn.textContent = 'Erneut versuchen';
-    btn.disabled = false;
-  }
+function showBookmarkletFallback(code, info) {
+  info.style.display = 'block';
+  info.innerHTML = `Kopiere diesen Code als Lesezeichen-URL:<br><textarea readonly onclick="this.select()" style="width:100%;height:60px;font-size:10px;margin-top:6px;border-radius:4px;border:1px solid var(--line);padding:4px;">${code}</textarea>`;
 }
 
 // ==================== VEREINSFLIEGER COMPARE ====================
