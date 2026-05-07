@@ -117,15 +117,11 @@ async function webLogin() {
   formFields.user = username;
   formFields.pwinput = password;
 
-  // Passwort mit MD5 + Salt hashen (wie VF's JavaScript es macht)
+  // Strategie: Klartext-Passwort senden (kein Client-side Hashing).
+  // VF's JS-Encryption nutzt RSA via Web Crypto API (nicht verfügbar in Node.js).
+  // Ohne pwdcrypt akzeptiert der Server das Klartext-Passwort aus pwinput.
+  // pw und pwdcrypt bleiben leer (Default aus dem Formular).
   const salt = formFields.pwdsalt || '';
-  if (salt) {
-    formFields.pw = md5(password + salt);
-    formFields.pwdcrypt = 'true';
-  } else {
-    // Fallback: Klartext
-    formFields.pw = password;
-  }
 
   // Form-Action extrahieren (falls vorhanden)
   const actionMatch = loginHtml.match(/<form[^>]*action=["']([^"']+)["']/i);
@@ -149,10 +145,13 @@ async function webLogin() {
 
   // Prüfe ob Login erfolgreich
   const location = loginRes.headers.get('location') || '';
-  if (loginRes.status === 200) {
+  const loginStatus = loginRes.status;
+  if (loginStatus === 200) {
     const body = await loginRes.text();
-    if (body.includes('Anmeldung fehlgeschlagen') || body.includes('falsches Passwort') || body.includes('Anmelden')) {
-      throw new Error('VF Web-Login fehlgeschlagen — prüfe VF_WEB_USERNAME/VF_WEB_PASSWORD');
+    // Nur fehlgeschlagen wenn KEIN Redirect und Login-Formular wieder gezeigt wird
+    if ((body.includes('Anmeldung fehlgeschlagen') || body.includes('falsches Passwort')) ||
+        (body.includes('pwinput') && body.includes('Anmelden') && !body.includes('Abmelden'))) {
+      throw new Error('VF Web-Login fehlgeschlagen (Status ' + loginStatus + ', bodyLen=' + body.length + ', hasAbmelden=' + body.includes('Abmelden') + ', formFieldCount=' + Object.keys(formFields).length + ', hasSalt=' + !!salt + ', saltLen=' + salt.length + ')');
     }
   }
 
