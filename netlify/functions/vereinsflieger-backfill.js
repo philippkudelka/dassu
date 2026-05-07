@@ -677,6 +677,15 @@ exports.handler = async (event) => {
       const loginBody = await loginRes.text();
       const loginLocation = loginRes.headers.get('location') || '';
 
+      // Auch: Cookie-Diagnostik
+      const getSetCookieRaw = dbgPageRes.headers.getSetCookie ? dbgPageRes.headers.getSetCookie() : [];
+      const postSetCookieRaw = loginRes.headers.getSetCookie ? loginRes.headers.getSetCookie() : [];
+      const getPagePreview = dbgHtml.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 200);
+      // Check if GET returned login form or public page
+      const getHasLoginForm = dbgHtml.includes('pwinput');
+      const getHasAbmelden = dbgHtml.includes('Abmelden');
+      const getTitle = (dbgHtml.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || '';
+
       return ok({
         envVars: {
           hasVfWebUsername: !!process.env.VF_WEB_USERNAME,
@@ -686,8 +695,20 @@ exports.handler = async (event) => {
           usernamePreview: uname ? uname[0] + '***' + uname.slice(-1) : 'EMPTY',
           passwordLen: pwd.length
         },
-        loginPage: {
+        getResponse: {
+          status: dbgPageRes.status,
+          location: dbgPageRes.headers.get('location') || '',
           htmlLen: dbgHtml.length,
+          title: getTitle,
+          hasLoginForm: getHasLoginForm,
+          hasAbmelden: getHasAbmelden,
+          bodyPreview: getPagePreview,
+          setCookieCount: getSetCookieRaw.length,
+          setCookieNames: getSetCookieRaw.map(c => c.split('=')[0]),
+          setCookieRaw: getSetCookieRaw.map(c => c.substring(0, 80))
+        },
+        cookiesSent: dbgCookies,
+        loginPage: {
           formAction: dbgFormAction,
           fieldNames: Object.keys(dbgFields),
           fieldCount: Object.keys(dbgFields).length,
@@ -702,9 +723,10 @@ exports.handler = async (event) => {
           hasAnmeldungFehlgeschlagen: loginBody.includes('Anmeldung fehlgeschlagen'),
           hasFalschesPasswort: loginBody.includes('falsches Passwort'),
           titleMatch: (loginBody.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || '',
-          bodyPreview: loginBody.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 300)
-        },
-        postBody: new URLSearchParams(dbgFields).toString().substring(0, 500)
+          bodyPreview: loginBody.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 300),
+          postSetCookieCount: postSetCookieRaw.length,
+          postSetCookieNames: postSetCookieRaw.map(c => c.split('=')[0])
+        }
       });
     } catch (err) {
       return fail('login-debug Fehler: ' + err.message);
