@@ -1450,14 +1450,15 @@ body.dev-mode { padding-bottom: 48px; }
     <div class="empty-msg">Lade Flugdaten…</div>
   </div>
 
-  <!-- Abend-Backfill (OGN Autolink) -->
+  <!-- Abend-Backfill (OGN → Flugbuch) -->
   <div class="stats-header" style="margin-top:32px;">
     <h3>Abend-Backfill (OGN → Flugbuch)</h3>
   </div>
   <div id="bfContent" style="padding:4px 0;">
     <div style="background:rgba(30,75,78,0.04); border:1px solid var(--line); border-radius:10px; padding:16px; margin:8px 0;">
       <div style="font-size:13px; color:var(--ink); margin-bottom:12px;">
-        Verknüpft alle OGN-Tracks automatisch mit passenden Flugbuch-Einträgen in Vereinsflieger.
+        Verknüpft unverknüpfte OGN-Tracks mit passenden offenen Flügen im VF-Flugbuch.
+        Wenn kein passender offener Flug existiert, wird ein neuer Flug aus dem OGN-Track angelegt.
       </div>
       <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
         <a href="https://www.vereinsflieger.de/member/flightdataentry/flightlog.php"
@@ -1465,23 +1466,24 @@ body.dev-mode { padding-bottom: 48px; }
            style="display:inline-flex; align-items:center; gap:6px; padding:10px 20px; font-size:13px; text-decoration:none; font-weight:600;">
           VF Flugbuch öffnen ↗
         </a>
-        <button class="btn-book" onclick="copyAutolinkBookmarklet()"
+        <button class="btn-book" onclick="copyBackfillBookmarklet()"
           style="padding:10px 16px; font-size:12px; background:var(--gray-100); color:var(--ink);">
-          Bookmarklet kopieren
+          Backfill-Bookmarklet kopieren
         </button>
       </div>
       <div id="bfBookmarkletInfo" style="display:none; margin-top:12px; padding:12px; background:rgba(46,125,50,0.06); border-radius:8px; font-size:12px; color:#2e7d32;"></div>
       <details style="margin-top:14px;">
         <summary style="font-size:12px; color:var(--stone); cursor:pointer; user-select:none;">Anleitung</summary>
         <ol style="font-size:12px; color:var(--stone); margin:8px 0 0 0; padding-left:20px; line-height:1.8;">
-          <li>Klicke <strong>"VF Flugbuch öffnen"</strong> — die Flugbuch-Seite öffnet sich in einem neuen Tab</li>
-          <li>In der VF-Toolbar oben auf <strong>"OGN, PPR, V-Tower"</strong> klicken</li>
-          <li>Im erscheinenden Panel <strong>"Autolink"</strong> aktivieren</li>
-          <li>Alle passenden OGN-Tracks werden automatisch mit Flügen verknüpft</li>
+          <li>Klicke <strong>"Backfill-Bookmarklet kopieren"</strong></li>
+          <li>Erstelle ein neues Lesezeichen → Name: <strong>VF Backfill</strong> → URL: eingefügten Code einfügen</li>
+          <li>Öffne das <strong>VF Flugbuch</strong> (Link oben) und melde dich an</li>
+          <li>Klicke das Lesezeichen <strong>"VF Backfill"</strong> — das Script prüft alle unverknüpften OGN-Tracks</li>
+          <li>Bestätige die Vorschau → Tracks werden verknüpft oder als neue Flüge angelegt</li>
         </ol>
         <div style="font-size:11px; color:var(--stone); margin-top:8px; padding:8px; background:var(--gray-100); border-radius:6px;">
-          <strong>Schnellweg per Bookmarklet:</strong> Klicke "Bookmarklet kopieren", erstelle ein neues Lesezeichen in deinem Browser und füge den kopierten Code als URL ein.
-          Wenn du auf der VF-Flugbuchseite bist, klicke einfach das Lesezeichen — Autolink wird sofort ausgeführt.
+          <strong>Was passiert:</strong> Das Script liest die OGN-Tabelle, sucht für jeden unverknüpften Track einen passenden offenen Flug (gleiches Lfz.).
+          Wenn einer existiert → verknüpfen. Wenn nicht → neuer Flug aus OGN-Daten anlegen.
         </div>
       </details>
     </div>
@@ -5589,17 +5591,68 @@ function loadVfCache() {
   syncVereinsflieger();
 }
 
-// ==================== ABEND-BACKFILL (OGN Autolink) ====================
+// ==================== ABEND-BACKFILL (OGN → Flugbuch) ====================
 
-function copyAutolinkBookmarklet() {
-  // Bookmarklet: Führt VF's Autolink direkt auf der Flugbuchseite aus
-  const code = "javascript:void((function(){if(!location.href.includes('vereinsflieger.de/member')){alert('Bitte zuerst die Vereinsflieger Flugbuch-Seite öffnen!');return;}if(typeof vfbase!=='undefined'&&vfbase.loadContent){vfbase.loadContent('divliveimport','flightlogliveimport?autolink=1');alert('Autolink gestartet — OGN-Tracks werden verknüpft.');}else{var x=new XMLHttpRequest();x.open('GET','flightlogliveimport?autolink=1',true);x.onload=function(){if(x.status===200){var d=document.getElementById('divliveimport')||document.getElementById('liveimportlist');if(d)d.innerHTML=x.responseText;alert('Autolink ausgeführt!');}else{alert('Fehler: '+x.status);}};x.send();}})())";
+function copyBackfillBookmarklet() {
+  // Vollständiges Backfill-Script als Bookmarklet:
+  // 1. OGN-Tracks parsen (unverknüpfte finden)
+  // 2. Pro Track: Link-Dialog laden → passenden offenen Flug suchen
+  // 3. Wenn gefunden → verknüpfen (GET linkflight)
+  // 4. Wenn nicht → neuen Flug aus OGN anlegen (GET flightlog.php?action=add)
+  const code = `javascript:void((async function(){
+  'use strict';
+  if(!location.href.includes('vereinsflieger.de/member/flightdataentry')){
+    alert('Bitte zuerst die VF Flugbuch-Seite oeffnen!');return;
+  }
+  var B=location.pathname.replace(/[^\\/]*$/,'');
+  var dp=new DOMParser();
+  /* 1. OGN-Tracks laden */
+  var r=await fetch(B+'flightlogliveimportlist',{credentials:'same-origin'});
+  var h=await r.text();
+  var doc=dp.parseFromString(h,'text/html');
+  var unl=[];
+  doc.querySelectorAll('[onclick*=\"onclickLink\"]').forEach(function(el){
+    var m=el.getAttribute('onclick').match(/onclickLink\\((\\d+)/);
+    if(!m)return;
+    var row=el.closest('tr');
+    var c=row?row.querySelectorAll('td'):[];
+    unl.push({id:m[1],lfz:(c[1]||{}).textContent?.trim()||'?',
+      s:(c[2]||{}).textContent?.trim()||'',e:(c[3]||{}).textContent?.trim()||''});
+  });
+  if(!unl.length){alert('Keine unverknuepften OGN-Tracks gefunden.');return;}
+  /* 2. Vorschau */
+  var pv=unl.map(function(t){return t.lfz+'  '+t.s+' - '+t.e}).join('\\n');
+  if(!confirm(unl.length+' unverknuepfte OGN-Tracks:\\n\\n'+pv+'\\n\\nJetzt verknuepfen?'))return;
+  /* 3. Pro Track verarbeiten */
+  var res=[];
+  for(var i=0;i<unl.length;i++){
+    var t=unl[i];
+    try{
+      var dr=await fetch(B+'linkflightlogliveimport?source=3&sourceid='+t.id,{credentials:'same-origin'});
+      var dh=await dr.text();
+      var dd=dp.parseFromString(dh,'text/html');
+      var la=dd.querySelector('a[href*=\"linkflight\"]');
+      if(la){
+        var href=la.getAttribute('href');
+        var url=href.startsWith('/')?href:B+href;
+        await fetch(url,{credentials:'same-origin'});
+        res.push('OK '+t.lfz+' '+t.s+' verknuepft');
+      }else{
+        await fetch(B+'flightlog.php?action=add&source=3&sourceid='+t.id,{credentials:'same-origin'});
+        res.push('NEU '+t.lfz+' '+t.s+' angelegt');
+      }
+    }catch(e){res.push('FEHLER '+t.lfz+' '+t.s+': '+e.message);}
+    await new Promise(function(r){setTimeout(r,400)});
+  }
+  alert('Backfill fertig:\\n\\n'+res.join('\\n'));
+  location.reload();
+  })())`.replace(/\n\s*/g, '');
 
   const info = document.getElementById('bfBookmarkletInfo');
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(code).then(() => {
       info.style.display = 'block';
-      info.innerHTML = '✓ Bookmarklet in die Zwischenablage kopiert!<br><span style="color:var(--stone); font-size:11px;">Erstelle ein neues Lesezeichen → Name: <strong>VF Autolink</strong> → URL: eingefügten Code einfügen</span>';
+      info.innerHTML = '✓ Backfill-Bookmarklet kopiert!<br><span style="color:var(--stone); font-size:11px;">Erstelle ein neues Lesezeichen → Name: <strong>VF Backfill</strong> → URL: eingefügten Code einfügen</span>';
     }).catch(() => {
       showBookmarkletFallback(code, info);
     });
@@ -5610,7 +5663,7 @@ function copyAutolinkBookmarklet() {
 
 function showBookmarkletFallback(code, info) {
   info.style.display = 'block';
-  info.innerHTML = `Kopiere diesen Code als Lesezeichen-URL:<br><textarea readonly onclick="this.select()" style="width:100%;height:60px;font-size:10px;margin-top:6px;border-radius:4px;border:1px solid var(--line);padding:4px;">${code}</textarea>`;
+  info.innerHTML = `Kopiere diesen Code als Lesezeichen-URL:<br><textarea readonly onclick="this.select()" style="width:100%;height:80px;font-size:10px;margin-top:6px;border-radius:4px;border:1px solid var(--line);padding:4px;">${code}</textarea>`;
 }
 
 // ==================== VEREINSFLIEGER COMPARE ====================
