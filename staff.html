@@ -6207,6 +6207,7 @@ function showDetail(id) {
     ${b.email ? `<div class="detail-row"><span class="detail-label">E-Mail</span><span class="detail-value">${b.email}</span></div>` : ''}
     ${b.phone ? `<div class="detail-row"><span class="detail-label">Telefon</span><span class="detail-value">${b.phone}</span></div>` : ''}
     <div class="detail-row"><span class="detail-label">Fluglehrer</span><span class="detail-value">${instrText}</span></div>
+    ${b.comment ? `<div class="detail-row"><span class="detail-label">Bemerkung</span><span class="detail-value" style="font-style:italic;">${b.comment}</span></div>` : ''}
     <div class="detail-row"><span class="detail-label">Status</span><span class="detail-value">${statusLabels[b.status] || b.status}</span></div>
     ${b.createdBy ? `<div class="detail-row"><span class="detail-label">Erstellt von</span><span class="detail-value">${b.createdBy}</span></div>` : ''}
     ${b.status === 'pending' ? buildDayOverview(b) : ''}

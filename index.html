@@ -2578,6 +2578,10 @@
           <option value="ja">Ja, Fluglehrer ben&ouml;tigt</option>
         </select>
       </div>
+      <div class="form-group">
+        <label>Bemerkung <span style="font-weight:400;color:var(--gray-400);">(optional)</span></label>
+        <textarea id="bookingComment" rows="2" placeholder="z.B. Bin Anf&auml;nger, brauche Einweisung..." style="width:100%;resize:vertical;font-family:var(--font-ui);font-size:13px;padding:8px 10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);background:var(--gray-50);"></textarea>
+      </div>
       <div id="bookingConsentWrap" style="margin-bottom:16px;">
         <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer; font-size:12px; color:var(--gray-600); line-height:1.5; text-transform:none; letter-spacing:0; font-weight:400;">
           <input type="checkbox" id="bookingConsent" style="margin-top:3px; flex-shrink:0; width:16px; height:16px; accent-color:var(--primary);">
@@ -4111,6 +4115,7 @@ function openBooking(aircraft, slot, date, evt) {
   document.getElementById('bookingEmail').value = '';
   document.getElementById('bookingPhone').value = '';
   document.getElementById('bookingInstructor').value = 'nein';
+  document.getElementById('bookingComment').value = '';
   document.getElementById('bookingConsent').checked = false;
   // Kunden-Autofill
   autofillBookingForm();
@@ -4249,6 +4254,7 @@ function showBookingConfirmation() {
       <span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">E-Mail</span><span>${email}</span>
       ${phone ? `<span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Telefon</span><span>${phone}</span>` : ''}
       <span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Fluglehrer</span><span>${instructor === 'ja' ? 'Ja, benötigt' : 'Nein'}</span>
+      ${document.getElementById('bookingComment').value.trim() ? `<span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Bemerkung</span><span>${document.getElementById('bookingComment').value.trim()}</span>` : ''}
     </div>
   `;
   document.getElementById('bookingConfirmSummary').innerHTML = summaryHtml;
@@ -4283,6 +4289,7 @@ function submitBooking() {
     email: email,
     phone: phone,
     instructor: instructor,
+    comment: document.getElementById('bookingComment').value.trim(),
     status: 'pending',
     createdAt: new Date().toISOString()
   };
@@ -4625,7 +4632,8 @@ function sendAdminNotification(booking) {
       <tr><td style="padding: 10px 0; color: #999; border-bottom: 1px solid #f0f0f0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Name</td><td style="padding: 10px 0; border-bottom: 1px solid #f0f0f0; color: #272727; font-weight: 600;">${booking.name}</td></tr>
       <tr><td style="padding: 10px 0; color: #999; border-bottom: 1px solid #f0f0f0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">E-Mail</td><td style="padding: 10px 0; border-bottom: 1px solid #f0f0f0;"><a href="mailto:${booking.email}" style="color: #3d9991; text-decoration: none;">${booking.email}</a></td></tr>
       <tr><td style="padding: 10px 0; color: #999; border-bottom: 1px solid #f0f0f0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Telefon</td><td style="padding: 10px 0; border-bottom: 1px solid #f0f0f0; color: #272727;">${booking.phone || '—'}</td></tr>
-      <tr><td style="padding: 10px 0; color: #999; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Fluglehrer</td><td style="padding: 10px 0; color: #272727; font-weight: 600;">${instructorText}</td></tr>
+      <tr><td style="padding: 10px 0; color: #999; ${booking.comment ? 'border-bottom: 1px solid #f0f0f0;' : ''} font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Fluglehrer</td><td style="padding: 10px 0; ${booking.comment ? 'border-bottom: 1px solid #f0f0f0;' : ''} color: #272727; font-weight: 600;">${instructorText}</td></tr>
+      ${booking.comment ? `<tr><td style="padding: 10px 0; color: #999; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Bemerkung</td><td style="padding: 10px 0; color: #272727; font-style: italic;">${booking.comment}</td></tr>` : ''}
     </table>
 
     <div style="text-align: center; margin-top: 28px;">
