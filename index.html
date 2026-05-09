@@ -6778,6 +6778,8 @@ firebase.auth().onAuthStateChanged(async (user) => {
           document.getElementById('devToolbar').classList.add('visible');
           document.getElementById('tabMyBookings')?.classList.add('auth-revealed');
           document.getElementById('mobileTabMyBookings')?.classList.add('auth-revealed');
+          document.getElementById('tabDocuments')?.classList.add('auth-revealed');
+          document.getElementById('mobileTabDocuments')?.classList.add('auth-revealed');
           document.getElementById('mainViewTabs')?.classList.add('has-customer-tabs');
           updateCustomerButton();
           devApplyPerspective();
