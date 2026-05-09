@@ -2334,7 +2334,7 @@ function escapeHtml(text) {
 // ============================================================
 db.ref('staffUsers').on('value', snap => {
   const data = snap.val();
-  staffUsers = data ? Object.values(data) : [];
+  staffUsers = data ? Object.entries(data).filter(([key]) => key !== 'undefined').map(([key, val]) => ({ ...val, id: val.id || key })) : [];
   if (document.getElementById('userMgmtOverlay').classList.contains('active')) {
     renderUserMgmt();
   }
@@ -6738,7 +6738,7 @@ function accMsg(text, type) {
 }
 
 async function saveAccountProfile() {
-  if (!currentUser) return;
+  if (!currentUser || !currentUser.id) return;
   const btn = document.querySelector('.account-card .acc-btn-primary');
   const name = document.getElementById('accName').value.trim();
   const phone = document.getElementById('accPhone').value.trim();
