@@ -1854,6 +1854,7 @@
     <div class="view-tabs" id="mainViewTabs">
       <button class="view-tab active" onclick="showView('calendar')">Kalender</button>
       <button class="view-tab customer-only" id="tabMyBookings" onclick="showView('myBookings')">Meine Buchungen</button>
+      <button class="view-tab customer-only" id="tabDocuments" onclick="showView('documents')">Dokumente</button>
       <button class="view-tab fluglehrer-only" id="tabStudentBookings" onclick="showView('studentBookings')" style="display:none;">Schüler-Buchungen</button>
       <button class="view-tab fluglehrer-only" id="tabTheory" onclick="showView('theory')" style="display:none;">Theorie</button>
       <button class="view-tab fluglehrer-only" id="tabMessages" onclick="showView('messages')" style="display:none;">Nachrichten<span id="msgUnreadBadge" style="display:none;background:#B36A5B;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:4px;">0</span></button>
@@ -1867,6 +1868,7 @@
   <div class="mobile-menu" id="mobileMenu">
     <button class="mobile-menu-item" onclick="showView('calendar'); closeMobileMenu();">Kalender</button>
     <button class="mobile-menu-item customer-only" id="mobileTabMyBookings" onclick="showView('myBookings'); closeMobileMenu();">Meine Buchungen</button>
+    <button class="mobile-menu-item customer-only" id="mobileTabDocuments" onclick="showView('documents'); closeMobileMenu();">Dokumente</button>
     <button class="mobile-menu-item fluglehrer-only" id="mobileTabStudentBookings" onclick="showView('studentBookings'); closeMobileMenu();" style="display:none;">Schüler-Buchungen</button>
     <button class="mobile-menu-item fluglehrer-only" id="mobileTabTheory" onclick="showView('theory'); closeMobileMenu();" style="display:none;">Theorie</button>
     <button class="mobile-menu-item fluglehrer-only" id="mobileTabMessages" onclick="showView('messages'); closeMobileMenu();" style="display:none;">Nachrichten</button>
@@ -2042,6 +2044,15 @@
       <button class="mb-filter-tab" onclick="filterMyBookings('past', this)">Vergangen</button>
     </div>
     <div id="mbList"></div>
+  </div>
+</div>
+
+<!-- Dokumente View -->
+<div id="documentsView" style="display:none;">
+  <div class="my-bookings-panel">
+    <h2>Dokumente</h2>
+    <p class="mb-subtitle">Handbücher, Checklisten &amp; Unterlagen unserer Flugzeuge</p>
+    <div id="docsViewContent"></div>
   </div>
 </div>
 
@@ -3059,6 +3070,7 @@ document.addEventListener('click', function(e) {
 function showView(view) {
   document.getElementById('calendarView').style.display = view === 'calendar' ? 'block' : 'none';
   document.getElementById('myBookingsView').style.display = view === 'myBookings' ? 'block' : 'none';
+  document.getElementById('documentsView').style.display = view === 'documents' ? 'block' : 'none';
   document.getElementById('studentBookingsView').style.display = view === 'studentBookings' ? 'block' : 'none';
   document.getElementById('theoryView').style.display = view === 'theory' ? 'block' : 'none';
   document.getElementById('messagesView').style.display = view === 'messages' ? 'block' : 'none';
@@ -3067,10 +3079,12 @@ function showView(view) {
   document.querySelectorAll('#mainViewTabs > .view-tab').forEach(t => t.classList.remove('active'));
   if (view === 'calendar') document.querySelector('#mainViewTabs > .view-tab:first-child')?.classList.add('active');
   else if (view === 'myBookings') document.getElementById('tabMyBookings')?.classList.add('active');
+  else if (view === 'documents') document.getElementById('tabDocuments')?.classList.add('active');
   else if (view === 'studentBookings') document.getElementById('tabStudentBookings')?.classList.add('active');
   else if (view === 'theory') document.getElementById('tabTheory')?.classList.add('active');
   else if (view === 'messages') document.getElementById('tabMessages')?.classList.add('active');
   if (view === 'myBookings') renderMyBookings();
+  if (view === 'documents') renderDocumentsView();
   if (view === 'studentBookings') renderStudentBookings();
   if (view === 'theory') renderTheoryLessons();
   if (view === 'messages') renderMessages();
@@ -5955,6 +5969,46 @@ function openPdfBlob(doc) {
   for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
   const blob = new Blob([ab], { type: 'application/pdf' });
   window.open(URL.createObjectURL(blob), '_blank');
+}
+
+// === Dokumente-View rendern ===
+function renderDocumentsView() {
+  const container = document.getElementById('docsViewContent');
+  const aircraftList = Object.keys(AIRCRAFT_TYPES);
+  let html = '';
+  let hasAnyDocs = false;
+
+  aircraftList.forEach(a => {
+    if (!canViewAircraftDocs(a)) return;
+    const docs = (settings.aircraftDocs && settings.aircraftDocs[a]) || {};
+    const entries = Object.entries(docs).sort((x, y) => (x[1].name || '').localeCompare(y[1].name || ''));
+    if (!entries.length) return;
+    hasAnyDocs = true;
+
+    html += `<div style="margin-bottom:24px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <div style="font-size:15px;font-weight:700;color:var(--ink);">${a}</div>
+        <div style="font-size:12px;color:var(--c-muted);font-weight:500;">${AIRCRAFT_TYPES[a] || ''}</div>
+      </div>
+      <div style="display:grid;gap:6px;">
+        ${entries.map(([id, doc]) => `
+          <a href="#" onclick="event.preventDefault();openPdfBlob(settings.aircraftDocs['${a}']['${id}'])" style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:#fff;border:1px solid var(--c-line);border-radius:8px;text-decoration:none;color:var(--ink);transition:background 0.15s,box-shadow 0.15s;" onmouseover="this.style.background='var(--c-paper)';this.style.boxShadow='0 1px 4px rgba(0,0,0,0.06)'" onmouseout="this.style.background='#fff';this.style.boxShadow='none'">
+            <span style="font-size:22px;">📄</span>
+            <div style="flex:1;">
+              <div style="font-size:13px;font-weight:600;">${doc.name}</div>
+              <div style="font-size:11px;color:var(--c-muted);">${doc.size ? (doc.size / 1024).toFixed(0) + ' KB' : 'PDF'}</div>
+            </div>
+            <span style="font-size:11px;color:var(--c-accent);font-weight:500;">Öffnen ↗</span>
+          </a>
+        `).join('')}
+      </div>
+    </div>`;
+  });
+
+  if (!hasAnyDocs) {
+    html = '<div style="text-align:center;color:var(--c-muted);padding:40px 0;font-size:14px;">Keine Dokumente verfügbar. Dokumente werden angezeigt, sobald du eine bestätigte Buchung hast.</div>';
+  }
+  container.innerHTML = html;
 }
 
 function notify(msg, type, duration) {
