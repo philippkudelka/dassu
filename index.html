@@ -1521,6 +1521,33 @@
     z-index: 1;
     pointer-events: none;
     border-top: 1px dashed rgba(197,106,28,0.25);
+  }
+  .gantt-towing-zone {
+    position: absolute;
+    left: 0;
+    right: 0;
+    background-color: rgba(200, 190, 170, 0.35);
+    background-image: repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 6px,
+      rgba(0,0,0,0.04) 6px,
+      rgba(0,0,0,0.04) 7px
+    );
+    z-index: 1;
+    pointer-events: none;
+    border-top: 1px dashed rgba(100,90,70,0.25);
+    border-bottom: 1px dashed rgba(100,90,70,0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .gantt-towing-zone span {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--c-ink-3);
+    opacity: 0.5;
+    letter-spacing: 0.03em;
     border-bottom: 1px dashed rgba(197,106,28,0.25);
   }
   .gantt-nowline {
@@ -3722,6 +3749,16 @@ function renderGanttCalendar(dk, aircraft) {
       slotsHtml += `<div class="gantt-col-slot" data-hour="${h}" data-aircraft="${a}"></div>`;
     }
 
+    // D-MYIH: Schleppbetrieb 10:00–13:30 grafisch anzeigen
+    let towingZoneHtml = '';
+    if (a === 'D-MYIH') {
+      const towStart = 10 * 60; // 10:00
+      const towEnd = 13 * 60 + 30; // 13:30
+      const towTopPx = ((towStart - firstHour * 60) / 60) * slotHeight;
+      const towHeightPx = ((towEnd - towStart) / 60) * slotHeight;
+      towingZoneHtml = `<div class="gantt-towing-zone" style="top:${towTopPx}px;height:${towHeightPx}px;"><span>Schleppbetrieb</span></div>`;
+    }
+
     columnsHtml += `
       <div class="gantt-aircraft-column" id="gantt-col-${aIdx}">
         <div class="gantt-col-header" data-aircraft="${a}">
@@ -3733,6 +3770,7 @@ function renderGanttCalendar(dk, aircraft) {
         <div class="gantt-col-timeline" id="gantt-timeline-${aIdx}">
           ${slotsHtml}
           ${restrictedZonesHtml}
+          ${towingZoneHtml}
         </div>
       </div>`;
   });
