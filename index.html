@@ -4178,8 +4178,13 @@ function showBookingConfirmation() {
   const endTime = document.getElementById('bookingTimeTo').value;
   const modal = document.getElementById('bookingModal');
 
-  if (!name || !email || !phone) {
+  const isLoggedIn = customerProfile && customerProfile.name && customerProfile.email;
+  if (!isLoggedIn && (!name || !email || !phone)) {
     notify('Bitte Name, E-Mail und Telefon ausfüllen.', 'error');
+    return;
+  }
+  if (isLoggedIn && (!name || !email)) {
+    notify('Profil unvollständig — bitte Name und E-Mail prüfen.', 'error');
     return;
   }
   if (!document.getElementById('bookingConsent').checked) {
@@ -6660,7 +6665,7 @@ firebase.auth().onAuthStateChanged(async (user) => {
         if (devMode && staffProfile.role === 'admin') {
           // Dev-Modus: Admin bleibt auf index.html, Toolbar zeigen
           devStaffProfile = staffProfile;
-          customerProfile = { name: staffProfile.name || user.displayName || '', email: user.email || '' };
+          customerProfile = { name: staffProfile.name || user.displayName || '', email: user.email || '', phone: staffProfile.phone || '' };
           document.body.classList.add('dev-mode');
           document.getElementById('devToolbar').classList.add('visible');
           document.getElementById('tabMyBookings')?.classList.add('auth-revealed');
@@ -6697,7 +6702,7 @@ firebase.auth().onAuthStateChanged(async (user) => {
         }
 
         // Staff-User auch als Kunde behandeln (E-Mail automatisch verifiziert)
-        customerProfile = { name: staffProfile.name || user.displayName || '', email: user.email || '' };
+        customerProfile = { name: staffProfile.name || user.displayName || '', email: user.email || '', phone: staffProfile.phone || '' };
         document.getElementById('tabMyBookings')?.classList.add('auth-revealed');
         document.getElementById('mobileTabMyBookings')?.classList.add('auth-revealed');
         document.getElementById('mainViewTabs')?.classList.add('has-customer-tabs');
