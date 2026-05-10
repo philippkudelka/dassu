@@ -3592,6 +3592,8 @@ function renderTeamView() {
   // Apply filter
   if (teamRoleFilter === 'customer') {
     filtered = filtered.filter(u => u._type === 'customer');
+  } else if (teamRoleFilter === 'student') {
+    filtered = filtered.filter(u => u._type === 'customer' && u.customerType === 'student');
   } else if (teamRoleFilter !== 'all') {
     filtered = filtered.filter(u => u._type === 'staff' && u.role === teamRoleFilter);
   }
@@ -3617,10 +3619,12 @@ function renderTeamView() {
       { id: 'team', label: 'Team' },
       { id: 'guestGlider', label: 'Gast MS' },
       { id: 'guestMotor', label: 'Gast UL' },
-      { id: 'customer', label: 'Kunden' }
+      { id: 'customer', label: 'Kunden' },
+      { id: 'student', label: 'Schüler' }
     ];
+    const studentCount = uniqueCustomers.filter(c => c.customerType === 'student').length;
     chipEl.innerHTML = roles.map(r => {
-      const count = r.id === 'all' ? allUsers.length : (r.id === 'customer' ? customerCount : (roleCounts[r.id] || 0));
+      const count = r.id === 'all' ? allUsers.length : (r.id === 'customer' ? customerCount : (r.id === 'student' ? studentCount : (roleCounts[r.id] || 0)));
       if (r.id !== 'all' && !count) return '';
       return `<button class="team-filter-chip${teamRoleFilter === r.id ? ' active' : ''}" onclick="teamRoleFilter='${r.id}';renderTeamView();">${r.label}<span class="chip-count">${count}</span></button>`;
     }).join('');
@@ -3643,7 +3647,7 @@ function renderTeamView() {
     const isCustomer = u._type === 'customer';
     const avatarCls = isCustomer ? 'role-customer' : (u.role === 'admin' ? 'role-admin' : (u.role === 'team' ? 'role-team' : 'role-guest'));
     const badgeCls = isCustomer ? 'badge-customer' : (u.role === 'admin' ? 'badge-admin' : (u.role === 'team' ? 'badge-team' : 'badge-guest'));
-    const badgeLabel = isCustomer ? 'Kunde' : (roleMeta(u.role).short || roleMeta(u.role).label);
+    const badgeLabel = isCustomer ? (u.customerType === 'student' ? 'Schüler' : 'Charter') : (roleMeta(u.role).short || roleMeta(u.role).label);
     const isMe = currentUser && u.id === currentUser.id;
     const youTag = isMe ? '<span class="you-tag">(du)</span>' : '';
     const clickFn = `openMemberDetail('${u.id}', ${isCustomer ? 'true' : 'false'})`;
@@ -3741,6 +3745,16 @@ function openMemberDetail(uid, isCustomer) {
     }).join('');
   }
 
+  // Customer type (charter/student) — nur für Kunden oder Rollen-Wechsel relevant
+  const custType = custData.customerType || 'charter';
+  const custTypeHtml = canEdit ? `<div class="td-section">
+    <div class="td-section-title">Kundentyp</div>
+    <select class="team-role-select" onchange="changeCustomerType('${uid}', this.value);" style="width:100%;">
+      <option value="charter" ${custType === 'charter' ? 'selected' : ''}>Charterkunde (hat Lizenz)</option>
+      <option value="student" ${custType === 'student' ? 'selected' : ''}>Flugsch&uuml;ler (in Ausbildung)</option>
+    </select>
+  </div>` : '';
+
   // Document access
   const docAccessHtml = buildDocAccessSection(email, uid, isCustomer);
 
@@ -3797,6 +3811,8 @@ function openMemberDetail(uid, isCustomer) {
 
     ${roleSelectHtml}
 
+    ${custTypeHtml}
+
     ${!isCustomer && permsHtml ? `<div class="td-section">
       <div class="td-section-title">Berechtigungen</div>
       ${permsHtml}
@@ -3837,6 +3853,16 @@ function openMemberDetail(uid, isCustomer) {
 }
 
 // Rolle aendern (Staff <-> Kunde)
+async function changeCustomerType(uid, newType) {
+  if (!isAdmin()) return;
+  try {
+    await db.ref('customers/' + uid + '/customerType').set(newType);
+    const cu = customerUsers.find(c => c.id === uid);
+    if (cu) cu.customerType = newType;
+    notify(newType === 'student' ? 'Als Flugschüler markiert.' : 'Als Charterkunde markiert.', 'success');
+  } catch (e) { notify('Fehler: ' + e.message, 'error'); }
+}
+
 async function changeMemberRole(uid, newRole, wasCustomer) {
   if (!isAdmin()) return;
 

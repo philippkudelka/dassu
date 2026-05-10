@@ -2288,6 +2288,24 @@
       </div>
     </div>
 
+    <!-- Card: Kundentyp -->
+    <div class="acct-card">
+      <div class="acct-card-title">
+        <svg class="acct-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+        Kundenstatus
+      </div>
+      <div style="display:flex;gap:8px;">
+        <label id="acctTypeCharter" style="flex:1;display:flex;align-items:center;gap:8px;padding:12px 14px;border:2px solid var(--c-line);border-radius:8px;cursor:pointer;transition:border-color 0.15s,background 0.15s;" onclick="document.getElementById('acctTypeRadioCharter').checked=true;acctHighlightType();">
+          <input type="radio" name="acctCustomerType" id="acctTypeRadioCharter" value="charter" style="accent-color:var(--c-alpine);">
+          <div><div style="font-size:13px;font-weight:600;">Charterkunde</div><div style="font-size:11px;color:var(--c-muted);">Ich habe eine Lizenz</div></div>
+        </label>
+        <label id="acctTypeStudent" style="flex:1;display:flex;align-items:center;gap:8px;padding:12px 14px;border:2px solid var(--c-line);border-radius:8px;cursor:pointer;transition:border-color 0.15s,background 0.15s;" onclick="document.getElementById('acctTypeRadioStudent').checked=true;acctHighlightType();">
+          <input type="radio" name="acctCustomerType" id="acctTypeRadioStudent" value="student" style="accent-color:var(--c-alpine);">
+          <div><div style="font-size:13px;font-weight:600;">Flugsch&uuml;ler</div><div style="font-size:11px;color:var(--c-muted);">Ich bin in Ausbildung</div></div>
+        </label>
+      </div>
+    </div>
+
     <!-- Speichern -->
     <div class="acct-save-bar">
       <button class="acct-save-btn" onclick="saveAccountProfile()">Änderungen speichern</button>
@@ -2452,6 +2470,20 @@
             <input type="tel" id="caRegPhone" placeholder="123 456789" autocomplete="tel-national">
           </div>
         </div>
+        <div class="auth-field">
+          <label>Ich bin...</label>
+          <div style="display:flex;gap:8px;">
+            <label style="flex:1;display:flex;align-items:center;gap:8px;padding:10px 12px;border:2px solid var(--gray-200);border-radius:8px;cursor:pointer;transition:border-color 0.15s,background 0.15s;" onclick="this.querySelector('input').checked=true;this.style.borderColor='var(--c-alpine)';this.style.background='rgba(61,153,145,0.05)';this.parentElement.children[1].style.borderColor='var(--gray-200)';this.parentElement.children[1].style.background='';">
+              <input type="radio" name="caRegType" value="charter" checked style="accent-color:var(--c-alpine);">
+              <div><div style="font-size:13px;font-weight:600;">Charterkunde</div><div style="font-size:11px;color:var(--c-muted);">Ich habe eine Lizenz</div></div>
+            </label>
+            <label style="flex:1;display:flex;align-items:center;gap:8px;padding:10px 12px;border:2px solid var(--gray-200);border-radius:8px;cursor:pointer;transition:border-color 0.15s,background 0.15s;" onclick="this.querySelector('input').checked=true;this.style.borderColor='var(--c-alpine)';this.style.background='rgba(61,153,145,0.05)';this.parentElement.children[0].style.borderColor='var(--gray-200)';this.parentElement.children[0].style.background='';">
+              <input type="radio" name="caRegType" value="student" style="accent-color:var(--c-alpine);">
+              <div><div style="font-size:13px;font-weight:600;">Flugsch&uuml;ler</div><div style="font-size:11px;color:var(--c-muted);">Ich bin in Ausbildung</div></div>
+            </label>
+          </div>
+        </div>
+
         <div class="auth-field">
           <label for="caRegPw">Passwort</label>
           <input type="password" id="caRegPw" minlength="6" placeholder="Mind. 6 Zeichen" autocomplete="new-password">
@@ -6166,7 +6198,8 @@ async function customerRegister() {
       }
     }
     const uid = cred.user.uid;
-    const profile = { name, email, phone: phone || '', birthdate: birth || '', consentAt: Date.now(), createdAt: Date.now() };
+    const customerType = (document.querySelector('input[name="caRegType"]:checked') || {}).value || 'charter';
+    const profile = { name, email, phone: phone || '', birthdate: birth || '', customerType, consentAt: Date.now(), createdAt: Date.now() };
     await db.ref('customers/' + uid).set(profile);
     try { await cred.user.updateProfile({ displayName: name }); } catch (_) {}
     // Gebrandete Verifizierungsmail senden + sofort abmelden bis bestätigt
@@ -6478,6 +6511,14 @@ function renderAccountView() {
     }
   }
 
+  // Kundentyp
+  const cType = customerProfile.customerType || 'charter';
+  const charterRadio = document.getElementById('acctTypeRadioCharter');
+  const studentRadio = document.getElementById('acctTypeRadioStudent');
+  if (charterRadio) charterRadio.checked = cType === 'charter';
+  if (studentRadio) studentRadio.checked = cType === 'student';
+  acctHighlightType();
+
   // E-Mail-Verifizierung Badge
   const verifyBadge = document.getElementById('acctVerifyBadge');
   if (verifyBadge && user) {
@@ -6583,6 +6624,14 @@ function syncHiddenBirthDate() {
   document.getElementById('acctBirth').value = (y && m && d) ? (y + '-' + m + '-' + d) : '';
 }
 
+function acctHighlightType() {
+  const charter = document.getElementById('acctTypeCharter');
+  const student = document.getElementById('acctTypeStudent');
+  const val = (document.querySelector('input[name="acctCustomerType"]:checked') || {}).value;
+  if (charter) { charter.style.borderColor = val === 'charter' ? 'var(--c-alpine)' : 'var(--c-line)'; charter.style.background = val === 'charter' ? 'rgba(61,153,145,0.05)' : ''; }
+  if (student) { student.style.borderColor = val === 'student' ? 'var(--c-alpine)' : 'var(--c-line)'; student.style.background = val === 'student' ? 'rgba(61,153,145,0.05)' : ''; }
+}
+
 async function saveAccountProfile() {
   const user = firebase.auth().currentUser;
   if (!user) return;
@@ -6596,9 +6645,10 @@ async function saveAccountProfile() {
   const zip = document.getElementById('acctZip').value.trim();
   const city = document.getElementById('acctCity').value.trim();
   const country = document.getElementById('acctCountry').value;
+  const customerType = (document.querySelector('input[name="acctCustomerType"]:checked') || {}).value || 'charter';
   if (!name) { document.getElementById('acctMsg').innerHTML = '<span style="color:#B36A5B;">Name darf nicht leer sein.</span>'; return; }
   try {
-    await db.ref('customers/' + user.uid).update({ name, phone, birthdate: birth, street, zip, city, country });
+    await db.ref('customers/' + user.uid).update({ name, phone, birthdate: birth, street, zip, city, country, customerType });
     try { await user.updateProfile({ displayName: name }); } catch (_) {}
     customerProfile.name = name;
     customerProfile.phone = phone;
@@ -6607,6 +6657,7 @@ async function saveAccountProfile() {
     customerProfile.zip = zip;
     customerProfile.city = city;
     customerProfile.country = country;
+    customerProfile.customerType = customerType;
     updateCustomerButton();
     renderAccountView();
     document.getElementById('acctMsg').innerHTML = '<span style="color:var(--navy);">✓ Änderungen gespeichert</span>';
