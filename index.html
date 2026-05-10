@@ -5607,7 +5607,7 @@ async function renderTrainingView() {
     });
   } catch (e) { console.warn('Training: Schüler laden fehlgeschlagen', e); }
   // Wenn schon ein Schüler gewählt war, Daten neu laden
-  if (trainingStudentUid) loadStudentTraining();
+  if (sel.value) loadStudentTraining();
 }
 
 // --- Fluglehrer: Ausbildungsdaten eines Schülers laden ---
