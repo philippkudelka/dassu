@@ -5621,9 +5621,13 @@ async function loadStudentTraining() {
   }
   if (content) content.style.display = 'block';
   try {
-    const snap = await db.ref('training/' + trainingStudentUid + '/spl-tmg').once('value');
-    trainingProgress = snap.val() || {};
-  } catch (e) { trainingProgress = {}; }
+    const token = await firebase.auth().currentUser.getIdToken();
+    const resp = await fetch('/.netlify/functions/training?studentUid=' + encodeURIComponent(trainingStudentUid), {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    const result = await resp.json();
+    trainingProgress = result.progress || {};
+  } catch (e) { console.warn('Training laden fehlgeschlagen:', e); trainingProgress = {}; }
   renderTrainingExercises('trainingProgress', 'trainingExercises', true);
 }
 
@@ -5733,14 +5737,20 @@ async function saveExerciseProgress() {
   };
 
   try {
-    await db.ref('training/' + trainingStudentUid + '/spl-tmg/' + currentExerciseId).set(data);
+    const token = await firebase.auth().currentUser.getIdToken();
+    const resp = await fetch('/.netlify/functions/training', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ studentUid: trainingStudentUid, exerciseId: currentExerciseId, data })
+    });
+    if (!resp.ok) { const err = await resp.json(); throw new Error(err.error || 'Speichern fehlgeschlagen'); }
     trainingProgress[currentExerciseId] = data;
     notify('Übung gespeichert.', 'success');
     closeModal('exerciseModal');
     renderTrainingExercises('trainingProgress', 'trainingExercises', true);
   } catch (e) {
     console.error('Training save error:', e);
-    notify('Fehler beim Speichern.', 'error');
+    notify('Fehler beim Speichern: ' + e.message, 'error');
   }
 }
 
@@ -5753,8 +5763,12 @@ async function renderMyTrainingView() {
   const exEl = document.getElementById('myTrainingExercises');
 
   try {
-    const snap = await db.ref('training/' + uid + '/spl-tmg').once('value');
-    trainingProgress = snap.val() || {};
+    const token = await firebase.auth().currentUser.getIdToken();
+    const resp = await fetch('/.netlify/functions/training?studentUid=' + encodeURIComponent(uid), {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    const result = await resp.json();
+    trainingProgress = result.progress || {};
     // Prüfen ob überhaupt Einträge existieren
     const hasData = Object.keys(trainingProgress).length > 0;
     if (emptyEl) emptyEl.style.display = hasData ? 'none' : 'block';
