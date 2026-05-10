@@ -2172,9 +2172,15 @@
           <input type="number" id="exSoloHours" step="0.05" min="0" style="width:100%;padding:8px 10px;border:1px solid var(--c-border);border-radius:6px;font-size:14px;background:#fff;box-sizing:border-box;">
         </div>
       </div>
-      <div style="margin-bottom:12px;">
-        <label style="font-size:12px;font-weight:600;color:var(--c-muted);display:block;margin-bottom:4px;">Beherrscht am</label>
-        <input type="date" id="exMasteredDate" style="width:100%;padding:8px 10px;border:1px solid var(--c-border);border-radius:6px;font-size:14px;background:#fff;box-sizing:border-box;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+        <div>
+          <label style="font-size:12px;font-weight:600;color:var(--c-muted);display:block;margin-bottom:4px;">Begonnen am</label>
+          <input type="date" id="exStartedDate" style="width:100%;padding:8px 10px;border:1px solid var(--c-border);border-radius:6px;font-size:14px;background:#fff;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:600;color:var(--c-muted);display:block;margin-bottom:4px;">Beherrscht am</label>
+          <input type="date" id="exMasteredDate" style="width:100%;padding:8px 10px;border:1px solid var(--c-border);border-radius:6px;font-size:14px;background:#fff;box-sizing:border-box;">
+        </div>
       </div>
       <div style="margin-bottom:16px;">
         <label style="font-size:12px;font-weight:600;color:var(--c-muted);display:block;margin-bottom:4px;">Bemerkung</label>
@@ -5635,6 +5641,7 @@ async function loadStudentTraining() {
 function renderTrainingExercises(progressContainerId, exercisesContainerId, editable) {
   const curriculum = SPL_TMG_CURRICULUM;
   const exercises = curriculum.exercises;
+  const started = exercises.filter(ex => trainingProgress[ex.id]?.startedDate && !trainingProgress[ex.id]?.masteredDate).length;
   const mastered = exercises.filter(ex => trainingProgress[ex.id]?.masteredDate).length;
   const total = exercises.length;
   const pct = total > 0 ? Math.round((mastered / total) * 100) : 0;
@@ -5656,7 +5663,7 @@ function renderTrainingExercises(progressContainerId, exercisesContainerId, edit
       <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
         <div style="flex:1;min-width:200px;">
           <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
-            <span style="font-size:13px;font-weight:600;color:var(--c-text);">${mastered} / ${total} Übungen beherrscht</span>
+            <span style="font-size:13px;font-weight:600;color:var(--c-text);">${mastered} / ${total} beherrscht${started > 0 ? `, ${started} in Arbeit` : ''}</span>
             <span style="font-size:13px;font-weight:700;color:var(--c-alpine);">${pct}%</span>
           </div>
           <div style="height:8px;background:var(--c-border);border-radius:4px;overflow:hidden;">
@@ -5678,15 +5685,46 @@ function renderTrainingExercises(progressContainerId, exercisesContainerId, edit
   let html = '';
   exercises.forEach(ex => {
     const p = trainingProgress[ex.id] || {};
+    const started = !!p.startedDate;
     const done = !!p.masteredDate;
     const dualReq = ex.dual > 0 ? `${ex.dual} Std dual` : '';
     const soloReq = ex.solo > 0 ? `${ex.solo} Std solo` : '';
     const reqText = [dualReq, soloReq].filter(Boolean).join(' / ') || 'Bodenübung';
-    const statusIcon = done
-      ? '<svg viewBox="0 0 24 24" fill="none" stroke="#2D6A4F" stroke-width="2.5" style="width:20px;height:20px;"><path d="M20 6L9 17l-5-5"/></svg>'
-      : '<div style="width:20px;height:20px;border:2px solid var(--c-border);border-radius:50%;"></div>';
-    const dateStr = done ? new Date(p.masteredDate).toLocaleDateString('de-DE') : '';
+
+    // Status-Icon: grüner Haken (beherrscht), orangener Kreis (begonnen), leerer Kreis (offen)
+    let statusIcon;
+    if (done) {
+      statusIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="#2D6A4F" stroke-width="2.5" style="width:20px;height:20px;"><path d="M20 6L9 17l-5-5"/></svg>';
+    } else if (started) {
+      statusIcon = '<div style="width:20px;height:20px;border:2.5px solid #E9A319;border-radius:50%;background:rgba(233,163,25,0.15);"></div>';
+    } else {
+      statusIcon = '<div style="width:20px;height:20px;border:2px solid var(--c-border);border-radius:50%;"></div>';
+    }
+
+    const startedStr = started ? new Date(p.startedDate).toLocaleDateString('de-DE') : '';
+    const masteredStr = done ? new Date(p.masteredDate).toLocaleDateString('de-DE') : '';
     const hoursStr = (p.dualHours || p.soloHours) ? `${(p.dualHours||0)} D / ${(p.soloHours||0)} S` : '';
+
+    // Status-Text
+    let statusLine = '';
+    if (done) {
+      statusLine = `<div style="font-size:11px;color:#2D6A4F;margin-top:4px;">✓ Beherrscht am ${masteredStr}${startedStr ? ' (begonnen ' + startedStr + ')' : ''}${hoursStr ? ' — ' + hoursStr : ''}${p.note ? ' — ' + p.note : ''}</div>`;
+    } else if (started) {
+      statusLine = `<div style="font-size:11px;color:#E9A319;margin-top:4px;">◐ Begonnen am ${startedStr}${hoursStr ? ' — ' + hoursStr : ''}${p.note ? ' — ' + p.note : ''}</div>`;
+    }
+
+    // Buttons (nur für Fluglehrer)
+    let buttonsHtml = '';
+    if (editable) {
+      const btnStyle = 'font-size:11px;padding:4px 10px;border-radius:4px;border:1px solid;cursor:pointer;font-weight:600;';
+      const beginBtn = started
+        ? `<button disabled style="${btnStyle}border-color:#ccc;background:#f5f5f5;color:#aaa;" title="Begonnen am ${startedStr}">Begonnen ✓</button>`
+        : `<button onclick="event.stopPropagation();quickSaveTraining('${ex.id}','startedDate')" style="${btnStyle}border-color:#E9A319;background:rgba(233,163,25,0.1);color:#E9A319;">Begonnen</button>`;
+      const masterBtn = done
+        ? `<button disabled style="${btnStyle}border-color:#ccc;background:#f5f5f5;color:#aaa;" title="Beherrscht am ${masteredStr}">Beherrscht ✓</button>`
+        : `<button onclick="event.stopPropagation();quickSaveTraining('${ex.id}','masteredDate')" style="${btnStyle}border-color:#2D6A4F;background:rgba(45,106,79,0.1);color:#2D6A4F;">Beherrscht</button>`;
+      buttonsHtml = `<div style="display:flex;gap:6px;margin-top:6px;">${beginBtn}${masterBtn}</div>`;
+    }
 
     html += `<div style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--c-border);${editable ? 'cursor:pointer;' : ''}" ${editable ? `onclick="openExerciseModal('${ex.id}')"` : ''}>
       <div style="flex-shrink:0;margin-top:2px;">${statusIcon}</div>
@@ -5698,11 +5736,46 @@ function renderTrainingExercises(progressContainerId, exercisesContainerId, edit
         </div>
         <div style="font-size:13px;color:var(--c-text);margin-top:2px;">${ex.title}</div>
         <div style="font-size:12px;color:var(--c-muted);margin-top:1px;">${ex.desc}</div>
-        ${done ? `<div style="font-size:11px;color:#2D6A4F;margin-top:4px;">✓ Beherrscht am ${dateStr}${hoursStr ? ' — ' + hoursStr : ''}${p.note ? ' — ' + p.note : ''}</div>` : ''}
+        ${statusLine}
+        ${buttonsHtml}
       </div>
     </div>`;
   });
   listEl.innerHTML = html;
+}
+
+// --- Fluglehrer: Quick-Save (Begonnen/Beherrscht Button) ---
+async function quickSaveTraining(exId, field) {
+  if (!trainingStudentUid) return;
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const existing = trainingProgress[exId] || {};
+  const data = {
+    ...existing,
+    [field]: today,
+    instructorUid: firebase.auth().currentUser?.uid || '',
+    instructorName: customerProfile?.name || '',
+    updatedAt: Date.now()
+  };
+  // Wenn "beherrscht" geklickt und noch nicht begonnen, automatisch auch startedDate setzen
+  if (field === 'masteredDate' && !data.startedDate) {
+    data.startedDate = today;
+  }
+
+  try {
+    const token = await firebase.auth().currentUser.getIdToken();
+    const resp = await fetch('/.netlify/functions/training', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ studentUid: trainingStudentUid, exerciseId: exId, data })
+    });
+    if (!resp.ok) { const err = await resp.json(); throw new Error(err.error || 'Speichern fehlgeschlagen'); }
+    trainingProgress[exId] = data;
+    notify(field === 'startedDate' ? 'Übung als begonnen markiert.' : 'Übung als beherrscht markiert.', 'success');
+    renderTrainingExercises('trainingProgress', 'trainingExercises', true);
+  } catch (e) {
+    console.error('Quick save error:', e);
+    notify('Fehler: ' + e.message, 'error');
+  }
 }
 
 // --- Fluglehrer: Übungsdetail-Modal öffnen ---
@@ -5715,6 +5788,7 @@ function openExerciseModal(exId) {
   document.getElementById('exModalDesc').textContent = ex.desc;
   document.getElementById('exDualHours').value = p.dualHours || '';
   document.getElementById('exSoloHours').value = p.soloHours || '';
+  document.getElementById('exStartedDate').value = p.startedDate || '';
   document.getElementById('exMasteredDate').value = p.masteredDate || '';
   document.getElementById('exNote').value = p.note || '';
   document.getElementById('exerciseModal').classList.add('active');
@@ -5725,13 +5799,14 @@ async function saveExerciseProgress() {
   if (!trainingStudentUid || !currentExerciseId) return;
   const dualHours = parseFloat(document.getElementById('exDualHours').value) || 0;
   const soloHours = parseFloat(document.getElementById('exSoloHours').value) || 0;
+  const startedDate = document.getElementById('exStartedDate').value || '';
   const masteredDate = document.getElementById('exMasteredDate').value || '';
   const note = document.getElementById('exNote').value.trim();
   const instructorUid = firebase.auth().currentUser?.uid || '';
   const instructorName = customerProfile?.name || '';
 
   const data = {
-    dualHours, soloHours, masteredDate, note,
+    dualHours, soloHours, startedDate, masteredDate, note,
     instructorUid, instructorName,
     updatedAt: Date.now()
   };
