@@ -1857,7 +1857,9 @@
       <button class="view-tab customer-only" id="tabDocuments" onclick="showView('documents')">Dokumente</button>
       <button class="view-tab fluglehrer-only" id="tabStudentBookings" onclick="showView('studentBookings')" style="display:none;">Schüler-Buchungen</button>
       <button class="view-tab fluglehrer-only" id="tabTheory" onclick="showView('theory')" style="display:none;">Theorie</button>
+      <button class="view-tab fluglehrer-only" id="tabTraining" onclick="showView('training')" style="display:none;">Ausbildung</button>
       <button class="view-tab fluglehrer-only" id="tabMessages" onclick="showView('messages')" style="display:none;">Nachrichten<span id="msgUnreadBadge" style="display:none;background:#B36A5B;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:4px;">0</span></button>
+      <button class="view-tab student-only" id="tabMyTraining" onclick="showView('myTraining')" style="display:none;">Meine Ausbildung</button>
     </div>
     <!-- Burger Menu (Mobile only) -->
     <button class="burger-btn" id="burgerBtn" onclick="toggleMobileMenu()">
@@ -1871,7 +1873,9 @@
     <button class="mobile-menu-item customer-only" id="mobileTabDocuments" onclick="showView('documents'); closeMobileMenu();">Dokumente</button>
     <button class="mobile-menu-item fluglehrer-only" id="mobileTabStudentBookings" onclick="showView('studentBookings'); closeMobileMenu();" style="display:none;">Schüler-Buchungen</button>
     <button class="mobile-menu-item fluglehrer-only" id="mobileTabTheory" onclick="showView('theory'); closeMobileMenu();" style="display:none;">Theorie</button>
+    <button class="mobile-menu-item fluglehrer-only" id="mobileTabTraining" onclick="showView('training'); closeMobileMenu();" style="display:none;">Ausbildung</button>
     <button class="mobile-menu-item fluglehrer-only" id="mobileTabMessages" onclick="showView('messages'); closeMobileMenu();" style="display:none;">Nachrichten</button>
+    <button class="mobile-menu-item student-only" id="mobileTabMyTraining" onclick="showView('myTraining'); closeMobileMenu();" style="display:none;">Meine Ausbildung</button>
     <hr class="mobile-menu-divider">
     <button class="mobile-menu-item" id="mobileStaffAdminBtn" onclick="window.location.href='staff.html?' + (devMode ? 'dev=1&role=' + (devPerspective||'admin') : 'staff=1')" style="display:none;">Verwaltung</button>
     <button class="mobile-menu-item" id="mobileLoginBtn" onclick="openCustomerAuth(); closeMobileMenu();"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> <span id="mobileAuthLabel">Login</span></button>
@@ -2117,6 +2121,69 @@
     <div id="msgModalFiles" style="margin-bottom:16px;"></div>
     <div style="text-align:right;">
       <button class="btn" onclick="closeModal('messageModal')" style="font-size:13px;">Schlie&szlig;en</button>
+    </div>
+  </div>
+</div>
+
+<!-- Ausbildung View (Fluglehrer) -->
+<div id="trainingView" style="display:none;">
+  <div class="my-bookings-panel">
+    <h2>Ausbildungsnachweis</h2>
+    <p class="mb-subtitle">Lehrplan verwalten &amp; Fortschritt der Flugschüler einsehen</p>
+    <div style="margin-bottom:16px;">
+      <label style="font-size:12px;font-weight:600;color:var(--c-muted);text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:6px;">Flugschüler auswählen</label>
+      <select id="trainingStudentSelect" onchange="loadStudentTraining()" style="width:100%;max-width:360px;padding:10px 12px;border:1px solid var(--c-border);border-radius:8px;font-size:14px;background:var(--c-card);color:var(--c-text);">
+        <option value="">— Schüler wählen —</option>
+      </select>
+    </div>
+    <div id="trainingContent" style="display:none;">
+      <div id="trainingProgress" style="margin-bottom:20px;"></div>
+      <div id="trainingExercises"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Meine Ausbildung View (Flugschüler) -->
+<div id="myTrainingView" style="display:none;">
+  <div class="my-bookings-panel">
+    <h2>Meine Ausbildung</h2>
+    <p class="mb-subtitle">Erweiterung SPL auf TMG — AMC1 SFCL.150</p>
+    <div id="myTrainingProgress" style="margin-bottom:20px;"></div>
+    <div id="myTrainingExercises"></div>
+    <div id="myTrainingEmpty" style="display:none;">
+      <p style="color:var(--c-muted);padding:24px 0;">Dir wurde noch kein Ausbildungsnachweis zugewiesen. Bitte wende dich an deinen Fluglehrer.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Übung-Detail-Modal (Fluglehrer) -->
+<div class="modal-overlay" id="exerciseModal">
+  <div class="modal" style="max-width:480px;">
+    <h3 id="exModalTitle" style="margin-bottom:4px;"></h3>
+    <div id="exModalDesc" style="font-size:13px;color:var(--c-muted);margin-bottom:16px;"></div>
+    <div id="exModalForm">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+        <div>
+          <label style="font-size:12px;font-weight:600;color:var(--c-muted);display:block;margin-bottom:4px;">Flugzeit Dual (Std)</label>
+          <input type="number" id="exDualHours" step="0.05" min="0" style="width:100%;padding:8px 10px;border:1px solid var(--c-border);border-radius:6px;font-size:14px;background:#fff;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:600;color:var(--c-muted);display:block;margin-bottom:4px;">Flugzeit Solo (Std)</label>
+          <input type="number" id="exSoloHours" step="0.05" min="0" style="width:100%;padding:8px 10px;border:1px solid var(--c-border);border-radius:6px;font-size:14px;background:#fff;box-sizing:border-box;">
+        </div>
+      </div>
+      <div style="margin-bottom:12px;">
+        <label style="font-size:12px;font-weight:600;color:var(--c-muted);display:block;margin-bottom:4px;">Beherrscht am</label>
+        <input type="date" id="exMasteredDate" style="width:100%;padding:8px 10px;border:1px solid var(--c-border);border-radius:6px;font-size:14px;background:#fff;box-sizing:border-box;">
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="font-size:12px;font-weight:600;color:var(--c-muted);display:block;margin-bottom:4px;">Bemerkung</label>
+        <input type="text" id="exNote" placeholder="Optional..." style="width:100%;padding:8px 10px;border:1px solid var(--c-border);border-radius:6px;font-size:14px;background:#fff;box-sizing:border-box;">
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn" onclick="closeModal('exerciseModal')" style="font-size:13px;">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveExerciseProgress()" style="font-size:13px;background:var(--navy);color:#fff;border-color:var(--navy);">Speichern</button>
     </div>
   </div>
 </div>
@@ -2899,6 +2966,39 @@ let settings = {
 };
 
 // ============================================================
+// AUSBILDUNGSNACHWEIS — Lehrplan SPL → TMG (AMC1 SFCL.150)
+// ============================================================
+const SPL_TMG_CURRICULUM = {
+  id: 'spl-tmg',
+  name: 'Erweiterung SPL auf TMG',
+  ref: 'AMC1 SFCL.150 b)',
+  note: 'Die Übungen dienen als Richtlinie und müssen nicht in der gelisteten Reihenfolge abgearbeitet werden.',
+  exercises: [
+    { id: '1a',    amc: 'i',    dual: 0,    solo: 0,   title: 'Vertraut machen mit Flugplatz und Flugzeug', desc: 'Flugplatzbegehung, Eigenschaften Flugzeug, Checkliste, Systeme, Cockpit' },
+    { id: '1e',    amc: 'ii',   dual: 0,    solo: 0,   title: 'Notverfahren am Boden und in der Luft', desc: 'Feuer, Systemausfälle, Noträumung, Notausrüstung' },
+    { id: '2',     amc: 'iii',  dual: 0,    solo: 0,   title: 'Theorieeinweisung, Flugvor- und -nachbereitung', desc: 'Halle ausräumen/einräumen, Bordbuch, Check nach Liste, Tanken, Parken' },
+    { id: '3',     amc: 'iv',   dual: 0.15, solo: 0,   title: 'Rollen, Bremsen, Motorleistung', desc: 'Leitlinien, Start und Stopp, Rollgeschwindigkeit' },
+    { id: '3e',    amc: 'v',    dual: 0.15, solo: 0,   title: 'Ausfall Bremsen, Steuerung', desc: 'Bugradflattern' },
+    { id: '4',     amc: 'vi',   dual: 0.15, solo: 0,   title: 'Geradeausflug und Höhe halten', desc: 'Übergang Reiseflug, Verschiedene Geschwindigkeiten, Eigenstabilität, Trimmung' },
+    { id: '5',     amc: 'vii',  dual: 0.15, solo: 0,   title: 'Steigflug', desc: 'Geschwindigkeit, Steigwinkel, Steigrate, Richtung halten, Übergang Horizontalflug' },
+    { id: '6',     amc: 'viii', dual: 0.15, solo: 0,   title: 'Sinkflug', desc: 'Leistungsregelung, Sinkrate, Geschwindigkeit, Trimmung, Übergang Horizontalflug' },
+    { id: '7',     amc: 'ix',   dual: 0.15, solo: 0,   title: 'Kurvenflug', desc: 'Luftraum frei, Leistungsbedarf, Höhe halten, Standardkreis' },
+    { id: '8a',    amc: 'x',    dual: 0.15, solo: 0,   title: 'Langsamflug', desc: 'Mit und ohne Klappen, Grenzflugzustände, Schütteln, Überziehwarnung' },
+    { id: '8b',    amc: 'xi',   dual: 0.15, solo: 0,   title: 'Strömungsabriss', desc: 'Geradeaus und Kurvenflug, mit und ohne Klappen, ausleiten mit und ohne Motorleistung' },
+    { id: '9',     amc: 'xii',  dual: 0.25, solo: 0,   title: 'Start, Steigflug bis Gegenanflughöhe', desc: 'Mit und ohne Klappen, Kurzstart, Startabbruch, Seitenwindstart' },
+    { id: '10',    amc: 'xiii', dual: 0.25, solo: 0.5, title: 'Platzrunde, Anflug und Landung', desc: 'Platzrundeneinteilung, Seitenwindlandung, mit und ohne Klappen, Lärmvermeidung' },
+    { id: '9+10e', amc: 'xiv',  dual: 0,    solo: 0,   title: 'Notfälle Start, Platzrunde, Anflug', desc: 'Startabbruch, Motorausfall bei Start und Landung, Durchstartübung' },
+    { id: '11',    amc: 'xv',   dual: 0.15, solo: 0,   title: 'Kurvenflug mit 45° Schräglage', desc: 'Steilkurve >45°, Stall in Kurve, beenden und ausleiten' },
+    { id: '12',    amc: 'xvi',  dual: 0.25, solo: 0,   title: 'Triebwerk abstellen und wieder anlassen', desc: 'In der Luft' },
+    { id: '13',    amc: 'xvii', dual: 0.25, solo: 0,   title: 'Ziellandungen ohne Motorkraft', desc: 'Am Platz und außerhalb, Auswahl des Landefeldes, Gleitflugeinteilung' },
+    { id: '14',    amc: 'xviii',dual: 0.15, solo: 0,   title: 'Sicherheitslandungen', desc: 'Vollständiges Verfahren außerhalb des Flugplatzes bis zur Abschlusshöhe' },
+    { id: '15a',   amc: 'xix',  dual: 0.5,  solo: 1.5, title: 'Navigationsflüge', desc: 'Flugplanung zu fremden Plätzen dual und solo, Anflug kontrollierte Plätze, Durchflug Kontrollzonen' },
+    { id: '15b',   amc: 'xx',   dual: 0.5,  solo: 0,   title: 'Navigationsflug mit niedrigen Flugsichten', desc: 'Koppelnavigation, Orientierungsverlust, Sicherheitshöhe' },
+    { id: '15c',   amc: 'xxi',  dual: 0.5,  solo: 0,   title: 'Funknavigation', desc: 'VOR, GPS, ADF, QDM, QDR, Transponder, Kreuzpeilung, FIS' }
+  ]
+};
+
+// ============================================================
 // FIREBASE CONFIGURATION
 // ============================================================
 const firebaseConfig = {
@@ -3106,6 +3206,8 @@ function showView(view) {
   document.getElementById('studentBookingsView').style.display = view === 'studentBookings' ? 'block' : 'none';
   document.getElementById('theoryView').style.display = view === 'theory' ? 'block' : 'none';
   document.getElementById('messagesView').style.display = view === 'messages' ? 'block' : 'none';
+  document.getElementById('trainingView').style.display = view === 'training' ? 'block' : 'none';
+  document.getElementById('myTrainingView').style.display = view === 'myTraining' ? 'block' : 'none';
   document.getElementById('accountView').style.display = view === 'account' ? 'block' : 'none';
   // Tab-Buttons aktiv markieren
   document.querySelectorAll('#mainViewTabs > .view-tab').forEach(t => t.classList.remove('active'));
@@ -3114,12 +3216,16 @@ function showView(view) {
   else if (view === 'documents') document.getElementById('tabDocuments')?.classList.add('active');
   else if (view === 'studentBookings') document.getElementById('tabStudentBookings')?.classList.add('active');
   else if (view === 'theory') document.getElementById('tabTheory')?.classList.add('active');
+  else if (view === 'training') document.getElementById('tabTraining')?.classList.add('active');
   else if (view === 'messages') document.getElementById('tabMessages')?.classList.add('active');
+  else if (view === 'myTraining') document.getElementById('tabMyTraining')?.classList.add('active');
   if (view === 'myBookings') renderMyBookings();
   if (view === 'documents') renderDocumentsView();
   if (view === 'studentBookings') renderStudentBookings();
   if (view === 'theory') renderTheoryLessons();
+  if (view === 'training') renderTrainingView();
   if (view === 'messages') renderMessages();
+  if (view === 'myTraining') renderMyTrainingView();
   if (view === 'account') renderAccountView();
 }
 
@@ -5476,6 +5582,193 @@ function staffMgmtDelete(id) {
   notify('Mitarbeiter entfernt.', 'success');
 }
 
+// ============================================================
+// AUSBILDUNGSNACHWEIS — Fluglehrer + Flugschüler
+// ============================================================
+let trainingStudentUid = null;
+let trainingProgress = {};  // exercise progress for selected student
+let currentExerciseId = null;
+
+// --- Fluglehrer: Schüler-Dropdown befüllen ---
+async function renderTrainingView() {
+  const sel = document.getElementById('trainingStudentSelect');
+  if (!sel) return;
+  // Alle Kunden mit customerType=student laden
+  try {
+    const snap = await db.ref('customers').orderByChild('customerType').equalTo('student').once('value');
+    const students = snap.val() || {};
+    sel.innerHTML = '<option value="">— Schüler wählen —</option>';
+    Object.entries(students).forEach(([uid, data]) => {
+      const opt = document.createElement('option');
+      opt.value = uid;
+      opt.textContent = data.name || data.email || uid;
+      if (uid === trainingStudentUid) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  } catch (e) { console.warn('Training: Schüler laden fehlgeschlagen', e); }
+  // Wenn schon ein Schüler gewählt war, Daten neu laden
+  if (trainingStudentUid) loadStudentTraining();
+}
+
+// --- Fluglehrer: Ausbildungsdaten eines Schülers laden ---
+async function loadStudentTraining() {
+  const sel = document.getElementById('trainingStudentSelect');
+  trainingStudentUid = sel ? sel.value : '';
+  const content = document.getElementById('trainingContent');
+  if (!trainingStudentUid) {
+    if (content) content.style.display = 'none';
+    return;
+  }
+  if (content) content.style.display = 'block';
+  try {
+    const snap = await db.ref('training/' + trainingStudentUid + '/spl-tmg').once('value');
+    trainingProgress = snap.val() || {};
+  } catch (e) { trainingProgress = {}; }
+  renderTrainingExercises('trainingProgress', 'trainingExercises', true);
+}
+
+// --- Shared: Übungsliste rendern ---
+function renderTrainingExercises(progressContainerId, exercisesContainerId, editable) {
+  const curriculum = SPL_TMG_CURRICULUM;
+  const exercises = curriculum.exercises;
+  const mastered = exercises.filter(ex => trainingProgress[ex.id]?.masteredDate).length;
+  const total = exercises.length;
+  const pct = total > 0 ? Math.round((mastered / total) * 100) : 0;
+
+  // Gesamte Flugzeiten berechnen
+  let totalDual = 0, totalSolo = 0;
+  exercises.forEach(ex => {
+    const p = trainingProgress[ex.id];
+    if (p) {
+      totalDual += parseFloat(p.dualHours || 0);
+      totalSolo += parseFloat(p.soloHours || 0);
+    }
+  });
+
+  // Progress-Bar
+  const progEl = document.getElementById(progressContainerId);
+  if (progEl) {
+    progEl.innerHTML = `
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:200px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+            <span style="font-size:13px;font-weight:600;color:var(--c-text);">${mastered} / ${total} Übungen beherrscht</span>
+            <span style="font-size:13px;font-weight:700;color:var(--c-alpine);">${pct}%</span>
+          </div>
+          <div style="height:8px;background:var(--c-border);border-radius:4px;overflow:hidden;">
+            <div style="height:100%;width:${pct}%;background:var(--c-alpine);border-radius:4px;transition:width 0.4s;"></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:16px;">
+          <div style="text-align:center;"><div style="font-size:18px;font-weight:700;color:var(--navy);">${totalDual.toFixed(2)}</div><div style="font-size:11px;color:var(--c-muted);">Std Dual</div></div>
+          <div style="text-align:center;"><div style="font-size:18px;font-weight:700;color:var(--c-alpine);">${totalSolo.toFixed(2)}</div><div style="font-size:11px;color:var(--c-muted);">Std Solo</div></div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--c-muted);margin-top:8px;">${curriculum.name} — ${curriculum.ref}</div>
+    `;
+  }
+
+  // Übungen als Karten
+  const listEl = document.getElementById(exercisesContainerId);
+  if (!listEl) return;
+  let html = '';
+  exercises.forEach(ex => {
+    const p = trainingProgress[ex.id] || {};
+    const done = !!p.masteredDate;
+    const dualReq = ex.dual > 0 ? `${ex.dual} Std dual` : '';
+    const soloReq = ex.solo > 0 ? `${ex.solo} Std solo` : '';
+    const reqText = [dualReq, soloReq].filter(Boolean).join(' / ') || 'Bodenübung';
+    const statusIcon = done
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="#2D6A4F" stroke-width="2.5" style="width:20px;height:20px;"><path d="M20 6L9 17l-5-5"/></svg>'
+      : '<div style="width:20px;height:20px;border:2px solid var(--c-border);border-radius:50%;"></div>';
+    const dateStr = done ? new Date(p.masteredDate).toLocaleDateString('de-DE') : '';
+    const hoursStr = (p.dualHours || p.soloHours) ? `${(p.dualHours||0)} D / ${(p.soloHours||0)} S` : '';
+
+    html += `<div style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--c-border);${editable ? 'cursor:pointer;' : ''}" ${editable ? `onclick="openExerciseModal('${ex.id}')"` : ''}>
+      <div style="flex-shrink:0;margin-top:2px;">${statusIcon}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;">
+          <span style="font-size:14px;font-weight:600;color:var(--c-text);">Übung ${ex.id}</span>
+          <span style="font-size:11px;color:var(--c-muted);text-transform:uppercase;">${ex.amc}</span>
+          <span style="font-size:11px;color:var(--c-muted);">${reqText}</span>
+        </div>
+        <div style="font-size:13px;color:var(--c-text);margin-top:2px;">${ex.title}</div>
+        <div style="font-size:12px;color:var(--c-muted);margin-top:1px;">${ex.desc}</div>
+        ${done ? `<div style="font-size:11px;color:#2D6A4F;margin-top:4px;">✓ Beherrscht am ${dateStr}${hoursStr ? ' — ' + hoursStr : ''}${p.note ? ' — ' + p.note : ''}</div>` : ''}
+      </div>
+    </div>`;
+  });
+  listEl.innerHTML = html;
+}
+
+// --- Fluglehrer: Übungsdetail-Modal öffnen ---
+function openExerciseModal(exId) {
+  currentExerciseId = exId;
+  const ex = SPL_TMG_CURRICULUM.exercises.find(e => e.id === exId);
+  if (!ex) return;
+  const p = trainingProgress[exId] || {};
+  document.getElementById('exModalTitle').textContent = `Übung ${ex.id} — ${ex.title}`;
+  document.getElementById('exModalDesc').textContent = ex.desc;
+  document.getElementById('exDualHours').value = p.dualHours || '';
+  document.getElementById('exSoloHours').value = p.soloHours || '';
+  document.getElementById('exMasteredDate').value = p.masteredDate || '';
+  document.getElementById('exNote').value = p.note || '';
+  document.getElementById('exerciseModal').classList.add('active');
+}
+
+// --- Fluglehrer: Übung speichern ---
+async function saveExerciseProgress() {
+  if (!trainingStudentUid || !currentExerciseId) return;
+  const dualHours = parseFloat(document.getElementById('exDualHours').value) || 0;
+  const soloHours = parseFloat(document.getElementById('exSoloHours').value) || 0;
+  const masteredDate = document.getElementById('exMasteredDate').value || '';
+  const note = document.getElementById('exNote').value.trim();
+  const instructorUid = firebase.auth().currentUser?.uid || '';
+  const instructorName = customerProfile?.name || '';
+
+  const data = {
+    dualHours, soloHours, masteredDate, note,
+    instructorUid, instructorName,
+    updatedAt: Date.now()
+  };
+
+  try {
+    await db.ref('training/' + trainingStudentUid + '/spl-tmg/' + currentExerciseId).set(data);
+    trainingProgress[currentExerciseId] = data;
+    notify('Übung gespeichert.', 'success');
+    closeModal('exerciseModal');
+    renderTrainingExercises('trainingProgress', 'trainingExercises', true);
+  } catch (e) {
+    console.error('Training save error:', e);
+    notify('Fehler beim Speichern.', 'error');
+  }
+}
+
+// --- Flugschüler: Meine Ausbildung rendern ---
+async function renderMyTrainingView() {
+  const uid = firebase.auth().currentUser?.uid;
+  if (!uid) return;
+  const emptyEl = document.getElementById('myTrainingEmpty');
+  const progEl = document.getElementById('myTrainingProgress');
+  const exEl = document.getElementById('myTrainingExercises');
+
+  try {
+    const snap = await db.ref('training/' + uid + '/spl-tmg').once('value');
+    trainingProgress = snap.val() || {};
+    // Prüfen ob überhaupt Einträge existieren
+    const hasData = Object.keys(trainingProgress).length > 0;
+    if (emptyEl) emptyEl.style.display = hasData ? 'none' : 'block';
+    if (progEl) progEl.style.display = hasData ? '' : 'none';
+    if (exEl) exEl.style.display = hasData ? '' : 'none';
+    if (hasData) {
+      renderTrainingExercises('myTrainingProgress', 'myTrainingExercises', false);
+    }
+  } catch (e) {
+    console.warn('Meine Ausbildung laden fehlgeschlagen:', e);
+    if (emptyEl) emptyEl.style.display = 'block';
+  }
+}
+
 // Enter-Taste im Einladungs-Formular
 document.addEventListener('DOMContentLoaded', () => {
   ['invName', 'invEmail'].forEach(id => {
@@ -5528,10 +5821,15 @@ function devApplyPerspective() {
   const isStaffOrAdmin = p === 'team' || p === 'admin';
   const isFluglehrer = p === 'guestGlider' || p === 'guestMotor';
 
-  // Fluglehrer-spezifische Tabs (Schüler-Buchungen, Theorie, Nachrichten)
-  // Team/Admin nutzen diese Features über staff.html ("Verwaltung")
+  // Fluglehrer-spezifische Tabs (Schüler-Buchungen, Theorie, Nachrichten, Ausbildung)
   document.querySelectorAll('.fluglehrer-only').forEach(el => {
     el.style.display = isFluglehrer ? '' : 'none';
+  });
+
+  // Flugschüler-Tab (Meine Ausbildung): im Dev-Modus bei Kunde-Perspektive anzeigen
+  const isKunde = p === 'kunde';
+  document.querySelectorAll('.student-only').forEach(el => {
+    el.style.display = isKunde ? '' : 'none';
   });
 
   // Verwaltung-Button (Link zu staff.html)
@@ -5545,8 +5843,14 @@ function devApplyPerspective() {
 
   // Wenn kein Fluglehrer und gerade auf einer Fluglehrer-View → zurück zum Kalender
   if (!isFluglehrer) {
-    const flViews = ['theoryView', 'studentBookingsView', 'messagesView'];
+    const flViews = ['theoryView', 'studentBookingsView', 'messagesView', 'trainingView'];
     if (flViews.some(id => document.getElementById(id)?.style.display !== 'none')) {
+      showView('calendar');
+    }
+  }
+  // Wenn kein Schüler und gerade auf myTraining → zurück zum Kalender
+  if (!isKunde) {
+    if (document.getElementById('myTrainingView')?.style.display !== 'none') {
       showView('calendar');
     }
   }
@@ -6858,8 +7162,10 @@ firebase.auth().onAuthStateChanged(async (user) => {
           // Fluglehrer-Tabs anzeigen
           document.getElementById('tabStudentBookings')?.style.removeProperty('display');
           document.getElementById('tabTheory')?.style.removeProperty('display');
+          document.getElementById('tabTraining')?.style.removeProperty('display');
           document.getElementById('mobileTabStudentBookings')?.style.removeProperty('display');
           document.getElementById('mobileTabTheory')?.style.removeProperty('display');
+          document.getElementById('mobileTabTraining')?.style.removeProperty('display');
         }
 
         // Staff-User auch als Kunde behandeln (E-Mail automatisch verifiziert)
@@ -6887,10 +7193,17 @@ firebase.auth().onAuthStateChanged(async (user) => {
       } else {
         customerProfile = { name: user.displayName || '', email: user.email || '' };
       }
-      // Meine Buchungen Tab sichtbar machen
+      // Kunden-Tabs sichtbar machen
       document.getElementById('tabMyBookings')?.classList.add('auth-revealed');
       document.getElementById('mobileTabMyBookings')?.classList.add('auth-revealed');
+      document.getElementById('tabDocuments')?.classList.add('auth-revealed');
+      document.getElementById('mobileTabDocuments')?.classList.add('auth-revealed');
       document.getElementById('mainViewTabs')?.classList.add('has-customer-tabs');
+      // Flugschüler: Meine Ausbildung Tab anzeigen
+      if (customerProfile.customerType === 'student') {
+        document.getElementById('tabMyTraining')?.style.removeProperty('display');
+        document.getElementById('mobileTabMyTraining')?.style.removeProperty('display');
+      }
       updateCustomerButton();
     } catch (e) { console.warn('Auth-Check fehlgeschlagen:', e); }
     renderView();
@@ -6908,8 +7221,9 @@ firebase.auth().onAuthStateChanged(async (user) => {
     if (staffBtn) staffBtn.style.display = 'none';
     const mobileStaffBtn = document.getElementById('mobileStaffAdminBtn');
     if (mobileStaffBtn) mobileStaffBtn.style.display = 'none';
-    // Fluglehrer-Tabs ausblenden
+    // Fluglehrer-Tabs und Student-Tabs ausblenden
     document.querySelectorAll('.fluglehrer-only').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('.student-only').forEach(el => el.style.display = 'none');
     if (customerAuthBtn) customerAuthBtn.style.display = '';
     // Immer zurück zum Kalender nach Logout
     showView('calendar');
