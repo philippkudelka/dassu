@@ -40,6 +40,7 @@
 <title>DASSU - Buchungskalender</title>
 <link rel="icon" type="image/png" href="https://images.squarespace-cdn.com/content/v1/5a6084aad0e628eab9591587/66b4214a-b88b-427c-8350-c5907ffdcda4/DASSU-Logo+2022+web+768x768+2.png?format=32w">
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
@@ -2138,6 +2139,12 @@
     </div>
     <div id="trainingContent" style="display:none;">
       <div id="trainingProgress" style="margin-bottom:20px;"></div>
+      <div style="margin-bottom:16px;text-align:right;">
+        <button onclick="exportTrainingXlsx()" class="btn" style="font-size:13px;padding:8px 16px;background:var(--c-alpine);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px;"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export als Excel
+        </button>
+      </div>
       <div id="trainingExercises"></div>
     </div>
   </div>
@@ -2149,6 +2156,12 @@
     <h2>Meine Ausbildung</h2>
     <p class="mb-subtitle">Erweiterung SPL auf TMG — AMC1 SFCL.150</p>
     <div id="myTrainingProgress" style="margin-bottom:20px;"></div>
+    <div style="margin-bottom:16px;text-align:right;">
+      <button onclick="exportTrainingXlsx()" class="btn" style="font-size:13px;padding:8px 16px;background:var(--c-alpine);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px;"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export als Excel
+      </button>
+    </div>
     <div id="myTrainingExercises"></div>
     <div id="myTrainingEmpty" style="display:none;">
       <p style="color:var(--c-muted);padding:24px 0;">Dir wurde noch kein Ausbildungsnachweis zugewiesen. Bitte wende dich an deinen Fluglehrer.</p>
@@ -5776,6 +5789,133 @@ async function quickSaveTraining(exId, field) {
     console.error('Quick save error:', e);
     notify('Fehler: ' + e.message, 'error');
   }
+}
+
+// --- Excel-Export: Ausbildungsnachweis im VA-Template-Format ---
+function exportTrainingXlsx() {
+  // Funktioniert für Fluglehrer (trainingStudentUid gesetzt) und Schüler (eigene UID)
+  const uid = trainingStudentUid || firebase.auth().currentUser?.uid;
+  if (!uid || !trainingProgress || Object.keys(trainingProgress).length === 0) {
+    notify('Keine Ausbildungsdaten vorhanden.', 'error');
+    return;
+  }
+
+  // Schüler-Name ermitteln
+  const sel = document.getElementById('trainingStudentSelect');
+  const studentName = (sel && sel.value) ? (sel.options[sel.selectedIndex]?.text || 'Unbekannt') : (customerProfile?.name || 'Unbekannt');
+  const nameParts = studentName.split(' ');
+  const vorname = nameParts.length > 1 ? nameParts[0] : studentName;
+  const nachname = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+
+  const curriculum = SPL_TMG_CURRICULUM;
+  const exercises = curriculum.exercises;
+
+  // Gesamtstunden berechnen
+  let totalDual = 0, totalSolo = 0;
+  exercises.forEach(ex => {
+    const p = trainingProgress[ex.id];
+    if (p) {
+      totalDual += parseFloat(p.dualHours || 0);
+      totalSolo += parseFloat(p.soloHours || 0);
+    }
+  });
+
+  // Daten aufbauen (AOA = Array of Arrays)
+  const data = [];
+
+  // Titel-Zeilen (Header-Block)
+  data.push(['Deutsche Alpensegelflugschule', '', '', '', 'Unterwössen']);
+  data.push(['Lehrplan und Ausbildungsnachweis Erweiterung', '', '', '', 'einer SPL auf TMG']);
+  data.push(['gem. SFCL.150 b); AMC1 SFCL.150 b)']);
+  data.push([]); // Leerzeile
+
+  // Schüler-Daten
+  data.push(['Name:', nachname, '', 'Vorname:', vorname]);
+  data.push(['Ausbildungsbeginn:', '', '', '', '']);
+  data.push([]); // Leerzeile
+
+  // Tabellen-Header
+  data.push([
+    'Übung', 'AMC1', 'dual Std', 'solo Std',
+    'Übungsinhalt und Lernziel',
+    'Beherrscht/\nDatum', 'Flugzeit mit\nLehrer', 'Flugzeit Solo',
+    'Lehrer Nr.', 'Fluglehrer, Name', 'Unterschrift'
+  ]);
+
+  // Übungszeilen
+  exercises.forEach(ex => {
+    const p = trainingProgress[ex.id] || {};
+    const masteredDate = p.masteredDate ? new Date(p.masteredDate).toLocaleDateString('de-DE') : '';
+    const flightDual = p.dualHours ? parseFloat(p.dualHours) : '';
+    const flightSolo = p.soloHours ? parseFloat(p.soloHours) : '';
+    const instrName = p.instructorName || '';
+
+    data.push([
+      ex.id,
+      ex.amc,
+      ex.dual > 0 ? ex.dual : '',
+      ex.solo > 0 ? ex.solo : '',
+      ex.title + (ex.desc ? '\n' + ex.desc : ''),
+      masteredDate,
+      flightDual,
+      flightSolo,
+      '', // Lehrer Nr. (nicht in Firebase gespeichert)
+      instrName,
+      '' // Unterschrift
+    ]);
+  });
+
+  // Summenzeile
+  data.push([]);
+  data.push([
+    '', '', totalDual.toFixed(2), totalSolo.toFixed(2),
+    'gesamt Std.:', '', totalDual.toFixed(2), totalSolo.toFixed(2),
+    '', '', ''
+  ]);
+
+  // Unterschrift Ausbildungsleiter
+  data.push([]);
+  data.push(['Unterschrift Ausbildungsleiter:', '', '', '', '', '', '', '', '', '', '']);
+
+  // Fußnote
+  data.push([]);
+  data.push(['* Die Übungen dienen als Richtlinie und müssen nicht in der gelisteten Reihenfolge abgearbeitet werden.']);
+
+  // Workbook erstellen
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(data);
+
+  // Spaltenbreiten setzen
+  ws['!cols'] = [
+    { wch: 8 },   // A: Übung
+    { wch: 6 },   // B: AMC1
+    { wch: 9 },   // C: dual Std
+    { wch: 9 },   // D: solo Std
+    { wch: 45 },  // E: Übungsinhalt
+    { wch: 14 },  // F: Beherrscht/Datum
+    { wch: 14 },  // G: Flugzeit Lehrer
+    { wch: 14 },  // H: Flugzeit Solo
+    { wch: 10 },  // I: Lehrer Nr.
+    { wch: 20 },  // J: Fluglehrer Name
+    { wch: 14 }   // K: Unterschrift
+  ];
+
+  // Header-Zeilen zusammenführen
+  ws['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }, // Titel links
+    { s: { r: 0, c: 4 }, e: { r: 0, c: 10 } }, // Titel rechts
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 3 } },
+    { s: { r: 1, c: 4 }, e: { r: 1, c: 10 } },
+    { s: { r: 2, c: 0 }, e: { r: 2, c: 10 } },
+  ];
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Tabelle1');
+
+  // Dateiname mit Schülernamen
+  const safeName = studentName.replace(/[^a-zA-ZäöüÄÖÜß\s-]/g, '').replace(/\s+/g, '_');
+  const filename = `7_Lehrplan_Erweiterung_SPL_auf_TMG_${safeName}.xlsx`;
+  XLSX.writeFile(wb, filename);
+  notify('Ausbildungsnachweis als Excel exportiert.', 'success');
 }
 
 // --- Fluglehrer: Übungsdetail-Modal öffnen ---
