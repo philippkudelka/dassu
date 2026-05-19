@@ -303,11 +303,20 @@ async function lookupVfUserViaStaff(vfUsername) {
 
 // ---- Handler ----
 
+const ALLOWED_ORIGIN = 'https://dassu-buchungskalender.netlify.app';
+
+// Actions die VF-Credentials/firebaseToken aus dem Body nutzen — diese verifizieren den User selbst.
+const PERSONAL_ACTIONS = new Set(['saveVfCredentials', 'deleteVfCredentials', 'getVfStatus', 'memberFlights']);
+// Staff-Actions erfordern admin- oder team-Rolle.
+const STAFF_ONLY_ACTIONS = new Set(['flights', 'aircraft', 'instructors', 'instructorStats', 'yearCompare']);
+// "members" benötigt nur Authentifizierung (Member-Frontend nutzt es für Auswahllisten).
+
 exports.handler = async (event) => {
   const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Vary': 'Origin',
     'Content-Type': 'application/json'
   };
 
@@ -328,6 +337,34 @@ exports.handler = async (event) => {
 
   const { action } = body;
   let accesstoken;
+
+  // ============================================================
+  // Auth-Gate für nicht-persönliche Actions (members, staff actions)
+  // ============================================================
+  if (!PERSONAL_ACTIONS.has(action)) {
+    const authHeader = event.headers.authorization || event.headers.Authorization || '';
+    const idToken = authHeader.replace(/^Bearer\s+/i, '').trim();
+    if (!idToken) {
+      return { statusCode: 401, headers, body: JSON.stringify({ ok: false, error: 'Kein Auth-Token' }) };
+    }
+    let callerUid;
+    try {
+      initFirebase();
+      const decoded = await admin.auth().verifyIdToken(idToken);
+      callerUid = decoded.uid;
+    } catch (_) {
+      return { statusCode: 401, headers, body: JSON.stringify({ ok: false, error: 'Ungültiger Token' }) };
+    }
+    // Für Staff-Actions zusätzlich Rolle prüfen
+    if (STAFF_ONLY_ACTIONS.has(action)) {
+      const snap = await admin.database().ref('staffUsers/' + callerUid).once('value');
+      const profile = snap.val();
+      const role = profile && profile.role;
+      if (role !== 'admin' && role !== 'team') {
+        return { statusCode: 403, headers, body: JSON.stringify({ ok: false, error: 'Keine Berechtigung' }) };
+      }
+    }
+  }
 
   try {
     // ============================================================

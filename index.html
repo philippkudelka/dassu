@@ -2976,7 +2976,6 @@ let viewMode = 'day'; // 'day' or 'week'
 
 // Settings
 let settings = {
-  password: 'admin123',
   aircraft: [...DEFAULT_AIRCRAFT],
   emailServiceId: 'service_v2wd3ji',
   emailTemplateId: 'template_4yxxj22',
@@ -3095,17 +3094,27 @@ function loadData() {
   }, () => {});
 }
 
+// Schreibt nur globale Settings + LocalStorage-Fallback.
+// Bookings werden über saveBooking()/deleteBookingFromDb() per-ID geschrieben,
+// damit parallele Schreibvorgänge sich nicht überschreiben.
 function saveData() {
   try {
-    // Firebase: Bookings als Objekt mit ID als Key speichern
-    const bookingsObj = {};
-    bookings.forEach(b => { bookingsObj[b.id] = b; });
-    db.ref('bookings').set(bookingsObj);
     db.ref('settings').set(settings);
-    // Lokaler Fallback
     localStorage.setItem('flugkalender_bookings', JSON.stringify(bookings));
     localStorage.setItem('flugkalender_settings', JSON.stringify(settings));
   } catch(e) { console.error('Fehler beim Speichern:', e); }
+}
+
+function saveBooking(b) {
+  if (!b || !b.id) return Promise.reject(new Error('Buchung ohne ID'));
+  try { localStorage.setItem('flugkalender_bookings', JSON.stringify(bookings)); } catch(_) {}
+  return db.ref('bookings/' + b.id).set(b);
+}
+
+function deleteBookingFromDb(id) {
+  if (!id) return Promise.reject(new Error('ID fehlt'));
+  try { localStorage.setItem('flugkalender_bookings', JSON.stringify(bookings)); } catch(_) {}
+  return db.ref('bookings/' + id).remove();
 }
 
 // ============================================================
@@ -4416,16 +4425,17 @@ function showBookingConfirmation() {
   }
 
   // Show confirmation step
+  const commentVal = document.getElementById('bookingComment').value.trim();
   const summaryHtml = `
     <div style="display:grid; grid-template-columns:auto 1fr; gap:6px 16px; font-size:14px;">
-      <span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Flugzeug</span><span style="font-weight:600;">${modal._aircraft}</span>
-      <span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Datum</span><span>${formatDate(new Date(modal._date + 'T12:00:00'))}</span>
-      <span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Uhrzeit</span><span>${startTime} – ${endTime}</span>
-      <span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Name</span><span>${name}</span>
-      <span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">E-Mail</span><span>${email}</span>
-      ${phone ? `<span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Telefon</span><span>${phone}</span>` : ''}
+      <span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Flugzeug</span><span style="font-weight:600;">${escapeHtml(modal._aircraft)}</span>
+      <span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Datum</span><span>${escapeHtml(formatDate(new Date(modal._date + 'T12:00:00')))}</span>
+      <span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Uhrzeit</span><span>${escapeHtml(startTime)} – ${escapeHtml(endTime)}</span>
+      <span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Name</span><span>${escapeHtml(name)}</span>
+      <span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">E-Mail</span><span>${escapeHtml(email)}</span>
+      ${phone ? `<span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Telefon</span><span>${escapeHtml(phone)}</span>` : ''}
       <span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Fluglehrer</span><span>${instructor === 'ja' ? 'Ja, benötigt' : 'Nein'}</span>
-      ${document.getElementById('bookingComment').value.trim() ? `<span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Bemerkung</span><span>${document.getElementById('bookingComment').value.trim()}</span>` : ''}
+      ${commentVal ? `<span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Bemerkung</span><span>${escapeHtml(commentVal)}</span>` : ''}
     </div>
   `;
   document.getElementById('bookingConfirmSummary').innerHTML = summaryHtml;
@@ -4466,7 +4476,7 @@ function submitBooking() {
   };
 
   bookings.push(booking);
-  saveData();
+  saveBooking(booking);
   closeModal('bookingModal');
   // Reset steps for next time
   document.getElementById('bookingStep1').style.display = 'block';
@@ -4481,14 +4491,17 @@ function submitBooking() {
 
 }
 
-function sendStaffPushNotification(booking) {
+async function sendStaffPushNotification(booking) {
   try {
+    const user = firebase.auth().currentUser;
+    if (!user) return; // anonyme Buchungen lösen aktuell keinen Push aus
+    const token = await user.getIdToken();
     const time = (booking.startTime && booking.endTime) ? `${booking.startTime}–${booking.endTime}` : (booking.slot || '');
     const title = 'Neue Buchungsanfrage';
     const body = `${booking.name} · ${booking.aircraft} · ${booking.date} ${time}`;
     fetch('/.netlify/functions/send-push', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
       body: JSON.stringify({ title, body, bookingId: booking.id })
     }).catch(e => console.warn('Push senden fehlgeschlagen:', e));
   } catch(e) { console.warn(e); }
@@ -4513,10 +4526,10 @@ function showDetail(id) {
   const isNotRejected = b.status !== 'rejected';
 
   let html = `
-    <div class="booking-detail"><div class="label">Flugzeug</div><div class="value">${b.aircraft}</div></div>
-    <div class="booking-detail"><div class="label">Datum</div><div class="value">${b.date}</div></div>
-    <div class="booking-detail"><div class="label">Uhrzeit</div><div class="value">${timeDisplay}</div></div>
-    <div class="booking-detail"><div class="label">Status</div><div class="value"><span class="status-badge ${b.status}">${statusLabels[b.status]}</span></div></div>
+    <div class="booking-detail"><div class="label">Flugzeug</div><div class="value">${escapeHtml(b.aircraft)}</div></div>
+    <div class="booking-detail"><div class="label">Datum</div><div class="value">${escapeHtml(b.date)}</div></div>
+    <div class="booking-detail"><div class="label">Uhrzeit</div><div class="value">${escapeHtml(timeDisplay)}</div></div>
+    <div class="booking-detail"><div class="label">Status</div><div class="value"><span class="status-badge ${escapeAttr(b.status)}">${escapeHtml(statusLabels[b.status] || b.status)}</span></div></div>
   `;
 
   if (isOwn && isNotRejected) {
@@ -4536,8 +4549,9 @@ function showDetail(id) {
 function deleteBookingFromDetail() {
   if (!detailBookingId) return;
   if (!confirm('Buchung wirklich löschen?')) return;
-  bookings = bookings.filter(b => b.id !== detailBookingId);
-  saveData();
+  const id = detailBookingId;
+  bookings = bookings.filter(b => b.id !== id);
+  deleteBookingFromDb(id);
   closeModal('detailModal');
   renderCalendar();
   renderAdminTable();
@@ -4550,7 +4564,7 @@ function editBookingFromDetail(id) {
 
   // Build aircraft options
   const aircraftOpts = settings.aircraft.map(a =>
-    `<option value="${a}"${a === b.aircraft ? ' selected' : ''}>${a}</option>`
+    `<option value="${escapeAttr(a)}"${a === b.aircraft ? ' selected' : ''}>${escapeHtml(a)}</option>`
   ).join('');
 
   // Build time options
@@ -4567,19 +4581,19 @@ function editBookingFromDetail(id) {
   let html = `
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
       <div><div class="label" style="font-size:10px;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:4px;">Flugzeug</div><select id="editAircraft" class="edit-field">${aircraftOpts}</select></div>
-      <div><div class="label" style="font-size:10px;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:4px;">Datum</div><input type="date" id="editDate" class="edit-field" value="${b.date}"></div>
+      <div><div class="label" style="font-size:10px;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:4px;">Datum</div><input type="date" id="editDate" class="edit-field" value="${escapeAttr(b.date)}"></div>
       <div><div class="label" style="font-size:10px;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:4px;">Von</div><select id="editFrom" class="edit-field">${fromOpts}</select></div>
       <div><div class="label" style="font-size:10px;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:4px;">Bis</div><select id="editTo" class="edit-field">${toOpts}</select></div>
     </div>
     <div style="display:grid; gap:10px;">
-      <div><div class="label" style="font-size:10px;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:4px;">Name</div><input type="text" id="editName" class="edit-field" value="${b.name}"></div>
+      <div><div class="label" style="font-size:10px;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:4px;">Name</div><input type="text" id="editName" class="edit-field" value="${escapeAttr(b.name)}"></div>
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-        <div><div class="label" style="font-size:10px;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:4px;">E-Mail</div><input type="email" id="editEmail" class="edit-field" value="${b.email || ''}"></div>
-        <div><div class="label" style="font-size:10px;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:4px;">Telefon</div><input type="tel" id="editPhone" class="edit-field" value="${b.phone || ''}"></div>
+        <div><div class="label" style="font-size:10px;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:4px;">E-Mail</div><input type="email" id="editEmail" class="edit-field" value="${escapeAttr(b.email || '')}"></div>
+        <div><div class="label" style="font-size:10px;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:4px;">Telefon</div><input type="tel" id="editPhone" class="edit-field" value="${escapeAttr(b.phone || '')}"></div>
       </div>
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
         <div><div class="label" style="font-size:10px;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:4px;">Fluglehrer</div><select id="editInstructor" class="edit-field" onchange="document.getElementById('editInstructorNameRow').style.display = this.value === 'ja' ? '' : 'none';"><option value="nein"${instrSel('nein')}>Nein</option><option value="ja"${instrSel('ja')}>Ja</option></select></div>
-        <div id="editInstructorNameRow" style="display:${b.instructor === 'ja' ? '' : 'none'};"><div class="label" style="font-size:10px;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:4px;">Lehrer</div><div class="ac-wrap" style="position:relative;"><input type="text" id="editInstructorName" class="edit-field" value="${b.instructorName || ''}" placeholder="Name (optional)" autocomplete="nope" oninput="acFilterFluglehrer('editInstructorName')" onfocus="acFilterFluglehrer('editInstructorName')" onkeydown="acKeydownFl(event,'editInstructorName')"><div class="ac-list" id="editInstructorName-ac" style="position:absolute;top:100%;left:0;right:0;max-height:200px;overflow-y:auto;background:var(--white,#fff);border:2px solid var(--primary);border-top:none;border-radius:0 0 8px 8px;z-index:1000;display:none;box-shadow:0 8px 24px rgba(0,0,0,0.12);"></div></div></div>
+        <div id="editInstructorNameRow" style="display:${b.instructor === 'ja' ? '' : 'none'};"><div class="label" style="font-size:10px;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:4px;">Lehrer</div><div class="ac-wrap" style="position:relative;"><input type="text" id="editInstructorName" class="edit-field" value="${escapeAttr(b.instructorName || '')}" placeholder="Name (optional)" autocomplete="nope" oninput="acFilterFluglehrer('editInstructorName')" onfocus="acFilterFluglehrer('editInstructorName')" onkeydown="acKeydownFl(event,'editInstructorName')"><div class="ac-list" id="editInstructorName-ac" style="position:absolute;top:100%;left:0;right:0;max-height:200px;overflow-y:auto;background:var(--white,#fff);border:2px solid var(--primary);border-top:none;border-radius:0 0 8px 8px;z-index:1000;display:none;box-shadow:0 8px 24px rgba(0,0,0,0.12);"></div></div></div>
       </div>
     </div>
     <div style="margin-top:16px; display:flex; gap:8px;">
@@ -4671,7 +4685,7 @@ function saveBookingEdit(id) {
   b.instructor = document.getElementById('editInstructor').value;
   b.instructorName = b.instructor === 'ja' ? (document.getElementById('editInstructorName').value.trim() || '') : '';
 
-  saveData();
+  saveBooking(b);
   renderView();
   renderAdminTable();
   closeModal('detailModal');
@@ -4682,7 +4696,7 @@ function updateStatus(id, status) {
   const b = bookings.find(x => x.id === id);
   if (b) {
     b.status = status;
-    saveData();
+    saveBooking(b);
     closeModal('detailModal');
     renderCalendar();
     renderAdminTable();
@@ -5217,7 +5231,7 @@ function renderMyBookings() {
     const isPast = d < today;
     const status = b.status || 'pending';
     const canCancel = (status === 'pending' || status === 'approved') && !isPast;
-    const instructor = b.instructor ? `<span>\u2708 ${b.instructor}</span>` : '';
+    const instructor = b.instructor ? `<span>\u2708 ${escapeHtml(b.instructor)}</span>` : '';
     const createdDate = b.createdAt ? new Date(b.createdAt) : null;
     const createdStr = createdDate ? `Gebucht am ${createdDate.getDate()}.${createdDate.getMonth()+1}.${createdDate.getFullYear()}` : '';
 
@@ -5225,8 +5239,8 @@ function renderMyBookings() {
       <div class="mb-card" style="${isPast && status !== 'cancelled' && status !== 'rejected' ? 'opacity:0.7;' : ''}">
         <div class="mb-card-header">
           <div>
-            <div class="mb-card-aircraft">${b.aircraft || ''}</div>
-            <div class="mb-card-date">${dateStr}</div>
+            <div class="mb-card-aircraft">${escapeHtml(b.aircraft || '')}</div>
+            <div class="mb-card-date">${escapeHtml(dateStr)}</div>
           </div>
           <div style="text-align:right;">
             <span class="mb-card-status ${status}">${statusLabels[status] || status}</span>
@@ -5487,6 +5501,8 @@ function renderInvitations() {
 }
 
 function escapeAttr(s) { return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+// Alias: escapeHtml escaped dieselben Zeichen — sicher für Text-Inhalt UND Attributwerte.
+function escapeHtml(s) { return escapeAttr(s); }
 
 function createInvitation() {
   const nameEl = document.getElementById('invName');
@@ -6673,9 +6689,10 @@ async function resendVerifFromLogin() {
     const cred = await firebase.auth().signInWithEmailAndPassword(em.value, pw.value);
     // Gebrandete Mail \u00fcber Brevo
     try {
+      const token = await cred.user.getIdToken();
       const vRes = await fetch('/.netlify/functions/send-verification', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
         body: JSON.stringify({ email: em.value, name: cred.user.displayName || '' })
       });
       if (!vRes.ok) throw new Error('API failed');
@@ -6730,9 +6747,10 @@ async function customerRegister() {
     {
       let emailSent = false;
       try {
+        const token = await cred.user.getIdToken();
         const vRes = await fetch('/.netlify/functions/send-verification', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
           body: JSON.stringify({ email, name })
         });
         if (!vRes.ok) throw new Error('Verification API failed');
@@ -6829,9 +6847,10 @@ async function resendVerificationEmail() {
   if (!user) return;
   try {
     // Gebrandete Mail \u00fcber Brevo
+    const token = await user.getIdToken();
     const vRes = await fetch('/.netlify/functions/send-verification', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
       body: JSON.stringify({ email: user.email, name: user.displayName || '' })
     });
     if (!vRes.ok) throw new Error('API failed');
@@ -7622,7 +7641,7 @@ function submitQuickBook() {
     createdAt: new Date().toISOString()
   };
   bookings.push(booking);
-  saveData();
+  saveBooking(booking);
   closeQuickBook();
   renderView();
   notify(`${name} gebucht: ${aircraft} ${startTime}–${endTime}`, 'success');
@@ -7650,15 +7669,17 @@ async function loadVfMembers() {
     const cachedAt = parseInt(localStorage.getItem('vfMembersCachedAt') || '0');
     if (cached && (Date.now() - cachedAt) < 86400000) {
       vfMembers = JSON.parse(cached);
-      console.log(`VF-Mitglieder aus Cache: ${vfMembers.length}`);
       return;
     }
   } catch (_) {}
 
   try {
+    const user = firebase.auth().currentUser;
+    if (!user) return; // Nur eingeloggte User dürfen Mitgliederliste laden
+    const token = await user.getIdToken();
     const res = await fetch('/.netlify/functions/vereinsflieger-sync', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
       body: JSON.stringify({ action: 'members' })
     });
     const json = await res.json();
@@ -7669,15 +7690,14 @@ async function loadVfMembers() {
       }).filter(Boolean);
       localStorage.setItem('vfMembers', JSON.stringify(vfMembers));
       localStorage.setItem('vfMembersCachedAt', String(Date.now()));
-      console.log(`VF-Mitglieder geladen: ${vfMembers.length}`);
     }
   } catch (err) {
     console.warn('VF-Mitglieder laden fehlgeschlagen:', err);
   }
 }
 
-// Mitglieder beim Laden der Seite holen
-loadVfMembers();
+// Mitglieder werden nach erfolgreichem Login geladen (siehe auth.onAuthStateChanged)
+firebase.auth().onAuthStateChanged(u => { if (u) loadVfMembers(); });
 
 // ── Schnellbuchung Autocomplete ──
 let qbAcIdx = -1;

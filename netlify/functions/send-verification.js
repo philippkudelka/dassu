@@ -2,6 +2,7 @@
 // und sendet eine gebrandete HTML-Mail über Brevo SMTP
 //
 // POST body: { email: "...", name: "..." }
+// Header: Authorization: Bearer <firebaseIdToken>
 // Erfordert Umgebungsvariablen:
 //   FIREBASE_SERVICE_ACCOUNT  - JSON des Service Accounts
 //   FIREBASE_DATABASE_URL     - Firebase DB URL
@@ -10,6 +11,17 @@
 
 const admin = require('firebase-admin');
 const nodemailer = require('nodemailer');
+
+const ALLOWED_ORIGIN = 'https://dassu-buchungskalender.netlify.app';
+
+function corsHeaders() {
+  return {
+    'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Vary': 'Origin'
+  };
+}
 
 let initialized = false;
 function initFirebase() {
@@ -25,16 +37,21 @@ function initFirebase() {
   initialized = true;
 }
 
+// Modul-scoped, damit TCP/TLS-Verbindung über Cold-Starts wiederverwendet wird
+let _transporter = null;
 function getTransporter() {
-  return nodemailer.createTransport({
+  if (_transporter) return _transporter;
+  _transporter = nodemailer.createTransport({
     host: 'smtp-relay.brevo.com',
     port: 587,
     secure: false,
+    pool: true,
     auth: {
       user: process.env.BREVO_SMTP_USER,
       pass: process.env.BREVO_SMTP_PASS
     }
   });
+  return _transporter;
 }
 
 function buildEmail(name, verifyLink) {
@@ -100,24 +117,36 @@ function buildEmail(name, verifyLink) {
 }
 
 exports.handler = async function(event) {
-  const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type'
-  };
+  const headers = corsHeaders();
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
   if (event.httpMethod !== 'POST') return { statusCode: 405, headers, body: 'Method Not Allowed' };
 
   try {
+    initFirebase();
+
+    // Auth: nur der Account-Owner darf seine eigene Verifikations-Mail anfordern
+    const authHeader = event.headers.authorization || event.headers.Authorization || '';
+    const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+    if (!token) return { statusCode: 401, headers, body: JSON.stringify({ error: 'Kein Auth-Token' }) };
+
+    let decoded;
+    try {
+      decoded = await admin.auth().verifyIdToken(token);
+    } catch (_) {
+      return { statusCode: 401, headers, body: JSON.stringify({ error: 'Ungültiger Token' }) };
+    }
+
     const { email, name } = JSON.parse(event.body || '{}');
     if (!email) return { statusCode: 400, headers, body: JSON.stringify({ error: 'email fehlt' }) };
 
-    // Prüfe Brevo-Credentials
+    // Token-Email muss zur angefragten Email passen (User darf nur eigene Mail neu senden lassen)
+    if ((decoded.email || '').toLowerCase() !== String(email).toLowerCase()) {
+      return { statusCode: 403, headers, body: JSON.stringify({ error: 'Nicht autorisiert für diese E-Mail' }) };
+    }
+
     if (!process.env.BREVO_SMTP_USER || !process.env.BREVO_SMTP_PASS) {
       return { statusCode: 500, headers, body: JSON.stringify({ error: 'BREVO SMTP nicht konfiguriert' }) };
     }
-
-    initFirebase();
 
     // Verifikationslink generieren
     const verifyLink = await admin.auth().generateEmailVerificationLink(email, {
@@ -126,8 +155,7 @@ exports.handler = async function(event) {
     });
 
     // E-Mail über Brevo senden
-    const transporter = getTransporter();
-    await transporter.sendMail({
+    await getTransporter().sendMail({
       from: '"DASSU Buchungskalender" <info@dassu.de>',
       to: email,
       subject: 'Bestätige deine E-Mail-Adresse – DASSU Buchungskalender',
@@ -137,6 +165,6 @@ exports.handler = async function(event) {
     return { statusCode: 200, headers, body: JSON.stringify({ ok: true }) };
   } catch (err) {
     console.error('send-verification error:', err);
-    return { statusCode: 500, headers, body: JSON.stringify({ error: err.message }) };
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Interner Fehler' }) };
   }
 };

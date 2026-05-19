@@ -478,6 +478,8 @@ body { font-family: var(--font); background: var(--c-bg); color: var(--c-ink); m
 .btn-mg-promote { background: var(--accent); color: var(--navy); }
 .btn-mg-demote { background: var(--c-paper); color: var(--navy); border: 1px solid var(--gray-300) !important; }
 .btn-mg-delete { background: #fdecec; color: var(--danger); }
+.team-row-delete { background: transparent; border: 1px solid #f3c2c2; color: var(--danger); width: 28px; height: 28px; border-radius: 50%; cursor: pointer; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; padding: 0; margin-right: 4px; transition: all 0.15s; }
+.team-row-delete:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
 .btn-mg-perms { background: var(--c-paper); color: var(--navy); border: 1px solid var(--gray-300) !important; }
 
 /* Per-user permissions panel */
@@ -2157,7 +2159,7 @@ function updateUserUI() {
   if (!currentUser) return;
   document.getElementById('headerAvatar').textContent = currentUser.name.charAt(0).toUpperCase();
   const liveUser = staffUsers.find(x => x.id === currentUser.id) || currentUser;
-  document.getElementById('headerUserName').innerHTML = liveUser.name + roleBadge(liveUser.role);
+  document.getElementById('headerUserName').innerHTML = escapeHtml(liveUser.name) + roleBadge(liveUser.role);
   // Admin-Menupunkt sichtbar?
   const mgmtItem = document.getElementById('userMgmtMenuItem');
   if (mgmtItem) mgmtItem.style.display = currentUserHas('manageUsers') ? '' : 'none';
@@ -3243,13 +3245,13 @@ function renderBookingItem(b) {
   const time = (b.startTime && b.endTime) ? `${b.startTime}–${b.endTime}` : (b.slot || '');
   const instrLabel = b.instructor === 'ja' ? (b.instructorName ? ` · ${b.instructorName}` : ' · Lehrer') : '';
   const statusLabel = b.status === 'pending' ? ' (Angefragt)' : (b.status === 'rejected' ? ' (Abgelehnt)' : '');
-  const inner = `<div class="${cls}" onclick="showDetail('${b.id}')">
-    <div class="bi-time">${time}</div>
+  const inner = `<div class="${cls}" onclick="showDetail('${escapeAttr(b.id)}')">
+    <div class="bi-time">${escapeHtml(time)}</div>
     <div class="bi-info">
-      <div class="bi-name">${b.name}${statusLabel}</div>
-      <div class="bi-meta">${formatDateShort(b.date)}${instrLabel}</div>
+      <div class="bi-name">${escapeHtml(b.name || '')}${statusLabel}</div>
+      <div class="bi-meta">${escapeHtml(formatDateShort(b.date))}${instrLabel}</div>
     </div>
-    <div class="bi-aircraft">${b.aircraft}</div>
+    <div class="bi-aircraft">${escapeHtml(b.aircraft || '')}</div>
   </div>`;
   const canApprove = b.status === 'pending';
   return `<div class="swipe-wrap" data-id="${b.id}" data-can-approve="${canApprove ? '1' : '0'}">
@@ -3643,20 +3645,28 @@ function renderTeamView() {
   }
 
   // Compact list rows
+  const adminCount = staffUsers.filter(s => s.role === 'admin').length;
+  const canManage = currentUserHas('manageUsers') || isAdmin();
   el.innerHTML = filtered.map(u => {
     const isCustomer = u._type === 'customer';
     const avatarCls = isCustomer ? 'role-customer' : (u.role === 'admin' ? 'role-admin' : (u.role === 'team' ? 'role-team' : 'role-guest'));
     const badgeCls = isCustomer ? 'badge-customer' : (u.role === 'admin' ? 'badge-admin' : (u.role === 'team' ? 'badge-team' : 'badge-guest'));
     const badgeLabel = isCustomer ? (u.customerType === 'student' ? 'Schüler' : 'Charter') : (roleMeta(u.role).short || roleMeta(u.role).label);
     const isMe = currentUser && u.id === currentUser.id;
+    const isAdm = u.role === 'admin';
     const youTag = isMe ? '<span class="you-tag">(du)</span>' : '';
     const clickFn = `openMemberDetail('${u.id}', ${isCustomer ? 'true' : 'false'})`;
+    const canDelete = canManage && !isMe && !(isAdm && adminCount === 1);
 
     let metaText = escapeHtml(u.email || '\u2014');
     if (isCustomer) {
       const stats = getCustomerStats(u.id);
       if (stats.count > 0) metaText += ` \u00B7 ${stats.count} Buchung${stats.count !== 1 ? 'en' : ''}`;
     }
+
+    const deleteBtn = canDelete
+      ? `<button class="team-row-delete" title="Benutzer entfernen" onclick="event.stopPropagation(); ${isCustomer ? `deleteCustomer('${u.id}')` : `deleteStaffUser('${u.id}')`};">✕</button>`
+      : '';
 
     return `<div class="team-row" onclick="${clickFn}">
       <div class="team-row-avatar ${avatarCls}">${(u.name || '?').charAt(0).toUpperCase()}</div>
@@ -3665,6 +3675,7 @@ function renderTeamView() {
         <div class="team-row-meta">${metaText}</div>
       </div>
       <span class="team-row-badge ${badgeCls}">${badgeLabel}</span>
+      ${deleteBtn}
       <span class="team-row-chevron">\u203A</span>
     </div>`;
   }).join('') || '<div style="text-align:center;padding:24px;color:var(--gray-500);font-size:13px;">Keine Mitglieder gefunden.</div>';
@@ -3692,7 +3703,8 @@ function openMemberDetail(uid, isCustomer) {
   const u = isCustomer ? custUser : staffUser;
   if (!u) return;
 
-  const canEdit = currentUserHas('manageUsers');
+  // Robust gegen Profile-Edge-Cases: explizit isAdmin() als Fallback
+  const canEdit = currentUserHas('manageUsers') || isAdmin();
   const isMe = currentUser && u.id === currentUser.id;
   const email = (u.email || '').toLowerCase().trim();
 
@@ -3777,6 +3789,9 @@ function openMemberDetail(uid, isCustomer) {
 
   // Delete button
   const canDelete = canEdit && !isMe && !(isAdm && adminCount === 1);
+  if (!canDelete) {
+    console.log('[DASSU] Kein Lösch-Knopf für', u.name, '— canEdit:', canEdit, 'isMe:', isMe, 'isAdm:', isAdm, 'adminCount:', adminCount, 'currentUser.role:', currentUser && currentUser.role, 'currentUser.id:', currentUser && currentUser.id);
+  }
   const deleteHtml = canDelete ? `<div class="td-section">
     <button class="team-btn-delete" onclick="${isCustomer ? `deleteCustomer('${uid}')` : `deleteStaffUser('${uid}')`};closeTeamDetail();" style="width:100%;padding:10px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);background:#fdecec;color:var(--danger);">Benutzer entfernen</button>
   </div>` : '';
@@ -5212,9 +5227,10 @@ async function loadInstructorStats() {
   label.textContent = 'Lade…';
 
   try {
+    const token = await firebase.auth().currentUser.getIdToken();
     const res = await fetch('/.netlify/functions/vereinsflieger-sync', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
       body: JSON.stringify({ action: 'instructorStats' })
     });
     const json = await res.json();
@@ -5592,9 +5608,10 @@ async function syncVereinsflieger() {
   label.textContent = 'Lade…';
 
   try {
+    const token = await firebase.auth().currentUser.getIdToken();
     const res = await fetch('/.netlify/functions/vereinsflieger-sync', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
       body: JSON.stringify({ action: 'yearCompare' })
     });
     const json = await res.json();
@@ -6524,9 +6541,10 @@ async function loadVfMembers() {
   } catch (_) {}
 
   try {
+    const token = await firebase.auth().currentUser.getIdToken();
     const res = await fetch('/.netlify/functions/vereinsflieger-sync', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
       body: JSON.stringify({ action: 'members' })
     });
     const json = await res.json();
@@ -6558,9 +6576,10 @@ async function loadVfInstructors() {
     }
   } catch (_) {}
   try {
+    const token = await firebase.auth().currentUser.getIdToken();
     const res = await fetch('/.netlify/functions/vereinsflieger-sync', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
       body: JSON.stringify({ action: 'instructors' })
     });
     const json = await res.json();

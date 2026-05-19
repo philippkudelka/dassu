@@ -1,10 +1,24 @@
 // Netlify Function: sendet Push-Notification an alle registrierten Mitarbeiter
 // POST body: { title: "...", body: "...", bookingId: "..." }
+// Header: Authorization: Bearer <firebaseIdToken>
 // Erfordert Umgebungsvariablen:
 //   FIREBASE_SERVICE_ACCOUNT  - JSON des Service Accounts (als String)
 //   FIREBASE_DATABASE_URL     - z.B. https://buchungskalender-ffe4c-default-rtdb.europe-west1.firebasedatabase.app
 
 const admin = require('firebase-admin');
+
+const ALLOWED_ORIGIN = 'https://dassu-buchungskalender.netlify.app';
+
+function corsHeaders(event) {
+  const origin = (event.headers && (event.headers.origin || event.headers.Origin)) || '';
+  const allow = origin === ALLOWED_ORIGIN ? ALLOWED_ORIGIN : ALLOWED_ORIGIN;
+  return {
+    'Access-Control-Allow-Origin': allow,
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Vary': 'Origin'
+  };
+}
 
 let initialized = false;
 function initFirebase() {
@@ -22,21 +36,27 @@ function initFirebase() {
 }
 
 exports.handler = async function(event) {
-  // CORS
-  const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type'
-  };
+  const headers = corsHeaders(event);
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
   if (event.httpMethod !== 'POST') return { statusCode: 405, headers, body: 'Method Not Allowed' };
 
   try {
     initFirebase();
+
+    // Auth: nur eingeloggte User dürfen Push triggern
+    const authHeader = event.headers.authorization || event.headers.Authorization || '';
+    const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+    if (!token) return { statusCode: 401, headers, body: JSON.stringify({ error: 'Kein Auth-Token' }) };
+    try {
+      await admin.auth().verifyIdToken(token);
+    } catch (_) {
+      return { statusCode: 401, headers, body: JSON.stringify({ error: 'Ungültiger Token' }) };
+    }
+
     const payload = JSON.parse(event.body || '{}');
-    const title = payload.title || 'Neue Buchung';
-    const body = payload.body || '';
-    const bookingId = payload.bookingId || '';
+    const title = String(payload.title || 'Neue Buchung').slice(0, 200);
+    const body = String(payload.body || '').slice(0, 500);
+    const bookingId = String(payload.bookingId || '').slice(0, 100);
 
     // Alle Tokens aus der Datenbank holen
     const snap = await admin.database().ref('pushTokens').once('value');
@@ -49,7 +69,7 @@ exports.handler = async function(event) {
 
     const message = {
       notification: { title, body },
-      data: { bookingId: String(bookingId) },
+      data: { bookingId },
       webpush: {
         fcmOptions: { link: '/staff.html' },
         notification: {
@@ -76,7 +96,7 @@ exports.handler = async function(event) {
       });
     }
 
-    // Tote Tokens aufr&auml;umen
+    // Tote Tokens aufräumen
     if (invalid.length) {
       const updates = {};
       Object.entries(tokensData).forEach(([key, v]) => {
@@ -85,9 +105,9 @@ exports.handler = async function(event) {
       if (Object.keys(updates).length) await admin.database().ref('pushTokens').update(updates);
     }
 
-    return { statusCode: 200, headers, body: JSON.stringify({ sent: success, failed: failure, cleaned: invalid.length }) };
+    return { statusCode: 200, headers, body: JSON.stringify({ sent: success, failed: failure }) };
   } catch (err) {
     console.error('Push error:', err);
-    return { statusCode: 500, headers, body: JSON.stringify({ error: err.message }) };
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Interner Fehler' }) };
   }
 };

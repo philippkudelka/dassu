@@ -1,0 +1,122 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "bookings": {
+      ".read": "auth != null",
+      ".indexOn": ["date", "uid"],
+      "$bookingId": {
+        ".validate": "newData.hasChildren(['aircraft', 'date', 'status']) && newData.child('aircraft').isString() && newData.child('date').isString() && newData.child('status').isString()",
+        ".write": "auth != null && (root.child('staffUsers').child(auth.uid).child('role').val() == 'admin' || root.child('staffUsers').child(auth.uid).child('role').val() == 'team' || (!data.exists() && newData.child('uid').val() == auth.uid) || (data.child('uid').val() == auth.uid))",
+        "aircraft": { ".validate": "newData.isString() && newData.val().length <= 100" },
+        "date":     { ".validate": "newData.isString() && newData.val().length <= 20" },
+        "name":     { ".validate": "newData.isString() && newData.val().length <= 200" },
+        "email":    { ".validate": "newData.isString() && newData.val().length <= 200" },
+        "phone":    { ".validate": "newData.isString() && newData.val().length <= 60" },
+        "comment":  { ".validate": "newData.isString() && newData.val().length <= 2000" },
+        "status":   { ".validate": "newData.isString() && (newData.val() == 'pending' || newData.val() == 'approved' || newData.val() == 'rejected' || newData.val() == 'cancelled')" },
+        "$other":   { ".validate": true }
+      }
+    },
+
+    "settings": {
+      ".read": "auth != null",
+      ".write": "auth != null && (root.child('staffUsers').child(auth.uid).child('role').val() == 'admin' || root.child('staffUsers').child(auth.uid).child('role').val() == 'team')"
+    },
+
+    "staffUsers": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null && root.child('staffUsers').child(auth.uid).child('role').val() == 'admin'"
+      }
+    },
+
+    "customers": {
+      ".read": "auth != null && (root.child('staffUsers').child(auth.uid).exists())",
+      "$uid": {
+        ".read": "auth != null && (auth.uid == $uid || root.child('staffUsers').child(auth.uid).exists())",
+        ".write": "auth != null && (auth.uid == $uid || root.child('staffUsers').child(auth.uid).child('role').val() == 'admin')"
+      }
+    },
+
+    "users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": "auth != null && auth.uid == $uid"
+      }
+    },
+
+    "training": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid == $uid || root.child('staffUsers').child(auth.uid).exists())",
+        ".write": "auth != null && root.child('staffUsers').child(auth.uid).exists()"
+      }
+    },
+
+    "timeEntries": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid == $uid || root.child('staffUsers').child(auth.uid).child('role').val() == 'admin')",
+        ".write": "auth != null && (auth.uid == $uid || root.child('staffUsers').child(auth.uid).child('role').val() == 'admin')"
+      }
+    },
+
+    "timeSettings": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid == $uid || root.child('staffUsers').child(auth.uid).child('role').val() == 'admin')",
+        ".write": "auth != null && (auth.uid == $uid || root.child('staffUsers').child(auth.uid).child('role').val() == 'admin')"
+      }
+    },
+
+    "theoryLessons": {
+      ".read": "auth != null && root.child('staffUsers').child(auth.uid).exists()",
+      "$id": {
+        ".write": "auth != null && root.child('staffUsers').child(auth.uid).exists()"
+      }
+    },
+
+    "messages": {
+      ".read": "auth != null && root.child('staffUsers').child(auth.uid).exists()",
+      "$id": {
+        ".write": "auth != null && root.child('staffUsers').child(auth.uid).exists()"
+      }
+    },
+
+    "invitations": {
+      ".read": "auth != null && root.child('staffUsers').child(auth.uid).child('role').val() == 'admin'",
+      ".write": "auth != null && root.child('staffUsers').child(auth.uid).child('role').val() == 'admin'"
+    },
+
+    "pushTokens": {
+      ".read": false,
+      "$tokenKey": {
+        ".write": "auth != null && (!data.exists() || data.child('uid').val() == auth.uid || newData.child('uid').val() == auth.uid)"
+      }
+    },
+
+    "gastfluglehrer": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('staffUsers').child(auth.uid).exists()"
+    },
+
+    "dailyNotes": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('staffUsers').child(auth.uid).exists()"
+    },
+
+    "activityLog": {
+      ".read": "auth != null && root.child('staffUsers').child(auth.uid).child('role').val() == 'admin'",
+      ".write": "auth != null && root.child('staffUsers').child(auth.uid).exists()"
+    },
+
+    "audit": {
+      ".read": "auth != null && root.child('staffUsers').child(auth.uid).child('role').val() == 'admin'",
+      ".write": "auth != null && root.child('staffUsers').child(auth.uid).exists()"
+    },
+
+    "_rateLimits": {
+      ".read": false,
+      ".write": false
+    }
+  }
+}

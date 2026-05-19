@@ -7,6 +7,19 @@
 
 const admin = require('firebase-admin');
 const nodemailer = require('nodemailer');
+const crypto = require('crypto');
+
+const ALLOWED_ORIGIN = 'https://dassu-buchungskalender.netlify.app';
+const RATE_LIMIT_MS = 5 * 60 * 1000; // 5 Minuten pro Email
+
+function corsHeaders() {
+  return {
+    'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Vary': 'Origin'
+  };
+}
 
 let initialized = false;
 function initFirebase() {
@@ -23,24 +36,47 @@ function initFirebase() {
   initialized = true;
 }
 
+// Modul-scoped Transport (Connection-Pooling)
+let _transporter = null;
 function getTransporter() {
-  return nodemailer.createTransport({
+  if (_transporter) return _transporter;
+  _transporter = nodemailer.createTransport({
     host: 'smtp-relay.brevo.com',
     port: 587,
     secure: false,
+    pool: true,
     auth: {
       user: process.env.BREVO_SMTP_USER,
       pass: process.env.BREVO_SMTP_PASS
     }
   });
+  return _transporter;
+}
+
+// Email-Hash als Firebase-Key (vermeidet Sonderzeichen, leakt keine Klartext-Adressen)
+function emailHash(email) {
+  return crypto.createHash('sha256').update(String(email).toLowerCase().trim()).digest('hex');
+}
+
+// True wenn diese Email in den letzten RATE_LIMIT_MS schon eine Reset-Mail bekommen hat
+async function isRateLimited(email) {
+  const key = emailHash(email);
+  const ref = admin.database().ref(`_rateLimits/passwordReset/${key}`);
+  const snap = await ref.once('value');
+  const last = snap.val();
+  if (last && typeof last.t === 'number' && (Date.now() - last.t) < RATE_LIMIT_MS) {
+    return true;
+  }
+  return false;
+}
+
+async function markSent(email) {
+  const key = emailHash(email);
+  await admin.database().ref(`_rateLimits/passwordReset/${key}`).set({ t: Date.now() });
 }
 
 exports.handler = async function(event) {
-  const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type'
-  };
+  const headers = corsHeaders();
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
   if (event.httpMethod !== 'POST') return { statusCode: 405, headers, body: 'Method Not Allowed' };
 
@@ -50,26 +86,31 @@ exports.handler = async function(event) {
 
     initFirebase();
 
+    // Rate-Limit-Check (gilt unabhängig davon, ob der User existiert)
+    if (await isRateLimited(email)) {
+      // Trotzdem 200 zurück, damit kein Timing-Leak
+      return { statusCode: 200, headers, body: JSON.stringify({ success: true }) };
+    }
+
     // Prüfen ob der User existiert (ohne Fehler nach außen zu leaken)
     let userExists = false;
     try {
       await admin.auth().getUserByEmail(email);
       userExists = true;
     } catch (e) {
-      // User existiert nicht — trotzdem 200 zurückgeben (Sicherheit)
       userExists = false;
     }
 
     if (userExists) {
-      // Password-Reset-Link generieren
+      // Rate-Limit markieren (vor dem Senden, damit parallele Requests blocken)
+      await markSent(email);
+
       const resetLink = await admin.auth().generatePasswordResetLink(email, {
         url: 'https://dassu-buchungskalender.netlify.app',
         handleCodeInApp: false
       });
 
-      // E-Mail senden
-      const transporter = getTransporter();
-      await transporter.sendMail({
+      await getTransporter().sendMail({
         from: '"DASSU Buchungskalender" <info@dassu.de>',
         to: email,
         subject: 'Passwort für DASSU Buchungskalender zurücksetzen',

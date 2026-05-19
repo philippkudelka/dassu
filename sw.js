@@ -1,12 +1,18 @@
-const CACHE_NAME = 'dassu-v48';
+const CACHE_NAME = 'dassu-v49';
 const ASSETS = [
   '/',
   '/index.html',
-  '/staff.html',
+  // staff.html bewusst NICHT precachen — sonst landet das Admin-Shell offline auf Geräten,
+  // die nur kurz angemeldet waren.
   'https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js',
   'https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js',
   'https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js'
 ];
+
+// staff.html nie im Cache ablegen — Pfad-Check für fetch-Handler.
+function isStaffHtml(url) {
+  return url.pathname === '/staff.html' || url.pathname.endsWith('/staff.html');
+}
 
 self.addEventListener('install', e => {
   e.waitUntil(
@@ -27,16 +33,20 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
-  // HTML-Seiten: immer vom Netzwerk, Cache nur als Fallback (offline)
+  // HTML-Seiten: immer vom Netzwerk, Cache nur als Fallback (offline).
+  // staff.html wird bewusst nie persistiert (nicht offline verfügbar).
   if (e.request.mode === 'navigate' || url.pathname.endsWith('.html')) {
+    const skipCache = isStaffHtml(url);
     e.respondWith(
       fetch(e.request)
         .then(response => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone)).catch(() => {});
+          if (!skipCache) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone)).catch(() => {});
+          }
           return response;
         })
-        .catch(() => caches.match(e.request))
+        .catch(() => skipCache ? new Response('', { status: 503 }) : caches.match(e.request))
     );
     return;
   }

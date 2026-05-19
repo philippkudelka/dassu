@@ -10,9 +10,30 @@ GitHub: https://github.com/philippkudelka/dassu.git
 
 **WICHTIG: Deploy läuft über `deploy.command` im Finder (Doppelklick).**
 
-Das Skript macht automatisch: git add, commit, push → Netlify baut dann automatisch.
+Das Skript macht automatisch: branch-check, rebase, syntax-check der Functions, git add, commit, push → Netlify baut dann automatisch.
 Ablauf in Claude: Finder öffnen → `deploy.command` doppelklicken → fertig.
 Die Bash-Sandbox hat KEINEN GitHub-Zugriff (403 Proxy-Fehler). Niemals versuchen, `git push` aus der Sandbox zu machen.
+
+### Rollback bei defektem Deploy
+
+1. Netlify Dashboard öffnen → Site **dassu-buchungskalender** → **Deploys**
+2. Letzten grünen Deploy auswählen (vor dem kaputten)
+3. Button **"Publish deploy"** klicken — die Live-Version springt sofort auf diesen Stand zurück
+4. Den Code-Fix lokal vornehmen und neu deployen
+
+### Firebase Database Rules
+
+`database.rules.json` liegt im Repo als Vorschlag und ist NICHT automatisch synchronisiert.
+- Import: Firebase Console → Realtime Database → Rules → JSON aus `database.rules.json` einfügen → **Publish**
+- Vor dem Import: aktuelle Rules sichern (Firebase Console → Rules → "..." → Export)
+- **WICHTIG**: Rules vor Publish im "Rules Playground" testen (Lesen + Schreiben mit echten UIDs simulieren). Falsche Rules können die App komplett blockieren — dann sofort Rollback auf die exportierten Original-Rules.
+
+## Wichtige Hinweise zur Sicherheit
+
+- **Netlify Functions verlangen Bearer-Token** (außer `send-reset-email` für Passwort-vergessen-Flow). Bei Frontend-Erweiterungen immer `Authorization: Bearer ${idToken}` mitschicken.
+- **Bookings werden per-ID geschrieben** (`saveBooking(b)` / `deleteBookingFromDb(id)` in index.html). NIEMALS wieder `db.ref('bookings').set(...)` mit dem ganzen Tree — das überschreibt parallele Buchungen anderer User.
+- **User-Input immer escapen** beim Rendering: `escapeHtml(val)` für Text, `escapeAttr(val)` für Attribute. Beide Helper existieren in index.html und staff.html.
+- **CORS** ist hart auf `https://dassu-buchungskalender.netlify.app` beschränkt — bei lokalem Testen `netlify dev` nutzen (proxied korrekt) oder Origin temporär erweitern.
 
 ## Dateistruktur
 
