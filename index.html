@@ -6710,22 +6710,13 @@ async function customerRegister() {
   btn.disabled = true; btn.textContent = 'Einen Moment...';
   try {
     let cred;
-    let isNewAccount = false;
     try {
       cred = await firebase.auth().createUserWithEmailAndPassword(email, pw);
-      isNewAccount = true;
     } catch (createErr) {
       if (createErr.code === 'auth/email-already-in-use') {
-        try {
-          cred = await firebase.auth().signInWithEmailAndPassword(email, pw);
-        } catch (loginErr) {
-          const lm = loginErr.code === 'auth/wrong-password' || loginErr.code === 'auth/invalid-credential'
-            ? 'F\u00fcr diese E-Mail gibt es schon einen Account, aber das Passwort stimmt nicht. Bitte \u00fcber "Anmelden" einloggen.'
-            : loginErr.message;
-          caMsg('caRegMsg', 'error', lm);
-          btn.disabled = false; btn.textContent = 'Konto erstellen';
-          return;
-        }
+        caMsg('caRegMsg', 'error', 'F\u00fcr diese E-Mail-Adresse existiert bereits ein Konto. Bitte melde dich \u00fcber <strong>Anmelden</strong> an.');
+        btn.disabled = false; btn.textContent = 'Konto erstellen';
+        return;
       } else {
         throw createErr;
       }
@@ -6735,8 +6726,8 @@ async function customerRegister() {
     const profile = { name, email, phone: phone || '', birthdate: birth || '', customerType, consentAt: Date.now(), createdAt: Date.now() };
     await db.ref('customers/' + uid).set(profile);
     try { await cred.user.updateProfile({ displayName: name }); } catch (_) {}
-    // Gebrandete Verifizierungsmail senden + sofort abmelden bis bestätigt
-    if (!cred.user.emailVerified) {
+    // Neue Accounts sind IMMER unverifiziert — Mail senden + abmelden
+    {
       let emailSent = false;
       try {
         const vRes = await fetch('/.netlify/functions/send-verification', {
@@ -6758,9 +6749,6 @@ async function customerRegister() {
       }
       btn.disabled = false; btn.textContent = 'Konto erstellen';
       return;
-    } else {
-      closeAuthPage();
-      notify('Willkommen, ' + name + '! Deine Daten werden ab jetzt automatisch ausgef\u00fcllt.', 'success');
     }
   } catch (e) {
     const msg = e.code === 'auth/weak-password' ? 'Passwort zu schwach.' : e.message;
