@@ -89,4 +89,4 @@
   global.roleMeta = roleMeta;
   global.hasPermission = hasPermission;
   global.isPermissionExplicit = isExplicit;
-})(typeof window !== 'undefined' ? window : this);
+})(typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : this));

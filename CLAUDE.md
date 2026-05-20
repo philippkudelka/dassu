@@ -35,6 +35,13 @@ Die Bash-Sandbox hat KEINEN GitHub-Zugriff (403 Proxy-Fehler). Niemals versuchen
 - **Manuell auslösen** (optional): Env-Var `BACKUP_SECRET` in Netlify setzen, dann `.../.netlify/functions/backup-database?key=<BACKUP_SECRET>` aufrufen.
 - Optionale Env-Var `BACKUP_EMAIL` ändert den Empfänger.
 
+## Tests
+
+- **`tests/`** enthält Vitest-Tests für die isolierten Module `shared/permissions.js` und `shared/holidays.js`.
+- Lokal ausführen: `npm install` (einmalig), dann `npm test`.
+- **`.github/workflows/ci.yml`** führt bei jedem Push automatisch `npm test` + einen Syntax-Check aller Functions aus. Das blockiert das Netlify-Deployment NICHT — es gibt nur ein grünes/rotes Signal am Commit auf GitHub.
+- Hinweis: `shared/permissions.js` + `holidays.js` haben einen `globalThis`-Fallback, damit sie auch in Node (Tests) laufen.
+
 ## Fehler-Monitoring
 
 - **`shared/errorlog.js`** (in index.html + staff.html eingebunden) fängt unbehandelte JS-Fehler ab und schreibt sie nach Firebase `/errorLog` (mit Dedup + Session-Limit gegen Fehler-Schleifen).

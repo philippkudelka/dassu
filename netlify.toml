@@ -20,6 +20,21 @@
 [functions."error-report"]
   schedule = "0 6 * * *"
 
+# Sicherheits-Header für alle Seiten.
+# Bewusst KEINE script-src/default-src-CSP — das würde die ~300 Inline-Skripte
+# der App blockieren. Gesetzt sind nur Direktiven, die nichts brechen:
+#   frame-ancestors/X-Frame-Options → Clickjacking-Schutz
+#   object-src 'none'               → keine Plugins/Flash
+#   base-uri 'self'                 → kein <base>-Tag-Hijacking
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "geolocation=(), camera=(), microphone=()"
+    Content-Security-Policy = "frame-ancestors 'self'; object-src 'none'; base-uri 'self'"
+
 # Service Worker: NIEMALS cachen — Browser muss immer frische Version holen
 [[headers]]
   for = "/sw.js"

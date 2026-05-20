@@ -112,4 +112,4 @@
     MIN_HOUR: HOLIDAY_MIN_HOUR,
     NO_PLATZRUNDE: HOLIDAY_NO_PLATZRUNDE
   };
-})(typeof window !== 'undefined' ? window : this);
+})(typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : this));

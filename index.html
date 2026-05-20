@@ -4682,7 +4682,7 @@ function acFilterFluglehrer(inputId) {
   if (!matches.length) { list.style.display = 'none'; flAcIdx = -1; return; }
   flAcIdx = -1;
   list.innerHTML = matches.map(name =>
-    `<div class="ac-item" style="padding:8px 12px;cursor:pointer;font-size:13px;" onmousedown="acSelectFl('${inputId}','${name.replace(/'/g, "\\'")}')" onmouseover="this.style.background='var(--gray-100,#f3f4f6)'" onmouseout="this.style.background=''">${name}</div>`
+    `<div class="ac-item" style="padding:8px 12px;cursor:pointer;font-size:13px;" onmousedown="acSelectFl('${inputId}','${jsArg(name)}')" onmouseover="this.style.background='var(--gray-100,#f3f4f6)'" onmouseout="this.style.background=''">${escapeHtml(name)}</div>`
   ).join('');
   list.style.display = 'block';
 }
@@ -5089,10 +5089,10 @@ function showCancelConfirmation(booking) {
     <p style="color:var(--gray-600); margin-bottom:16px; font-size:14px;">M&ouml;chtest du die folgende Buchung wirklich stornieren?</p>
     <div style="background:var(--gray-50); border:1px solid var(--gray-200); border-radius:var(--radius-sm); padding:16px; margin-bottom:20px; text-align:left;">
       <div style="display:grid; grid-template-columns:auto 1fr; gap:6px 16px; font-size:14px;">
-        <span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Flugzeug</span><span style="font-weight:600;">${booking.aircraft}</span>
-        <span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Datum</span><span>${booking.date}</span>
-        <span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Uhrzeit</span><span>${timeDisplay}</span>
-        <span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Name</span><span>${booking.name}</span>
+        <span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Flugzeug</span><span style="font-weight:600;">${escapeHtml(booking.aircraft)}</span>
+        <span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Datum</span><span>${escapeHtml(booking.date)}</span>
+        <span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Uhrzeit</span><span>${escapeHtml(timeDisplay)}</span>
+        <span style="color:var(--gray-500); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Name</span><span>${escapeHtml(booking.name)}</span>
       </div>
     </div>
   `;
@@ -5593,6 +5593,9 @@ function renderInvitations() {
 function escapeAttr(s) { return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 // Alias: escapeHtml escaped dieselben Zeichen — sicher für Text-Inhalt UND Attributwerte.
 function escapeHtml(s) { return escapeAttr(s); }
+// Sicheres Einbetten von Text als String-Argument in einen inline-Handler:
+// erst JS-String-escapen (\\ und '), dann HTML-Attribut-escapen.
+function jsArg(s) { return escapeAttr(String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")); }
 
 function createInvitation() {
   const nameEl = document.getElementById('invName');
@@ -5827,9 +5830,9 @@ function renderTrainingExercises(progressContainerId, exercisesContainerId, edit
     // Status-Text
     let statusLine = '';
     if (done) {
-      statusLine = `<div style="font-size:11px;color:#2D6A4F;margin-top:4px;">✓ Beherrscht am ${masteredStr}${startedStr ? ' (begonnen ' + startedStr + ')' : ''}${hoursStr ? ' — ' + hoursStr : ''}${p.note ? ' — ' + p.note : ''}</div>`;
+      statusLine = `<div style="font-size:11px;color:#2D6A4F;margin-top:4px;">✓ Beherrscht am ${masteredStr}${startedStr ? ' (begonnen ' + startedStr + ')' : ''}${hoursStr ? ' — ' + hoursStr : ''}${p.note ? ' — ' + escapeHtml(p.note) : ''}</div>`;
     } else if (started) {
-      statusLine = `<div style="font-size:11px;color:#E9A319;margin-top:4px;">◐ Begonnen am ${startedStr}${hoursStr ? ' — ' + hoursStr : ''}${p.note ? ' — ' + p.note : ''}</div>`;
+      statusLine = `<div style="font-size:11px;color:#E9A319;margin-top:4px;">◐ Begonnen am ${startedStr}${hoursStr ? ' — ' + hoursStr : ''}${p.note ? ' — ' + escapeHtml(p.note) : ''}</div>`;
     }
 
     // Buttons (nur für Fluglehrer)
@@ -6254,8 +6257,8 @@ function renderStudentBookings() {
                    '<span style="color:var(--c-muted);">' + (b.status || '') + '</span>';
     return '<div style="padding:12px 0; border-bottom:1px solid #eee;">' +
       '<div style="display:flex; justify-content:space-between; align-items:center;">' +
-      '<div><strong>' + (b.customerName || b.name || 'Unbekannt') + '</strong>' +
-      '<span style="color:var(--c-muted); margin-left:8px; font-size:13px;">' + (b.aircraft || '') + '</span></div>' +
+      '<div><strong>' + escapeHtml(b.customerName || b.name || 'Unbekannt') + '</strong>' +
+      '<span style="color:var(--c-muted); margin-left:8px; font-size:13px;">' + escapeHtml(b.aircraft || '') + '</span></div>' +
       '<div>' + status + '</div></div>' +
       '<div style="font-size:13px; color:var(--c-muted); margin-top:2px;">' + dateStr + ' · ' + time + '</div>' +
       '</div>';
@@ -6311,12 +6314,12 @@ function renderTheoryLessons() {
     const time = (e.startTime || '?') + ' – ' + (e.endTime || '?');
     return '<div style="padding:12px 0; border-bottom:1px solid #eee;">' +
       '<div style="display:flex; justify-content:space-between; align-items:center;">' +
-      '<div><strong>' + (e.topic || 'Kein Thema') + '</strong>' +
-      '<span style="color:var(--c-muted); margin-left:8px; font-size:13px;">' + (e.student || '') + '</span></div>' +
-      '<button onclick="deleteTheoryLesson(\'' + e.id + '\')" style="background:none; border:none; color:#c62828; cursor:pointer; font-size:12px;">Löschen</button>' +
+      '<div><strong>' + escapeHtml(e.topic || 'Kein Thema') + '</strong>' +
+      '<span style="color:var(--c-muted); margin-left:8px; font-size:13px;">' + escapeHtml(e.student || '') + '</span></div>' +
+      '<button onclick="deleteTheoryLesson(\'' + escapeAttr(e.id) + '\')" style="background:none; border:none; color:#c62828; cursor:pointer; font-size:12px;">Löschen</button>' +
       '</div>' +
       '<div style="font-size:13px; color:var(--c-muted); margin-top:2px;">' + dateStr + ' · ' + time +
-      (e.notes ? ' · ' + e.notes : '') + '</div>' +
+      (e.notes ? ' · ' + escapeHtml(e.notes) : '') + '</div>' +
       '</div>';
   }).join('');
 }
@@ -6360,7 +6363,7 @@ function acFilterTheoryStudent() {
   if (!matches.length) { list.classList.remove('open'); thAcIdx = -1; return; }
   thAcIdx = -1;
   list.innerHTML = matches.map(name =>
-    `<div class="ac-item" onmousedown="acSelectTheoryStudent('${name.replace(/'/g, "\\'")}')">${name}</div>`
+    `<div class="ac-item" onmousedown="acSelectTheoryStudent('${jsArg(name)}')">${escapeHtml(name)}</div>`
   ).join('');
   list.classList.add('open');
 }
@@ -6625,7 +6628,7 @@ function showAircraftDocs(aircraft) {
     <a href="#" onclick="event.preventDefault();openPdfBlob(settings.aircraftDocs['${aircraft}']['${id}'])" style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--c-paper);border:1px solid var(--c-line);border-radius:8px;margin-bottom:6px;text-decoration:none;color:var(--ink);transition:background 0.15s;">
       <span style="font-size:22px;">📄</span>
       <div style="flex:1;">
-        <div style="font-size:13px;font-weight:600;">${doc.name}</div>
+        <div style="font-size:13px;font-weight:600;">${escapeHtml(doc.name)}</div>
         <div style="font-size:11px;color:var(--c-muted);">${doc.size ? (doc.size / 1024).toFixed(0) + ' KB' : 'PDF'}</div>
       </div>
       <span style="font-size:11px;color:var(--c-accent);">Öffnen ↗</span>
@@ -6667,7 +6670,7 @@ function renderDocumentsView() {
           <a href="#" onclick="event.preventDefault();openPdfBlob(settings.aircraftDocs['${a}']['${id}'])" style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:#fff;border:1px solid var(--c-line);border-radius:8px;text-decoration:none;color:var(--ink);transition:background 0.15s,box-shadow 0.15s;" onmouseover="this.style.background='var(--c-paper)';this.style.boxShadow='0 1px 4px rgba(0,0,0,0.06)'" onmouseout="this.style.background='#fff';this.style.boxShadow='none'">
             <span style="font-size:22px;">📄</span>
             <div style="flex:1;">
-              <div style="font-size:13px;font-weight:600;">${doc.name}</div>
+              <div style="font-size:13px;font-weight:600;">${escapeHtml(doc.name)}</div>
               <div style="font-size:11px;color:var(--c-muted);">${doc.size ? (doc.size / 1024).toFixed(0) + ' KB' : 'PDF'}</div>
             </div>
             <span style="font-size:11px;color:var(--c-accent);font-weight:500;">Öffnen ↗</span>
@@ -7839,7 +7842,7 @@ function qbAcFilter() {
 
   qbAcIdx = -1;
   list.innerHTML = matches.map(name =>
-    `<div class="ac-item" onmousedown="qbAcSelect('${name.replace(/'/g, "\\'")}')">${name}</div>`
+    `<div class="ac-item" onmousedown="qbAcSelect('${jsArg(name)}')">${escapeHtml(name)}</div>`
   ).join('');
   list.classList.add('open');
 }

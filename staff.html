@@ -1899,7 +1899,7 @@ function renderUserMgmt() {
     return `<div class="user-mgmt-row">
       <div class="um-avatar" onclick="toggleDetailPanel('${u.id}')" style="cursor:pointer;">${(u.name || '?').charAt(0).toUpperCase()}</div>
       <div class="um-info">
-        <div class="um-name" onclick="toggleDetailPanel('${u.id}')" style="cursor:pointer;">${u.name}${roleBadge(u.role)}${isMe ? ' <span style="font-size:10px;color:var(--gray-500);">(du)</span>' : ''}</div>
+        <div class="um-name" onclick="toggleDetailPanel('${u.id}')" style="cursor:pointer;">${escapeHtml(u.name)}${roleBadge(u.role)}${isMe ? ' <span style="font-size:10px;color:var(--gray-500);">(du)</span>' : ''}</div>
         ${emailHint}
         <div class="um-role">${renderRoleSelect(u, lockedToAdmin)}</div>
       </div>
@@ -2035,6 +2035,9 @@ function saveMemberName(id, prefix) {
 }
 
 function escapeHtml(s) { return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+// Sicheres Einbetten von Text als String-Argument in einen inline-Handler:
+// erst JS-String-escapen (\\ und '), dann HTML-Attribut-escapen.
+function jsArg(s) { return escapeHtml(String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")); }
 
 // ============================================================
 // EINLADUNGEN (APP)
@@ -2351,10 +2354,9 @@ function renderGuestStrip() {
   addBtn.style.display = isAdmin() ? '' : 'none';
 }
 
-function escapeHtml(text) {
-  const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-  return text.replace(/[&<>"']/g, m => map[m]);
-}
+// escapeHtml ist bereits weiter oben definiert (null-sichere Variante).
+// Die frühere zweite Definition hier wurde entfernt, da sie bei undefined/null
+// einen Fehler warf und die sichere Version überschrieb.
 
 // ============================================================
 // FIREBASE LISTENERS
@@ -2897,11 +2899,11 @@ function paintOverviewGrid(dk, lookup) {
         const hasInstructor = entry.instructor === 'ja' || (entry.instructorName && entry.instructorName.trim());
         const instrCls = hasInstructor ? ' ov-instructor' : '';
         const pendingCls = entry.status === 'pending' ? ' ov-pending' : '';
-        const nameHtml = entry.isFirst ? `<span class="ov-name">${entry.name}</span>` : '';
+        const nameHtml = entry.isFirst ? `<span class="ov-name">${escapeHtml(entry.name)}</span>` : '';
         const instrName = entry.instructorName && entry.instructorName.trim();
-        const metaHtml = entry.isFirst && hasInstructor ? `<span class="ov-meta">${instrName || 'FL benötigt'}</span>` : '';
-        const onclick = `onclick="showDetail('${entry.id}')"`;
-        const colorStyle = entry.color ? `style="background:${entry.color} !important;${isDarkColor(entry.color) ? 'color:#fff;' : ''}"` : '';
+        const metaHtml = entry.isFirst && hasInstructor ? `<span class="ov-meta">${escapeHtml(instrName || 'FL benötigt')}</span>` : '';
+        const onclick = `onclick="showDetail('${escapeHtml(entry.id)}')"`;
+        const colorStyle = entry.color ? `style="background:${escapeHtml(entry.color)} !important;${isDarkColor(entry.color) ? 'color:#fff;' : ''}"` : '';
         html += `<div class="ov-cell ${rowCls} ov-booked${instrCls}${pendingCls}${restrictedCls}" ${onclick} ${colorStyle}>${nameHtml}${metaHtml}</div>`;
       } else if (isSundayBlocked(dk, tp)) {
         html += `<div class="ov-cell ${rowCls} ov-towing"></div>`;
@@ -3042,8 +3044,8 @@ function renderWeekOverview() {
       if (entry) {
         const instrCls = (entry.instructor === 'ja' || (entry.instructorName && entry.instructorName.trim())) ? ' wk-instructor' : '';
         const pendingCls = entry.status === 'pending' ? ' wk-pending' : '';
-        const nameHtml = entry.isFirst ? `<span class="wk-name">${entry.name}</span>` : '';
-        html += `<div class="wk-cell ${rowCls} wk-booked${instrCls}${pendingCls}" onclick="showDetail('${entry.id}')">${nameHtml}</div>`;
+        const nameHtml = entry.isFirst ? `<span class="wk-name">${escapeHtml(entry.name)}</span>` : '';
+        html += `<div class="wk-cell ${rowCls} wk-booked${instrCls}${pendingCls}" onclick="showDetail('${escapeHtml(entry.id)}')">${nameHtml}</div>`;
       } else if (sundayBlocked) {
         html += `<div class="wk-cell ${rowCls} wk-towing"></div>`;
       } else if (towingBlocked) {
@@ -3114,9 +3116,9 @@ function renderBook() {
       const statusClass = booking.status === 'pending' ? ' pending' : '';
       cellClass += ` booked${instrClass}${statusClass}`;
       const instrName = booking.instructorName && booking.instructorName.trim();
-      const instrLabel = hasInstructor ? ` · ${instrName || 'FL benötigt'}` : '';
+      const instrLabel = hasInstructor ? ` · ${escapeHtml(instrName || 'FL benötigt')}` : '';
       const statusLabel = booking.status === 'pending' ? ' (Angefragt)' : '';
-      content = `<div><div class="booking-name">${booking.name}${statusLabel}</div><div class="booking-meta">${booking.startTime}–${booking.endTime}${instrLabel}</div></div>`;
+      content = `<div><div class="booking-name">${escapeHtml(booking.name)}${statusLabel}</div><div class="booking-meta">${escapeHtml(booking.startTime)}–${escapeHtml(booking.endTime)}${instrLabel}</div></div>`;
     } else {
       cellClass += ' free';
     }
@@ -3317,9 +3319,9 @@ function renderBookingItem(b) {
   let cls = 'booking-item ' + (b.status || 'approved');
   if (b.instructor === 'ja') cls += ' with-instr';
   const time = (b.startTime && b.endTime) ? `${b.startTime}–${b.endTime}` : (b.slot || '');
-  const instrLabel = b.instructor === 'ja' ? (b.instructorName ? ` · ${b.instructorName}` : ' · Lehrer') : '';
+  const instrLabel = b.instructor === 'ja' ? (b.instructorName ? ` · ${escapeHtml(b.instructorName)}` : ' · Lehrer') : '';
   const statusLabel = b.status === 'pending' ? ' (Angefragt)' : (b.status === 'rejected' ? ' (Abgelehnt)' : '');
-  const inner = `<div class="${cls}" onclick="showDetail('${escapeAttr(b.id)}')">
+  const inner = `<div class="${cls}" onclick="showDetail('${escapeHtml(b.id)}')">
     <div class="bi-time">${escapeHtml(time)}</div>
     <div class="bi-info">
       <div class="bi-name">${escapeHtml(b.name || '')}${statusLabel}</div>
@@ -5402,7 +5404,7 @@ function renderInstructorStats() {
     const pct = Math.min(Math.round((d.flyingDays / maxDays) * 100), 100);
     const color = fiColors[idx % fiColors.length];
     return `<div class="stats-bar-row" style="display:flex; align-items:center; gap:8px;">
-      <span class="stats-bar-label" style="min-width:80px; text-align:right;">${lastName(name)}</span>
+      <span class="stats-bar-label" style="min-width:80px; text-align:right;">${escapeHtml(lastName(name))}</span>
       <div class="stats-bar-track" style="flex:1; position:relative;">
         <div class="stats-bar-fill" style="width:${pct * 0.75}%;background:${color}"></div>
       </div>
@@ -6293,8 +6295,8 @@ function buildDayOverview(current) {
       const dotCls = bk.status === 'approved'
         ? 'approved' + (bk.instructor === 'ja' ? ' instr' : '')
         : (bk.status || 'pending');
-      const instrSuffix = bk.instructor === 'ja' && bk.instructorName ? ` \u00b7 ${bk.instructorName}` : (bk.instructor === 'ja' ? ' \u00b7 Lehrer' : '');
-      const nameDisplay = isCurrent ? `<strong>${bk.name}</strong> (diese Anfrage)` : `${bk.name}${instrSuffix}`;
+      const instrSuffix = bk.instructor === 'ja' && bk.instructorName ? ` \u00b7 ${escapeHtml(bk.instructorName)}` : (bk.instructor === 'ja' ? ' \u00b7 Lehrer' : '');
+      const nameDisplay = isCurrent ? `<strong>${escapeHtml(bk.name)}</strong> (diese Anfrage)` : `${escapeHtml(bk.name)}${instrSuffix}`;
       return `<div class="do-slot ${bk.status}${isCurrent ? ' current' : ''}">
         <span class="do-dot ${dotCls}"></span>
         <span class="do-time">${time}</span>
@@ -6316,16 +6318,16 @@ function showDetail(id) {
 
   document.getElementById('detailSheet').innerHTML = `
     <h3>Buchungsdetails</h3>
-    <div class="detail-row"><span class="detail-label">Name</span><span class="detail-value">${b.name}</span></div>
-    <div class="detail-row"><span class="detail-label">Flugzeug</span><span class="detail-value">${b.aircraft}</span></div>
-    <div class="detail-row"><span class="detail-label">Datum</span><span class="detail-value">${formatDateShort(b.date)}</span></div>
-    <div class="detail-row"><span class="detail-label">Uhrzeit</span><span class="detail-value">${time}</span></div>
-    ${b.email ? `<div class="detail-row"><span class="detail-label">E-Mail</span><span class="detail-value">${b.email}</span></div>` : ''}
-    ${b.phone ? `<div class="detail-row"><span class="detail-label">Telefon</span><span class="detail-value">${b.phone}</span></div>` : ''}
-    <div class="detail-row"><span class="detail-label">Fluglehrer</span><span class="detail-value">${instrText}</span></div>
-    ${b.comment ? `<div class="detail-row"><span class="detail-label">Bemerkung</span><span class="detail-value" style="font-style:italic;">${b.comment}</span></div>` : ''}
-    <div class="detail-row"><span class="detail-label">Status</span><span class="detail-value">${statusLabels[b.status] || b.status}</span></div>
-    ${b.createdBy ? `<div class="detail-row"><span class="detail-label">Erstellt von</span><span class="detail-value">${b.createdBy}</span></div>` : ''}
+    <div class="detail-row"><span class="detail-label">Name</span><span class="detail-value">${escapeHtml(b.name)}</span></div>
+    <div class="detail-row"><span class="detail-label">Flugzeug</span><span class="detail-value">${escapeHtml(b.aircraft)}</span></div>
+    <div class="detail-row"><span class="detail-label">Datum</span><span class="detail-value">${escapeHtml(formatDateShort(b.date))}</span></div>
+    <div class="detail-row"><span class="detail-label">Uhrzeit</span><span class="detail-value">${escapeHtml(time)}</span></div>
+    ${b.email ? `<div class="detail-row"><span class="detail-label">E-Mail</span><span class="detail-value">${escapeHtml(b.email)}</span></div>` : ''}
+    ${b.phone ? `<div class="detail-row"><span class="detail-label">Telefon</span><span class="detail-value">${escapeHtml(b.phone)}</span></div>` : ''}
+    <div class="detail-row"><span class="detail-label">Fluglehrer</span><span class="detail-value">${escapeHtml(instrText)}</span></div>
+    ${b.comment ? `<div class="detail-row"><span class="detail-label">Bemerkung</span><span class="detail-value" style="font-style:italic;">${escapeHtml(b.comment)}</span></div>` : ''}
+    <div class="detail-row"><span class="detail-label">Status</span><span class="detail-value">${escapeHtml(statusLabels[b.status] || b.status)}</span></div>
+    ${b.createdBy ? `<div class="detail-row"><span class="detail-label">Erstellt von</span><span class="detail-value">${escapeHtml(b.createdBy)}</span></div>` : ''}
     ${b.status === 'pending' ? buildDayOverview(b) : ''}
     <div class="audit-log" id="auditLog"><h4>Verlauf</h4><div id="auditEntries">Lade...</div></div>
     <div class="detail-actions">
@@ -6349,9 +6351,9 @@ function showDetail(id) {
     } else {
       el.innerHTML = entries.map(e => `
         <div class="audit-entry">
-          <span class="au-user">${e.user}</span>
-          <span>${e.action}${e.details ? ': ' + e.details : ''}</span>
-          <span class="au-time">${formatRel(e.timestamp)}</span>
+          <span class="au-user">${escapeHtml(e.user)}</span>
+          <span>${escapeHtml(e.action)}${e.details ? ': ' + escapeHtml(e.details) : ''}</span>
+          <span class="au-time">${escapeHtml(formatRel(e.timestamp))}</span>
         </div>
       `).join('');
     }
@@ -6714,7 +6716,7 @@ function acFilter(inputId) {
 
   acActiveIdx = -1;
   list.innerHTML = matches.map((name, i) =>
-    `<div class="ac-item" onmousedown="acSelect('${inputId}','${name.replace(/'/g, "\\'")}')">${name}</div>`
+    `<div class="ac-item" onmousedown="acSelect('${inputId}','${jsArg(name)}')">${escapeHtml(name)}</div>`
   ).join('');
   list.classList.add('open');
 }
@@ -6788,7 +6790,7 @@ function acFilterInstructor(inputId) {
 
   acActiveIdx = -1;
   list.innerHTML = matches.map(name =>
-    `<div class="ac-item" onmousedown="acSelect('${inputId}','${name.replace(/'/g, "\\'")}')">${name}</div>`
+    `<div class="ac-item" onmousedown="acSelect('${inputId}','${jsArg(name)}')">${escapeHtml(name)}</div>`
   ).join('');
   list.classList.add('open');
 }
