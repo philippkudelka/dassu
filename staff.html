@@ -1686,7 +1686,15 @@ let customerUsers = [];
 let dailyNotes = {};
 let theoryLessons = [];
 let theoryFilterMode = 'mine'; // 'mine' | 'all' (nur für Admins/Berechtigte)
-let appSettings = {};
+// EmailJS-Werte fest als Default, damit Einladungs-/Status-Mails auch ohne
+// den settings-Knoten in der DB funktionieren. DB-Werte überschreiben via Listener.
+let appSettings = {
+  emailServiceId: 'service_v2wd3ji',
+  emailTemplateId: 'template_4yxxj22',
+  emailInviteTemplateId: 'template_tqnc8t4',
+  emailPublicKey: 'aNDJA3t4YBKvH5ynz',
+  senderName: 'DASSU - Alpensegelflugschule Unterwössen'
+};
 let appInvitations = [];
 let currentUser = null;
 // Fallback: wenn Auth-Callback currentUser nicht gesetzt hat, aus localStorage wiederherstellen
@@ -2030,7 +2038,16 @@ function escapeHtml(s) { return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;'
 // ============================================================
 // EINLADUNGEN (APP)
 // ============================================================
-db.ref('settings').on('value', snap => { appSettings = snap.val() || {}; });
+db.ref('settings').on('value', snap => {
+  // Merge statt Überschreiben — so bleiben die Code-Defaults (EmailJS) erhalten,
+  // falls der settings-Knoten in der DB fehlt oder unvollständig ist.
+  const data = snap.val();
+  if (data) {
+    Object.keys(data).forEach(key => {
+      if (data[key] !== '' && data[key] != null) appSettings[key] = data[key];
+    });
+  }
+});
 
 db.ref('invitations').on('value', snap => {
   const data = snap.val() || {};

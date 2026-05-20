@@ -2974,11 +2974,14 @@ let currentFilter = 'all';
 let detailBookingId = null;
 let viewMode = 'day'; // 'day' or 'week'
 
-// Settings
+// Settings — EmailJS-Werte fest als Default, damit E-Mail-Versand auch ohne
+// den settings-Knoten in der DB funktioniert. (Public Key ist client-seitig
+// öffentlich — kein Geheimnis.) DB-Werte überschreiben diese Defaults via Listener.
 let settings = {
   aircraft: [...DEFAULT_AIRCRAFT],
   emailServiceId: 'service_v2wd3ji',
   emailTemplateId: 'template_4yxxj22',
+  emailInviteTemplateId: 'template_tqnc8t4',
   emailPublicKey: 'aNDJA3t4YBKvH5ynz',
   senderName: 'DASSU - Alpensegelflugschule Unterwössen'
 };
