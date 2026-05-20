@@ -478,8 +478,6 @@ body { font-family: var(--font); background: var(--c-bg); color: var(--c-ink); m
 .btn-mg-promote { background: var(--accent); color: var(--navy); }
 .btn-mg-demote { background: var(--c-paper); color: var(--navy); border: 1px solid var(--gray-300) !important; }
 .btn-mg-delete { background: #fdecec; color: var(--danger); }
-.team-row-delete { background: transparent; border: 1px solid #f3c2c2; color: var(--danger); width: 28px; height: 28px; border-radius: 50%; cursor: pointer; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; padding: 0; margin-right: 4px; transition: all 0.15s; }
-.team-row-delete:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
 .btn-mg-perms { background: var(--c-paper); color: var(--navy); border: 1px solid var(--gray-300) !important; }
 
 /* Per-user permissions panel */
@@ -1954,7 +1952,16 @@ async function deleteStaffUser(id) {
     const adminCount = staffUsers.filter(u => u.role === 'admin').length;
     if (adminCount <= 1) { notify('Mindestens ein Admin muss bleiben.', 'error'); return; }
   }
-  if (!confirm(`Benutzer \u201e${user.name}\u201c wirklich l\u00f6schen?`)) return;
+  // Best\u00e4tigung: Name muss exakt eingetippt werden (verhindert versehentliches L\u00f6schen)
+  const typed = prompt(
+    `Benutzer \u201e${user.name}\u201c wird ENDG\u00dcLTIG gel\u00f6scht \u2014 inkl. Login-Zugang.\n\n` +
+    `Gib zur Best\u00e4tigung den Namen exakt ein:\n${user.name}`
+  );
+  if (typed === null) return; // Abgebrochen
+  if (typed.trim() !== (user.name || '').trim()) {
+    notify('Name stimmt nicht \u00fcberein \u2014 L\u00f6schen abgebrochen.', 'error');
+    return;
+  }
 
   // 1. DB-Eintrag entfernen
   await db.ref('staffUsers/' + id).remove();
@@ -3644,29 +3651,22 @@ function renderTeamView() {
     countBar.textContent = showing;
   }
 
-  // Compact list rows
-  const adminCount = staffUsers.filter(s => s.role === 'admin').length;
-  const canManage = currentUserHas('manageUsers') || isAdmin();
+  // Compact list rows — Löschen NICHT hier, sondern bewusst nur im Detail-Panel
+  // (verhindert versehentliches Löschen per Fehlklick).
   el.innerHTML = filtered.map(u => {
     const isCustomer = u._type === 'customer';
     const avatarCls = isCustomer ? 'role-customer' : (u.role === 'admin' ? 'role-admin' : (u.role === 'team' ? 'role-team' : 'role-guest'));
     const badgeCls = isCustomer ? 'badge-customer' : (u.role === 'admin' ? 'badge-admin' : (u.role === 'team' ? 'badge-team' : 'badge-guest'));
     const badgeLabel = isCustomer ? (u.customerType === 'student' ? 'Schüler' : 'Charter') : (roleMeta(u.role).short || roleMeta(u.role).label);
     const isMe = currentUser && u.id === currentUser.id;
-    const isAdm = u.role === 'admin';
     const youTag = isMe ? '<span class="you-tag">(du)</span>' : '';
     const clickFn = `openMemberDetail('${u.id}', ${isCustomer ? 'true' : 'false'})`;
-    const canDelete = canManage && !isMe && !(isAdm && adminCount === 1);
 
     let metaText = escapeHtml(u.email || '\u2014');
     if (isCustomer) {
       const stats = getCustomerStats(u.id);
       if (stats.count > 0) metaText += ` \u00B7 ${stats.count} Buchung${stats.count !== 1 ? 'en' : ''}`;
     }
-
-    const deleteBtn = canDelete
-      ? `<button class="team-row-delete" title="Benutzer entfernen" onclick="event.stopPropagation(); ${isCustomer ? `deleteCustomer('${u.id}')` : `deleteStaffUser('${u.id}')`};">✕</button>`
-      : '';
 
     return `<div class="team-row" onclick="${clickFn}">
       <div class="team-row-avatar ${avatarCls}">${(u.name || '?').charAt(0).toUpperCase()}</div>
@@ -3675,7 +3675,6 @@ function renderTeamView() {
         <div class="team-row-meta">${metaText}</div>
       </div>
       <span class="team-row-badge ${badgeCls}">${badgeLabel}</span>
-      ${deleteBtn}
       <span class="team-row-chevron">\u203A</span>
     </div>`;
   }).join('') || '<div style="text-align:center;padding:24px;color:var(--gray-500);font-size:13px;">Keine Mitglieder gefunden.</div>';
@@ -3789,9 +3788,6 @@ function openMemberDetail(uid, isCustomer) {
 
   // Delete button
   const canDelete = canEdit && !isMe && !(isAdm && adminCount === 1);
-  if (!canDelete) {
-    console.log('[DASSU] Kein Lösch-Knopf für', u.name, '— canEdit:', canEdit, 'isMe:', isMe, 'isAdm:', isAdm, 'adminCount:', adminCount, 'currentUser.role:', currentUser && currentUser.role, 'currentUser.id:', currentUser && currentUser.id);
-  }
   const deleteHtml = canDelete ? `<div class="td-section">
     <button class="team-btn-delete" onclick="${isCustomer ? `deleteCustomer('${uid}')` : `deleteStaffUser('${uid}')`};closeTeamDetail();" style="width:100%;padding:10px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);background:#fdecec;color:var(--danger);">Benutzer entfernen</button>
   </div>` : '';
@@ -3937,9 +3933,18 @@ async function deleteCustomer(uid) {
   if (!isAdmin()) return;
   const c = customerUsers.find(x => x.id === uid);
   if (!c) return;
-  if (!confirm('Kunde "' + c.name + '" wirklich loeschen?')) return;
+  // Bestätigung: Name muss exakt eingetippt werden
+  const typed = prompt(
+    `Kunde „${c.name}“ wird ENDGÜLTIG gelöscht.\n\n` +
+    `Gib zur Bestätigung den Namen exakt ein:\n${c.name}`
+  );
+  if (typed === null) return;
+  if (typed.trim() !== (c.name || '').trim()) {
+    notify('Name stimmt nicht überein — Löschen abgebrochen.', 'error');
+    return;
+  }
   await db.ref('customers/' + uid).remove();
-  notify('Kunde geloescht.', 'success');
+  notify('Kunde gelöscht.', 'success');
   closeTeamDetail();
 }
 

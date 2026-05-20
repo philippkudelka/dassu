@@ -5,97 +5,79 @@
 
     "bookings": {
       ".read": "auth != null",
-      ".indexOn": ["date", "uid"],
+      ".indexOn": ["date"],
       "$bookingId": {
-        ".validate": "newData.hasChildren(['aircraft', 'date', 'status']) && newData.child('aircraft').isString() && newData.child('date').isString() && newData.child('status').isString()",
-        ".write": "auth != null && (root.child('staffUsers').child(auth.uid).child('role').val() == 'admin' || root.child('staffUsers').child(auth.uid).child('role').val() == 'team' || (!data.exists() && newData.child('uid').val() == auth.uid) || (data.child('uid').val() == auth.uid))",
-        "aircraft": { ".validate": "newData.isString() && newData.val().length <= 100" },
-        "date":     { ".validate": "newData.isString() && newData.val().length <= 20" },
+        ".write": "auth != null",
         "name":     { ".validate": "newData.isString() && newData.val().length <= 200" },
         "email":    { ".validate": "newData.isString() && newData.val().length <= 200" },
-        "phone":    { ".validate": "newData.isString() && newData.val().length <= 60" },
+        "phone":    { ".validate": "newData.isString() && newData.val().length <= 80" },
         "comment":  { ".validate": "newData.isString() && newData.val().length <= 2000" },
-        "status":   { ".validate": "newData.isString() && (newData.val() == 'pending' || newData.val() == 'approved' || newData.val() == 'rejected' || newData.val() == 'cancelled')" },
-        "$other":   { ".validate": true }
+        "aircraft": { ".validate": "newData.isString() && newData.val().length <= 120" },
+        "date":     { ".validate": "newData.isString() && newData.val().length <= 20" },
+        "status":   { ".validate": "newData.isString() && newData.val().length <= 20" }
       }
     },
 
     "settings": {
       ".read": "auth != null",
-      ".write": "auth != null && (root.child('staffUsers').child(auth.uid).child('role').val() == 'admin' || root.child('staffUsers').child(auth.uid).child('role').val() == 'team')"
+      ".write": "auth != null && (root.child('staffUsers').child(auth.uid).child('role').val() === 'admin' || root.child('staffUsers').child(auth.uid).child('role').val() === 'team')"
     },
 
     "staffUsers": {
-      ".read": "auth != null",
+      ".read": "auth != null && root.child('staffUsers').child(auth.uid).exists()",
+      ".indexOn": ["email"],
       "$uid": {
-        ".write": "auth != null && root.child('staffUsers').child(auth.uid).child('role').val() == 'admin'"
+        ".read": "auth != null",
+        ".write": "auth != null && (root.child('staffUsers').child(auth.uid).child('role').val() === 'admin' || auth.uid === $uid)",
+        "role": {
+          ".validate": "root.child('staffUsers').child(auth.uid).child('role').val() === 'admin' || (!data.exists() && newData.val() !== 'admin')"
+        },
+        "permissions": {
+          ".validate": "root.child('staffUsers').child(auth.uid).child('role').val() === 'admin'"
+        }
       }
     },
 
     "customers": {
-      ".read": "auth != null && (root.child('staffUsers').child(auth.uid).exists())",
+      ".indexOn": ["customerType"],
       "$uid": {
-        ".read": "auth != null && (auth.uid == $uid || root.child('staffUsers').child(auth.uid).exists())",
-        ".write": "auth != null && (auth.uid == $uid || root.child('staffUsers').child(auth.uid).child('role').val() == 'admin')"
-      }
+        ".read": "auth != null && (auth.uid === $uid || root.child('staffUsers').child(auth.uid).exists())",
+        ".write": "auth != null && (auth.uid === $uid || root.child('staffUsers').child(auth.uid).child('role').val() === 'admin')",
+        "customerType": {
+          ".validate": "root.child('staffUsers').child(auth.uid).exists() || newData.val() === 'charter' || newData.val() === 'student'"
+        }
+      },
+      ".read": "auth != null && root.child('staffUsers').child(auth.uid).exists()"
     },
 
-    "users": {
-      "$uid": {
-        ".read": "auth != null && auth.uid == $uid",
-        ".write": "auth != null && auth.uid == $uid"
-      }
-    },
-
-    "training": {
-      "$uid": {
-        ".read": "auth != null && (auth.uid == $uid || root.child('staffUsers').child(auth.uid).exists())",
-        ".write": "auth != null && root.child('staffUsers').child(auth.uid).exists()"
-      }
-    },
-
-    "timeEntries": {
-      "$uid": {
-        ".read": "auth != null && (auth.uid == $uid || root.child('staffUsers').child(auth.uid).child('role').val() == 'admin')",
-        ".write": "auth != null && (auth.uid == $uid || root.child('staffUsers').child(auth.uid).child('role').val() == 'admin')"
-      }
-    },
-
-    "timeSettings": {
-      "$uid": {
-        ".read": "auth != null && (auth.uid == $uid || root.child('staffUsers').child(auth.uid).child('role').val() == 'admin')",
-        ".write": "auth != null && (auth.uid == $uid || root.child('staffUsers').child(auth.uid).child('role').val() == 'admin')"
+    "invitations": {
+      ".read": "auth != null && root.child('staffUsers').child(auth.uid).child('role').val() === 'admin'",
+      "$key": {
+        ".read": "auth != null",
+        ".write": "auth != null && (root.child('staffUsers').child(auth.uid).child('role').val() === 'admin' || !newData.exists())"
       }
     },
 
     "theoryLessons": {
       ".read": "auth != null && root.child('staffUsers').child(auth.uid).exists()",
-      "$id": {
-        ".write": "auth != null && root.child('staffUsers').child(auth.uid).exists()"
-      }
+      ".write": "auth != null && root.child('staffUsers').child(auth.uid).exists()"
     },
 
     "messages": {
       ".read": "auth != null && root.child('staffUsers').child(auth.uid).exists()",
-      "$id": {
-        ".write": "auth != null && root.child('staffUsers').child(auth.uid).exists()"
-      }
-    },
-
-    "invitations": {
-      ".read": "auth != null && root.child('staffUsers').child(auth.uid).child('role').val() == 'admin'",
-      ".write": "auth != null && root.child('staffUsers').child(auth.uid).child('role').val() == 'admin'"
+      ".write": "auth != null && root.child('staffUsers').child(auth.uid).exists()",
+      ".indexOn": ["createdAt"]
     },
 
     "pushTokens": {
       ".read": false,
       "$tokenKey": {
-        ".write": "auth != null && (!data.exists() || data.child('uid').val() == auth.uid || newData.child('uid').val() == auth.uid)"
+        ".write": "auth != null"
       }
     },
 
     "gastfluglehrer": {
-      ".read": "auth != null",
+      ".read": "auth != null && root.child('staffUsers').child(auth.uid).exists()",
       ".write": "auth != null && root.child('staffUsers').child(auth.uid).exists()"
     },
 
@@ -105,13 +87,42 @@
     },
 
     "activityLog": {
-      ".read": "auth != null && root.child('staffUsers').child(auth.uid).child('role').val() == 'admin'",
-      ".write": "auth != null && root.child('staffUsers').child(auth.uid).exists()"
+      ".read": "auth != null && root.child('staffUsers').child(auth.uid).child('role').val() === 'admin'",
+      ".write": "auth != null && root.child('staffUsers').child(auth.uid).exists()",
+      ".indexOn": ["timestamp"]
     },
 
     "audit": {
-      ".read": "auth != null && root.child('staffUsers').child(auth.uid).child('role').val() == 'admin'",
-      ".write": "auth != null && root.child('staffUsers').child(auth.uid).exists()"
+      "$bookingId": {
+        ".read": "auth != null && root.child('staffUsers').child(auth.uid).exists()",
+        ".write": "auth != null && root.child('staffUsers').child(auth.uid).exists()"
+      }
+    },
+
+    "timeEntries": {
+      ".read": "auth != null && root.child('staffUsers').child(auth.uid).child('role').val() === 'admin'",
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('staffUsers').child(auth.uid).child('role').val() === 'admin')",
+        ".write": "auth != null && (auth.uid === $uid || root.child('staffUsers').child(auth.uid).child('role').val() === 'admin')"
+      }
+    },
+
+    "timeSettings": {
+      ".read": "auth != null && root.child('staffUsers').child(auth.uid).child('role').val() === 'admin'",
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('staffUsers').child(auth.uid).child('role').val() === 'admin')",
+        ".write": "auth != null && (auth.uid === $uid || root.child('staffUsers').child(auth.uid).child('role').val() === 'admin')"
+      }
+    },
+
+    "users": {
+      ".read": false,
+      ".write": false
+    },
+
+    "training": {
+      ".read": false,
+      ".write": false
     },
 
     "_rateLimits": {

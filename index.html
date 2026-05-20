@@ -5465,7 +5465,7 @@ db.ref('invitations').on('value', snap => {
     renderInvitations();
     populateInvRoleOptions();
   }
-});
+}, () => { /* invitations nur für Admins lesbar — Fehler bei Nicht-Admins ignorieren */ });
 
 function populateInvRoleOptions() {
   const sel = document.getElementById('invRole');
@@ -6333,15 +6333,16 @@ function deleteTheoryLesson(id) {
   });
 }
 
-// Firebase-Listener für Theoriestunden
-(function initTheoryListener() {
+// Firebase-Listener für Theoriestunden — wird erst nach Login gestartet
+// (siehe startAuthedListeners), da die DB-Rules Authentifizierung verlangen.
+function initTheoryListener() {
   db.ref('theoryLessons').on('value', snap => {
     theoryLessonsData = snap.val() || {};
     if (document.getElementById('theoryView')?.style.display !== 'none') {
       renderTheoryLessons();
     }
-  });
-})();
+  }, () => {});
+}
 
 // ============================================================
 // NACHRICHTEN-MODUL (Fluglehrer)
@@ -6609,7 +6610,20 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
 // ============================================================
 // INIT
 // ============================================================
-loadData();
+// Die Firebase-Rules verlangen Login. Würden die Daten-Listener schon beim
+// Seitenaufruf (anonym) starten, bekämen sie PERMISSION_DENIED und würden sich
+// nach einem späteren Login NICHT von selbst reaktivieren → leerer Kalender.
+// Deshalb: Listener erst starten, sobald ein User eingeloggt ist.
+let _authedListenersStarted = false;
+function startAuthedListeners() {
+  if (_authedListenersStarted) return;
+  _authedListenersStarted = true;
+  loadData();
+  initTheoryListener();
+}
+firebase.auth().onAuthStateChanged(user => {
+  if (user) startAuthedListeners();
+});
 renderView();
 
 // ============================================================
