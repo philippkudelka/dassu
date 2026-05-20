@@ -30,7 +30,7 @@
         ".read": "auth != null",
         ".write": "auth != null && (root.child('staffUsers').child(auth.uid).child('role').val() === 'admin' || auth.uid === $uid)",
         "role": {
-          ".validate": "root.child('staffUsers').child(auth.uid).child('role').val() === 'admin' || (!data.exists() && newData.val() !== 'admin')"
+          ".validate": "root.child('staffUsers').child(auth.uid).child('role').val() === 'admin' || newData.val() === root.child('invitations').child(auth.token.email.toLowerCase().replace('.', ',').replace('@', '__at__').replace('#', '__hash__').replace('$', '__dollar__').replace('[', '__lb__').replace(']', '__rb__')).child('role').val()"
         },
         "permissions": {
           ".validate": "root.child('staffUsers').child(auth.uid).child('role').val() === 'admin'"
