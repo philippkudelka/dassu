@@ -8,13 +8,21 @@
       ".indexOn": ["date"],
       "$bookingId": {
         ".write": "auth != null && (root.child('staffUsers').child(auth.uid).exists() || (!data.exists() && newData.child('uid').val() === auth.uid) || (data.exists() && data.child('uid').val() === auth.uid))",
-        "name":     { ".validate": "newData.isString() && newData.val().length <= 200" },
-        "email":    { ".validate": "newData.isString() && newData.val().length <= 200" },
-        "phone":    { ".validate": "newData.isString() && newData.val().length <= 80" },
-        "comment":  { ".validate": "newData.isString() && newData.val().length <= 2000" },
         "aircraft": { ".validate": "newData.isString() && newData.val().length <= 120" },
         "date":     { ".validate": "newData.isString() && newData.val().length <= 20" },
         "status":   { ".validate": "newData.isString() && newData.val().length <= 20" }
+      }
+    },
+
+    "bookingContacts": {
+      ".read": "auth != null && root.child('staffUsers').child(auth.uid).exists()",
+      "$bookingId": {
+        ".read": "auth != null && (root.child('staffUsers').child(auth.uid).exists() || data.child('uid').val() === auth.uid)",
+        ".write": "auth != null && (root.child('staffUsers').child(auth.uid).exists() || (!data.exists() && newData.child('uid').val() === auth.uid) || (data.exists() && data.child('uid').val() === auth.uid))",
+        "name":    { ".validate": "newData.isString() && newData.val().length <= 200" },
+        "email":   { ".validate": "newData.isString() && newData.val().length <= 200" },
+        "phone":   { ".validate": "newData.isString() && newData.val().length <= 80" },
+        "comment": { ".validate": "newData.isString() && newData.val().length <= 2000" }
       }
     },
 

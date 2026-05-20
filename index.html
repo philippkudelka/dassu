@@ -3049,12 +3049,14 @@ function loadData() {
     renderDailyNotesBanner();
   }, () => {});
 
-  // Bookings: Echtzeit-Listener — alle Geräte sehen sofort Änderungen
+  // Bookings: Echtzeit-Listener — alle Geräte sehen sofort Änderungen.
+  // Enthält nur Belegungsdaten (keine PII — die liegt in bookingContacts).
   db.ref('bookings').on('value', (snapshot) => {
     const data = snapshot.val();
     bookings = data ? Object.values(data) : [];
     window._allBookings = data || {};
     firebaseReady = true;
+    mergeBookingContacts(); // PII einmischen, falls für Staff geladen
     renderView();
   }, (error) => {
     console.error('Firebase Bookings Fehler:', error);
@@ -3097,6 +3099,36 @@ function loadData() {
   }, () => {});
 }
 
+// Kontaktdaten (PII) der Buchungen — wird nur für Staff/Fluglehrer geladen.
+let bookingContacts = null;
+let _bookingContactsListenerStarted = false;
+
+// Mischt die PII aus bookingContacts in die bookings-Objekte (für Staff-Ansichten).
+function mergeBookingContacts() {
+  if (!bookingContacts) return;
+  bookings.forEach(b => {
+    const c = bookingContacts[b.id];
+    if (c) {
+      b.name = c.name || '';
+      b.email = c.email || '';
+      b.phone = c.phone || '';
+      b.comment = c.comment || '';
+    }
+  });
+}
+
+// Startet den bookingContacts-Listener — nur für Staff/Fluglehrer aufrufen.
+// Kunden dürfen fremde Kontaktdaten nicht sehen (DB-Rules verweigern den Zugriff).
+function startBookingContactsListener() {
+  if (_bookingContactsListenerStarted) return;
+  _bookingContactsListenerStarted = true;
+  db.ref('bookingContacts').on('value', (snap) => {
+    bookingContacts = snap.val() || {};
+    mergeBookingContacts();
+    renderView();
+  }, (err) => { console.warn('bookingContacts nicht ladbar:', err); });
+}
+
 // Schreibt nur globale Settings + LocalStorage-Fallback.
 // Bookings werden über saveBooking()/deleteBookingFromDb() per-ID geschrieben,
 // damit parallele Schreibvorgänge sich nicht überschreiben.
@@ -3108,16 +3140,36 @@ function saveData() {
   } catch(e) { console.error('Fehler beim Speichern:', e); }
 }
 
+// Personenbezogene Felder einer Buchung — werden GETRENNT in bookingContacts/{id}
+// gespeichert, damit eingeloggte Kunden keine fremden Kontaktdaten sehen.
+// (instructorName = Fluglehrer-Name, KEINE Kunden-PII → bleibt in bookings.)
+const BOOKING_PII_FIELDS = ['name', 'email', 'phone', 'comment'];
+
+// Schreibt nur die Belegungsdaten (ohne PII) nach bookings/{id}.
 function saveBooking(b) {
   if (!b || !b.id) return Promise.reject(new Error('Buchung ohne ID'));
   try { localStorage.setItem('flugkalender_bookings', JSON.stringify(bookings)); } catch(_) {}
-  return db.ref('bookings/' + b.id).set(b);
+  const booking = {};
+  Object.keys(b).forEach(k => { if (!BOOKING_PII_FIELDS.includes(k)) booking[k] = b[k]; });
+  return db.ref('bookings/' + b.id).set(booking);
+}
+
+// Schreibt die Kontaktdaten (PII) nach bookingContacts/{id}.
+// uid wird mitgespeichert, damit die DB-Rules den Besitzer ohne Cross-Lookup prüfen können.
+function saveBookingContact(b) {
+  if (!b || !b.id) return Promise.reject(new Error('Buchung ohne ID'));
+  const contact = { uid: b.uid || '' };
+  BOOKING_PII_FIELDS.forEach(k => { contact[k] = (b[k] != null ? b[k] : ''); });
+  return db.ref('bookingContacts/' + b.id).set(contact);
 }
 
 function deleteBookingFromDb(id) {
   if (!id) return Promise.reject(new Error('ID fehlt'));
   try { localStorage.setItem('flugkalender_bookings', JSON.stringify(bookings)); } catch(_) {}
-  return db.ref('bookings/' + id).remove();
+  const updates = {};
+  updates['bookings/' + id] = null;
+  updates['bookingContacts/' + id] = null;
+  return db.ref().update(updates);
 }
 
 // ============================================================
@@ -4486,6 +4538,7 @@ function submitBooking() {
 
   bookings.push(booking);
   saveBooking(booking);
+  saveBookingContact(booking);
   closeModal('bookingModal');
   // Reset steps for next time
   document.getElementById('bookingStep1').style.display = 'block';
@@ -4695,6 +4748,7 @@ function saveBookingEdit(id) {
   b.instructorName = b.instructor === 'ja' ? (document.getElementById('editInstructorName').value.trim() || '') : '';
 
   saveBooking(b);
+  saveBookingContact(b);
   renderView();
   renderAdminTable();
   closeModal('detailModal');
@@ -4935,12 +4989,19 @@ function cancelBookingById(bookingId) {
     }
   }
 
-  // Copy booking data for email before deleting
+  // Copy booking data for email before deleting.
+  // Für Kunden enthält das booking-Objekt keine PII (liegt in bookingContacts) —
+  // daher Kontaktdaten aus dem eigenen Profil ergänzen, damit die Storno-Mails stimmen.
   const bookingCopy = { ...booking };
+  if (!bookingCopy.name && customerProfile) {
+    bookingCopy.name = customerProfile.name || '';
+    bookingCopy.email = customerProfile.email || (cu && cu.email) || '';
+    bookingCopy.phone = customerProfile.phone || '';
+  }
 
-  // Delete from bookings array and Firebase
+  // Delete from bookings array and Firebase (Belegung + Kontaktdaten)
   bookings = bookings.filter(b => b.id !== bookingId);
-  db.ref('bookings/' + bookingId).remove();
+  deleteBookingFromDb(bookingId);
   localStorage.setItem('flugkalender_bookings', JSON.stringify(bookings));
   renderCalendar();
   notify('Deine Buchung wurde erfolgreich storniert.', 'success');
@@ -7398,6 +7459,8 @@ firebase.auth().onAuthStateChanged(async (user) => {
       if (staffProfile) {
         // Staff-Rolle erkannt (admin, team, guestGlider, guestMotor)
         currentStaffRole = staffProfile.role;
+        // Staff/Fluglehrer dürfen Kontaktdaten sehen → bookingContacts laden
+        startBookingContactsListener();
         if (devMode && staffProfile.role === 'admin') {
           // Dev-Modus: Admin bleibt auf index.html, Toolbar zeigen
           devStaffProfile = staffProfile;
@@ -7680,6 +7743,7 @@ function submitQuickBook() {
   };
   bookings.push(booking);
   saveBooking(booking);
+  saveBookingContact(booking);
   closeQuickBook();
   renderView();
   notify(`${name} gebucht: ${aircraft} ${startTime}–${endTime}`, 'success');

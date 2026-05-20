@@ -2416,9 +2416,52 @@ db.ref('gastfluglehrer').on('value', snap => {
   renderGuestStrip();
 });
 
+// Kontaktdaten (PII) der Buchungen liegen im separaten Knoten bookingContacts.
+// Staff darf sie sehen — sie werden hier in die bookings-Objekte gemerged,
+// damit der restliche staff.html-Code unverändert b.name/b.email/... nutzen kann.
+let bookingContacts = {};
+const BOOKING_PII_FIELDS = ['name', 'email', 'phone', 'comment'];
+function mergeBookingContacts() {
+  bookings.forEach(b => {
+    const c = bookingContacts[b.id];
+    if (c) {
+      b.name = c.name || '';
+      b.email = c.email || '';
+      b.phone = c.phone || '';
+      b.comment = c.comment || '';
+    }
+  });
+}
+
+// Speichert eine Buchung: Belegung nach bookings/{id}, Kontaktdaten nach
+// bookingContacts/{id} — atomar in einem Multi-Path-Update.
+function saveBookingSplit(b) {
+  const booking = {}, contact = { uid: b.uid || '' };
+  Object.keys(b).forEach(k => {
+    if (BOOKING_PII_FIELDS.includes(k)) contact[k] = b[k];
+    else booking[k] = b[k];
+  });
+  BOOKING_PII_FIELDS.forEach(k => { if (contact[k] == null) contact[k] = ''; });
+  const updates = {};
+  updates['bookings/' + b.id] = booking;
+  updates['bookingContacts/' + b.id] = contact;
+  return db.ref().update(updates);
+}
+
+// Löscht Belegung + Kontaktdaten einer Buchung.
+function deleteBookingSplit(id) {
+  const updates = {};
+  updates['bookings/' + id] = null;
+  updates['bookingContacts/' + id] = null;
+  return db.ref().update(updates);
+}
+
 db.ref('bookings').on('value', snap => {
   const data = snap.val();
   const newBookings = data ? Object.values(data) : [];
+
+  bookings = newBookings;
+  mergeBookingContacts(); // PII einmischen, damit Notifications den Namen zeigen
 
   // Detect new bookings (only after first load)
   if (!firstLoad) {
@@ -2432,7 +2475,6 @@ db.ref('bookings').on('value', snap => {
   knownBookingIds = new Set(newBookings.map(b => b.id));
   firstLoad = false;
 
-  bookings = newBookings;
   render();
   updatePendingBadge();
 
@@ -2449,6 +2491,13 @@ db.ref('bookings').on('value', snap => {
     }
   }
 });
+
+// Kontaktdaten-Listener \u2014 Staff darf die PII sehen; bei \u00c4nderung neu mergen + rendern.
+db.ref('bookingContacts').on('value', snap => {
+  bookingContacts = snap.val() || {};
+  mergeBookingContacts();
+  render();
+}, err => { console.warn('bookingContacts nicht ladbar:', err); });
 
 // Service Worker kann via postMessage eine Buchung \u00f6ffnen (Fallback f\u00fcr \u00e4ltere Browser ohne Client.navigate)
 if ('serviceWorker' in navigator && navigator.serviceWorker) {
@@ -6077,7 +6126,7 @@ function submitQuick() {
     createdAt: new Date().toISOString()
   };
 
-  db.ref('bookings/' + booking.id).set(booking).then(() => {
+  saveBookingSplit(booking).then(() => {
     try {
       addAuditEntry(booking.id, 'erstellt', `${name}, ${selectedAircraft}, ${startTime}–${endTime}`);
       logActivity('create', `Buchung erstellt: ${name}, ${selectedAircraft}, ${startTime}–${endTime}`, booking.id);
@@ -6194,7 +6243,7 @@ function submitEdit() {
     instructorName: needInstructor ? instructorName : ''
   };
 
-  db.ref('bookings/' + id).set(updated).then(() => {
+  saveBookingSplit(updated).then(() => {
     try {
       if (changes.length) {
         addAuditEntry(id, 'bearbeitet', changes.join('; '));
@@ -6391,7 +6440,7 @@ function deleteBooking(id) {
   const b = bookings.find(x => x.id === id);
   addAuditEntry(id, 'gelöscht', b ? `${b.name}, ${b.aircraft}, ${b.startTime || ''}–${b.endTime || ''}` : '');
   logActivity('delete', `Buchung gelöscht: ${b ? b.name + ', ' + b.aircraft + ', ' + (b.startTime || '') + '–' + (b.endTime || '') : id}`, id);
-  db.ref('bookings/' + id).remove();
+  deleteBookingSplit(id);
 
   closeDetail();
   notify('Buchung gelöscht.', 'success');
