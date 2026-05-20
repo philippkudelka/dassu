@@ -35,6 +35,13 @@ Die Bash-Sandbox hat KEINEN GitHub-Zugriff (403 Proxy-Fehler). Niemals versuchen
 - **Manuell auslösen** (optional): Env-Var `BACKUP_SECRET` in Netlify setzen, dann `.../.netlify/functions/backup-database?key=<BACKUP_SECRET>` aufrufen.
 - Optionale Env-Var `BACKUP_EMAIL` ändert den Empfänger.
 
+## Fehler-Monitoring
+
+- **`shared/errorlog.js`** (in index.html + staff.html eingebunden) fängt unbehandelte JS-Fehler ab und schreibt sie nach Firebase `/errorLog` (mit Dedup + Session-Limit gegen Fehler-Schleifen).
+- **`netlify/functions/error-report.js`** verschickt täglich um 06:00 UTC eine Fehler-Zusammenfassung der letzten 24h per E-Mail (nur wenn Fehler auftraten) und löscht Einträge älter als 30 Tage.
+- `errorLog` ist per Rules nur für Admins lesbar; schreiben darf jeder (auch vor Login), aber nur neue Einträge.
+- Empfänger: `ERROR_EMAIL` (Fallback `BACKUP_EMAIL`, Default `philipp.kudelka@dassu.de`).
+
 ## Buchungs-Daten-Struktur (PII-Trennung)
 
 - `bookings/{id}` — nur Belegungsdaten (aircraft, date, Zeiten, status, instructorName, **uid** = Besitzer).

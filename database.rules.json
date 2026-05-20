@@ -133,6 +133,19 @@
       ".write": false
     },
 
+    "errorLog": {
+      ".read": "auth != null && root.child('staffUsers').child(auth.uid).child('role').val() === 'admin'",
+      "$id": {
+        ".write": "!data.exists()",
+        ".validate": "newData.hasChildren(['ts', 'message'])",
+        "message":   { ".validate": "newData.isString() && newData.val().length <= 500" },
+        "stack":     { ".validate": "newData.isString() && newData.val().length <= 2000" },
+        "source":    { ".validate": "newData.isString() && newData.val().length <= 300" },
+        "url":       { ".validate": "newData.isString() && newData.val().length <= 300" },
+        "userAgent": { ".validate": "newData.isString() && newData.val().length <= 400" }
+      }
+    },
+
     "_rateLimits": {
       ".read": false,
       ".write": false
