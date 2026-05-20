@@ -10,6 +10,11 @@
 [functions]
   node_bundler = "esbuild"
 
+# Tägliches Datenbank-Backup (siehe netlify/functions/backup-database.js).
+# "@daily" = einmal pro Tag um Mitternacht UTC.
+[functions."backup-database"]
+  schedule = "@daily"
+
 # Service Worker: NIEMALS cachen — Browser muss immer frische Version holen
 [[headers]]
   for = "/sw.js"

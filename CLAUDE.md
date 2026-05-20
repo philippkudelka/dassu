@@ -28,6 +28,20 @@ Die Bash-Sandbox hat KEINEN GitHub-Zugriff (403 Proxy-Fehler). Niemals versuchen
 - Vor dem Import: aktuelle Rules sichern (Firebase Console → Rules → "..." → Export)
 - **WICHTIG**: Rules vor Publish im "Rules Playground" testen (Lesen + Schreiben mit echten UIDs simulieren). Falsche Rules können die App komplett blockieren — dann sofort Rollback auf die exportierten Original-Rules.
 
+## Datenbank-Backup
+
+- **`netlify/functions/backup-database.js`** exportiert täglich (Zeitplan in `netlify.toml`, `@daily`) die komplette Firebase-DB als JSON und schickt sie per E-Mail an `BACKUP_EMAIL` (Default `philipp.kudelka@dassu.de`).
+- **Wiederherstellung:** JSON-Anhang aus der Backup-Mail nehmen → Firebase Console → Realtime Database → Daten → 3-Punkte-Menü → "JSON importieren".
+- **Manuell auslösen** (optional): Env-Var `BACKUP_SECRET` in Netlify setzen, dann `.../.netlify/functions/backup-database?key=<BACKUP_SECRET>` aufrufen.
+- Optionale Env-Var `BACKUP_EMAIL` ändert den Empfänger.
+
+## Buchungs-Daten-Struktur (PII-Trennung)
+
+- `bookings/{id}` — nur Belegungsdaten (aircraft, date, Zeiten, status, instructorName, **uid** = Besitzer).
+- `bookingContacts/{id}` — Kontaktdaten (name, email, phone, comment, uid). Nur für Staff oder Besitzer lesbar.
+- Schreiben: index.html `saveBooking()` + `saveBookingContact()`; staff.html `saveBookingSplit()`. Löschen löscht IMMER beide Knoten.
+- staff.html + index.html (für Staff) laden zusätzlich `bookingContacts` und mergen die PII per `mergeBookingContacts()` ins `bookings`-Array.
+
 ## Wichtige Hinweise zur Sicherheit
 
 - **Netlify Functions verlangen Bearer-Token** (außer `send-reset-email` für Passwort-vergessen-Flow). Bei Frontend-Erweiterungen immer `Authorization: Bearer ${idToken}` mitschicken.
