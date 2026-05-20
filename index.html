@@ -4058,12 +4058,19 @@ function renderGanttCalendar(dk, aircraft) {
 function renderSidebar(dk) {
   const currentUser = firebase.auth().currentUser || null;
 
+  // Buchung gehört dem User? Primär per uid, Fallback E-Mail (Alt-Buchungen).
+  const isOwnBooking = (b) => {
+    if (!currentUser) return false;
+    if (b.uid) return b.uid === currentUser.uid;
+    return !!currentUser.email && b.email === currentUser.email;
+  };
+
   // === Next Flight Card (nur für eingeloggte User) ===
   const nextFlightCard = document.getElementById('nextFlightCard');
   const now = new Date();
-  const upcomingBookings = currentUser && currentUser.email
+  const upcomingBookings = currentUser
     ? bookings.filter(b => {
-        if (b.email !== currentUser.email) return false;
+        if (!isOwnBooking(b)) return false;
         const bDate = new Date(b.date + 'T' + b.startTime + ':00');
         return bDate > now;
       }).sort((a, b) => new Date(a.date + 'T' + a.startTime) - new Date(b.date + 'T' + b.startTime))
@@ -4083,10 +4090,8 @@ function renderSidebar(dk) {
 
   // === My Bookings Card ===
   const bookingsList = document.getElementById('bookingsList');
-  const myBookings = bookings.filter(b => {
-    if (currentUser && currentUser.email) return b.email === currentUser.email;
-    return false;
-  }).sort((a, b) => new Date(b.date) - new Date(a.date));
+  const myBookings = bookings.filter(b => isOwnBooking(b))
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
 
   if (myBookings.length > 0) {
     const bookingsHtml = myBookings.slice(0, 5).map(b => {
@@ -4472,6 +4477,7 @@ function submitBooking() {
     instructor: instructor,
     comment: document.getElementById('bookingComment').value.trim(),
     status: 'pending',
+    uid: currentUser ? currentUser.uid : '',
     createdAt: new Date().toISOString()
   };
 
@@ -4912,6 +4918,20 @@ function cancelBookingById(bookingId) {
     return;
   }
 
+  // Besitzer-Check: ein Kunde darf nur seine eigene Buchung stornieren.
+  // (Die DB-Rules erzwingen das zusätzlich serverseitig.)
+  const cu = firebase.auth().currentUser;
+  const isStaff = currentStaffRole === 'admin' || currentStaffRole === 'team';
+  if (!isStaff) {
+    const ownsByUid = cu && booking.uid && booking.uid === cu.uid;
+    const ownsByEmail = cu && !booking.uid && customerProfile && booking.email &&
+      booking.email.toLowerCase() === (customerProfile.email || '').toLowerCase();
+    if (!ownsByUid && !ownsByEmail) {
+      notify('Du kannst nur deine eigenen Buchungen stornieren.', 'error');
+      return;
+    }
+  }
+
   // Copy booking data for email before deleting
   const bookingCopy = { ...booking };
 
@@ -5138,10 +5158,15 @@ function filterMyBookings(filter, el) {
 
 function getMyBookings() {
   if (!customerProfile) return [];
+  const cu = firebase.auth().currentUser;
+  const uid = cu ? cu.uid : '';
   const email = (customerProfile.email || '').toLowerCase().trim();
   const name = (customerProfile.name || '').toLowerCase().trim();
-  if (!email && !name) return [];
+  if (!uid && !email && !name) return [];
   return bookings.filter(b => {
+    // Primär: Besitzer-uid. Buchungen mit uid werden NUR per uid zugeordnet.
+    if (b.uid) return !!uid && b.uid === uid;
+    // Fallback für Alt-Buchungen ohne uid: E-Mail-/Namen-Vergleich
     const bEmail = (b.email || '').toLowerCase().trim();
     const bName = (b.name || '').toLowerCase().trim();
     return (email && bEmail === email) || (name && bName === name);
@@ -7083,13 +7108,8 @@ function renderAccountView() {
     }
   }
 
-  // Buchungsstatistiken
-  const myBookings = bookings.filter(b => {
-    if (!customerProfile) return false;
-    const email = (customerProfile.email || '').toLowerCase();
-    const name = (customerProfile.name || '').toLowerCase();
-    return (b.email && b.email.toLowerCase() === email) || (b.name && b.name.toLowerCase() === name);
-  });
+  // Buchungsstatistiken — eigene Buchungen (primär per uid, Fallback E-Mail/Name)
+  const myBookings = getMyBookings();
   const now = new Date();
   const upcoming = myBookings.filter(b => {
     const bDate = new Date(b.date);
@@ -7652,6 +7672,7 @@ function submitQuickBook() {
     instructorName: hasInstructor ? instructorName : '',
     status: 'approved',
     quickBook: true, // Flag: Admin-Schnellbuchung
+    uid: '', // Staff-Buchung — kein Kunden-Besitzer
     createdAt: new Date().toISOString()
   };
   bookings.push(booking);

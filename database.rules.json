@@ -7,7 +7,7 @@
       ".read": "auth != null",
       ".indexOn": ["date"],
       "$bookingId": {
-        ".write": "auth != null",
+        ".write": "auth != null && (root.child('staffUsers').child(auth.uid).exists() || (!data.exists() && newData.child('uid').val() === auth.uid) || (data.exists() && data.child('uid').val() === auth.uid))",
         "name":     { ".validate": "newData.isString() && newData.val().length <= 200" },
         "email":    { ".validate": "newData.isString() && newData.val().length <= 200" },
         "phone":    { ".validate": "newData.isString() && newData.val().length <= 80" },

@@ -6055,6 +6055,7 @@ function submitQuick() {
     status: 'approved',
     cancelToken: '',
     quickBook: true,
+    uid: '', // Staff-Buchung — kein Kunden-Besitzer
     createdBy: currentUser ? currentUser.name : '',
     createdAt: new Date().toISOString()
   };
