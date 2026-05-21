@@ -1568,6 +1568,11 @@ body.dev-mode { padding-bottom: 48px; }
     </div>
   </div>
 
+  <div class="account-card">
+    <h3>Vereinsflieger-Verbindung</h3>
+    <div id="accVfSection"><div class="field-hint">Wird geladen…</div></div>
+  </div>
+
   <div class="account-card" style="margin-bottom:80px;">
     <h3>Konto</h3>
     <div class="account-actions">
@@ -5291,49 +5296,84 @@ function renderStats() {
 // ============================================================
 let fiStatsData = null;
 
-// ── Vereinsflieger-Konto verbinden (für Statistik-Funktionen) ──
-let _vfReloadFn = null;
+// ── Vereinsflieger-Verbindung ──
+// Verwaltet wird sie zentral unter "Mein Konto". Statistik-Seiten verweisen
+// nur dorthin, wenn noch kein Konto verbunden ist.
 
-// Zeigt im angegebenen Container ein Formular zum Verknüpfen des
-// persönlichen Vereinsflieger-Kontos. reloadFn wird nach Erfolg aufgerufen.
-function renderVfConnectForm(contentEl, reloadFn) {
+// Hinweis-Box auf Statistik-Seiten, wenn kein VF-Konto verbunden ist.
+function renderVfConnectForm(contentEl) {
   if (!contentEl) return;
-  _vfReloadFn = (typeof reloadFn === 'function') ? reloadFn : null;
   contentEl.innerHTML = `
-    <div style="max-width:360px;margin:24px auto;padding:18px;border:1px solid var(--gray-200);border-radius:10px;background:#fff;">
-      <div style="font-weight:600;color:var(--navy);margin-bottom:6px;">Vereinsflieger-Konto verbinden</div>
+    <div style="max-width:380px;margin:24px auto;padding:18px;border:1px solid var(--gray-200);border-radius:10px;background:#fff;text-align:center;">
+      <div style="font-weight:600;color:var(--navy);margin-bottom:6px;">Kein Vereinsflieger-Konto verbunden</div>
       <p style="font-size:12px;color:var(--gray-600);margin:0 0 14px;">
-        Die Statistik nutzt deine persönlichen Vereinsflieger-Zugangsdaten.
-        Einmalig verbinden — danach bleibt die Verknüpfung gespeichert.
+        Verbinde dein persönliches Vereinsflieger-Konto einmalig unter „Mein Konto" —
+        danach funktioniert die Statistik.
       </p>
-      <input type="text" id="vfConnUser" placeholder="Vereinsflieger-Benutzername" autocomplete="username"
-        style="width:100%;box-sizing:border-box;padding:9px;margin-bottom:8px;border:1px solid var(--gray-300);border-radius:6px;font-size:13px;">
-      <input type="password" id="vfConnPass" placeholder="Vereinsflieger-Passwort" autocomplete="current-password"
-        style="width:100%;box-sizing:border-box;padding:9px;margin-bottom:10px;border:1px solid var(--gray-300);border-radius:6px;font-size:13px;">
-      <button id="vfConnBtn" onclick="vfConnectAccount()"
-        style="width:100%;padding:10px;border:none;border-radius:6px;background:var(--navy);color:#fff;font-size:13px;font-weight:600;cursor:pointer;">Verbinden</button>
-      <div id="vfConnMsg" style="font-size:12px;margin-top:8px;text-align:center;"></div>
+      <button onclick="switchView('account')"
+        style="padding:9px 18px;border:none;border-radius:6px;background:var(--navy);color:#fff;font-size:13px;font-weight:600;cursor:pointer;">Zu „Mein Konto"</button>
     </div>
   `;
 }
 
-// Speichert die VF-Zugangsdaten (verschlüsselt) und lädt anschließend neu.
-async function vfConnectAccount() {
-  const userEl = document.getElementById('vfConnUser');
-  const passEl = document.getElementById('vfConnPass');
-  const msg = document.getElementById('vfConnMsg');
-  const btn = document.getElementById('vfConnBtn');
-  if (!userEl || !passEl || !msg) return;
+// Rendert die VF-Verbindungs-Sektion im "Mein Konto"-Bereich (Status + Aktion).
+async function renderAccountVfSection() {
+  const el = document.getElementById('accVfSection');
+  if (!el) return;
+  el.innerHTML = '<div class="field-hint">Status wird geladen…</div>';
+  let connected = false, displayName = '';
+  try {
+    const token = await firebase.auth().currentUser.getIdToken();
+    const res = await fetch('/.netlify/functions/vereinsflieger-sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'getVfStatus', firebaseToken: token })
+    });
+    const json = await res.json();
+    if (json.ok && json.data) {
+      connected = !!json.data.connected;
+      displayName = json.data.displayName || '';
+    }
+  } catch (e) { /* unten Formular zeigen */ }
+
+  if (connected) {
+    el.innerHTML = `
+      <p style="font-size:13px;color:var(--success);margin:0 0 4px;">✓ Verbunden${displayName ? ' als ' + escapeHtml(displayName) : ''}</p>
+      <div class="field-hint" style="margin:0 0 12px;">Deine Zugangsdaten sind hinterlegt — gilt für Statistik und Flugbuch.</div>
+      <div class="account-actions">
+        <button class="acc-btn-danger" onclick="accVfDisconnect()">Verbindung trennen</button>
+      </div>`;
+  } else {
+    el.innerHTML = `
+      <div class="field-hint" style="margin:0 0 12px;">Verbinde dein persönliches Vereinsflieger-Konto — einmalig, gilt dann für Statistik und Flugbuch.</div>
+      <div class="account-field">
+        <label>Vereinsflieger-Benutzername</label>
+        <input type="text" id="accVfUser" placeholder="Benutzername" autocomplete="username">
+      </div>
+      <div class="account-field">
+        <label>Vereinsflieger-Passwort</label>
+        <input type="password" id="accVfPass" placeholder="Passwort" autocomplete="current-password">
+      </div>
+      <div class="account-actions">
+        <button class="acc-btn-primary" onclick="accVfConnect()">Verbinden</button>
+      </div>
+      <div id="accVfMsg" class="field-hint" style="margin-top:8px;"></div>`;
+  }
+}
+
+// Speichert die VF-Zugangsdaten (verschlüsselt).
+async function accVfConnect() {
+  const userEl = document.getElementById('accVfUser');
+  const passEl = document.getElementById('accVfPass');
+  const msg = document.getElementById('accVfMsg');
+  if (!userEl || !passEl) return;
   const user = userEl.value.trim();
   const pass = passEl.value;
   if (!user || !pass) {
-    msg.textContent = 'Bitte Benutzername und Passwort eingeben.';
-    msg.style.color = 'var(--danger)';
+    if (msg) { msg.textContent = 'Bitte Benutzername und Passwort eingeben.'; msg.style.color = 'var(--danger)'; }
     return;
   }
-  if (btn) btn.disabled = true;
-  msg.textContent = 'Verbinde…';
-  msg.style.color = 'var(--gray-500)';
+  if (msg) { msg.textContent = 'Verbinde…'; msg.style.color = 'var(--gray-500)'; }
   try {
     const token = await firebase.auth().currentUser.getIdToken();
     const res = await fetch('/.netlify/functions/vereinsflieger-sync', {
@@ -5343,13 +5383,29 @@ async function vfConnectAccount() {
     });
     const json = await res.json();
     if (!json.ok) throw new Error(json.error || 'Verbindung fehlgeschlagen');
-    msg.textContent = 'Verbunden! Lade Daten…';
-    msg.style.color = 'var(--success)';
-    if (typeof _vfReloadFn === 'function') _vfReloadFn();
+    notify('Vereinsflieger-Konto verbunden.', 'success');
+    renderAccountVfSection();
   } catch (e) {
-    if (btn) btn.disabled = false;
-    msg.textContent = 'Fehler: ' + (e.message || 'Unbekannt');
-    msg.style.color = 'var(--danger)';
+    if (msg) { msg.textContent = 'Fehler: ' + (e.message || 'Unbekannt'); msg.style.color = 'var(--danger)'; }
+  }
+}
+
+// Trennt die VF-Verbindung.
+async function accVfDisconnect() {
+  if (!confirm('Vereinsflieger-Verbindung wirklich trennen?')) return;
+  try {
+    const token = await firebase.auth().currentUser.getIdToken();
+    const res = await fetch('/.netlify/functions/vereinsflieger-sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'deleteVfCredentials', firebaseToken: token })
+    });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'Trennen fehlgeschlagen');
+    notify('Vereinsflieger-Verbindung getrennt.', 'info');
+    renderAccountVfSection();
+  } catch (e) {
+    notify('Fehler: ' + (e.message || 'Unbekannt'), 'error');
   }
 }
 
@@ -6918,6 +6974,9 @@ function renderAccountTab() {
   const msg = document.getElementById('accountMsg');
   msg.className = 'account-msg';
   msg.style.display = 'none';
+
+  // Vereinsflieger-Verbindungsstatus laden
+  renderAccountVfSection();
 }
 
 function accMsg(text, type) {
