@@ -6103,9 +6103,10 @@ function renderVfCompare() {
     const bSame = lastSame.byAircraft[cs] || { count: 0, minutes: 0 };
     const bFull = lastFull.byAircraft[cs] || { count: 0, minutes: 0 };
     acHtml += `<tr>
-      <td style="font-weight:600">${cs}</td>
+      <td style="font-weight:600">${escapeHtml(cs)}</td>
       <td style="text-align:right">${a.count}</td>
       <td style="text-align:right">${fmtH(a.minutes)}</td>
+      <td style="text-align:right;color:var(--gray-500)">${bSame.count}</td>
       <td style="text-align:right;color:var(--gray-500)">${bFull.count}</td>
       <td style="text-align:right;color:var(--gray-500)">${fmtH(bFull.minutes)}</td>
       <td style="text-align:right">${acTrend(a.count, bSame.count, bFull.count)}</td>
@@ -6125,14 +6126,15 @@ function renderVfCompare() {
     </div>
 
     <div class="stats-card">
-      <h4>Flugzeuge im Vergleich — ${prevYear} gesamt</h4>
+      <h4>Flugzeuge im Vergleich</h4>
       <table class="stats-table" style="width:100%">
         <thead><tr>
           <th>Kennzeichen</th>
-          <th style="text-align:right">${curYear}</th>
-          <th style="text-align:right">Stunden</th>
-          <th style="text-align:right;color:var(--gray-400)">${prevYear}</th>
-          <th style="text-align:right;color:var(--gray-400)">Stunden</th>
+          <th style="text-align:right">${curYear}<br><span style="font-size:10px;font-weight:400;color:var(--gray-400);">Starts</span></th>
+          <th style="text-align:right">${curYear}<br><span style="font-size:10px;font-weight:400;color:var(--gray-400);">Stunden</span></th>
+          <th style="text-align:right;color:var(--gray-400)">${prevYear} Stichtag<br><span style="font-size:10px;font-weight:400;">Starts</span></th>
+          <th style="text-align:right;color:var(--gray-400)">${prevYear} gesamt<br><span style="font-size:10px;font-weight:400;">Starts</span></th>
+          <th style="text-align:right;color:var(--gray-400)">${prevYear} gesamt<br><span style="font-size:10px;font-weight:400;">Stunden</span></th>
           <th style="text-align:right">Trend</th>
         </tr></thead>
         <tbody>${acHtml}</tbody>
