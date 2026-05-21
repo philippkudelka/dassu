@@ -798,9 +798,10 @@ body { font-family: var(--font); background: var(--c-bg); color: var(--c-ink); m
 .stats-table td { padding: 6px 8px; border-bottom: 1px solid #f0f0f0; }
 .stats-table tr:last-child td { border-bottom: none; }
 /* Flugzeug-Vergleichstabelle: bessere Zeilen-Lesbarkeit (Zebra + Linien) */
-.vf-ac-table tbody td { border-bottom: 1px solid var(--gray-200); padding: 7px 8px; }
-.vf-ac-table tbody tr:nth-child(even) { background: #f6f7f9; }
-.vf-ac-table tbody tr:hover { background: #eaf0ee; }
+.vf-ac-table tbody td { border-bottom: 1px solid var(--c-line); padding: 7px 8px; }
+.vf-ac-table tbody tr:nth-child(odd) { background: #FBF8F0; }
+.vf-ac-table tbody tr:nth-child(even) { background: #E8E0CE; }
+.vf-ac-table tbody tr:hover { background: #DDE7DC; }
 
 /* ===== VEREINSFLIEGER COMPARE ===== */
 .vf-compare-note { font-size:11px; color:var(--gray-500); margin-bottom:12px; text-align:right; }
@@ -5308,7 +5309,7 @@ let fiStatsData = null;
 function renderVfConnectForm(contentEl) {
   if (!contentEl) return;
   contentEl.innerHTML = `
-    <div style="max-width:380px;margin:24px auto;padding:18px;border:1px solid var(--gray-200);border-radius:10px;background:#fff;text-align:center;">
+    <div style="max-width:380px;margin:24px auto;padding:18px;border:1px solid var(--c-line);border-radius:10px;background:#fff;text-align:center;">
       <div style="font-weight:600;color:var(--navy);margin-bottom:6px;">Kein Vereinsflieger-Konto verbunden</div>
       <p style="font-size:12px;color:var(--gray-600);margin:0 0 14px;">
         Verbinde dein persönliches Vereinsflieger-Konto einmalig unter „Mein Konto" —
@@ -6106,7 +6107,7 @@ function renderVfCompare() {
     const a = thisYear.byAircraft[cs] || { count: 0, minutes: 0 };
     const bSame = lastSame.byAircraft[cs] || { count: 0, minutes: 0 };
     const bFull = lastFull.byAircraft[cs] || { count: 0, minutes: 0 };
-    const grp = 'border-left:2px solid var(--gray-200);';
+    const grp = 'border-left:2px solid var(--c-line);';
     acHtml += `<tr>
       <td style="font-weight:600">${escapeHtml(cs)}</td>
       <td style="text-align:right;${grp}">${a.count}</td>
@@ -6137,17 +6138,17 @@ function renderVfCompare() {
         <thead>
           <tr>
             <th rowspan="2" style="vertical-align:bottom;text-align:left;">Kennzeichen</th>
-            <th colspan="2" style="text-align:center;border-left:2px solid var(--gray-200);color:var(--primary);padding-bottom:2px;">${curYear}</th>
-            <th colspan="2" style="text-align:center;border-left:2px solid var(--gray-200);color:var(--gray-500);padding-bottom:2px;">${prevYear} · Stichtag</th>
-            <th colspan="2" style="text-align:center;border-left:2px solid var(--gray-200);color:var(--gray-500);padding-bottom:2px;">${prevYear} · gesamt</th>
-            <th rowspan="2" style="vertical-align:bottom;text-align:right;border-left:2px solid var(--gray-200);">Trend</th>
+            <th colspan="2" style="text-align:center;border-left:2px solid var(--c-line);color:var(--primary);padding-bottom:2px;">${curYear}</th>
+            <th colspan="2" style="text-align:center;border-left:2px solid var(--c-line);color:var(--gray-500);padding-bottom:2px;">${prevYear} · Stichtag</th>
+            <th colspan="2" style="text-align:center;border-left:2px solid var(--c-line);color:var(--gray-500);padding-bottom:2px;">${prevYear} · gesamt</th>
+            <th rowspan="2" style="vertical-align:bottom;text-align:right;border-left:2px solid var(--c-line);">Trend</th>
           </tr>
           <tr style="font-size:10px;font-weight:400;color:var(--gray-400);">
-            <th style="text-align:right;border-left:2px solid var(--gray-200);">Starts</th>
+            <th style="text-align:right;border-left:2px solid var(--c-line);">Starts</th>
             <th style="text-align:right;">Std</th>
-            <th style="text-align:right;border-left:2px solid var(--gray-200);">Starts</th>
+            <th style="text-align:right;border-left:2px solid var(--c-line);">Starts</th>
             <th style="text-align:right;">Std</th>
-            <th style="text-align:right;border-left:2px solid var(--gray-200);">Starts</th>
+            <th style="text-align:right;border-left:2px solid var(--c-line);">Starts</th>
             <th style="text-align:right;">Std</th>
           </tr>
         </thead>
