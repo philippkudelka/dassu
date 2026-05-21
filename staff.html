@@ -797,6 +797,10 @@ body { font-family: var(--font); background: var(--c-bg); color: var(--c-ink); m
 .stats-table th { text-align: left; font-weight: 700; color: var(--gray-500); padding: 6px 8px; border-bottom: 2px solid var(--c-line); font-size: 10px; text-transform: uppercase; }
 .stats-table td { padding: 6px 8px; border-bottom: 1px solid #f0f0f0; }
 .stats-table tr:last-child td { border-bottom: none; }
+/* Flugzeug-Vergleichstabelle: bessere Zeilen-Lesbarkeit (Zebra + Linien) */
+.vf-ac-table tbody td { border-bottom: 1px solid var(--gray-200); padding: 7px 8px; }
+.vf-ac-table tbody tr:nth-child(even) { background: #f6f7f9; }
+.vf-ac-table tbody tr:hover { background: #eaf0ee; }
 
 /* ===== VEREINSFLIEGER COMPARE ===== */
 .vf-compare-note { font-size:11px; color:var(--gray-500); margin-bottom:12px; text-align:right; }
@@ -6129,7 +6133,7 @@ function renderVfCompare() {
 
     <div class="stats-card">
       <h4>Flugzeuge im Vergleich</h4>
-      <table class="stats-table" style="width:100%;border-collapse:collapse;">
+      <table class="stats-table vf-ac-table" style="width:100%;border-collapse:collapse;">
         <thead>
           <tr>
             <th rowspan="2" style="vertical-align:bottom;text-align:left;">Kennzeichen</th>
