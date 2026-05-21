@@ -416,10 +416,11 @@ exports.handler = async (event) => {
         vfDisplayName = vfData.displayName;
       }
 
-      if (!vfUid && !vfMemberid && !vfDisplayName) {
-        await vfSignOut(accesstoken);
-        throw new Error('Konnte VF-Benutzerdaten nicht abrufen. Bitte Zugangsdaten prüfen.');
-      }
+      // Der Login war erfolgreich (sonst hätte vfSignIn bereits geworfen) —
+      // die Credentials sind also gültig. Die VF-Benutzerdaten (uid/memberid)
+      // werden nur fürs persönliche Flugbuch gebraucht, NICHT für die Statistik.
+      // Daher: speichern auch ohne abrufbare Benutzerdaten. Fallback-Anzeigename.
+      if (!vfDisplayName) vfDisplayName = vfUsername;
 
       await vfSignOut(accesstoken);
 
