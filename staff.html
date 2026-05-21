@@ -6102,14 +6102,16 @@ function renderVfCompare() {
     const a = thisYear.byAircraft[cs] || { count: 0, minutes: 0 };
     const bSame = lastSame.byAircraft[cs] || { count: 0, minutes: 0 };
     const bFull = lastFull.byAircraft[cs] || { count: 0, minutes: 0 };
+    const grp = 'border-left:2px solid var(--gray-200);';
     acHtml += `<tr>
       <td style="font-weight:600">${escapeHtml(cs)}</td>
-      <td style="text-align:right">${a.count}</td>
+      <td style="text-align:right;${grp}">${a.count}</td>
       <td style="text-align:right">${fmtH(a.minutes)}</td>
-      <td style="text-align:right;color:var(--gray-500)">${bSame.count}</td>
-      <td style="text-align:right;color:var(--gray-500)">${bFull.count}</td>
+      <td style="text-align:right;color:var(--gray-500);${grp}">${bSame.count}</td>
+      <td style="text-align:right;color:var(--gray-500)">${fmtH(bSame.minutes)}</td>
+      <td style="text-align:right;color:var(--gray-500);${grp}">${bFull.count}</td>
       <td style="text-align:right;color:var(--gray-500)">${fmtH(bFull.minutes)}</td>
-      <td style="text-align:right">${acTrend(a.count, bSame.count, bFull.count)}</td>
+      <td style="text-align:right;${grp}">${acTrend(a.count, bSame.count, bFull.count)}</td>
     </tr>`;
   });
 
@@ -6127,16 +6129,24 @@ function renderVfCompare() {
 
     <div class="stats-card">
       <h4>Flugzeuge im Vergleich</h4>
-      <table class="stats-table" style="width:100%">
-        <thead><tr>
-          <th>Kennzeichen</th>
-          <th style="text-align:right">${curYear}<br><span style="font-size:10px;font-weight:400;color:var(--gray-400);">Starts</span></th>
-          <th style="text-align:right">${curYear}<br><span style="font-size:10px;font-weight:400;color:var(--gray-400);">Stunden</span></th>
-          <th style="text-align:right;color:var(--gray-400)">${prevYear} Stichtag<br><span style="font-size:10px;font-weight:400;">Starts</span></th>
-          <th style="text-align:right;color:var(--gray-400)">${prevYear} gesamt<br><span style="font-size:10px;font-weight:400;">Starts</span></th>
-          <th style="text-align:right;color:var(--gray-400)">${prevYear} gesamt<br><span style="font-size:10px;font-weight:400;">Stunden</span></th>
-          <th style="text-align:right">Trend</th>
-        </tr></thead>
+      <table class="stats-table" style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr>
+            <th rowspan="2" style="vertical-align:bottom;text-align:left;">Kennzeichen</th>
+            <th colspan="2" style="text-align:center;border-left:2px solid var(--gray-200);color:var(--primary);padding-bottom:2px;">${curYear}</th>
+            <th colspan="2" style="text-align:center;border-left:2px solid var(--gray-200);color:var(--gray-500);padding-bottom:2px;">${prevYear} · Stichtag</th>
+            <th colspan="2" style="text-align:center;border-left:2px solid var(--gray-200);color:var(--gray-500);padding-bottom:2px;">${prevYear} · gesamt</th>
+            <th rowspan="2" style="vertical-align:bottom;text-align:right;border-left:2px solid var(--gray-200);">Trend</th>
+          </tr>
+          <tr style="font-size:10px;font-weight:400;color:var(--gray-400);">
+            <th style="text-align:right;border-left:2px solid var(--gray-200);">Starts</th>
+            <th style="text-align:right;">Std</th>
+            <th style="text-align:right;border-left:2px solid var(--gray-200);">Starts</th>
+            <th style="text-align:right;">Std</th>
+            <th style="text-align:right;border-left:2px solid var(--gray-200);">Starts</th>
+            <th style="text-align:right;">Std</th>
+          </tr>
+        </thead>
         <tbody>${acHtml}</tbody>
       </table>
       <div style="font-size:10px;color:var(--gray-400);margin-top:6px;">Trend: ${curYear} (bis ${todayLabel}) vs. ${prevYear} (bis ${todayLabel})</div>
