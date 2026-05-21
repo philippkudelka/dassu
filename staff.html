@@ -5291,6 +5291,68 @@ function renderStats() {
 // ============================================================
 let fiStatsData = null;
 
+// ── Vereinsflieger-Konto verbinden (für Statistik-Funktionen) ──
+let _vfReloadFn = null;
+
+// Zeigt im angegebenen Container ein Formular zum Verknüpfen des
+// persönlichen Vereinsflieger-Kontos. reloadFn wird nach Erfolg aufgerufen.
+function renderVfConnectForm(contentEl, reloadFn) {
+  if (!contentEl) return;
+  _vfReloadFn = (typeof reloadFn === 'function') ? reloadFn : null;
+  contentEl.innerHTML = `
+    <div style="max-width:360px;margin:24px auto;padding:18px;border:1px solid var(--gray-200);border-radius:10px;background:#fff;">
+      <div style="font-weight:600;color:var(--navy);margin-bottom:6px;">Vereinsflieger-Konto verbinden</div>
+      <p style="font-size:12px;color:var(--gray-600);margin:0 0 14px;">
+        Die Statistik nutzt deine persönlichen Vereinsflieger-Zugangsdaten.
+        Einmalig verbinden — danach bleibt die Verknüpfung gespeichert.
+      </p>
+      <input type="text" id="vfConnUser" placeholder="Vereinsflieger-Benutzername" autocomplete="username"
+        style="width:100%;box-sizing:border-box;padding:9px;margin-bottom:8px;border:1px solid var(--gray-300);border-radius:6px;font-size:13px;">
+      <input type="password" id="vfConnPass" placeholder="Vereinsflieger-Passwort" autocomplete="current-password"
+        style="width:100%;box-sizing:border-box;padding:9px;margin-bottom:10px;border:1px solid var(--gray-300);border-radius:6px;font-size:13px;">
+      <button id="vfConnBtn" onclick="vfConnectAccount()"
+        style="width:100%;padding:10px;border:none;border-radius:6px;background:var(--navy);color:#fff;font-size:13px;font-weight:600;cursor:pointer;">Verbinden</button>
+      <div id="vfConnMsg" style="font-size:12px;margin-top:8px;text-align:center;"></div>
+    </div>
+  `;
+}
+
+// Speichert die VF-Zugangsdaten (verschlüsselt) und lädt anschließend neu.
+async function vfConnectAccount() {
+  const userEl = document.getElementById('vfConnUser');
+  const passEl = document.getElementById('vfConnPass');
+  const msg = document.getElementById('vfConnMsg');
+  const btn = document.getElementById('vfConnBtn');
+  if (!userEl || !passEl || !msg) return;
+  const user = userEl.value.trim();
+  const pass = passEl.value;
+  if (!user || !pass) {
+    msg.textContent = 'Bitte Benutzername und Passwort eingeben.';
+    msg.style.color = 'var(--danger)';
+    return;
+  }
+  if (btn) btn.disabled = true;
+  msg.textContent = 'Verbinde…';
+  msg.style.color = 'var(--gray-500)';
+  try {
+    const token = await firebase.auth().currentUser.getIdToken();
+    const res = await fetch('/.netlify/functions/vereinsflieger-sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'saveVfCredentials', firebaseToken: token, vfUsername: user, vfPassword: pass })
+    });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'Verbindung fehlgeschlagen');
+    msg.textContent = 'Verbunden! Lade Daten…';
+    msg.style.color = 'var(--success)';
+    if (typeof _vfReloadFn === 'function') _vfReloadFn();
+  } catch (e) {
+    if (btn) btn.disabled = false;
+    msg.textContent = 'Fehler: ' + (e.message || 'Unbekannt');
+    msg.style.color = 'var(--danger)';
+  }
+}
+
 async function loadInstructorStats() {
   const btn = document.getElementById('fiStatsSyncBtn');
   const label = document.getElementById('fiStatsSyncLabel');
@@ -5314,7 +5376,11 @@ async function loadInstructorStats() {
     renderInstructorStats();
     label.textContent = 'Aktualisieren';
   } catch (err) {
-    content.innerHTML = `<div class="empty-msg" style="color:var(--danger);">Fehler: ${err.message}</div>`;
+    if (/Vereinsflieger-Konto/i.test(err.message || '')) {
+      renderVfConnectForm(content, loadInstructorStats);
+    } else {
+      content.innerHTML = `<div class="empty-msg" style="color:var(--danger);">Fehler: ${escapeHtml(err.message)}</div>`;
+    }
     label.textContent = 'Erneut versuchen';
   }
   btn.disabled = false;
@@ -5695,7 +5761,11 @@ async function syncVereinsflieger() {
     renderVfCompare();
     label.textContent = 'Aktualisieren';
   } catch (err) {
-    content.innerHTML = `<div class="empty-msg" style="color:var(--danger);">Fehler: ${err.message}</div>`;
+    if (/Vereinsflieger-Konto/i.test(err.message || '')) {
+      renderVfConnectForm(content, syncVereinsflieger);
+    } else {
+      content.innerHTML = `<div class="empty-msg" style="color:var(--danger);">Fehler: ${escapeHtml(err.message)}</div>`;
+    }
     label.textContent = 'Erneut versuchen';
   }
   btn.disabled = false;
