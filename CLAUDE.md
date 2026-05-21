@@ -77,8 +77,9 @@ Die Bash-Sandbox hat KEINEN GitHub-Zugriff (403 Proxy-Fehler). Niemals versuchen
 
 ### Netlify Functions (`netlify/functions/`)
 - `send-push.js` — Push-Benachrichtigungen
-- `vereinsflieger-sync.js` — Vereinsflieger-API Sync
-- `package.json` — Dependencies (firebase-admin)
+- `vereinsflieger-sync.js` — Vereinsflieger-API Sync. **Staff-Actions (Statistik, Jahresvergleich, Listen) nutzen die PERSÖNLICHEN VF-Zugangsdaten des eingeloggten Admins** (verschlüsselt in `users/{uid}/vfCredentials`). Jeder Admin muss sein VF-Konto einmal im Konto-Bereich (index.html) verknüpfen. Kein zentrales VF-Konto mehr.
+- `backup-database.js`, `error-report.js` — geplante Funktionen (Backup, Fehler-Report)
+- `package.json` — Dependencies (firebase-admin, nodemailer)
 
 ## Tech-Stack
 - Reines HTML/CSS/JS (kein Framework, kein Build-Schritt)

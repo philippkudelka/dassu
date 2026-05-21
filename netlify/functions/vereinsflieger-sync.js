@@ -337,6 +337,7 @@ exports.handler = async (event) => {
 
   const { action } = body;
   let accesstoken;
+  let callerUid = null; // wird im Auth-Gate gesetzt, von Staff-Actions genutzt
 
   // ============================================================
   // Auth-Gate für nicht-persönliche Actions (members, staff actions)
@@ -347,7 +348,6 @@ exports.handler = async (event) => {
     if (!idToken) {
       return { statusCode: 401, headers, body: JSON.stringify({ ok: false, error: 'Kein Auth-Token' }) };
     }
-    let callerUid;
     try {
       initFirebase();
       const decoded = await admin.auth().verifyIdToken(idToken);
@@ -662,10 +662,19 @@ exports.handler = async (event) => {
     }
 
     // ============================================================
-    // Staff-Actions — nutzen den zentralen Admin-VF-Account (Env-Vars)
+    // Staff-Actions — nutzen die PERSÖNLICHEN VF-Zugangsdaten des eingeloggten
+    // Nutzers. Jeder Admin muss sein VF-Konto einmal im Konto-Bereich verknüpfen.
     // ============================================================
+    const staffCredSnap = await admin.database().ref('users/' + callerUid + '/vfCredentials').once('value');
+    const staffCreds = staffCredSnap.val();
+    if (!staffCreds || !staffCreds.username || !staffCreds.password) {
+      throw new Error('Kein Vereinsflieger-Konto verknüpft. Bitte zuerst im Konto-Bereich dein persönliches VF-Konto verbinden.');
+    }
     accesstoken = await vfGetAccessToken();
-    const session = await vfSignIn(accesstoken); // ohne credentials → Env-Vars
+    const session = await vfSignIn(accesstoken, {
+      username: decrypt(staffCreds.username),
+      password: decrypt(staffCreds.password)
+    });
     accesstoken = session.accesstoken;
 
     let result;
