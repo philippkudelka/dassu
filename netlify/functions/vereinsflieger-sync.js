@@ -894,17 +894,37 @@ exports.handler = async (event) => {
           } catch (e) { aircraftError = e.message; }
         }
 
-        // 4) Versuch /account/list — Kostenkonten/Tarif-Definitionen
-        let accountSample = null;
-        let accountError = null;
-        try {
-          const accRes = await fetch(`${VF_BASE}/account/list`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({ accesstoken }).toString()
-          });
-          accountSample = await accRes.json();
-        } catch (e) { accountError = e.message; }
+        // 4) Versuch mehrere Endpoints für Preis-/Tarif-Info
+        async function tryEndpoint(path, extra) {
+          try {
+            const body = new URLSearchParams(Object.assign({ accesstoken }, extra || {})).toString();
+            const r = await fetch(`${VF_BASE}/${path}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body
+            });
+            const t = await r.text();
+            try { return { status: r.status, data: JSON.parse(t) }; }
+            catch { return { status: r.status, data: t.substring(0, 500) }; }
+          } catch (e) { return { error: e.message }; }
+        }
+        const endpoints = {
+          accountList: await tryEndpoint('account/list'),
+          serviceList: await tryEndpoint('service/list'),
+          pricelist:   await tryEndpoint('pricelist'),
+          chargeList:  await tryEndpoint('charge/list'),
+          billList:    await tryEndpoint('bill/list')
+        };
+
+        // Wenn invoiceinfo am Sample dranhängt: einmal als String, einmal als geparstes Objekt
+        let invoiceInfoParsed = null;
+        if (sample && sample.invoiceinfo) {
+          try {
+            invoiceInfoParsed = (typeof sample.invoiceinfo === 'string')
+              ? JSON.parse(sample.invoiceinfo)
+              : sample.invoiceinfo;
+          } catch { invoiceInfoParsed = sample.invoiceinfo; }
+        }
 
         result = {
           listCount: rawFlights.length,
@@ -915,8 +935,8 @@ exports.handler = async (event) => {
           detailError,
           aircraftSample,
           aircraftError,
-          accountSample,
-          accountError,
+          endpoints,           // alle Preis-/Tarif-Endpoint-Versuche
+          invoiceInfoParsed,   // invoiceinfo des Sample-Flugs, sauber geparst
           note: 'TEMPORÄR — bitte nach Auswertung wieder entfernen (vereinsflieger-sync.js + staff.html testVfDump).'
         };
         break;

@@ -6283,9 +6283,14 @@ window.testVfDump = async function() {
     if (d.aircraftError) console.warn('  Fehler:', d.aircraftError);
     else if (d.aircraftSample) console.log(d.aircraftSample);
 
-    console.log('%c💰 ACCOUNT-Endpoint (account/list):', 'font-weight:bold;color:#2A6B5E;');
-    if (d.accountError) console.warn('  Fehler:', d.accountError);
-    else console.log(d.accountSample);
+    console.log('%c💰 ENDPOINT-Versuche (Preis/Tarif/Rechnungen):', 'font-weight:bold;color:#2A6B5E;');
+    Object.entries(d.endpoints || {}).forEach(([name, res]) => {
+      console.log(`  → ${name}: status=${res.status || '?'}`, res.data || res.error);
+    });
+
+    console.log('%c🧾 invoiceinfo aus Sample-Flug:', 'font-weight:bold;color:#2A6B5E;');
+    console.log('  raw:', d.listSample?.invoiceinfo);
+    console.log('  parsed:', d.invoiceInfoParsed);
 
     console.log('%c🔍 SUCHE NACH PREIS-RELEVANTEN FELDERN:', 'background:#FFB300;color:black;padding:4px 8px;font-weight:bold;');
     const allKeys = new Set([...(d.listAllFields || []), ...(d.detailFields || [])]);
@@ -6293,13 +6298,32 @@ window.testVfDump = async function() {
     const priceFields = [...allKeys].filter(k => priceKeywords.test(k));
     if (priceFields.length) {
       console.log('  ✅ Verdächtige Felder gefunden:', priceFields);
-      console.log('  Werte aus listSample:', priceFields.map(k => ({ feld: k, wert: d.listSample?.[k] })));
-      if (d.detailSample) console.log('  Werte aus detailSample:', priceFields.map(k => ({ feld: k, wert: d.detailSample?.[k] })));
-    } else {
-      console.log('  ❌ Keine Felder mit "preis/price/cost/betrag/tarif/gebühr" im Namen gefunden.');
+      console.log('  Werte aus listSample:');
+      priceFields.forEach(k => console.log('    ' + k + ' =', d.listSample?.[k]));
+      if (d.detailSample) {
+        console.log('  Werte aus detailSample:');
+        priceFields.forEach(k => console.log('    ' + k + ' =', d.detailSample?.[k]));
+      }
     }
 
-    console.log('%c=== Dump fertig — bitte das gesamte Ergebnis kopieren oder Screenshots schicken ===', 'background:#2A6B5E;color:white;padding:4px 8px;font-weight:bold;');
+    // GANZE ANTWORT als JSON-String — leicht zu kopieren und ohne Klicken lesbar
+    console.log('%c📦 KOMPLETTER DUMP als JSON-String (Rechtsklick → kopieren):', 'background:#1E4B4E;color:white;padding:4px 8px;font-weight:bold;');
+    try {
+      console.log(JSON.stringify(d, null, 2));
+    } catch (e) {
+      console.warn('JSON.stringify fehlgeschlagen:', e.message);
+    }
+
+    // Globale Variable, damit du in der Konsole frei rumstöbern kannst
+    window._vfDump = d;
+    console.log('%cℹ️ Dump als window._vfDump gespeichert.', 'color:#1E4B4E;font-weight:bold;');
+    console.log('   Beispiele:');
+    console.log('     _vfDump.listSample          → kompletter Flug');
+    console.log('     _vfDump.listSample.invoiceinfo  → Rechnungsinfo');
+    console.log('     _vfDump.aircraftSample      → Flugzeug-Stammdaten');
+    console.log('     _vfDump.endpoints           → alle Tarif-Endpoints');
+
+    console.log('%c=== Dump fertig — bitte den JSON-String aus der Konsole kopieren und schicken ===', 'background:#2A6B5E;color:white;padding:4px 8px;font-weight:bold;');
     return d;
   } catch (e) {
     console.error('Aufruf fehlgeschlagen:', e);
