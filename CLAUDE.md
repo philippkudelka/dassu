@@ -78,6 +78,7 @@ Die Bash-Sandbox hat KEINEN GitHub-Zugriff (403 Proxy-Fehler). Niemals versuchen
 ### Netlify Functions (`netlify/functions/`)
 - `send-push.js` — Push-Benachrichtigungen
 - `vereinsflieger-sync.js` — Vereinsflieger-API Sync. **Staff-Actions (Statistik, Jahresvergleich, Listen) nutzen die PERSÖNLICHEN VF-Zugangsdaten des eingeloggten Admins** (verschlüsselt in `users/{uid}/vfCredentials`). Jeder Admin muss sein VF-Konto einmal im Konto-Bereich (index.html) verknüpfen. Kein zentrales VF-Konto mehr.
+  - **DASSU-Flotten-Whitelist**: Alle Flüge werden in `vfGetFlightsDateRange()` zentral auf die Flotte (`DASSU_FLEET` Set, ganz oben in der Datei) gefiltert — Quelle ist <https://www.dassu.de/flotte>. Fremdflugzeuge, Schleppmaschinen (D-E…), Hubschrauber etc. tauchen nirgendwo in Statistik/Listen auf. **Bei neuem/verkauftem Vereinsflugzeug die `DASSU_FLEET`-Liste anpassen** und Funktion neu deployen.
 - `backup-database.js`, `error-report.js` — geplante Funktionen (Backup, Fehler-Report)
 - `package.json` — Dependencies (firebase-admin, nodemailer)
 

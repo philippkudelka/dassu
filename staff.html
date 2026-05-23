@@ -6199,7 +6199,8 @@ function renderVfCompare() {
   });
 
   // Group overview rows — only show groups that have data in at least one period
-  const groupOrder = ['glider', 'motorglider', 'ul', 'other'];
+  // "other" (Schleppmaschinen, Fremdflugzeuge, Hubschrauber etc.) wird bewusst nicht angezeigt
+  const groupOrder = ['glider', 'motorglider', 'ul'];
   let groupsHtml = '';
   groupOrder.forEach(gKey => {
     const g = groupSums[gKey];

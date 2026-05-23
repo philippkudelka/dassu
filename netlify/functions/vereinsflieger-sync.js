@@ -17,6 +17,47 @@ const admin = require('firebase-admin');
 
 const VF_BASE = 'https://www.vereinsflieger.de/interface/rest';
 
+// ---- DASSU-Flotte (Whitelist) ----
+// Quelle: https://www.dassu.de/flotte
+// Alle Listen/Statistiken berücksichtigen ausschließlich diese Kennzeichen.
+// Stand: letztes Update via dassu.de/flotte
+const DASSU_FLEET = new Set([
+  // Segelflugzeuge
+  'D-3982', 'D-1375', 'D-1670', 'D-1800', 'D-1900', 'D-7507', // ASK 13
+  'D-1130', 'D-8999',                                          // ASK 21
+  'D-2249',                                                    // Duo Discus
+  'D-8252', 'D-8251',                                          // LS4 B
+  'D-8250',                                                    // HPH 304C
+  'D-7770', 'D-1864',                                          // ASK23 b
+  'D-1111', 'D-5096', 'D-8598', 'D-5343', 'D-7130',            // K8
+  // Motorsegler
+  'D-KYSS', 'D-KYGL', 'D-KYCK',
+  // Ultraleicht
+  'D-MYIH', 'D-MYUW'
+]);
+
+// Tolerante Normalisierung: "d1234" → "D-1234", "D 1234" → "D-1234"
+function normalizeCallsign(cs) {
+  if (!cs) return '';
+  let s = String(cs).toUpperCase().replace(/\s+/g, '').trim();
+  // "D1234" → "D-1234" (Bindestrich ergänzen wenn fehlt)
+  if (/^D[A-Z0-9]/.test(s)) s = 'D-' + s.substring(1);
+  return s;
+}
+
+function isDassuAircraft(cs) {
+  return DASSU_FLEET.has(normalizeCallsign(cs));
+}
+
+// Filtert ein Flug-Array auf DASSU-Flugzeuge und normalisiert das Kennzeichen
+// (sodass alle Downstream-Auswertungen die kanonische "D-XXXX" Form sehen).
+function filterDassuFlights(flights) {
+  if (!Array.isArray(flights)) return [];
+  return flights
+    .filter(f => isDassuAircraft(f && f.callsign))
+    .map(f => ({ ...f, callsign: normalizeCallsign(f.callsign) }));
+}
+
 // ---- Firebase Admin Setup ----
 let firebaseInitialized = false;
 function initFirebase() {
@@ -174,13 +215,17 @@ async function vfGetFlightsDateRange(accesstoken, dateFrom, dateTo) {
   });
   const data = await res.json();
   // API returns object with numeric keys → convert to array
+  let flights;
   if (data && typeof data === 'object' && !Array.isArray(data)) {
     if (data.error_code && data.error_code !== '0') {
       throw new Error('API Fehler: ' + (data.error_msg || JSON.stringify(data)));
     }
-    return Object.values(data).filter(v => typeof v === 'object' && v !== null && v.flid);
+    flights = Object.values(data).filter(v => typeof v === 'object' && v !== null && v.flid);
+  } else {
+    flights = Array.isArray(data) ? data : [];
   }
-  return Array.isArray(data) ? data : [];
+  // WHITELIST: nur Flugzeuge der DASSU-Flotte zurückgeben
+  return filterDassuFlights(flights);
 }
 
 async function vfGetUserList(accesstoken) {
