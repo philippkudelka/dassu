@@ -6103,10 +6103,88 @@ function renderVfCompare() {
     return '<span style="color:var(--gray-500);">&#9656; 0%</span>';
   }
 
+  // Sammle pro Callsign alle Startarten über die drei Datensätze hinweg
+  // (manche D-K... sind reine Segelflugzeuge ohne Eigenstart-Möglichkeit)
+  function collectStarttypes(cs) {
+    const merged = {};
+    [thisYear.byAircraft, lastSame.byAircraft, lastFull.byAircraft].forEach(src => {
+      const entry = src && src[cs];
+      if (entry && entry.starttypes) {
+        Object.keys(entry.starttypes).forEach(k => {
+          merged[k] = (merged[k] || 0) + entry.starttypes[k];
+        });
+      }
+    });
+    return merged;
+  }
+
+  // Erkennt anhand der Startart-Werte, ob mindestens ein Eigenstart vorlag.
+  // VF liefert je nach Konfiguration unterschiedliche Werte (numerisch oder Text):
+  //   "1"          → Eigenstart (in vielen VF-Setups)
+  //   "E"          → Eigenstart (Kurzform)
+  //   "Eigenstart" → ausgeschrieben
+  // Alles was nach "Winde", "Schlepp", "F-Schlepp", "Gummi" aussieht, ist KEIN Eigenstart.
+  function hasSelfLaunch(starttypes) {
+    const keys = Object.keys(starttypes || {});
+    if (!keys.length) return false; // keine Info → nicht überschreiben
+    return keys.some(k => {
+      const v = String(k).toLowerCase().trim();
+      if (!v) return false;
+      // negativ filtern (klare Nicht-Eigenstart-Marker)
+      if (/wind|schlepp|gummi|bunge|tow/.test(v)) return false;
+      // positiv: ausgeschrieben oder Codes
+      if (/eigen|self|motor/.test(v)) return true;
+      if (v === '1' || v === 'e') return true;
+      return false;
+    });
+  }
+
+  // Classify aircraft by Kennzeichen prefix + Startart-Heuristik
+  //   D-<Ziffer>  → Segelflugzeug   (z.B. D-1234, D-7777)
+  //   D-K...      → Motorsegler, ABER: ohne nachweisliche Eigenstarts → Segelflugzeug
+  //                  (z.B. ASK21 mit D-K-Kennung, die nur an Winde/F-Schlepp startet)
+  //   D-M...      → Ultraleicht     (z.B. D-MYUW, D-MYIH)
+  //   sonst       → Sonstige        (Fremdflugzeuge etc.)
+  function classifyAircraft(cs) {
+    if (!cs) return 'other';
+    const upper = String(cs).toUpperCase().trim();
+    const m = upper.match(/^D-?([A-Z0-9])/);
+    if (!m) return 'other';
+    const c = m[1];
+    if (/[0-9]/.test(c)) return 'glider';
+    if (c === 'K') {
+      const sts = collectStarttypes(cs);
+      // Wenn wir Startart-Daten haben UND kein Eigenstart dabei war → Segelflugzeug
+      if (Object.keys(sts).length > 0 && !hasSelfLaunch(sts)) return 'glider';
+      return 'motorglider';
+    }
+    if (c === 'M') return 'ul';
+    return 'other';
+  }
+
+  const groupLabels = {
+    glider: 'Segelflugzeuge',
+    motorglider: 'Motorsegler',
+    ul: 'Ultraleicht',
+    other: 'Sonstige'
+  };
+  const groupSums = {
+    glider:      { curr: { c:0, m:0 }, same: { c:0, m:0 }, full: { c:0, m:0 } },
+    motorglider: { curr: { c:0, m:0 }, same: { c:0, m:0 }, full: { c:0, m:0 } },
+    ul:          { curr: { c:0, m:0 }, same: { c:0, m:0 }, full: { c:0, m:0 } },
+    other:       { curr: { c:0, m:0 }, same: { c:0, m:0 }, full: { c:0, m:0 } }
+  };
+
   sortedAc.forEach(cs => {
     const a = thisYear.byAircraft[cs] || { count: 0, minutes: 0 };
     const bSame = lastSame.byAircraft[cs] || { count: 0, minutes: 0 };
     const bFull = lastFull.byAircraft[cs] || { count: 0, minutes: 0 };
+
+    const gKey = classifyAircraft(cs);
+    groupSums[gKey].curr.c += a.count;       groupSums[gKey].curr.m += a.minutes;
+    groupSums[gKey].same.c += bSame.count;   groupSums[gKey].same.m += bSame.minutes;
+    groupSums[gKey].full.c += bFull.count;   groupSums[gKey].full.m += bFull.minutes;
+
     const grp = 'border-left:2px solid var(--c-line);';
     acHtml += `<tr>
       <td style="font-weight:600">${escapeHtml(cs)}</td>
@@ -6120,6 +6198,26 @@ function renderVfCompare() {
     </tr>`;
   });
 
+  // Group overview rows — only show groups that have data in at least one period
+  const groupOrder = ['glider', 'motorglider', 'ul', 'other'];
+  let groupsHtml = '';
+  groupOrder.forEach(gKey => {
+    const g = groupSums[gKey];
+    const hasData = g.curr.c > 0 || g.same.c > 0 || g.full.c > 0;
+    if (!hasData) return;
+    const grp = 'border-left:2px solid var(--c-line);';
+    groupsHtml += `<tr>
+      <td style="font-weight:600">${groupLabels[gKey]}</td>
+      <td style="text-align:right;${grp}">${g.curr.c}</td>
+      <td style="text-align:right">${fmtH(g.curr.m)}</td>
+      <td style="text-align:right;color:var(--gray-500);${grp}">${g.same.c}</td>
+      <td style="text-align:right;color:var(--gray-500)">${fmtH(g.same.m)}</td>
+      <td style="text-align:right;color:var(--gray-500);${grp}">${g.full.c}</td>
+      <td style="text-align:right;color:var(--gray-500)">${fmtH(g.full.m)}</td>
+      <td style="text-align:right;${grp}">${acTrend(g.curr.c, g.same.c, g.full.c)}</td>
+    </tr>`;
+  });
+
   const fetchedAt = vfData.fetchedAt ? new Date(vfData.fetchedAt).toLocaleString('de-DE') : '—';
 
   content.innerHTML = `
@@ -6130,6 +6228,31 @@ function renderVfCompare() {
     <div class="stats-card">
       <h4>Starts pro Monat — <span style="color:var(--primary)">${curYear}</span> vs. <span style="color:var(--gray-400)">${prevYear}</span></h4>
       <div class="vf-month-chart">${monthBarsHtml}</div>
+    </div>
+
+    <div class="stats-card">
+      <h4>Gruppen-Übersicht</h4>
+      <table class="stats-table vf-ac-table" style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr>
+            <th rowspan="2" style="vertical-align:bottom;text-align:left;">Gruppe</th>
+            <th colspan="2" style="text-align:center;border-left:2px solid var(--c-line);color:var(--primary);padding-bottom:2px;">${curYear}</th>
+            <th colspan="2" style="text-align:center;border-left:2px solid var(--c-line);color:var(--gray-500);padding-bottom:2px;">${prevYear} · Stichtag</th>
+            <th colspan="2" style="text-align:center;border-left:2px solid var(--c-line);color:var(--gray-500);padding-bottom:2px;">${prevYear} · gesamt</th>
+            <th rowspan="2" style="vertical-align:bottom;text-align:right;border-left:2px solid var(--c-line);">Trend</th>
+          </tr>
+          <tr style="font-size:10px;font-weight:400;color:var(--gray-400);">
+            <th style="text-align:right;border-left:2px solid var(--c-line);">Starts</th>
+            <th style="text-align:right;">Std</th>
+            <th style="text-align:right;border-left:2px solid var(--c-line);">Starts</th>
+            <th style="text-align:right;">Std</th>
+            <th style="text-align:right;border-left:2px solid var(--c-line);">Starts</th>
+            <th style="text-align:right;">Std</th>
+          </tr>
+        </thead>
+        <tbody>${groupsHtml}</tbody>
+      </table>
+      <div style="font-size:10px;color:var(--gray-400);margin-top:6px;">Summen je Kategorie · Trend: ${curYear} (bis ${todayLabel}) vs. ${prevYear} (bis ${todayLabel})</div>
     </div>
 
     <div class="stats-card">

@@ -248,9 +248,12 @@ function aggregateFlights(flights) {
     totalMinutes += dur;
 
     const cs = f.callsign || 'Unbekannt';
-    if (!byAircraft[cs]) byAircraft[cs] = { count: 0, minutes: 0 };
+    if (!byAircraft[cs]) byAircraft[cs] = { count: 0, minutes: 0, starttypes: {} };
     byAircraft[cs].count++;
     byAircraft[cs].minutes += dur;
+    // Startart pro Flugzeug zählen (für Motorsegler-/Segler-Erkennung)
+    const st = (f.starttype != null ? String(f.starttype) : '').trim();
+    if (st) byAircraft[cs].starttypes[st] = (byAircraft[cs].starttypes[st] || 0) + 1;
 
     const date = f.dateofflight || '';
     if (date) {
