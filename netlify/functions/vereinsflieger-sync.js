@@ -359,7 +359,7 @@ const ALLOWED_ORIGIN = 'https://dassu-buchungskalender.netlify.app';
 // Actions die VF-Credentials/firebaseToken aus dem Body nutzen — diese verifizieren den User selbst.
 const PERSONAL_ACTIONS = new Set(['saveVfCredentials', 'deleteVfCredentials', 'getVfStatus', 'memberFlights']);
 // Staff-Actions erfordern admin- oder team-Rolle.
-const STAFF_ONLY_ACTIONS = new Set(['flights', 'aircraft', 'instructors', 'instructorStats', 'yearCompare', 'debugVfDump']);
+const STAFF_ONLY_ACTIONS = new Set(['flights', 'aircraft', 'instructors', 'instructorStats', 'yearCompare', 'revenueStats']);
 // "members" benötigt nur Authentifizierung (Member-Frontend nutzt es für Auswahllisten).
 
 exports.handler = async (event) => {
@@ -837,107 +837,189 @@ exports.handler = async (event) => {
         };
         break;
       }
-      case 'debugVfDump': {
-        // TEMPORÄR: Dump aller VF-Felder eines Beispiel-Flugs (für Preis-Recherche).
-        // Holt einen kürzlichen Flug aus dem Daterange-Endpoint, dann zusätzlich Details
-        // via /flight/get/{flid}, damit wir sehen, ob VF Preis-/Kostendaten ausliefert.
+      case 'revenueStats': {
+        // Echter Umsatz YTD = exakte VF-Abrechnung + Hochrechnung der noch nicht abgerechneten Flüge.
+        // Hochrechnung via linearer Regression value = a + b·flighttime, gefittet aus den
+        // abgerechneten Flügen der gleichen Konstellation. Fallback-Hierarchie für Konstellationen
+        // mit zu wenig Referenzen.
         const today = new Date();
-        const past = new Date(today.getTime() - 30 * 24 * 3600 * 1000);
-        const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        const y = today.getFullYear();
+        const ytdFrom = body.from || `${y}-01-01`;
+        const ytdTo = body.to || `${y}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
 
-        // 1) flight/list/daterange — Rohdaten OHNE DASSU-Filter, damit wir alles sehen
-        const listRes = await fetch(`${VF_BASE}/flight/list/daterange`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({ accesstoken, datefrom: fmt(past), dateto: fmt(today) }).toString()
-        });
-        const listData = await listRes.json();
-        let rawFlights = [];
-        if (listData && typeof listData === 'object' && !Array.isArray(listData)) {
-          rawFlights = Object.values(listData).filter(v => typeof v === 'object' && v !== null && v.flid);
-        } else if (Array.isArray(listData)) {
-          rawFlights = listData;
+        const flights = await vfGetFlightsDateRange(accesstoken, ytdFrom, ytdTo);
+
+        // 1) Klassifizierung des Flugzeugs (Klasse für gröbsten Fallback)
+        function classifyAc(cs) {
+          const upper = String(cs || '').toUpperCase();
+          const m = upper.match(/^D-?([A-Z0-9])/);
+          if (!m) return 'other';
+          const c = m[1];
+          if (/[0-9]/.test(c)) return 'glider';
+          if (c === 'K') return 'motorglider';
+          if (c === 'M') return 'ul';
+          return 'other';
         }
-        const sample = rawFlights[0] || null;
-        const listAllFields = sample ? Object.keys(sample) : [];
 
-        // 2) flight/get/{flid} — versuch, ob VF eine Detail-API hat mit mehr Feldern (Preise?)
-        let detailSample = null;
-        let detailFields = [];
-        let detailError = null;
-        if (sample && sample.flid) {
-          try {
-            const detRes = await fetch(`${VF_BASE}/flight/get/${sample.flid}`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-              body: new URLSearchParams({ accesstoken }).toString()
-            });
-            const detData = await detRes.json();
-            detailSample = detData;
-            detailFields = (detData && typeof detData === 'object') ? Object.keys(detData) : [];
-          } catch (e) {
-            detailError = e.message;
+        // 2) Referenz-Datensätze aus abgerechneten Flügen aufbauen
+        // Buckets in 4 Granularitäts-Stufen (von fein nach grob)
+        function newBucket() { return { n: 0, sumX: 0, sumY: 0, sumXX: 0, sumXY: 0 }; }
+        const fine = {};   // callsign|ST|CM
+        const med  = {};   // callsign|ST
+        const coarse = {}; // callsign
+        const klass  = {}; // glider/motorglider/ul/other
+
+        let exactSum = 0;
+        let exactCount = 0;
+
+        flights.forEach(f => {
+          if (f.deleted === '1') return;
+          const inv = Array.isArray(f.invoiceinfo) ? f.invoiceinfo : [];
+          const ft = parseInt(f.flighttime) || 0;
+          if (!inv.length) return; // nur Refs aus abgerechneten
+
+          const value = inv.reduce((a, e) => a + (parseFloat(e.value) || 0), 0);
+          if (isNaN(value) || value <= 0) return;
+          if (ft <= 0) {
+            // 0-Minuten-Flug mit Wert (z.B. Pauschal-Eintrag) → in Refs aufnehmen, aber als Konstante
+            // (sonst verzerrt es die Regression). Wir behandeln das beim Schätzen separat.
+            exactSum += value;
+            exactCount++;
+            return;
           }
+
+          exactSum += value;
+          exactCount++;
+
+          const kFine   = `${f.callsign}|${f.starttype}|${f.chargemode}`;
+          const kMed    = `${f.callsign}|${f.starttype}`;
+          const kCoarse = `${f.callsign}`;
+          const kKlass  = classifyAc(f.callsign);
+
+          [fine[kFine] || (fine[kFine] = newBucket()),
+           med[kMed]   || (med[kMed]   = newBucket()),
+           coarse[kCoarse] || (coarse[kCoarse] = newBucket()),
+           klass[kKlass]   || (klass[kKlass]   = newBucket())
+          ].forEach(b => {
+            b.n++; b.sumX += ft; b.sumY += value;
+            b.sumXX += ft * ft; b.sumXY += ft * value;
+          });
+        });
+
+        // 3) Aus einem Bucket eine Schätzfunktion (a + b·x) ableiten.
+        //    Wenn Varianz in x zu klein (alle ähnlich lang) → fallback zu Mittel-EUR/Min.
+        function fitBucket(b, minN) {
+          if (!b || b.n < minN) return null;
+          const n = b.n;
+          const meanX = b.sumX / n;
+          const meanY = b.sumY / n;
+          const denom = b.sumXX - n * meanX * meanX; // Σ(x-x̄)²
+          if (denom < 1e-6) {
+            // konstantes x → keine sinnvolle Steigung. Nutze EUR/min-Mittel.
+            const ratePerMin = meanX > 0 ? meanY / meanX : 0;
+            return { a: 0, b: ratePerMin, n, method: 'mean' };
+          }
+          const slope = (b.sumXY - n * meanX * meanY) / denom; // EUR/min
+          let intercept = meanY - slope * meanX;               // Startgebühr-Anteil
+          // Sanity: keine negative Steigung, kein extrem negativer Intercept
+          if (slope < 0) {
+            const rate = meanX > 0 ? meanY / meanX : 0;
+            return { a: 0, b: Math.max(0, rate), n, method: 'fallback-mean-neg-slope' };
+          }
+          if (intercept < 0) intercept = 0;
+          return { a: intercept, b: slope, n, method: 'regression' };
         }
 
-        // 3) Versuch /aircraft/get/{aircraftid} — falls Preis pro Flugzeug hinterlegt ist
-        let aircraftSample = null;
-        let aircraftError = null;
-        if (sample && sample.aircraftid) {
-          try {
-            const acRes = await fetch(`${VF_BASE}/aircraft/get/${sample.aircraftid}`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-              body: new URLSearchParams({ accesstoken }).toString()
-            });
-            aircraftSample = await acRes.json();
-          } catch (e) { aircraftError = e.message; }
+        function predict(f) {
+          const ft = parseInt(f.flighttime) || 0;
+          if (ft <= 0) return null; // 0-Minuten-Flug ohne Invoice → können wir nicht schätzen
+          const kFine   = `${f.callsign}|${f.starttype}|${f.chargemode}`;
+          const kMed    = `${f.callsign}|${f.starttype}`;
+          const kCoarse = `${f.callsign}`;
+          const kKlass  = classifyAc(f.callsign);
+
+          // Versuch in absteigender Spezifität
+          let fit = fitBucket(fine[kFine], 5);
+          let usedLevel = 'fine';
+          if (!fit) { fit = fitBucket(med[kMed], 3); usedLevel = 'med'; }
+          if (!fit) { fit = fitBucket(coarse[kCoarse], 3); usedLevel = 'coarse'; }
+          if (!fit) { fit = fitBucket(klass[kKlass], 3); usedLevel = 'klass'; }
+          if (!fit) return null;
+          const value = fit.a + fit.b * ft;
+          return { value, level: usedLevel, method: fit.method, refs: fit.n };
         }
 
-        // 4) Versuch mehrere Endpoints für Preis-/Tarif-Info
-        async function tryEndpoint(path, extra) {
-          try {
-            const body = new URLSearchParams(Object.assign({ accesstoken }, extra || {})).toString();
-            const r = await fetch(`${VF_BASE}/${path}`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-              body
-            });
-            const t = await r.text();
-            try { return { status: r.status, data: JSON.parse(t) }; }
-            catch { return { status: r.status, data: t.substring(0, 500) }; }
-          } catch (e) { return { error: e.message }; }
-        }
-        const endpoints = {
-          accountList: await tryEndpoint('account/list'),
-          serviceList: await tryEndpoint('service/list'),
-          pricelist:   await tryEndpoint('pricelist'),
-          chargeList:  await tryEndpoint('charge/list'),
-          billList:    await tryEndpoint('bill/list')
-        };
+        // 4) Über alle nicht-abgerechneten Flüge schätzen
+        let estSum = 0;
+        let estCount = 0;
+        const levelCounts = { fine: 0, med: 0, coarse: 0, klass: 0 };
+        let unestimable = 0;
+        let unestimableMin = 0;
 
-        // Wenn invoiceinfo am Sample dranhängt: einmal als String, einmal als geparstes Objekt
-        let invoiceInfoParsed = null;
-        if (sample && sample.invoiceinfo) {
-          try {
-            invoiceInfoParsed = (typeof sample.invoiceinfo === 'string')
-              ? JSON.parse(sample.invoiceinfo)
-              : sample.invoiceinfo;
-          } catch { invoiceInfoParsed = sample.invoiceinfo; }
-        }
+        flights.forEach(f => {
+          if (f.deleted === '1') return;
+          const inv = Array.isArray(f.invoiceinfo) ? f.invoiceinfo : [];
+          if (inv.length) return; // bereits exakt
+          const ft = parseInt(f.flighttime) || 0;
+          if (ft <= 0) return;
+          const p = predict(f);
+          if (p) {
+            estSum += Math.max(0, p.value);
+            estCount++;
+            levelCounts[p.level]++;
+          } else {
+            unestimable++;
+            unestimableMin += ft;
+          }
+        });
+
+        // 5) Aufschlüsselung nach Monat — exakt-Werte und Schätzwerte addieren
+        const byMonth = {};
+        flights.forEach(f => {
+          if (f.deleted === '1') return;
+          const date = f.dateofflight || '';
+          if (!date) return;
+          const mk = date.substring(0, 7); // YYYY-MM
+          if (!byMonth[mk]) byMonth[mk] = { exact: 0, estimated: 0, total: 0, count: 0 };
+          const inv = Array.isArray(f.invoiceinfo) ? f.invoiceinfo : [];
+          if (inv.length) {
+            const v = inv.reduce((a, e) => a + (parseFloat(e.value) || 0), 0);
+            byMonth[mk].exact += v;
+            byMonth[mk].total += v;
+          } else {
+            const ft = parseInt(f.flighttime) || 0;
+            if (ft > 0) {
+              const p = predict(f);
+              if (p) {
+                const v = Math.max(0, p.value);
+                byMonth[mk].estimated += v;
+                byMonth[mk].total += v;
+              }
+            }
+          }
+          byMonth[mk].count++;
+        });
+        // Auf 2 Nachkommastellen runden
+        Object.keys(byMonth).forEach(k => {
+          byMonth[k].exact = Math.round(byMonth[k].exact * 100) / 100;
+          byMonth[k].estimated = Math.round(byMonth[k].estimated * 100) / 100;
+          byMonth[k].total = Math.round(byMonth[k].total * 100) / 100;
+        });
 
         result = {
-          listCount: rawFlights.length,
-          listAllFields,
-          listSample: sample,
-          detailFields,
-          detailSample,
-          detailError,
-          aircraftSample,
-          aircraftError,
-          endpoints,           // alle Preis-/Tarif-Endpoint-Versuche
-          invoiceInfoParsed,   // invoiceinfo des Sample-Flugs, sauber geparst
-          note: 'TEMPORÄR — bitte nach Auswertung wieder entfernen (vereinsflieger-sync.js + staff.html testVfDump).'
+          from: ytdFrom,
+          to: ytdTo,
+          totalFlights: flights.length,
+          exactSum: Math.round(exactSum * 100) / 100,
+          exactCount,
+          estimatedSum: Math.round(estSum * 100) / 100,
+          estimatedCount: estCount,
+          totalSum: Math.round((exactSum + estSum) * 100) / 100,
+          unestimable,
+          unestimableMin,
+          fallbackLevels: levelCounts,
+          byMonth,
+          fetchedAt: new Date().toISOString()
         };
         break;
       }
