@@ -1705,6 +1705,17 @@ const AIRCRAFT_IMAGES = {
 };
 const AIRCRAFT_TYPES = { 'D-KYGL':'SF25 Falke','D-KYCK':'SF25 Falke','D-KYSS':'Samburo','D-MYUW':'Eurostar','D-MYIH':'Dynamic' };
 
+// Segelflugzeuge mit zwei Sitzen — für Gruppen-Übersicht in der Statistik.
+// Alle anderen Segler sind Einsitzer.
+const DOUBLE_SEATER_GLIDERS = new Set([
+  // ASK 13
+  'D-3982', 'D-1375', 'D-1670', 'D-1800', 'D-1900', 'D-7507',
+  // ASK 21
+  'D-1130', 'D-8999',
+  // Duo Discus
+  'D-2249'
+]);
+
 const TIME_SLOTS = [];
 const TIME_POINTS = ['08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00'];
 for (let i = 0; i < TIME_POINTS.length - 1; i++) TIME_SLOTS.push(`${TIME_POINTS[i]} - ${TIME_POINTS[i+1]}`);
@@ -6468,8 +6479,14 @@ function renderVfCompare() {
     });
   }
 
+  // Klassifiziert ein Segelflugzeug-Kennzeichen weiter in Doppelsitzer / Einsitzer
+  // anhand der DOUBLE_SEATER_GLIDERS-Whitelist (Konstante oben in der Datei).
+  function gliderSeatType(cs) {
+    return DOUBLE_SEATER_GLIDERS.has(String(cs).toUpperCase().trim()) ? 'gliderDouble' : 'gliderSingle';
+  }
+
   // Classify aircraft by Kennzeichen prefix + Startart-Heuristik
-  //   D-<Ziffer>  → Segelflugzeug   (z.B. D-1234, D-7777)
+  //   D-<Ziffer>  → Segelflugzeug (→ gliderDouble / gliderSingle)
   //   D-K...      → Motorsegler, ABER: ohne nachweisliche Eigenstarts → Segelflugzeug
   //                  (z.B. ASK21 mit D-K-Kennung, die nur an Winde/F-Schlepp startet)
   //   D-M...      → Ultraleicht     (z.B. D-MYUW, D-MYIH)
@@ -6480,11 +6497,11 @@ function renderVfCompare() {
     const m = upper.match(/^D-?([A-Z0-9])/);
     if (!m) return 'other';
     const c = m[1];
-    if (/[0-9]/.test(c)) return 'glider';
+    if (/[0-9]/.test(c)) return gliderSeatType(upper);
     if (c === 'K') {
       const sts = collectStarttypes(cs);
       // Wenn wir Startart-Daten haben UND kein Eigenstart dabei war → Segelflugzeug
-      if (Object.keys(sts).length > 0 && !hasSelfLaunch(sts)) return 'glider';
+      if (Object.keys(sts).length > 0 && !hasSelfLaunch(sts)) return gliderSeatType(upper);
       return 'motorglider';
     }
     if (c === 'M') return 'ul';
@@ -6492,16 +6509,18 @@ function renderVfCompare() {
   }
 
   const groupLabels = {
-    glider: 'Segelflugzeuge',
-    motorglider: 'Motorsegler',
-    ul: 'Ultraleicht',
-    other: 'Sonstige'
+    gliderDouble: 'Segler · Doppelsitzer',
+    gliderSingle: 'Segler · Einsitzer',
+    motorglider:  'Motorsegler',
+    ul:           'Ultraleicht',
+    other:        'Sonstige'
   };
   const groupSums = {
-    glider:      { curr: { c:0, m:0 }, same: { c:0, m:0 }, full: { c:0, m:0 } },
-    motorglider: { curr: { c:0, m:0 }, same: { c:0, m:0 }, full: { c:0, m:0 } },
-    ul:          { curr: { c:0, m:0 }, same: { c:0, m:0 }, full: { c:0, m:0 } },
-    other:       { curr: { c:0, m:0 }, same: { c:0, m:0 }, full: { c:0, m:0 } }
+    gliderDouble: { curr: { c:0, m:0 }, same: { c:0, m:0 }, full: { c:0, m:0 } },
+    gliderSingle: { curr: { c:0, m:0 }, same: { c:0, m:0 }, full: { c:0, m:0 } },
+    motorglider:  { curr: { c:0, m:0 }, same: { c:0, m:0 }, full: { c:0, m:0 } },
+    ul:           { curr: { c:0, m:0 }, same: { c:0, m:0 }, full: { c:0, m:0 } },
+    other:        { curr: { c:0, m:0 }, same: { c:0, m:0 }, full: { c:0, m:0 } }
   };
 
   sortedAc.forEach(cs => {
@@ -6529,7 +6548,7 @@ function renderVfCompare() {
 
   // Group overview rows — only show groups that have data in at least one period
   // "other" (Schleppmaschinen, Fremdflugzeuge, Hubschrauber etc.) wird bewusst nicht angezeigt
-  const groupOrder = ['glider', 'motorglider', 'ul'];
+  const groupOrder = ['gliderDouble', 'gliderSingle', 'motorglider', 'ul'];
   let groupsHtml = '';
   groupOrder.forEach(gKey => {
     const g = groupSums[gKey];
