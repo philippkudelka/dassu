@@ -1266,6 +1266,15 @@ body.dev-mode { padding-bottom: 48px; }
   <div class="team-count-bar" id="teamCountBar"></div>
   <div id="teamMembersList"></div>
 
+  <!-- Walk-In-Importer (nur Admin) — Kunden, die nur in Buchungen vorkommen, als Mitglieder anlegen -->
+  <details class="walkin-importer" id="walkInImporter" style="display:none; margin-top:16px; background:white; border:1px solid var(--c-line); border-radius:10px; overflow:hidden;">
+    <summary id="walkInSummary" style="padding:12px 16px; font-size:13px; font-weight:600; color:var(--navy); cursor:pointer; list-style:none; display:flex; align-items:center; gap:8px;">
+      <span style="font-size:15px;">&#x1f465;</span> Kunden aus Buchungen anlegen
+      <span id="walkInCount" style="margin-left:auto; font-size:11px; color:var(--gray-400); font-weight:400;"></span>
+    </summary>
+    <div id="walkInImporterList" style="padding:0 16px 16px;"></div>
+  </details>
+
   <!-- Detail-Panel (Overlay) -->
   <div class="team-detail-overlay" id="teamDetailOverlay" onclick="if(event.target===this)closeTeamDetail()">
     <div class="team-detail-panel" id="teamDetailPanel"></div>
@@ -3770,6 +3779,128 @@ function renderTeamView() {
   // Invitations
   renderTeamInvitations();
   populateTeamInvRoles();
+
+  // Walk-In-Importer (Admin)
+  renderWalkInImporter();
+}
+
+// ---------- Walk-In-Importer ----------
+// Sammelt alle Bucher (Name+E-Mail) aus den Buchungen, die NICHT bereits als /customers/{uid} existieren,
+// und bietet Admins einen "Anlegen"-Button, der einen Walk-In-Kundeneintrag erzeugt.
+function _collectWalkInCandidates() {
+  // Bestehende E-Mails (Customer + Staff) zum Filtern
+  const knownEmails = new Set();
+  customerUsers.forEach(c => { const e = (c.email || '').toLowerCase().trim(); if (e) knownEmails.add(e); });
+  staffUsers.forEach(s => { const e = (s.email || '').toLowerCase().trim(); if (e) knownEmails.add(e); });
+
+  // Bucher aus den Buchungen aggregieren (dedup nach E-Mail; fallback Name)
+  const map = new Map();
+  bookings.forEach(b => {
+    const name = (b.name || '').trim();
+    if (!name) return;
+    const email = (b.email || '').toLowerCase().trim();
+    const key = email || ('name:' + name.toLowerCase());
+    if (email && knownEmails.has(email)) return; // bereits Kunde/Staff
+    if (!map.has(key)) {
+      map.set(key, {
+        name: name,
+        email: email,
+        phone: (b.phone || '').trim(),
+        bookingCount: 0,
+        lastBooking: ''
+      });
+    }
+    const entry = map.get(key);
+    entry.bookingCount++;
+    if (b.date && b.date > entry.lastBooking) entry.lastBooking = b.date;
+    // Falls bei einer späteren Buchung Telefon dazukam → übernehmen
+    if (!entry.phone && b.phone) entry.phone = (b.phone || '').trim();
+    // Name aus aktuellster Buchung übernehmen (Schreibvarianten)
+    if (b.date && b.date === entry.lastBooking) entry.name = name;
+  });
+
+  // Nach Anzahl Buchungen absteigend sortieren
+  return [...map.values()].sort((a, b) => b.bookingCount - a.bookingCount || (b.lastBooking || '').localeCompare(a.lastBooking || ''));
+}
+
+function renderWalkInImporter() {
+  const wrap = document.getElementById('walkInImporter');
+  const list = document.getElementById('walkInImporterList');
+  const counter = document.getElementById('walkInCount');
+  if (!wrap || !list) return;
+
+  // Nur Admins sehen die Sektion
+  if (!isAdmin()) { wrap.style.display = 'none'; return; }
+  wrap.style.display = '';
+
+  const candidates = _collectWalkInCandidates();
+  counter.textContent = candidates.length ? `${candidates.length} ${candidates.length === 1 ? 'Bucher' : 'Bucher'} verfügbar` : 'alle bereits angelegt';
+
+  if (!candidates.length) {
+    list.innerHTML = `<div style="padding:12px 0;font-size:12px;color:var(--gray-500);font-style:italic;">Keine neuen Bucher gefunden. Alle Personen aus den Buchungen sind bereits als Kunden oder Staff angelegt.</div>`;
+    return;
+  }
+
+  list.innerHTML = `
+    <div style="font-size:11px;color:var(--gray-500);line-height:1.5;margin:4px 0 10px;">
+      Personen, die schon mindestens einmal gebucht haben, aber noch keinen Kunden-Eintrag besitzen.
+      <strong>"Anlegen"</strong> erzeugt einen Mitglieder-Eintrag (ohne Login-Konto) mit den Buchungs-Daten. Anschließend lassen sich Telefon, Geburtsdatum und Adresse im Detail bearbeiten.
+    </div>
+    <div style="display:flex; flex-direction:column; gap:6px;">
+      ${candidates.map(c => `
+        <div class="walkin-row" style="display:flex; align-items:center; gap:10px; padding:8px 10px; background:var(--c-bg); border-radius:8px; font-size:12px;">
+          <div style="flex:1; min-width:0;">
+            <div style="font-weight:600; color:var(--navy);">${escapeHtml(c.name)}</div>
+            <div style="font-size:11px; color:var(--gray-500); word-break:break-all;">
+              ${c.email ? escapeHtml(c.email) : '<em>keine E-Mail</em>'}${c.phone ? ' · ' + escapeHtml(c.phone) : ''}
+            </div>
+          </div>
+          <div style="text-align:right; font-size:11px; color:var(--gray-500); white-space:nowrap;">
+            ${c.bookingCount} ${c.bookingCount === 1 ? 'Buchung' : 'Buchungen'}<br>
+            <span style="font-size:10px;">${c.lastBooking ? 'zuletzt ' + c.lastBooking : ''}</span>
+          </div>
+          <button onclick="createWalkInCustomer('${jsArg(c.name)}','${jsArg(c.email)}','${jsArg(c.phone)}')"
+                  style="padding:6px 12px; border:none; border-radius:6px; background:var(--primary); color:white; font-size:12px; font-weight:600; cursor:pointer; font-family:var(--font); white-space:nowrap;">
+            Anlegen
+          </button>
+        </div>
+      `).join('')}
+    </div>`;
+}
+
+async function createWalkInCustomer(name, email, phone) {
+  if (!isAdmin()) { notify('Nur Admins dürfen Kunden anlegen.', 'error'); return; }
+  name = (name || '').trim();
+  if (!name) return notify('Name fehlt.', 'error');
+  email = (email || '').toLowerCase().trim();
+  if (email && !/^\S+@\S+\.\S+$/.test(email)) return notify('Ungültige E-Mail-Adresse.', 'error');
+  phone = (phone || '').trim();
+
+  // Doppelt-Check: gibt es schon einen Kunden mit dieser E-Mail?
+  if (email && customerUsers.some(c => (c.email || '').toLowerCase() === email)) {
+    return notify('E-Mail bereits als Kunde angelegt.', 'error');
+  }
+
+  // Push-ID generieren (Firebase) — fungiert als synthetische UID für Walk-Ins
+  const id = db.ref('customers').push().key;
+  const data = {
+    name,
+    email: email || '',
+    phone: phone || '',
+    customerType: 'charter',
+    walkIn: true,                     // Marker: kein Firebase-Auth-Konto
+    createdAt: Date.now(),
+    createdBy: currentUser ? currentUser.id : ''
+  };
+
+  try {
+    await db.ref('customers/' + id).set(data);
+    notify(`„${name}" als Kunde angelegt.`, 'success');
+    // Direkt das Detail öffnen, damit Admin weitere Daten ergänzen kann
+    setTimeout(() => openMemberDetail(id, true), 200);
+  } catch (e) {
+    notify('Fehler beim Anlegen: ' + e.message, 'error');
+  }
 }
 
 function toggleTeamInvite() {
@@ -3863,7 +3994,11 @@ function openMemberDetail(uid, isCustomer) {
   const street = custData.street || u.street || '';
   const zip = custData.zip || u.zip || '';
   const city = custData.city || u.city || '';
+  const country = custData.country || u.country || '';
   const hasAddress = street || city;
+  // Walk-In-Kunden (von Admin angelegt, kein Firebase-Auth-Account) → Email editierbar
+  const isWalkIn = !!(custData && custData.walkIn);
+  const contactEditable = isCustomer && canEdit;
 
   // Name edit
   const nameEditHtml = canEdit ? `<div class="td-section">
@@ -3898,14 +4033,51 @@ function openMemberDetail(uid, isCustomer) {
     ${nameEditHtml}
 
     <div class="td-section">
-      <div class="td-section-title">Kontaktdaten</div>
-      <div class="td-info-grid">
-        <div class="td-info-item"><div class="td-label">E-Mail</div><div class="td-value">${escapeHtml(u.email || '—')}</div></div>
-        ${phone ? `<div class="td-info-item"><div class="td-label">Telefon</div><div class="td-value">${escapeHtml(phone)}</div></div>` : ''}
-        ${birthdate ? `<div class="td-info-item"><div class="td-label">Geburtstag</div><div class="td-value">${birthdate}</div></div>` : ''}
-        ${hasAddress ? `<div class="td-info-item"><div class="td-label">Adresse</div><div class="td-value">${escapeHtml(street)}${zip || city ? '<br>' + escapeHtml((zip + ' ' + city).trim()) : ''}</div></div>` : ''}
-        <div class="td-info-item"><div class="td-label">Registriert am</div><div class="td-value">${createdAt}</div></div>
-      </div>
+      <div class="td-section-title">Kontaktdaten${contactEditable ? ' bearbeiten' : ''}</div>
+      ${contactEditable ? `
+        <div class="td-info-grid">
+          <div class="td-info-item">
+            <div class="td-label">E-Mail${!isWalkIn ? ' <span style="color:var(--gray-400);font-weight:400;">(gesperrt)</span>' : ''}</div>
+            ${isWalkIn
+              ? `<input class="team-edit-input" type="email" id="tdEmail_${uid}" value="${escapeHtml(u.email || '')}" placeholder="email@example.de">`
+              : `<div class="td-value">${escapeHtml(u.email || '—')}</div>`}
+          </div>
+          <div class="td-info-item">
+            <div class="td-label">Telefon</div>
+            <input class="team-edit-input" type="tel" id="tdPhone_${uid}" value="${escapeHtml(phone)}" placeholder="+49 …">
+          </div>
+          <div class="td-info-item">
+            <div class="td-label">Geburtsdatum</div>
+            <input class="team-edit-input" type="date" id="tdBirthdate_${uid}" value="${escapeHtml(birthdate)}">
+          </div>
+          <div class="td-info-item">
+            <div class="td-label">Straße &amp; Nr.</div>
+            <input class="team-edit-input" type="text" id="tdStreet_${uid}" value="${escapeHtml(street)}" placeholder="Musterstraße 1">
+          </div>
+          <div class="td-info-item">
+            <div class="td-label">PLZ</div>
+            <input class="team-edit-input" type="text" id="tdZip_${uid}" value="${escapeHtml(zip)}" placeholder="12345" maxlength="10">
+          </div>
+          <div class="td-info-item">
+            <div class="td-label">Ort</div>
+            <input class="team-edit-input" type="text" id="tdCity_${uid}" value="${escapeHtml(city)}" placeholder="Musterstadt">
+          </div>
+          <div class="td-info-item" style="grid-column:1/-1;">
+            <div class="td-label">Land</div>
+            <input class="team-edit-input" type="text" id="tdCountry_${uid}" value="${escapeHtml(country)}" placeholder="Deutschland">
+          </div>
+        </div>
+        <button class="team-btn-save" style="margin-top:10px;padding:8px 16px;border:none;border-radius:8px;background:var(--primary);color:white;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);" onclick="saveCustomerContact('${uid}')">Kontaktdaten speichern</button>
+        ${isWalkIn ? '<div style="font-size:11px;color:var(--gray-500);margin-top:6px;">Walk-In-Kunde — ohne Login-Konto. Daten frei änderbar.</div>' : ''}
+      ` : `
+        <div class="td-info-grid">
+          <div class="td-info-item"><div class="td-label">E-Mail</div><div class="td-value">${escapeHtml(u.email || '—')}</div></div>
+          ${phone ? `<div class="td-info-item"><div class="td-label">Telefon</div><div class="td-value">${escapeHtml(phone)}</div></div>` : ''}
+          ${birthdate ? `<div class="td-info-item"><div class="td-label">Geburtstag</div><div class="td-value">${birthdate}</div></div>` : ''}
+          ${hasAddress ? `<div class="td-info-item"><div class="td-label">Adresse</div><div class="td-value">${escapeHtml(street)}${zip || city ? '<br>' + escapeHtml((zip + ' ' + city).trim()) : ''}</div></div>` : ''}
+          <div class="td-info-item"><div class="td-label">Registriert am</div><div class="td-value">${createdAt}</div></div>
+        </div>
+      `}
     </div>
 
     ${roleSelectHtml}
@@ -3949,6 +4121,53 @@ function openMemberDetail(uid, isCustomer) {
   `;
 
   overlay.classList.add('active');
+}
+
+// Kontaktdaten eines Kunden speichern (Telefon, Geburtstag, Adresse, ggf. E-Mail bei Walk-Ins)
+async function saveCustomerContact(uid) {
+  if (!isAdmin()) { notify('Nur Admins dürfen Kontaktdaten ändern.', 'error'); return; }
+  const cust = customerUsers.find(c => c.id === uid);
+  if (!cust) { notify('Kunde nicht gefunden.', 'error'); return; }
+
+  const get = id => {
+    const el = document.getElementById(id);
+    return el ? String(el.value || '').trim() : '';
+  };
+
+  const data = {
+    phone: get('tdPhone_' + uid),
+    birthdate: get('tdBirthdate_' + uid),
+    street: get('tdStreet_' + uid),
+    zip: get('tdZip_' + uid),
+    city: get('tdCity_' + uid),
+    country: get('tdCountry_' + uid)
+  };
+
+  // Email nur bei Walk-In-Kunden änderbar (registrierte Kunden haben sie auth-gebunden)
+  if (cust.walkIn) {
+    const newEmail = get('tdEmail_' + uid).toLowerCase();
+    if (newEmail && !/^\S+@\S+\.\S+$/.test(newEmail)) {
+      return notify('Ungültige E-Mail-Adresse.', 'error');
+    }
+    // Konflikt prüfen: andere Kunden mit dieser E-Mail?
+    if (newEmail) {
+      const dup = customerUsers.find(c => c.id !== uid && (c.email || '').toLowerCase() === newEmail);
+      if (dup) return notify('E-Mail bereits bei einem anderen Kunden eingetragen.', 'error');
+    }
+    data.email = newEmail || null;
+  }
+
+  // Leere Strings → null, damit Firebase die Felder entfernt statt "" zu speichern
+  Object.keys(data).forEach(k => { if (data[k] === '') data[k] = null; });
+
+  try {
+    await db.ref('customers/' + uid).update(data);
+    notify('Kontaktdaten gespeichert.', 'success');
+    // Detail neu rendern, damit aktualisierte Werte erscheinen
+    openMemberDetail(uid, true);
+  } catch (e) {
+    notify('Fehler beim Speichern: ' + e.message, 'error');
+  }
 }
 
 // Rolle aendern (Staff <-> Kunde)
