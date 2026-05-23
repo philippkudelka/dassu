@@ -6247,6 +6247,66 @@ async function syncVereinsflieger() {
   btn.disabled = false;
 }
 
+// TEMPORÄR — Debug-Funktion zum Recherchieren, ob VF Preisdaten ausliefert.
+// Aus der Konsole aufrufen: testVfDump()
+// Nach der Auswertung wieder entfernen (zusammen mit Backend-Action 'debugVfDump').
+window.testVfDump = async function() {
+  console.log('%c=== VF DEBUG DUMP gestartet …', 'background:#2A6B5E;color:white;padding:4px 8px;font-weight:bold;');
+  try {
+    const token = await firebase.auth().currentUser.getIdToken();
+    const res = await fetch('/.netlify/functions/vereinsflieger-sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ action: 'debugVfDump' })
+    });
+    const json = await res.json();
+    if (!json.ok) { console.error('❌ Fehler:', json.error); return null; }
+    const d = json.data;
+    console.log('%c📊 LIST-Endpoint (flight/list/daterange):', 'font-weight:bold;color:#2A6B5E;');
+    console.log('  Anzahl Flüge in den letzten 30 Tagen:', d.listCount);
+    console.log('  Alle vorhandenen Felder:', d.listAllFields);
+    console.log('  Beispiel-Flug (alle Werte):');
+    console.table(d.listSample || {});
+
+    console.log('%c📋 GET-Endpoint (flight/get/{flid}):', 'font-weight:bold;color:#2A6B5E;');
+    if (d.detailError) {
+      console.warn('  Fehler:', d.detailError);
+    } else if (d.detailSample) {
+      console.log('  Felder:', d.detailFields);
+      console.log('  Beispiel-Flug Details:');
+      console.table(d.detailSample);
+    } else {
+      console.log('  (keine Daten)');
+    }
+
+    console.log('%c✈️ AIRCRAFT-Endpoint (aircraft/get/{id}):', 'font-weight:bold;color:#2A6B5E;');
+    if (d.aircraftError) console.warn('  Fehler:', d.aircraftError);
+    else if (d.aircraftSample) console.log(d.aircraftSample);
+
+    console.log('%c💰 ACCOUNT-Endpoint (account/list):', 'font-weight:bold;color:#2A6B5E;');
+    if (d.accountError) console.warn('  Fehler:', d.accountError);
+    else console.log(d.accountSample);
+
+    console.log('%c🔍 SUCHE NACH PREIS-RELEVANTEN FELDERN:', 'background:#FFB300;color:black;padding:4px 8px;font-weight:bold;');
+    const allKeys = new Set([...(d.listAllFields || []), ...(d.detailFields || [])]);
+    const priceKeywords = /preis|price|cost|kost|amount|betrag|tarif|rate|geb[uü]hr|fee|invoice|rechnung|charge/i;
+    const priceFields = [...allKeys].filter(k => priceKeywords.test(k));
+    if (priceFields.length) {
+      console.log('  ✅ Verdächtige Felder gefunden:', priceFields);
+      console.log('  Werte aus listSample:', priceFields.map(k => ({ feld: k, wert: d.listSample?.[k] })));
+      if (d.detailSample) console.log('  Werte aus detailSample:', priceFields.map(k => ({ feld: k, wert: d.detailSample?.[k] })));
+    } else {
+      console.log('  ❌ Keine Felder mit "preis/price/cost/betrag/tarif/gebühr" im Namen gefunden.');
+    }
+
+    console.log('%c=== Dump fertig — bitte das gesamte Ergebnis kopieren oder Screenshots schicken ===', 'background:#2A6B5E;color:white;padding:4px 8px;font-weight:bold;');
+    return d;
+  } catch (e) {
+    console.error('Aufruf fehlgeschlagen:', e);
+    return null;
+  }
+};
+
 // Load data on tab switch — show cache immediately, then auto-refresh from API
 function loadVfCache() {
   if (vfData) { renderVfCompare(); return; }

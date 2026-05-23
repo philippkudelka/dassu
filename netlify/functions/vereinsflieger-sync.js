@@ -359,7 +359,7 @@ const ALLOWED_ORIGIN = 'https://dassu-buchungskalender.netlify.app';
 // Actions die VF-Credentials/firebaseToken aus dem Body nutzen — diese verifizieren den User selbst.
 const PERSONAL_ACTIONS = new Set(['saveVfCredentials', 'deleteVfCredentials', 'getVfStatus', 'memberFlights']);
 // Staff-Actions erfordern admin- oder team-Rolle.
-const STAFF_ONLY_ACTIONS = new Set(['flights', 'aircraft', 'instructors', 'instructorStats', 'yearCompare']);
+const STAFF_ONLY_ACTIONS = new Set(['flights', 'aircraft', 'instructors', 'instructorStats', 'yearCompare', 'debugVfDump']);
 // "members" benötigt nur Authentifizierung (Member-Frontend nutzt es für Auswahllisten).
 
 exports.handler = async (event) => {
@@ -834,6 +834,90 @@ exports.handler = async (event) => {
           lastYearSameDay: { ...aggregateFlights(lastYearSameDay), from: lastYearFrom, to: lastYearTo },
           lastYearFull: { ...aggregateFlights(lastYearFull), from: lastYearFrom, to: lastYearFullTo },
           fetchedAt: new Date().toISOString()
+        };
+        break;
+      }
+      case 'debugVfDump': {
+        // TEMPORÄR: Dump aller VF-Felder eines Beispiel-Flugs (für Preis-Recherche).
+        // Holt einen kürzlichen Flug aus dem Daterange-Endpoint, dann zusätzlich Details
+        // via /flight/get/{flid}, damit wir sehen, ob VF Preis-/Kostendaten ausliefert.
+        const today = new Date();
+        const past = new Date(today.getTime() - 30 * 24 * 3600 * 1000);
+        const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+        // 1) flight/list/daterange — Rohdaten OHNE DASSU-Filter, damit wir alles sehen
+        const listRes = await fetch(`${VF_BASE}/flight/list/daterange`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ accesstoken, datefrom: fmt(past), dateto: fmt(today) }).toString()
+        });
+        const listData = await listRes.json();
+        let rawFlights = [];
+        if (listData && typeof listData === 'object' && !Array.isArray(listData)) {
+          rawFlights = Object.values(listData).filter(v => typeof v === 'object' && v !== null && v.flid);
+        } else if (Array.isArray(listData)) {
+          rawFlights = listData;
+        }
+        const sample = rawFlights[0] || null;
+        const listAllFields = sample ? Object.keys(sample) : [];
+
+        // 2) flight/get/{flid} — versuch, ob VF eine Detail-API hat mit mehr Feldern (Preise?)
+        let detailSample = null;
+        let detailFields = [];
+        let detailError = null;
+        if (sample && sample.flid) {
+          try {
+            const detRes = await fetch(`${VF_BASE}/flight/get/${sample.flid}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: new URLSearchParams({ accesstoken }).toString()
+            });
+            const detData = await detRes.json();
+            detailSample = detData;
+            detailFields = (detData && typeof detData === 'object') ? Object.keys(detData) : [];
+          } catch (e) {
+            detailError = e.message;
+          }
+        }
+
+        // 3) Versuch /aircraft/get/{aircraftid} — falls Preis pro Flugzeug hinterlegt ist
+        let aircraftSample = null;
+        let aircraftError = null;
+        if (sample && sample.aircraftid) {
+          try {
+            const acRes = await fetch(`${VF_BASE}/aircraft/get/${sample.aircraftid}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: new URLSearchParams({ accesstoken }).toString()
+            });
+            aircraftSample = await acRes.json();
+          } catch (e) { aircraftError = e.message; }
+        }
+
+        // 4) Versuch /account/list — Kostenkonten/Tarif-Definitionen
+        let accountSample = null;
+        let accountError = null;
+        try {
+          const accRes = await fetch(`${VF_BASE}/account/list`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ accesstoken }).toString()
+          });
+          accountSample = await accRes.json();
+        } catch (e) { accountError = e.message; }
+
+        result = {
+          listCount: rawFlights.length,
+          listAllFields,
+          listSample: sample,
+          detailFields,
+          detailSample,
+          detailError,
+          aircraftSample,
+          aircraftError,
+          accountSample,
+          accountError,
+          note: 'TEMPORÄR — bitte nach Auswertung wieder entfernen (vereinsflieger-sync.js + staff.html testVfDump).'
         };
         break;
       }
