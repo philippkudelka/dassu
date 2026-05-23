@@ -775,6 +775,30 @@ body { font-family: var(--font); background: var(--c-bg); color: var(--c-ink); m
 .stats-header { margin-bottom: 16px; }
 .stats-header h3 { font-size: 16px; font-weight: 700; color: var(--navy); margin-bottom: 10px; }
 .stats-period { display: flex; align-items: center; gap: 8px; }
+
+/* --- Sub-Tab-Navigation (Pill-Style) --- */
+.stats-subnav-wrap { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; flex-wrap: wrap; }
+.stats-pagetitle { font-size: 16px; font-weight: 700; color: var(--navy); margin: 0; }
+.stats-subnav { display: inline-flex; gap: 2px; background: var(--gray-100); padding: 3px; border-radius: 10px; flex-wrap: wrap; }
+.stats-subtab { background: transparent; border: none; padding: 7px 14px; font-size: 12px; font-weight: 600; color: var(--gray-500); cursor: pointer; border-radius: 7px; font-family: var(--font); transition: color .15s, background .15s, box-shadow .15s; white-space: nowrap; }
+.stats-subtab:hover { color: var(--navy); }
+.stats-subtab.active { background: var(--c-paper); color: var(--navy); box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
+.stats-tab-panel { animation: statsFadeIn .18s ease; }
+@keyframes statsFadeIn { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
+
+/* --- Moderne KPI-Kacheln (für Überblick-Dashboard) --- */
+.dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-bottom: 16px; }
+.dash-card { background: var(--c-paper); border: 1px solid var(--c-line); border-radius: 12px; padding: 14px 16px; transition: box-shadow .15s, transform .15s; }
+.dash-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+.dash-card-label { font-size: 10px; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+.dash-card-value { font-size: 26px; font-weight: 800; color: var(--navy); line-height: 1.1; }
+.dash-card-unit { font-size: 14px; font-weight: 600; color: var(--gray-500); margin-left: 2px; }
+.dash-card-delta { font-size: 11px; font-weight: 600; margin-top: 6px; display: flex; align-items: center; gap: 4px; }
+.dash-card-delta.up { color: var(--success); }
+.dash-card-delta.down { color: var(--danger); }
+.dash-card-delta.flat { color: var(--gray-500); }
+.dash-card-sub { font-size: 11px; color: var(--gray-500); margin-top: 4px; }
+.dash-card-empty { color: var(--gray-400); font-size: 12px; font-style: italic; margin-top: 2px; }
 .stats-period button { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--c-line); background: var(--c-paper); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .stats-period span { font-size: 14px; font-weight: 600; min-width: 120px; text-align: center; }
 .stats-period select { font-size: 12px; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--c-line); background: var(--c-paper); }
@@ -1418,80 +1442,65 @@ body.dev-mode { padding-bottom: 48px; }
 
 <!-- Statistics View -->
 <div id="viewStats" class="stats-view" style="display:none;">
-  <div class="stats-header">
-    <h3>Statistik</h3>
-    <div class="stats-period">
-      <button onclick="changeStatsPeriod(-1)">&larr;</button>
-      <span id="statsPeriodLabel"></span>
-      <button onclick="changeStatsPeriod(1)">&rarr;</button>
-      <select id="statsRange" onchange="renderStats()">
-        <option value="month">Monat</option>
-        <option value="quarter">Quartal</option>
-        <option value="year">Jahr</option>
-        <option value="all">Gesamt</option>
-      </select>
+  <!-- Header + Sub-Tab-Navigation (Pill-Style) -->
+  <div class="stats-subnav-wrap">
+    <h3 class="stats-pagetitle">Statistik</h3>
+    <nav class="stats-subnav" role="tablist" aria-label="Statistik-Bereiche">
+      <button class="stats-subtab active" data-tab="overview" onclick="switchStatsTab('overview')" role="tab">Überblick</button>
+      <button class="stats-subtab" data-tab="bookings" onclick="switchStatsTab('bookings')" role="tab">Buchungen</button>
+      <button class="stats-subtab" data-tab="flights" onclick="switchStatsTab('flights')" role="tab">Flüge</button>
+      <button class="stats-subtab" data-tab="instructors" onclick="switchStatsTab('instructors')" role="tab">Fluglehrer</button>
+    </nav>
+  </div>
+
+  <!-- TAB: Überblick -->
+  <div class="stats-tab-panel" id="statsTabOverview" role="tabpanel">
+    <div id="statsOverviewContent">
+      <div class="empty-msg">Lade Überblick…</div>
     </div>
   </div>
-  <div id="statsContent"></div>
 
-  <!-- Fluglehrer-Statistik (VF) -->
-  <div class="stats-header" style="margin-top:32px;">
-    <h3>Fluglehrer — Auswertung (Vereinsflieger)</h3>
-    <button class="btn-book" onclick="loadInstructorStats()" id="fiStatsSyncBtn" style="padding:8px 16px;font-size:13px;">
-      <span id="fiStatsSyncLabel">Aktualisieren</span>
-    </button>
-  </div>
-  <div id="fiStatsContent">
-    <div class="empty-msg">Fluglehrer-Statistik wird geladen…</div>
-  </div>
-
-  <!-- Vereinsflieger Jahresvergleich -->
-  <div class="stats-header" style="margin-top:32px;">
-    <h3>Vereinsflieger — Jahresvergleich</h3>
-    <button class="btn-book" onclick="syncVereinsflieger()" id="vfSyncBtn" style="padding:8px 16px;font-size:13px;">
-      <span id="vfSyncLabel">Aktualisieren</span>
-    </button>
-  </div>
-  <div id="vfCompareContent">
-    <div class="empty-msg">Lade Flugdaten…</div>
-  </div>
-
-  <!-- Abend-Backfill (OGN → Flugbuch) -->
-  <div class="stats-header" style="margin-top:32px;">
-    <h3>Abend-Backfill (OGN → Flugbuch)</h3>
-  </div>
-  <div id="bfContent" style="padding:4px 0;">
-    <div style="background:rgba(30,75,78,0.04); border:1px solid var(--line); border-radius:10px; padding:16px; margin:8px 0;">
-      <div style="font-size:13px; color:var(--ink); margin-bottom:12px;">
-        Verknüpft unverknüpfte OGN-Tracks mit passenden offenen Flügen im VF-Flugbuch.
-        Wenn kein passender offener Flug existiert, wird ein neuer Flug aus dem OGN-Track angelegt.
+  <!-- TAB: Buchungen -->
+  <div class="stats-tab-panel" id="statsTabBookings" role="tabpanel" style="display:none;">
+    <div class="stats-header" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+      <div class="stats-period">
+        <button onclick="changeStatsPeriod(-1)" aria-label="Vorheriger Zeitraum">&larr;</button>
+        <span id="statsPeriodLabel"></span>
+        <button onclick="changeStatsPeriod(1)" aria-label="Nächster Zeitraum">&rarr;</button>
+        <select id="statsRange" onchange="renderStats()" aria-label="Zeitraum">
+          <option value="month">Monat</option>
+          <option value="quarter">Quartal</option>
+          <option value="year">Jahr</option>
+          <option value="all">Gesamt</option>
+        </select>
       </div>
-      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-        <a href="https://www.vereinsflieger.de/member/flightdataentry/flightlog.php"
-           target="_blank" rel="noopener" class="btn-book"
-           style="display:inline-flex; align-items:center; gap:6px; padding:10px 20px; font-size:13px; text-decoration:none; font-weight:600;">
-          VF Flugbuch öffnen ↗
-        </a>
-        <button class="btn-book" onclick="copyBackfillScript()"
-          style="padding:10px 16px; font-size:12px; background:var(--gray-100); color:var(--ink);">
-          Backfill-Script kopieren
-        </button>
-      </div>
-      <div id="bfBookmarkletInfo" style="display:none; margin-top:12px; padding:12px; background:rgba(46,125,50,0.06); border-radius:8px; font-size:12px; color:#2e7d32;"></div>
-      <details style="margin-top:14px;">
-        <summary style="font-size:12px; color:var(--stone); cursor:pointer; user-select:none;">Anleitung</summary>
-        <ol style="font-size:12px; color:var(--stone); margin:8px 0 0 0; padding-left:20px; line-height:1.8;">
-          <li>Öffne das <strong>VF Flugbuch</strong> (Link oben) und melde dich an</li>
-          <li>Klicke <strong>"Backfill-Script kopieren"</strong></li>
-          <li>Auf der VF-Seite: <strong>Cmd+Alt+I</strong> (Mac) oder <strong>F12</strong> (Windows) → Konsole öffnen</li>
-          <li>In die Konsole <strong>einfügen</strong> (Cmd+V) und <strong>Enter</strong> drücken</li>
-          <li>Bestätige die Vorschau → Tracks werden verknüpft oder als neue Flüge angelegt</li>
-        </ol>
-        <div style="font-size:11px; color:var(--stone); margin-top:8px; padding:8px; background:var(--gray-100); border-radius:6px;">
-          <strong>Was passiert:</strong> Das Script liest die OGN-Tabelle, sucht für jeden unverknüpften Track einen passenden offenen Flug (gleiches Lfz.).
-          Wenn einer existiert → verknüpfen. Wenn nicht → neuer Flug aus OGN-Daten anlegen.
-        </div>
-      </details>
+    </div>
+    <div id="statsContent"></div>
+  </div>
+
+  <!-- TAB: Flüge (Vereinsflieger Jahresvergleich) -->
+  <div class="stats-tab-panel" id="statsTabFlights" role="tabpanel" style="display:none;">
+    <div class="stats-header" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+      <h3 style="margin:0;font-size:15px;">Vereinsflieger — Jahresvergleich</h3>
+      <button class="btn-book" onclick="syncVereinsflieger()" id="vfSyncBtn" style="padding:8px 16px;font-size:13px;">
+        <span id="vfSyncLabel">Aktualisieren</span>
+      </button>
+    </div>
+    <div id="vfCompareContent">
+      <div class="empty-msg">Lade Flugdaten…</div>
+    </div>
+  </div>
+
+  <!-- TAB: Fluglehrer -->
+  <div class="stats-tab-panel" id="statsTabInstructors" role="tabpanel" style="display:none;">
+    <div class="stats-header" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+      <h3 style="margin:0;font-size:15px;">Fluglehrer — Auswertung</h3>
+      <button class="btn-book" onclick="loadInstructorStats()" id="fiStatsSyncBtn" style="padding:8px 16px;font-size:13px;">
+        <span id="fiStatsSyncLabel">Aktualisieren</span>
+      </button>
+    </div>
+    <div id="fiStatsContent">
+      <div class="empty-msg">Fluglehrer-Statistik wird geladen…</div>
     </div>
   </div>
 </div>
@@ -2834,7 +2843,7 @@ function switchView(view) {
     tab.classList.toggle('active', isActive);
     cont.style.display = isActive ? '' : 'none';
   });
-  if (view === 'stats') { loadVfCache(); if (!fiStatsData) loadInstructorStats(); }
+  if (view === 'stats') { switchStatsTab(currentStatsTab); }
   if (view === 'manage') {
     initAircraftDocsAdmin();
     const docsAdmin = document.getElementById('aircraftDocsAdmin');
@@ -5112,6 +5121,178 @@ function getStatsBookings() {
   return bookings.filter(b => b.status === 'approved' && b.date >= startDate && b.date <= endDate);
 }
 
+// ==================== STATS SUB-TABS (Überblick / Buchungen / Flüge / Fluglehrer) ====================
+const STATS_TABS = ['overview', 'bookings', 'flights', 'instructors'];
+let currentStatsTab = (function() {
+  try { return localStorage.getItem('statsTab') || 'overview'; } catch (_) { return 'overview'; }
+})();
+if (!STATS_TABS.includes(currentStatsTab)) currentStatsTab = 'overview';
+
+function switchStatsTab(tab) {
+  if (!STATS_TABS.includes(tab)) tab = 'overview';
+  currentStatsTab = tab;
+  try { localStorage.setItem('statsTab', tab); } catch (_) { /* ignore quota */ }
+
+  // Sub-tab buttons aktiv markieren
+  document.querySelectorAll('.stats-subtab').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tab);
+  });
+  // Panels ein-/ausblenden
+  const mapId = { overview: 'statsTabOverview', bookings: 'statsTabBookings', flights: 'statsTabFlights', instructors: 'statsTabInstructors' };
+  Object.values(mapId).forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = (id === mapId[tab]) ? '' : 'none';
+  });
+
+  // Lazy-Render je nach Tab
+  if (tab === 'overview') {
+    renderStatsOverview();
+  } else if (tab === 'bookings') {
+    renderStats();
+  } else if (tab === 'flights') {
+    // VF-Daten: Cache nutzen wenn vorhanden, sonst manueller Refresh über Button
+    if (typeof vfData !== 'undefined' && vfData) {
+      renderVfCompare();
+    } else if (typeof loadVfCache === 'function') {
+      loadVfCache(); // versucht aus localStorage zu laden + ruft renderVfCompare auf
+    }
+  } else if (tab === 'instructors') {
+    if (typeof fiStatsData !== 'undefined' && !fiStatsData && typeof loadInstructorStats === 'function') {
+      loadInstructorStats();
+    }
+  }
+}
+
+// ---------- Dashboard "Überblick" ----------
+let _vfDashboardLoadStarted = false;
+
+function _statsDelta(curr, prev) {
+  if (prev == null) return null;
+  if (!prev) {
+    if (curr > 0) return { dir: 'up', label: 'neu' };
+    return { dir: 'flat', label: '—' };
+  }
+  const pct = Math.round((curr - prev) / prev * 100);
+  if (pct === 0) return { dir: 'flat', label: '0%' };
+  if (pct > 0) return { dir: 'up', label: '+' + pct + '%' };
+  return { dir: 'down', label: pct + '%' };
+}
+function _statsDeltaHtml(d, suffix) {
+  if (!d) return '';
+  const arrow = d.dir === 'up' ? '&#9650;' : d.dir === 'down' ? '&#9660;' : '&#9656;';
+  return `<div class="dash-card-delta ${d.dir}">${arrow} ${d.label}</div>${suffix ? `<div class="dash-card-sub">${suffix}</div>` : ''}`;
+}
+
+function renderStatsOverview() {
+  const container = document.getElementById('statsOverviewContent');
+  if (!container) return;
+
+  const now = new Date();
+  const curYear = now.getFullYear();
+  const prevYear = curYear - 1;
+  const todayKey = dateKey(now);
+  const startYear = `${curYear}-01-01`;
+  const startPrevYear = `${prevYear}-01-01`;
+  const stichtagKey = `${prevYear}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+  // ---- Buchungs-Daten (Firebase, immer da) ----
+  const approved = bookings.filter(b => b.status === 'approved');
+  const pendingCount = bookings.filter(b => b.status === 'pending').length;
+
+  const bookingsYTD = approved.filter(b => b.date >= startYear && b.date <= todayKey).length;
+  const bookingsYTDPrev = approved.filter(b => b.date >= startPrevYear && b.date <= stichtagKey).length;
+  const bookingsDelta = _statsDelta(bookingsYTD, bookingsYTDPrev);
+
+  // Woche (Mo–So)
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  monday.setHours(0, 0, 0, 0);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  const mondayKey = dateKey(monday);
+  const sundayKey = dateKey(sunday);
+  const bookingsWeek = approved.filter(b => b.date >= mondayKey && b.date <= sundayKey).length;
+
+  // ---- VF-Daten (lazy, evtl. null) ----
+  let vfStartsYTD = null, vfStartsDelta = null;
+  let vfHoursYTD = null, vfHoursDelta = null, vfHoursMin = 0;
+  let vfTopAircraft = null;
+  let vfFlyingDays = null;
+  const hasVf = !!(vfData && vfData.thisYear);
+
+  if (hasVf) {
+    vfStartsYTD = vfData.thisYear.totalFlights;
+    vfHoursMin = vfData.thisYear.totalMinutes;
+    vfHoursYTD = Math.round(vfHoursMin / 60);
+    vfFlyingDays = vfData.thisYear.flyingDays;
+    if (vfData.lastYearSameDay) {
+      vfStartsDelta = _statsDelta(vfStartsYTD, vfData.lastYearSameDay.totalFlights);
+      vfHoursDelta = _statsDelta(vfHoursMin, vfData.lastYearSameDay.totalMinutes);
+    }
+    const acEntries = Object.entries(vfData.thisYear.byAircraft || {})
+      .sort((a, b) => (b[1].count || 0) - (a[1].count || 0));
+    if (acEntries.length) {
+      vfTopAircraft = { callsign: acEntries[0][0], count: acEntries[0][1].count || 0, minutes: acEntries[0][1].minutes || 0 };
+    }
+  }
+
+  const skeleton = '<div class="dash-card-empty">Wird geladen…</div>';
+
+  container.innerHTML = `
+    <div class="dash-grid">
+      <div class="dash-card">
+        <div class="dash-card-label">Starts ${curYear}</div>
+        ${hasVf
+          ? `<div class="dash-card-value">${vfStartsYTD}</div>${_statsDeltaHtml(vfStartsDelta, 'vs. Vorjahr · Stichtag')}`
+          : skeleton}
+      </div>
+      <div class="dash-card">
+        <div class="dash-card-label">Flugstunden ${curYear}</div>
+        ${hasVf
+          ? `<div class="dash-card-value">${vfHoursYTD}<span class="dash-card-unit">h</span></div>${_statsDeltaHtml(vfHoursDelta, 'vs. Vorjahr · Stichtag')}`
+          : skeleton}
+      </div>
+      <div class="dash-card">
+        <div class="dash-card-label">Top-Flugzeug ${curYear}</div>
+        ${vfTopAircraft
+          ? `<div class="dash-card-value" style="font-size:22px;">${escapeHtml(vfTopAircraft.callsign)}</div><div class="dash-card-sub">${vfTopAircraft.count} Starts · ${fmtH(vfTopAircraft.minutes)} h</div>`
+          : (hasVf ? '<div class="dash-card-empty">Keine Daten</div>' : skeleton)}
+      </div>
+      <div class="dash-card">
+        <div class="dash-card-label">Flugtage ${curYear}</div>
+        ${hasVf
+          ? `<div class="dash-card-value">${vfFlyingDays}</div><div class="dash-card-sub">aktive Tage</div>`
+          : skeleton}
+      </div>
+      <div class="dash-card">
+        <div class="dash-card-label">Buchungen offen</div>
+        <div class="dash-card-value">${pendingCount}</div>
+        <div class="dash-card-sub">${pendingCount === 1 ? 'Anfrage' : 'Anfragen'} warten auf Bestätigung</div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-card-label">Buchungen diese Woche</div>
+        <div class="dash-card-value">${bookingsWeek}</div>
+        <div class="dash-card-sub">Mo&ndash;So (bestätigt)</div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-card-label">Buchungen ${curYear}</div>
+        <div class="dash-card-value">${bookingsYTD}</div>
+        ${_statsDeltaHtml(bookingsDelta, 'vs. Vorjahr · Stichtag')}
+      </div>
+    </div>
+    ${!hasVf ? '<div class="empty-msg" style="font-size:12px;color:var(--gray-500);margin-top:4px;">Flugdaten werden aus Vereinsflieger geladen&hellip;</div>' : ''}
+  `;
+
+  // Background-Load von VF-Daten triggern (nur einmal pro Session)
+  if (!hasVf && !_vfDashboardLoadStarted) {
+    _vfDashboardLoadStarted = true;
+    if (typeof loadVfCache === 'function') {
+      // Verzögert, damit die UI erst rendert
+      setTimeout(() => { loadVfCache(); }, 50);
+    }
+  }
+}
+
 function getStatsPeriodLabel() {
   const range = document.getElementById('statsRange').value;
   const y = statsDate.getFullYear();
@@ -5820,6 +6001,10 @@ async function syncVereinsflieger() {
 
     vfData = json.data;
     renderVfCompare();
+    // Wenn der Überblick-Tab aktiv ist, KPI-Kacheln direkt mit den frischen VF-Daten füllen
+    if (typeof currentStatsTab !== 'undefined' && currentStatsTab === 'overview') {
+      renderStatsOverview();
+    }
     label.textContent = 'Aktualisieren';
   } catch (err) {
     if (/Vereinsflieger-Konto/i.test(err.message || '')) {
@@ -5837,81 +6022,6 @@ function loadVfCache() {
   if (vfData) { renderVfCompare(); return; }
   // Load fresh data directly from API
   syncVereinsflieger();
-}
-
-// ==================== ABEND-BACKFILL (OGN → Flugbuch) ====================
-
-function copyBackfillScript() {
-  // Vollständiges Backfill-Script für die Browser-Konsole:
-  // 1. OGN-Tracks parsen (unverknüpfte finden)
-  // 2. Pro Track: Link-Dialog laden → passenden offenen Flug suchen
-  // 3. Wenn gefunden → verknüpfen (GET linkflight)
-  // 4. Wenn nicht → neuen Flug aus OGN anlegen (GET flightlog.php?action=add)
-  const code = `(async function(){
-  'use strict';
-  if(!location.href.includes('vereinsflieger.de/member/flightdataentry')){
-    alert('Bitte zuerst die VF Flugbuch-Seite oeffnen!');return;
-  }
-  var B=location.pathname.replace(/[^\\/]*$/,'');
-  var dp=new DOMParser();
-  /* 1. OGN-Tracks laden */
-  var r=await fetch(B+'flightlogliveimportlist',{credentials:'same-origin'});
-  var h=await r.text();
-  var doc=dp.parseFromString(h,'text/html');
-  var unl=[];
-  doc.querySelectorAll('[onclick*="onclickLink"]').forEach(function(el){
-    var m=el.getAttribute('onclick').match(/onclickLink\\((\\d+)/);
-    if(!m)return;
-    var row=el.closest('tr');
-    var c=row?row.querySelectorAll('td'):[];
-    unl.push({id:m[1],lfz:(c[1]||{}).textContent?.trim()||'?',
-      s:(c[2]||{}).textContent?.trim()||'',e:(c[3]||{}).textContent?.trim()||''});
-  });
-  if(!unl.length){alert('Keine unverknuepften OGN-Tracks gefunden.');return;}
-  /* 2. Vorschau */
-  var pv=unl.map(function(t){return t.lfz+'  '+t.s+' - '+t.e}).join('\\n');
-  if(!confirm(unl.length+' unverknuepfte OGN-Tracks:\\n\\n'+pv+'\\n\\nJetzt verknuepfen?'))return;
-  /* 3. Pro Track verarbeiten */
-  var res=[];
-  for(var i=0;i<unl.length;i++){
-    var t=unl[i];
-    try{
-      var dr=await fetch(B+'linkflightlogliveimport?source=3&sourceid='+t.id,{credentials:'same-origin'});
-      var dh=await dr.text();
-      var dd=dp.parseFromString(dh,'text/html');
-      var la=dd.querySelector('a[href*="linkflight"]');
-      if(la){
-        var href=la.getAttribute('href');
-        var url=href.startsWith('/')?href:B+href;
-        await fetch(url,{credentials:'same-origin'});
-        res.push('OK '+t.lfz+' '+t.s+' verknuepft');
-      }else{
-        await fetch(B+'flightlog.php?action=add&source=3&sourceid='+t.id,{credentials:'same-origin'});
-        res.push('NEU '+t.lfz+' '+t.s+' angelegt');
-      }
-    }catch(e){res.push('FEHLER '+t.lfz+' '+t.s+': '+e.message);}
-    await new Promise(function(r){setTimeout(r,400)});
-  }
-  alert('Backfill fertig:\\n\\n'+res.join('\\n'));
-  location.reload();
-})()`;
-
-  const info = document.getElementById('bfBookmarkletInfo');
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(code).then(() => {
-      info.style.display = 'block';
-      info.innerHTML = '✓ Script kopiert! Jetzt auf der VF-Seite: <strong>Cmd+Alt+I</strong> → Konsole → einfügen → Enter';
-    }).catch(() => {
-      showScriptFallback(code, info);
-    });
-  } else {
-    showScriptFallback(code, info);
-  }
-}
-
-function showScriptFallback(code, info) {
-  info.style.display = 'block';
-  info.innerHTML = `Kopiere diesen Code und füge ihn in die Browser-Konsole ein:<br><textarea readonly onclick="this.select()" style="width:100%;height:80px;font-size:10px;margin-top:6px;border-radius:4px;border:1px solid var(--line);padding:4px;">${code}</textarea>`;
 }
 
 // ==================== VEREINSFLIEGER COMPARE ====================
@@ -6309,7 +6419,7 @@ function render() {
   else if (currentView === 'theory') renderTheory();
   else if (currentView === 'team') renderTeamView();
   else if (currentView === 'time') renderTimeView();
-  else if (currentView === 'stats') renderStats();
+  else if (currentView === 'stats') switchStatsTab(currentStatsTab);
 }
 
 // ============================================================

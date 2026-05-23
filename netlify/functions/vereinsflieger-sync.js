@@ -18,9 +18,10 @@ const admin = require('firebase-admin');
 const VF_BASE = 'https://www.vereinsflieger.de/interface/rest';
 
 // ---- DASSU-Flotte (Whitelist) ----
-// Quelle: https://www.dassu.de/flotte
+// Quelle: https://www.dassu.de/flotte (aktueller Bestand)
+// Plus: HISTORISCHE Flugzeuge, deren Flüge weiterhin in Statistiken
+// (z.B. Jahresvergleich Vorjahr) auftauchen sollen.
 // Alle Listen/Statistiken berücksichtigen ausschließlich diese Kennzeichen.
-// Stand: letztes Update via dassu.de/flotte
 const DASSU_FLEET = new Set([
   // Segelflugzeuge
   'D-3982', 'D-1375', 'D-1670', 'D-1800', 'D-1900', 'D-7507', // ASK 13
@@ -33,7 +34,9 @@ const DASSU_FLEET = new Set([
   // Motorsegler
   'D-KYSS', 'D-KYGL', 'D-KYCK',
   // Ultraleicht
-  'D-MYIH', 'D-MYUW'
+  'D-MYIH', 'D-MYUW',
+  // --- Historisch / verkauft (für Vorjahres-Vergleiche weiterhin relevant) ---
+  'D-MYIG'   // UL, verkauft 2025 — bleibt in der Statistik damit Vorjahres-Vergleiche stimmen
 ]);
 
 // Tolerante Normalisierung: "d1234" → "D-1234", "D 1234" → "D-1234"
