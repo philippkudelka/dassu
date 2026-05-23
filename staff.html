@@ -5395,46 +5395,6 @@ function switchStatsTab(tab) {
 
 // ---------- Dashboard "Überblick" ----------
 let _vfDashboardLoadStarted = false;
-let revenueStatsData = null;           // Cache für Umsatz YTD
-let _revenueLoadStarted = false;       // Verhindert mehrfaches Laden
-let _revenueLoadError = null;          // Fehlerzustand für saubere Anzeige
-
-// Lädt die Umsatz-Stats (YTD) aus VF im Hintergrund.
-// Greift nur, wenn der User ein verknüpftes VF-Konto hat — sonst kommt aus der Function ein Fehler,
-// den wir freundlich im UI anzeigen.
-async function loadRevenueStats() {
-  if (_revenueLoadStarted || revenueStatsData) return;
-  _revenueLoadStarted = true;
-  try {
-    const user = firebase.auth().currentUser;
-    if (!user) { _revenueLoadStarted = false; return; }
-    const token = await user.getIdToken();
-    const res = await fetch('/.netlify/functions/vereinsflieger-sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-      body: JSON.stringify({ action: 'revenueStats' })
-    });
-    const json = await res.json();
-    if (!json.ok) {
-      _revenueLoadError = json.error || 'Unbekannter Fehler';
-      console.warn('revenueStats Fehler:', _revenueLoadError);
-    } else {
-      revenueStatsData = json.data;
-    }
-    // Dashboard nachrendern, wenn der Tab aktiv ist
-    if (typeof currentStatsTab !== 'undefined' && currentStatsTab === 'overview') {
-      renderStatsOverview();
-    }
-  } catch (e) {
-    _revenueLoadError = e.message;
-    console.warn('revenueStats fetch fehlgeschlagen:', e);
-  }
-}
-
-function _fmtEur(n) {
-  if (n == null || isNaN(n)) return '—';
-  return new Intl.NumberFormat('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Math.round(n));
-}
 
 function _statsDelta(curr, prev) {
   if (prev == null) return null;
@@ -5549,45 +5509,6 @@ function renderStatsOverview() {
         <div class="dash-card-value">${bookingsYTD}</div>
         ${_statsDeltaHtml(bookingsDelta, 'vs. Vorjahr · Stichtag')}
       </div>
-      ${(() => {
-        // Umsatz-Kachel: zeigt VF-Hochrechnung (exakt + geschätzt)
-        if (_revenueLoadError) {
-          return `<div class="dash-card" style="grid-column:1/-1;">
-            <div class="dash-card-label">Umsatz ${curYear}</div>
-            <div class="dash-card-empty">Daten nicht verfügbar (${escapeHtml(_revenueLoadError)})</div>
-          </div>`;
-        }
-        if (!revenueStatsData) {
-          return `<div class="dash-card">
-            <div class="dash-card-label">Umsatz ${curYear}</div>
-            ${skeleton}
-          </div>`;
-        }
-        const r = revenueStatsData;
-        const totalEur = _fmtEur(r.totalSum);
-        const exactEur = _fmtEur(r.exactSum);
-        const estEur = _fmtEur(r.estimatedSum);
-        const estPct = r.totalSum > 0 ? Math.round(r.estimatedSum / r.totalSum * 100) : 0;
-        const fetchedAt = r.fetchedAt ? new Date(r.fetchedAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) : '';
-        const unestNote = r.unestimable > 0
-          ? `<div class="dash-card-sub" style="margin-top:2px;color:var(--gray-400);">+ ${r.unestimable} Flüge ohne Vergleichsdaten (nicht erfasst)</div>`
-          : '';
-        return `<div class="dash-card" style="grid-column:1/-1;">
-          <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
-            <div style="flex:1; min-width:140px;">
-              <div class="dash-card-label">Umsatz ${curYear}</div>
-              <div class="dash-card-value" style="font-size:30px;">${totalEur}<span class="dash-card-unit">&nbsp;€</span></div>
-              <div class="dash-card-sub">Hochrechnung · ${r.totalFlights} Flüge YTD</div>
-            </div>
-            <div style="flex:1; min-width:140px; font-size:12px; color:var(--gray-500); line-height:1.7;">
-              <div>davon <strong style="color:var(--navy);">${exactEur} €</strong> bereits abgerechnet <span style="color:var(--gray-400);">(${r.exactCount} Flüge)</span></div>
-              <div>+ <strong style="color:var(--navy);">${estEur} €</strong> geschätzt <span style="color:var(--gray-400);">(${r.estimatedCount} Flüge · ~${estPct}%)</span></div>
-              ${unestNote}
-              <div style="font-size:10px; color:var(--gray-400); margin-top:4px;">Stand: ${fetchedAt} · auf Basis eurer abgerechneten Flüge</div>
-            </div>
-          </div>
-        </div>`;
-      })()}
     </div>
     ${!hasVf ? '<div class="empty-msg" style="font-size:12px;color:var(--gray-500);margin-top:4px;">Flugdaten werden aus Vereinsflieger geladen&hellip;</div>' : ''}
   `;
@@ -5599,10 +5520,6 @@ function renderStatsOverview() {
       // Verzögert, damit die UI erst rendert
       setTimeout(() => { loadVfCache(); }, 50);
     }
-  }
-  // Umsatz-Stats parallel im Hintergrund laden (separate Action, eigener Lebenszyklus)
-  if (!revenueStatsData && !_revenueLoadStarted && !_revenueLoadError) {
-    setTimeout(() => { loadRevenueStats(); }, 100);
   }
 }
 
