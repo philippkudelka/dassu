@@ -135,8 +135,20 @@
   }
 
   async function signOutUser() {
-    try { await firebase.auth().signOut(); return { ok: true }; }
-    catch (e) { return { ok: false, error: e.message }; }
+    try {
+      // VF-/Customer-Caches und User-Profil aus localStorage löschen — Datenschutz:
+      // nächster User im selben Browser darf nicht die VF-Mitgliederliste des Vorgängers sehen.
+      try {
+        localStorage.removeItem('vfMembers');
+        localStorage.removeItem('vfMembersCachedAt');
+        localStorage.removeItem('vfInstructors');
+        localStorage.removeItem('vfInstructorsCachedAt');
+        localStorage.removeItem('dassu_staff_user');
+        localStorage.removeItem('dassu_user');
+      } catch (_) { /* localStorage evtl. nicht verfügbar */ }
+      await firebase.auth().signOut();
+      return { ok: true };
+    } catch (e) { return { ok: false, error: e.message }; }
   }
 
   async function resetPassword(email) {

@@ -119,14 +119,12 @@ body { font-family: var(--font); background: var(--c-bg); color: var(--c-ink); m
 .user-avatar { width: 20px; height: 20px; border-radius: 50%; background: var(--c-amber); color: white; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
 
 /* Date Nav */
-.date-nav { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px 16px; background: var(--c-paper); border-bottom: 1px solid var(--c-line); }
-.date-nav h2 { font-size: 15px; font-weight: 600; min-width: 200px; text-align: center; color: var(--c-ink); }
+.date-nav { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px 16px; background: var(--c-paper); border-bottom: 1px solid var(--c-line); position: relative; }
+.date-nav h2 { font-size: 15px; font-weight: 600; min-width: 200px; text-align: center; color: var(--c-ink); cursor: pointer; position: relative; }
+.date-nav h2:hover { color: var(--c-alpine); }
 .nav-btn { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--c-line); background: var(--c-paper); display: flex; align-items: center; justify-content: center; cursor: pointer; }
 .nav-btn:active { background: var(--c-bg); }
 .today-btn { background: var(--c-alpine); color: white; border: none; padding: 7px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; letter-spacing: 0.03em; }
-.date-nav h2 { cursor: pointer; position: relative; }
-.date-nav h2:hover { color: var(--c-alpine); }
-.date-nav { position: relative; }
 
 /* Calendar Picker */
 .cal-picker { display: none; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); z-index: 600; background: var(--c-paper); border: 1px solid var(--c-line); border-radius: 14px; box-shadow: var(--shadow-lg); padding: 12px; width: 290px; }
@@ -1142,7 +1140,7 @@ body.dev-mode { padding-bottom: 48px; }
 </div>
 
 <div id="viewManage" class="manage" style="display:none;">
-  <input type="text" class="search-input" id="searchInput" placeholder="Suchen nach Name, Flugzeug..." oninput="renderManage()">
+  <input type="text" class="search-input" id="searchInput" placeholder="Suchen nach Name, Flugzeug..." oninput="renderManageDebounced()">
   <div class="filter-row" id="filterRow"></div>
   <div id="manageContent"></div>
 
@@ -1183,7 +1181,7 @@ body.dev-mode { padding-bottom: 48px; }
 <div id="viewTeam" class="team-view" style="display:none;">
   <!-- Toolbar: Suche + Filter + Einladen -->
   <div class="team-toolbar">
-    <input type="text" class="team-search" id="teamSearchInput" placeholder="Benutzer suchen..." oninput="renderTeamView()">
+    <input type="text" class="team-search" id="teamSearchInput" placeholder="Benutzer suchen..." oninput="renderTeamViewDebounced()">
     <div class="team-filter-chips" id="teamFilterChips"></div>
     <button class="team-invite-quick-btn" id="teamInviteToggle" onclick="toggleTeamInvite()" style="display:none;">+ Einladen</button>
   </div>
@@ -1749,7 +1747,7 @@ let currentEditId = null;
 let manageFilter = 'pending';
 let firstLoad = true;
 let vfMembers = []; // Vereinsflieger-Mitgliedernamen für Autocomplete
-let firebaseCustomers = []; // Firebase-registrierte Kunden-Namen
+// firebaseCustomers wurde entfernt — wir nutzen jetzt direkt customerUsers (Live-Listener)
 let acActiveIdx = -1; // Aktuell markierter Autocomplete-Eintrag
 let knownBookingIds = new Set();
 let pendingOpenBookingId = (new URLSearchParams(window.location.search)).get('booking') || '';
@@ -1776,9 +1774,6 @@ function isAdmin() {
   return !!(u && u.role === 'admin');
 }
 
-function hasAdmin() {
-  return staffUsers.some(u => u.role === 'admin');
-}
 
 function roleBadge(role) {
   const meta = roleMeta(role);
@@ -1821,7 +1816,6 @@ function setupAuthGuard() {
           birthdate: '',
           photoURL: authUser.photoURL || ''
         };
-        console.log('Auth: Minimal-User gesetzt:', currentUser.email);
       }
 
       // Eingeloggt → staffUsers-Profil holen (erweitert currentUser mit Rolle etc.)
@@ -1848,6 +1842,9 @@ function setupAuthGuard() {
       setTimeout(autoRegisterFcmIfReady, 2000);
       // Setup time tracking listeners for this user
       if (typeof setupTimeListeners === 'function') setupTimeListeners();
+      // Hintergrund-Lader (alle brauchen einen frischen ID-Token, also erst hier nach Auth-Setup)
+      if (typeof loadVfMembers === 'function') loadVfMembers();
+      if (typeof loadVfInstructors === 'function') loadVfInstructors();
       render();
     } catch (err) {
       console.error('Auth-Callback Fehler:', err);
@@ -1965,15 +1962,6 @@ function togglePermission(id, key) {
   notify('Recht aktualisiert.', 'success');
 }
 
-function resetPermission(id, key) {
-  if (!isAdmin()) return;
-  const user = staffUsers.find(u => u.id === id);
-  if (!user || !user.permissions) return;
-  const update = Object.assign({}, user.permissions);
-  delete update[key];
-  db.ref('staffUsers/' + id + '/permissions').set(update);
-  notify('Recht auf Standard zurückgesetzt.', 'info');
-}
 
 function setUserRole(id, role) {
   if (!isAdmin()) return;
@@ -2016,7 +2004,7 @@ async function deleteStaffUser(id) {
 
   // 2. Firebase Auth Account via Netlify Function löschen
   try {
-    const token = await firebase.auth().currentUser.getIdToken();
+    const token = await getFirebaseToken();
     await fetch('/.netlify/functions/delete-auth-user', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
@@ -2078,6 +2066,26 @@ function escapeHtml(s) { return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;'
 // erst JS-String-escapen (\\ und '), dann HTML-Attribut-escapen.
 function jsArg(s) { return escapeHtml(String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")); }
 
+// ID-Token mit Null-Check holen — wirft, wenn nicht eingeloggt.
+// Verhindert "Cannot read 'getIdToken' of null" wenn Session zwischendurch expired.
+async function getFirebaseToken() {
+  const user = firebase.auth().currentUser;
+  if (!user) throw new Error('Nicht eingeloggt');
+  return user.getIdToken();
+}
+
+// Debounce-Helper für Such-Inputs (verhindert Re-Render pro Tastenanschlag)
+function debounce(fn, ms) {
+  let t;
+  return function() {
+    const args = arguments, ctx = this;
+    clearTimeout(t);
+    t = setTimeout(() => fn.apply(ctx, args), ms);
+  };
+}
+const renderManageDebounced = debounce(() => renderManage(), 150);
+const renderTeamViewDebounced = debounce(() => renderTeamView(), 150);
+
 // ============================================================
 // EINLADUNGEN (APP)
 // ============================================================
@@ -2102,13 +2110,6 @@ db.ref('invitations').on('value', snap => {
   if (currentView === 'team') renderTeamInvitations();
 });
 
-function populateAppInvRoles() {
-  const sel = document.getElementById('appInvRole');
-  if (!sel) return;
-  sel.innerHTML = DASSU_ROLES.filter(r => !r.legacy).map(r =>
-    `<option value="${r.id}" ${r.id === 'team' ? 'selected' : ''}>${r.label}</option>`
-  ).join('');
-}
 
 function renderAppInvitations() {
   const el = document.getElementById('appInvitationsList');
@@ -2127,7 +2128,7 @@ function renderAppInvitations() {
       </div>
       <div class="inv-actions">
         <button style="background:var(--primary);color:white;" onclick="appSendInvEmail('${inv.key}')">${inv.sentAt ? 'Erneut' : 'Mail'}</button>
-        <button style="background:white;color:var(--navy);border:1px solid var(--gray-300)!important;" onclick="appCopyInvLink('${escapeHtml(inv.email)}')">Link</button>
+        <button style="background:white;color:var(--navy);border:1px solid var(--gray-300)!important;" onclick="appCopyInvLink('${jsArg(inv.email)}')">Link</button>
         <button style="background:#fdecec;color:var(--danger);" onclick="appDeleteInv('${inv.key}')">X</button>
       </div>
     </div>`;
@@ -2561,16 +2562,6 @@ function formatDate(d) {
   const months = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
   return `${days[d.getDay()]}, ${d.getDate()}. ${months[d.getMonth()]} ${d.getFullYear()}`;
 }
-function formatDateShort(dStr) {
-  const d = new Date(dStr);
-  const days = ['So','Mo','Di','Mi','Do','Fr','Sa'];
-  const months = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
-  return `${days[d.getDay()]} ${d.getDate()}. ${months[d.getMonth()]}`;
-}
-function formatTime(iso) {
-  const d = new Date(iso);
-  return d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-}
 function formatRel(iso) {
   const d = new Date(iso);
   const diff = (Date.now() - d.getTime()) / 1000;
@@ -2628,16 +2619,6 @@ function getPlatzrundenInfo(dateStr) {
   return 'Mo–Fr: keine Platzrunden 12:00–15:00';
 }
 // 2h-Block-Regel: D-KYCK und D-KYGL nur in 2h-Bl&ouml;cken vormittags Mo-Sa
-function getMorningBlock(aircraft, dateStr, slotStart) {
-  if (aircraft !== 'D-KYCK' && aircraft !== 'D-KYGL') return null;
-  const d = new Date(dateStr);
-  if (d.getDay() === 0) return null; // Sonntag kein Block
-  const [h, m] = slotStart.split(':').map(Number);
-  const mins = h * 60 + m;
-  if (mins >= 480 && mins < 600) return { start: '08:00', end: '10:00' };
-  if (mins >= 600 && mins < 720) return { start: '10:00', end: '12:00' };
-  return null;
-}
 function notify(msg, type) {
   const el = document.getElementById('notify');
   el.textContent = msg;
@@ -2922,7 +2903,7 @@ function paintOverviewGrid(dk, lookup) {
   const grid = document.getElementById('overviewGrid');
   let html = `<div class="ov-corner"></div>`;
   AIRCRAFT.forEach(a => {
-    const img = AIRCRAFT_IMAGES[a] ? `<img src="${AIRCRAFT_IMAGES[a]}?format=60w" alt="${a}">` : '';
+    const img = AIRCRAFT_IMAGES[a] ? `<img src="${AIRCRAFT_IMAGES[a]}?format=60w" alt="${a}" loading="lazy" decoding="async">` : '';
     html += `<div class="ov-aircraft-header">${img}<div class="ov-reg">${a}</div></div>`;
   });
 
@@ -2941,7 +2922,7 @@ function paintOverviewGrid(dk, lookup) {
         const nameHtml = entry.isFirst ? `<span class="ov-name">${escapeHtml(entry.name)}</span>` : '';
         const instrName = entry.instructorName && entry.instructorName.trim();
         const metaHtml = entry.isFirst && hasInstructor ? `<span class="ov-meta">${escapeHtml(instrName || 'FL benötigt')}</span>` : '';
-        const onclick = `onclick="showDetail('${escapeHtml(entry.id)}')"`;
+        const onclick = `onclick="showDetail('${jsArg(entry.id)}')"`;
         const colorStyle = entry.color ? `style="background:${escapeHtml(entry.color)} !important;${isDarkColor(entry.color) ? 'color:#fff;' : ''}"` : '';
         html += `<div class="ov-cell ${rowCls} ov-booked${instrCls}${pendingCls}${restrictedCls}" ${onclick} ${colorStyle}>${nameHtml}${metaHtml}</div>`;
       } else if (isSundayBlocked(dk, tp)) {
@@ -3084,7 +3065,7 @@ function renderWeekOverview() {
         const instrCls = (entry.instructor === 'ja' || (entry.instructorName && entry.instructorName.trim())) ? ' wk-instructor' : '';
         const pendingCls = entry.status === 'pending' ? ' wk-pending' : '';
         const nameHtml = entry.isFirst ? `<span class="wk-name">${escapeHtml(entry.name)}</span>` : '';
-        html += `<div class="wk-cell ${rowCls} wk-booked${instrCls}${pendingCls}" onclick="showDetail('${escapeHtml(entry.id)}')">${nameHtml}</div>`;
+        html += `<div class="wk-cell ${rowCls} wk-booked${instrCls}${pendingCls}" onclick="showDetail('${jsArg(entry.id)}')">${nameHtml}</div>`;
       } else if (sundayBlocked) {
         html += `<div class="wk-cell ${rowCls} wk-towing"></div>`;
       } else if (towingBlocked) {
@@ -3131,7 +3112,7 @@ function renderBook() {
 
   const tabsEl = document.getElementById('aircraftTabs');
   tabsEl.innerHTML = AIRCRAFT.map(a => {
-    const img = AIRCRAFT_IMAGES[a] ? `<img src="${AIRCRAFT_IMAGES[a]}?format=80w" alt="${a}">` : '';
+    const img = AIRCRAFT_IMAGES[a] ? `<img src="${AIRCRAFT_IMAGES[a]}?format=80w" alt="${a}" loading="lazy" decoding="async">` : '';
     return `<div class="aircraft-tab${a === selectedAircraft ? ' active' : ''}" onclick="selectAircraft('${a}')">${img}<span class="reg">${a}</span><span class="type">${AIRCRAFT_TYPES[a] || ''}</span></div>`;
   }).join('');
 
@@ -3360,7 +3341,7 @@ function renderBookingItem(b) {
   const time = (b.startTime && b.endTime) ? `${b.startTime}–${b.endTime}` : (b.slot || '');
   const instrLabel = b.instructor === 'ja' ? (b.instructorName ? ` · ${escapeHtml(b.instructorName)}` : ' · Lehrer') : '';
   const statusLabel = b.status === 'pending' ? ' (Angefragt)' : (b.status === 'rejected' ? ' (Abgelehnt)' : '');
-  const inner = `<div class="${cls}" onclick="showDetail('${escapeHtml(b.id)}')">
+  const inner = `<div class="${cls}" onclick="showDetail('${jsArg(b.id)}')">
     <div class="bi-time">${escapeHtml(time)}</div>
     <div class="bi-info">
       <div class="bi-name">${escapeHtml(b.name || '')}${statusLabel}</div>
@@ -3655,13 +3636,6 @@ function deleteTheoryFromForm() {
 // ============================================================
 // TEAM VIEW (full-page employee management)
 // ============================================================
-let expandedTeamCards = new Set();
-
-function toggleTeamCard(id) {
-  if (expandedTeamCards.has(id)) expandedTeamCards.delete(id);
-  else expandedTeamCards.add(id);
-  renderTeamView();
-}
 
 let teamRoleFilter = 'all';
 
@@ -4339,7 +4313,7 @@ function renderTeamInvitations() {
       </div>
       <div class="inv-btns">
         <button class="team-inv-btn-send" onclick="appSendInvEmail('${inv.key}')">${inv.sentAt ? 'Erneut' : 'Mail'}</button>
-        <button class="team-inv-btn-link" onclick="appCopyInvLink('${escapeHtml(inv.email)}')">Link</button>
+        <button class="team-inv-btn-link" onclick="appCopyInvLink('${jsArg(inv.email)}')">Link</button>
         <button class="team-inv-btn-del" onclick="appDeleteInv('${inv.key}')">X</button>
       </div>
     </div>`;
@@ -4460,7 +4434,6 @@ function toggleClock() {
       const clockInTime = new Date(running.clockIn);
       const duration = Math.round((now - clockInTime) / 60000);
       const ref = 'timeEntries/' + currentUser.id + '/' + running.id;
-      console.log('Clock OUT →', ref);
       db.ref(ref).update({
         clockOut: now.toISOString(),
         duration: duration
@@ -4475,7 +4448,6 @@ function toggleClock() {
       const now = new Date();
       const id = 'te' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
       const ref = 'timeEntries/' + currentUser.id + '/' + id;
-      console.log('Clock IN →', ref, 'user:', currentUser.name);
       db.ref(ref).set({
         id: id,
         userId: currentUser.id,
@@ -5747,7 +5719,7 @@ async function renderAccountVfSection() {
   el.innerHTML = '<div class="field-hint">Status wird geladen…</div>';
   let connected = false, displayName = '';
   try {
-    const token = await firebase.auth().currentUser.getIdToken();
+    const token = await getFirebaseToken();
     const res = await fetch('/.netlify/functions/vereinsflieger-sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -5799,7 +5771,7 @@ async function accVfConnect() {
   }
   if (msg) { msg.textContent = 'Verbinde…'; msg.style.color = 'var(--gray-500)'; }
   try {
-    const token = await firebase.auth().currentUser.getIdToken();
+    const token = await getFirebaseToken();
     const res = await fetch('/.netlify/functions/vereinsflieger-sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -5818,7 +5790,7 @@ async function accVfConnect() {
 async function accVfDisconnect() {
   if (!confirm('Vereinsflieger-Verbindung wirklich trennen?')) return;
   try {
-    const token = await firebase.auth().currentUser.getIdToken();
+    const token = await getFirebaseToken();
     const res = await fetch('/.netlify/functions/vereinsflieger-sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -5843,7 +5815,7 @@ async function loadInstructorStats() {
   label.textContent = 'Lade…';
 
   try {
-    const token = await firebase.auth().currentUser.getIdToken();
+    const token = await getFirebaseToken();
     const res = await fetch('/.netlify/functions/vereinsflieger-sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
@@ -6228,7 +6200,7 @@ async function syncVereinsflieger() {
   label.textContent = 'Lade…';
 
   try {
-    const token = await firebase.auth().currentUser.getIdToken();
+    const token = await getFirebaseToken();
     const res = await fetch('/.netlify/functions/vereinsflieger-sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
@@ -6642,7 +6614,18 @@ function renderVfCompare() {
 // ============================================================
 // MAIN RENDER
 // ============================================================
+// Coalescing-Wrapper: bookings + bookingContacts feuern oft fast gleichzeitig
+// (Multi-Path-Update). Statt 2 Vollrenders sammeln wir per requestAnimationFrame.
+let _renderScheduled = false;
 function render() {
+  if (_renderScheduled) return;
+  _renderScheduled = true;
+  requestAnimationFrame(() => {
+    _renderScheduled = false;
+    _renderNow();
+  });
+}
+function _renderNow() {
   const dk = dateKey(currentDate);
   const holiday = DASSU_HOLIDAYS ? DASSU_HOLIDAYS.isHoliday(dk) : null;
   const dateText = formatDate(currentDate);
@@ -6985,15 +6968,27 @@ function showDetail(id) {
 
 function setStatus(id, status) {
   const b = bookings.find(x => x.id === id);
-  db.ref('bookings/' + id + '/status').set(status);
   const labels = { approved: 'freigegeben', rejected: 'abgelehnt' };
   const logType = status === 'approved' ? 'approve' : 'reject';
-  addAuditEntry(id, labels[status] || status);
-  logActivity(logType, `Buchung ${labels[status]}: ${b ? b.name + ', ' + b.aircraft : id}`, id);
-  // Email-Benachrichtigung an Kunden
-  if (b && b.email) sendStatusEmail(b, status);
-  closeDetail();
-  notify(`Buchung ${labels[status]}.`, 'success');
+  // Konflikt-sicher: nur wenn die Buchung noch existiert. Sonst Phantom-Status auf gelöschtem Knoten.
+  db.ref('bookings/' + id).transaction(current => {
+    if (current === null) return; // Buchung wurde inzwischen gelöscht — Abbruch
+    current.status = status;
+    return current;
+  }).then(result => {
+    if (!result.committed) {
+      notify('Buchung existiert nicht mehr — Status nicht gesetzt.', 'error');
+      closeDetail();
+      return;
+    }
+    addAuditEntry(id, labels[status] || status);
+    logActivity(logType, `Buchung ${labels[status]}: ${b ? b.name + ', ' + b.aircraft : id}`, id);
+    if (b && b.email) sendStatusEmail(b, status);
+    closeDetail();
+    notify(`Buchung ${labels[status]}.`, 'success');
+  }).catch(err => {
+    notify('Fehler beim Statuswechsel: ' + err.message, 'error');
+  });
 }
 
 async function sendStatusEmail(booking, status) {
@@ -7233,13 +7228,14 @@ async function loadVfMembers() {
     const cachedAt = parseInt(localStorage.getItem('vfMembersCachedAt') || '0');
     if (cached && (Date.now() - cachedAt) < 86400000) {
       vfMembers = JSON.parse(cached);
-      console.log(`VF-Mitglieder aus Cache: ${vfMembers.length}`);
       return;
     }
   } catch (_) {}
 
+  const user = firebase.auth().currentUser;
+  if (!user) return; // noch nicht eingeloggt — wird später aus dem Auth-Callback erneut versucht
   try {
-    const token = await firebase.auth().currentUser.getIdToken();
+    const token = await user.getIdToken();
     const res = await fetch('/.netlify/functions/vereinsflieger-sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
@@ -7254,7 +7250,6 @@ async function loadVfMembers() {
       // Im Cache speichern
       localStorage.setItem('vfMembers', JSON.stringify(vfMembers));
       localStorage.setItem('vfMembersCachedAt', String(Date.now()));
-      console.log(`VF-Mitglieder geladen: ${vfMembers.length}`);
     }
   } catch (err) {
     console.warn('VF-Mitglieder laden fehlgeschlagen:', err);
@@ -7269,12 +7264,13 @@ async function loadVfInstructors() {
     const cachedAt = parseInt(localStorage.getItem('vfInstructorsCachedAt') || '0');
     if (cached && (Date.now() - cachedAt) < 86400000) {
       vfInstructors = JSON.parse(cached);
-      console.log(`VF-Fluglehrer aus Cache: ${vfInstructors.length}`);
       return;
     }
   } catch (_) {}
+  const user = firebase.auth().currentUser;
+  if (!user) return; // noch nicht eingeloggt — wird später aus dem Auth-Callback erneut versucht
   try {
-    const token = await firebase.auth().currentUser.getIdToken();
+    const token = await user.getIdToken();
     const res = await fetch('/.netlify/functions/vereinsflieger-sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
@@ -7285,28 +7281,12 @@ async function loadVfInstructors() {
       vfInstructors = json.data;
       localStorage.setItem('vfInstructors', JSON.stringify(vfInstructors));
       localStorage.setItem('vfInstructorsCachedAt', String(Date.now()));
-      console.log(`VF-Fluglehrer geladen: ${vfInstructors.length}`);
     }
   } catch (err) {
     console.warn('VF-Fluglehrer laden fehlgeschlagen:', err);
   }
 }
 
-// Firebase-registrierte Kunden laden
-async function loadFirebaseCustomers() {
-  try {
-    const snap = await db.ref('customers').once('value');
-    const data = snap.val();
-    if (data) {
-      firebaseCustomers = Object.values(data)
-        .map(c => c.name)
-        .filter(Boolean);
-      console.log(`Firebase-Kunden geladen: ${firebaseCustomers.length}`);
-    }
-  } catch (err) {
-    console.warn('Firebase-Kunden laden fehlgeschlagen:', err);
-  }
-}
 
 function acFilter(inputId) {
   const input = document.getElementById(inputId);
@@ -7320,9 +7300,10 @@ function acFilter(inputId) {
     return;
   }
 
-  // Alle Quellen kombinieren: VF-Mitglieder + Firebase-Kunden + Buchungsnamen
+  // Alle Quellen kombinieren: VF-Mitglieder + Firebase-Kunden (live aus customerUsers) + Buchungsnamen
   const bookingNames = [...new Set(bookings.map(b => b.name).filter(Boolean))];
-  const allNames = [...new Set([...vfMembers, ...firebaseCustomers, ...bookingNames])];
+  const customerNames = customerUsers.map(c => c.name).filter(Boolean);
+  const allNames = [...new Set([...vfMembers, ...customerNames, ...bookingNames])];
 
   if (allNames.length === 0) {
     list.classList.remove('open');
@@ -7446,7 +7427,7 @@ function renderAccountTab() {
   const avatarEl = document.getElementById('accAvatar');
   const initialEl = document.getElementById('accAvatarInitial');
   if (user.photoURL) {
-    avatarEl.innerHTML = `<img src="${user.photoURL}"><div class="account-avatar-overlay">&#128247;</div>`;
+    avatarEl.innerHTML = `<img src="${escapeHtml(user.photoURL)}"><div class="account-avatar-overlay">&#128247;</div>`;
   } else {
     const initials = (user.name || '?').split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
     initialEl.textContent = initials;
@@ -7590,10 +7571,8 @@ function resizeImage(file, maxSize) {
   });
 }
 
-// Vereinsflieger-Mitglieder, Fluglehrer + Firebase-Kunden im Hintergrund laden
-loadVfMembers();
-loadVfInstructors();
-loadFirebaseCustomers();
+// Firebase-Kunden im Hintergrund laden (braucht keine Auth — nur DB-Read mit eingeloggtem User)
+// VF-Mitglieder/Fluglehrer werden im Auth-Callback nachgeladen (sie brauchen einen frischen ID-Token).
 
 // Enter-Taste im Einladungsformular
 ['appInvName', 'appInvEmail'].forEach(id => {

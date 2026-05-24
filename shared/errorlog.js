@@ -24,6 +24,11 @@
       recent[key] = now;
       sentCount++;
 
+      // Nur loggen wenn eingeloggt — die Rules blocken sonst eh, würden aber unnötige Calls senden.
+      var u = null;
+      try { u = firebase.auth().currentUser; } catch (e) { /* Auth evtl. noch nicht bereit */ }
+      if (!u) return;
+
       var entry = {
         ts: now,
         message: String(info.message || 'Unbekannter Fehler').slice(0, 500),
@@ -32,12 +37,10 @@
         line: info.line || 0,
         page: location.pathname,
         url: String(location.href).slice(0, 300),
-        userAgent: String(navigator.userAgent || '').slice(0, 300)
+        userAgent: String(navigator.userAgent || '').slice(0, 300),
+        uid: u.uid,
+        userEmail: u.email || ''
       };
-      try {
-        var u = firebase.auth().currentUser;
-        if (u) { entry.uid = u.uid; entry.userEmail = u.email || ''; }
-      } catch (e) { /* Auth evtl. noch nicht bereit */ }
 
       firebase.database().ref('errorLog').push(entry);
     } catch (e) { /* Fehler-Logging darf selbst nie crashen */ }

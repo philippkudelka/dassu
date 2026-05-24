@@ -42,7 +42,13 @@
         },
         "permissions": {
           ".validate": "root.child('staffUsers').child(auth.uid).child('role').val() === 'admin'"
-        }
+        },
+        "name":      { ".validate": "newData.isString() && newData.val().length <= 200" },
+        "email":     { ".validate": "newData.isString() && newData.val().length <= 200" },
+        "phone":     { ".validate": "newData.isString() && newData.val().length <= 80" },
+        "birthdate": { ".validate": "newData.isString() && newData.val().length <= 20" },
+        "photoURL":  { ".validate": "newData.isString() && newData.val().length <= 2000000" },
+        "createdAt": { ".validate": "newData.isNumber()" }
       }
     },
 
@@ -53,7 +59,19 @@
         ".write": "auth != null && (auth.uid === $uid || root.child('staffUsers').child(auth.uid).child('role').val() === 'admin')",
         "customerType": {
           ".validate": "root.child('staffUsers').child(auth.uid).exists() || newData.val() === 'charter' || newData.val() === 'student'"
-        }
+        },
+        "name":      { ".validate": "newData.isString() && newData.val().length <= 200" },
+        "email":     { ".validate": "newData.isString() && newData.val().length <= 200" },
+        "phone":     { ".validate": "newData.isString() && newData.val().length <= 80" },
+        "birthdate": { ".validate": "newData.isString() && newData.val().length <= 20" },
+        "street":    { ".validate": "newData.isString() && newData.val().length <= 200" },
+        "zip":       { ".validate": "newData.isString() && newData.val().length <= 20" },
+        "city":      { ".validate": "newData.isString() && newData.val().length <= 100" },
+        "country":   { ".validate": "newData.isString() && newData.val().length <= 100" },
+        "photoURL":  { ".validate": "newData.isString() && newData.val().length <= 2000000" },
+        "walkIn":    { ".validate": "newData.isBoolean()" },
+        "createdAt": { ".validate": "newData.isNumber()" },
+        "createdBy": { ".validate": "newData.isString() && newData.val().length <= 200" }
       },
       ".read": "auth != null && root.child('staffUsers').child(auth.uid).exists()"
     },
@@ -80,7 +98,12 @@
     "pushTokens": {
       ".read": false,
       "$tokenKey": {
-        ".write": "auth != null"
+        ".write": "auth != null && ((newData.exists() && newData.child('userId').val() === auth.uid && (!data.exists() || data.child('userId').val() === auth.uid)) || (!newData.exists() && data.child('userId').val() === auth.uid))",
+        "userId":    { ".validate": "newData.isString() && newData.val().length <= 200" },
+        "token":     { ".validate": "newData.isString() && newData.val().length <= 500" },
+        "user":      { ".validate": "newData.isString() && newData.val().length <= 200" },
+        "ua":        { ".validate": "newData.isString() && newData.val().length <= 200" },
+        "updatedAt": { ".validate": "newData.isString() && newData.val().length <= 40" }
       }
     },
 
@@ -136,7 +159,7 @@
     "errorLog": {
       ".read": "auth != null && root.child('staffUsers').child(auth.uid).child('role').val() === 'admin'",
       "$id": {
-        ".write": "!data.exists()",
+        ".write": "auth != null && !data.exists()",
         ".validate": "newData.hasChildren(['ts', 'message'])",
         "message":   { ".validate": "newData.isString() && newData.val().length <= 500" },
         "stack":     { ".validate": "newData.isString() && newData.val().length <= 2000" },

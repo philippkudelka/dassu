@@ -249,21 +249,6 @@ async function vfGetUserList(accesstoken) {
   return Array.isArray(data) ? data : [];
 }
 
-async function vfGetAircraftList(accesstoken) {
-  const res = await fetch(`${VF_BASE}/aircraft/list`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded'
-    },
-    body: new URLSearchParams({ accesstoken }).toString()
-  });
-  const data = await res.json();
-  if (data && typeof data === 'object' && !Array.isArray(data)) {
-    return Object.values(data).filter(v => typeof v === 'object' && v !== null && v.callsign);
-  }
-  return Array.isArray(data) ? data : [];
-}
-
 // ---- Server-side Aggregation ----
 
 function parseDuration(flight) {
@@ -357,9 +342,9 @@ async function lookupVfUserViaStaff(vfUsername) {
 const ALLOWED_ORIGIN = 'https://dassu-buchungskalender.netlify.app';
 
 // Actions die VF-Credentials/firebaseToken aus dem Body nutzen — diese verifizieren den User selbst.
-const PERSONAL_ACTIONS = new Set(['saveVfCredentials', 'deleteVfCredentials', 'getVfStatus', 'memberFlights']);
+const PERSONAL_ACTIONS = new Set(['saveVfCredentials', 'deleteVfCredentials', 'getVfStatus']);
 // Staff-Actions erfordern admin- oder team-Rolle.
-const STAFF_ONLY_ACTIONS = new Set(['flights', 'aircraft', 'instructors', 'instructorStats', 'yearCompare']);
+const STAFF_ONLY_ACTIONS = new Set(['instructors', 'instructorStats', 'yearCompare']);
 // "members" benötigt nur Authentifizierung (Member-Frontend nutzt es für Auswahllisten).
 
 exports.handler = async (event) => {
@@ -526,192 +511,6 @@ exports.handler = async (event) => {
       };
     }
 
-    if (action === 'memberFlights') {
-      // Persönliches Flugbuch: Nutzt die gespeicherten VF-Credentials des Users
-      const { firebaseToken } = body;
-      if (!firebaseToken) throw new Error('firebaseToken erforderlich');
-      const uid = await verifyFirebaseToken(firebaseToken);
-
-      // Gespeicherte Credentials aus Firebase lesen
-      initFirebase();
-      const snap = await admin.database().ref(`users/${uid}/vfCredentials`).once('value');
-      const creds = snap.val();
-      if (!creds || !creds.username || !creds.password) {
-        throw new Error('Keine Vereinsflieger-Zugangsdaten hinterlegt. Bitte zuerst verbinden.');
-      }
-
-      const vfUsername = decrypt(creds.username);
-      const vfPassword = decrypt(creds.password);
-      let memberName = creds.displayName || '';
-      let vfUid = creds.vfUid || '';
-      let vfMemberid = creds.vfMemberid || '';
-
-      // Mit persönlichen Credentials einloggen
-      accesstoken = await vfGetAccessToken();
-      const signInResult = await vfSignIn(accesstoken, { username: vfUsername, password: vfPassword });
-      accesstoken = signInResult.accesstoken;
-
-      // Auto-Reparatur: Wenn UID/Name fehlen, über Staff-Account nachholen
-      if (!vfUid || !memberName) {
-        try {
-          // Versuch 1: Daten aus der signin-Response extrahieren
-          let vfData = extractVfUserData(signInResult.signinData);
-
-          // Versuch 2: /user/get (funktioniert nur bei Accounts mit API-Berechtigung)
-          if (!vfData || (!vfData.uid && !vfData.memberid)) {
-            try {
-              const userRes = await fetch(`${VF_BASE}/user/get`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: new URLSearchParams({ accesstoken }).toString()
-              });
-              const userData = await userRes.json();
-              if (!userData.error) vfData = extractVfUserData(userData);
-            } catch (_) { /* /user/get nicht verfügbar */ }
-          }
-
-          // Versuch 3: Staff-Account nutzen um User über /user/list zu finden
-          if (!vfData || (!vfData.uid && !vfData.memberid)) {
-            vfData = await lookupVfUserViaStaff(vfUsername);
-          }
-
-          if (vfData) {
-            if (vfData.uid) vfUid = vfData.uid;
-            if (vfData.memberid) vfMemberid = vfData.memberid;
-            if (vfData.displayName) memberName = vfData.displayName;
-            // In Firebase aktualisieren
-            const updates = {};
-            if (vfUid) updates.vfUid = vfUid;
-            if (vfMemberid) updates.vfMemberid = vfMemberid;
-            if (memberName) updates.displayName = memberName;
-            if (Object.keys(updates).length > 0) {
-              await admin.database().ref(`users/${uid}/vfCredentials`).update(updates);
-            }
-          }
-        } catch (e) {
-          // Auto-repair fehlgeschlagen, weitermachen mit vorhandenen Daten
-        }
-      }
-
-      if (!vfUid && !vfMemberid && !memberName) {
-        await vfSignOut(accesstoken);
-        throw new Error('Konnte VF-Benutzer nicht identifizieren. Bitte VF-Verbindung trennen und neu verbinden.');
-      }
-
-      const now = new Date();
-      const thisY = now.getFullYear();
-      const [flightsThisYear, flightsLastYear] = await Promise.all([
-        vfGetFlightsDateRange(accesstoken, `${thisY}-01-01`, `${thisY}-12-31`),
-        vfGetFlightsDateRange(accesstoken, `${thisY - 1}-01-01`, `${thisY - 1}-12-31`)
-      ]);
-
-      const allFlights = [...flightsThisYear, ...flightsLastYear];
-
-      // Filtering: Primär über UID/MemberID, Fallback über Nachname
-      const nameLower = memberName.toLowerCase();
-      const lastName = nameLower.split(' ').pop();
-
-      const memberFlights = allFlights.filter(f => {
-        // 1. UID-Match (zuverlässigste Methode)
-        if (vfUid) {
-          const up = String(f.uidpilot || '');
-          const ua = String(f.uidattendant || '');
-          const ua2 = String(f.uidattendant2 || '');
-          const ua3 = String(f.uidattendant3 || '');
-          const ufi = String(f.uidfi || '');
-          if (up === vfUid || ua === vfUid || ua2 === vfUid || ua3 === vfUid || ufi === vfUid) return true;
-        }
-        // 2. MemberID-Match
-        if (vfMemberid) {
-          const pm = String(f.pilotmemberid || '');
-          const am = String(f.attendantmemberid || '');
-          if (pm === vfMemberid || am === vfMemberid) return true;
-        }
-        // 3. Fallback: Nachname (nur wenn UID/MemberID nicht verfügbar)
-        if (!vfUid && !vfMemberid && lastName) {
-          const pn = (f.pilotname || '').toLowerCase();
-          const an = (f.attendantname || '').toLowerCase();
-          return pn.includes(lastName) || an.includes(lastName);
-        }
-        return false;
-      });
-
-      const enriched = memberFlights.map(f => {
-        // Rolle bestimmen über UID
-        let role = 'PAX';
-        if (vfUid) {
-          if (String(f.uidpilot || '') === vfUid) role = 'PIC';
-          if (String(f.uidfi || '') === vfUid) role = 'FI';
-        } else if (lastName) {
-          const pn = (f.pilotname || '').toLowerCase();
-          if (pn.includes(lastName)) role = 'PIC';
-          if (f.finame && (f.finame || '').toLowerCase().includes(lastName)) role = 'FI';
-        }
-        return {
-          date: f.dateofflight,
-          callsign: f.callsign || '',
-          planedesignation: f.planedesignation || '',
-          planetype: f.planetype || '',
-          departuretime: f.departuretime || '',
-          arrivaltime: f.arrivaltime || '',
-          flighttime: parseDuration(f),
-          departurelocation: f.departurelocation || '',
-          arrivallocation: f.arrivallocation || '',
-          landingcount: parseInt(f.landingcount) || 0,
-          starttype: f.starttype || '',
-          pilotname: f.pilotname || '',
-          attendantname: f.attendantname || '',
-          finame: f.finame || '',
-          role: role
-        };
-      }).sort((a, b) => b.date.localeCompare(a.date) || (b.departuretime || '').localeCompare(a.departuretime || ''));
-
-      let totalPIC = 0, totalPAX = 0, totalFI = 0;
-      let minutesPIC = 0, minutesPAX = 0;
-      const byAircraft = {};
-      const byMonth = {};
-      const uniqueDates = new Set();
-
-      enriched.forEach(f => {
-        if (f.role === 'PIC') { totalPIC++; minutesPIC += f.flighttime; }
-        else if (f.role === 'FI') { totalFI++; minutesPIC += f.flighttime; }
-        else { totalPAX++; minutesPAX += f.flighttime; }
-
-        const cs = f.callsign;
-        if (!byAircraft[cs]) byAircraft[cs] = { count: 0, minutes: 0, type: f.planedesignation, planetype: f.planetype, lastFlight: '' };
-        byAircraft[cs].count++;
-        byAircraft[cs].minutes += f.flighttime;
-        if (!byAircraft[cs].lastFlight || f.date > byAircraft[cs].lastFlight) byAircraft[cs].lastFlight = f.date;
-
-        if (f.date) {
-          uniqueDates.add(f.date);
-          const mk = f.date.substring(0, 7);
-          if (!byMonth[mk]) byMonth[mk] = { count: 0, minutes: 0 };
-          byMonth[mk].count++;
-          byMonth[mk].minutes += f.flighttime;
-        }
-      });
-
-      await vfSignOut(accesstoken);
-
-      return {
-        statusCode: 200, headers,
-        body: JSON.stringify({
-          ok: true, data: {
-            totalFlights: enriched.length,
-            totalPIC, totalPAX, totalFI,
-            minutesPIC, minutesPAX,
-            totalMinutes: minutesPIC + minutesPAX,
-            flyingDays: uniqueDates.size,
-            byAircraft, byMonth,
-            recentFlights: enriched.slice(0, 30),
-            years: [thisY, thisY - 1],
-            memberName,
-            fetchedAt: new Date().toISOString()
-          }
-        })
-      };
-    }
 
     // ============================================================
     // Staff-Actions — nutzen die PERSÖNLICHEN VF-Zugangsdaten des eingeloggten
@@ -732,16 +531,6 @@ exports.handler = async (event) => {
     let result;
 
     switch (action) {
-      case 'flights': {
-        const { dateFrom, dateTo } = body;
-        if (!dateFrom || !dateTo) throw new Error('dateFrom und dateTo erforderlich');
-        result = await vfGetFlightsDateRange(accesstoken, dateFrom, dateTo);
-        break;
-      }
-      case 'aircraft': {
-        result = await vfGetAircraftList(accesstoken);
-        break;
-      }
       case 'members': {
         const users = await vfGetUserList(accesstoken);
         result = users.map(u => ({
@@ -810,7 +599,9 @@ exports.handler = async (event) => {
         break;
       }
       case 'yearCompare': {
-        // Flüge für aktuelles Jahr + Vorjahr abrufen (bis zum heutigen Tag)
+        // Flüge für aktuelles Jahr + Vorjahr abrufen (bis zum heutigen Tag).
+        // Optimierung: lastYearFull enthält lastYearSameDay vollständig — wir holen also nur
+        // 2 statt 3 Daterange-Calls und schneiden lastYearSameDay lokal aus lastYearFull.
         const today = new Date();
         const y = today.getFullYear();
         const mm = String(today.getMonth() + 1).padStart(2, '0');
@@ -822,11 +613,12 @@ exports.handler = async (event) => {
         const lastYearTo = `${y - 1}-${mm}-${dd}`;
         const lastYearFullTo = `${y - 1}-12-31`;
 
-        const [thisYear, lastYearSameDay, lastYearFull] = await Promise.all([
+        const [thisYear, lastYearFull] = await Promise.all([
           vfGetFlightsDateRange(accesstoken, thisYearFrom, thisYearTo),
-          vfGetFlightsDateRange(accesstoken, lastYearFrom, lastYearTo),
           vfGetFlightsDateRange(accesstoken, lastYearFrom, lastYearFullTo)
         ]);
+        // Stichtags-Vorjahr: alle Flüge aus lastYearFull, deren Datum ≤ lastYearTo ist
+        const lastYearSameDay = lastYearFull.filter(f => (f.dateofflight || '') <= lastYearTo);
 
         // Aggregate server-side to keep response small
         result = {

@@ -592,95 +592,6 @@
     margin-top: 24px;
   }
 
-  /* ===== Staff Management (Compact Team View) ===== */
-  .sm-overlay { display:none; position:fixed; inset:0; background:rgba(27,29,31,0.4); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); z-index:200; justify-content:flex-end; }
-  .sm-overlay.active { display:flex; }
-  .sm-panel { width:100%; max-width:520px; background:var(--c-bg); height:100%; overflow-y:auto; box-shadow:-4px 0 24px rgba(27,29,31,0.15); animation:smSlideIn 0.25s ease; display:flex; flex-direction:column; }
-  @keyframes smSlideIn { from{transform:translateX(100%);} to{transform:translateX(0);} }
-  .sm-header { display:flex; align-items:center; justify-content:space-between; padding:16px 20px; background:var(--c-paper); border-bottom:1px solid var(--c-line); flex-shrink:0; }
-  .sm-close-btn { width:32px; height:32px; border-radius:50%; border:none; background:var(--c-paper); font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--c-ink-3); }
-  .sm-toolbar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:12px 16px; background:var(--c-paper); border-bottom:1px solid var(--c-line); flex-shrink:0; }
-  .sm-search { flex:1; min-width:140px; padding:8px 12px; border:1.5px solid var(--c-line); border-radius:8px; font-size:13px; font-family:var(--font-ui); outline:none; background:white; color:var(--c-ink); }
-  .sm-search:focus { border-color:var(--c-alpine); }
-  .sm-filter-chips { display:flex; gap:4px; flex-wrap:wrap; }
-  .sm-filter-chip { padding:5px 10px; border-radius:16px; border:1px solid var(--c-line); background:white; font-size:11px; font-weight:600; cursor:pointer; font-family:var(--font-ui); color:var(--c-ink-3); transition:all 0.15s; }
-  .sm-filter-chip.active { background:var(--c-alpine); color:white; border-color:var(--c-alpine); }
-  .sm-filter-chip .chip-count { font-size:9px; opacity:0.7; margin-left:2px; }
-  .sm-invite-toggle-btn { padding:7px 14px; background:var(--c-confirmed); color:white; border:none; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer; font-family:var(--font-ui); white-space:nowrap; flex-shrink:0; }
-  .sm-invite-panel { padding:12px 16px 0; flex-shrink:0; }
-  .sm-invite-card { background:var(--c-paper); border-radius:12px; border:1px solid var(--c-line); padding:16px; }
-  .sm-invite-form { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-  .sm-invite-form .full-width { grid-column:1/-1; }
-  .sm-invite-input { padding:10px 12px; border:1.5px solid var(--c-line); border-radius:8px; font-size:14px; font-family:var(--font-ui); outline:none; background:white; color:var(--c-ink); }
-  .sm-invite-input:focus { border-color:var(--c-alpine); }
-  .sm-invite-select { padding:10px 12px; border:1.5px solid var(--c-line); border-radius:8px; font-size:14px; font-family:var(--font-ui); background:white; color:var(--c-ink); }
-  .sm-invite-btn { padding:10px 16px; background:var(--c-alpine); color:white; border:none; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; font-family:var(--font-ui); }
-  .sm-count-bar { padding:6px 16px; font-size:11px; color:var(--c-ink-3); font-weight:600; flex-shrink:0; }
-  /* Compact list rows */
-  .sm-row { display:flex; align-items:center; gap:10px; padding:10px 16px; border-bottom:1px solid var(--c-line); cursor:pointer; transition:background 0.1s; background:white; }
-  .sm-row:active { background:var(--c-paper); }
-  .sm-row:last-child { border-bottom:none; }
-  .sm-row-avatar { width:34px; height:34px; border-radius:50%; font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-  .sm-row-avatar.role-admin { background:var(--c-requested); color:white; }
-  .sm-row-avatar.role-team { background:var(--c-confirmed); color:white; }
-  .sm-row-avatar.role-guest { background:var(--c-line); color:var(--c-ink); }
-  .sm-row-info { flex:1; min-width:0; }
-  .sm-row-name { font-size:14px; font-weight:600; color:var(--c-ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .sm-row-name .you-tag { font-size:9px; color:var(--c-ink-3); font-weight:400; margin-left:4px; }
-  .sm-row-meta { font-size:11px; color:var(--c-ink-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .sm-row-badge { padding:2px 8px; border-radius:10px; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; flex-shrink:0; }
-  .sm-row-badge.badge-admin { background:#F5E8DC; color:var(--c-requested); }
-  .sm-row-badge.badge-team { background:#F1F6EE; color:var(--c-confirmed); }
-  .sm-row-badge.badge-guest { background:var(--c-paper); color:var(--c-ink-3); }
-  .sm-row-chevron { color:var(--c-line); font-size:12px; flex-shrink:0; }
-  /* Pending invitations */
-  .sm-inv-pending { background:#FAF3EB; border:1px solid var(--c-requested); border-radius:10px; padding:12px 14px; margin-bottom:8px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-  .sm-inv-pending .inv-avatar { width:36px; height:36px; border-radius:50%; background:#F5E8DC; color:var(--c-requested); font-size:14px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-  .sm-inv-pending .inv-details { flex:1; min-width:120px; }
-  .sm-inv-pending .inv-name { font-size:14px; font-weight:600; color:var(--c-ink); }
-  .sm-inv-pending .inv-email-line { font-size:12px; color:var(--c-ink-3); margin-top:1px; }
-  .sm-inv-pending .inv-sent { font-size:10px; color:var(--c-confirmed); margin-top:2px; }
-  .sm-inv-pending .inv-btns { display:flex; gap:6px; }
-  .sm-inv-pending .inv-btns button { padding:6px 12px; border-radius:6px; border:none; font-size:11px; font-weight:600; cursor:pointer; font-family:var(--font-ui); }
-  .sm-inv-btn-send { background:var(--c-confirmed); color:white; }
-  .sm-inv-btn-link { background:white; color:var(--c-ink); border:1px solid var(--c-line) !important; }
-  .sm-inv-btn-del { background:#FBF1ED; color:var(--c-rejected); }
-  /* Detail panel overlay */
-  .sm-detail-overlay { display:none; position:fixed; inset:0; background:rgba(27,29,31,0.4); z-index:210; justify-content:flex-end; }
-  .sm-detail-overlay.active { display:flex; }
-  .sm-detail-panel { width:100%; max-width:420px; background:var(--c-paper); height:100%; overflow-y:auto; padding:0; box-shadow:-4px 0 20px rgba(27,29,31,0.15); animation:smSlideIn 0.2s ease; }
-  .smd-header { display:flex; align-items:center; gap:14px; padding:20px 20px 16px; border-bottom:1px solid var(--c-line); position:relative; }
-  .smd-avatar { width:52px; height:52px; border-radius:50%; font-size:20px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-  .smd-avatar.role-admin { background:var(--c-requested); color:white; }
-  .smd-avatar.role-team { background:var(--c-confirmed); color:white; }
-  .smd-avatar.role-guest { background:var(--c-line); color:var(--c-ink); }
-  .smd-close { position:absolute; right:16px; top:16px; width:32px; height:32px; border-radius:50%; border:none; background:var(--c-paper); font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--c-ink-3); }
-  .smd-name { font-size:18px; font-weight:700; color:var(--c-ink); }
-  .smd-email { font-size:13px; color:var(--c-ink-3); margin-top:2px; }
-  .smd-section { padding:16px 20px; border-bottom:1px solid var(--c-line); }
-  .smd-section:last-child { border-bottom:none; }
-  .smd-section-title { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--c-ink-3); margin-bottom:10px; }
-  .smd-info-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-  .smd-info-item .smd-label { font-size:10px; font-weight:600; color:var(--c-ink-3); text-transform:uppercase; letter-spacing:0.03em; }
-  .smd-info-item .smd-value { font-size:14px; color:var(--c-ink); font-weight:500; margin-top:2px; font-family:var(--font-mono); }
-  .smd-info-item .smd-value.mono { font-size:10px; color:var(--c-ink-3); font-family:var(--font-mono); word-break:break-all; }
-  .smd-edit-input { width:100%; padding:8px 12px; border:1.5px solid var(--c-line); border-radius:8px; font-size:14px; font-family:var(--font-ui); outline:none; background:white; color:var(--c-ink); }
-  .smd-edit-input:focus { border-color:var(--c-alpine); }
-  .smd-role-select { width:100%; padding:8px 12px; border:1.5px solid var(--c-line); border-radius:8px; font-size:14px; font-family:var(--font-ui); background:white; color:var(--c-ink); -webkit-appearance:none; appearance:none; cursor:pointer; }
-  .smd-role-select:disabled { opacity:0.5; cursor:not-allowed; }
-  .smd-perm-toggle { position:relative; width:38px; height:22px; background:var(--c-line); border-radius:22px; cursor:pointer; transition:background 0.15s; flex-shrink:0; }
-  .smd-perm-toggle::after { content:''; position:absolute; top:2px; left:2px; width:18px; height:18px; background:white; border-radius:50%; transition:left 0.15s; box-shadow:0 1px 2px rgba(27,29,31,0.2); }
-  .smd-perm-toggle.on { background:var(--c-confirmed); }
-  .smd-perm-toggle.on::after { left:18px; }
-  .smd-perm-toggle.disabled { opacity:0.5; cursor:not-allowed; }
-  .smd-perm-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 0; border-bottom:1px solid var(--c-line); }
-  .smd-perm-row:last-child { border-bottom:none; }
-  .smd-perm-label { font-size:13px; color:var(--c-ink); }
-  .smd-perm-label small { display:block; font-size:10px; color:var(--c-ink-3); font-weight:400; margin-top:1px; }
-  .smd-perm-hint { font-size:10px; color:var(--c-ink-3); font-style:italic; margin-left:4px; }
-  .smd-btn-save { padding:8px 14px; background:var(--c-alpine); color:white; border:none; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer; font-family:var(--font-ui); }
-  .smd-btn-delete { width:100%; padding:10px; border-radius:8px; border:none; font-size:13px; font-weight:600; cursor:pointer; font-family:var(--font-ui); background:#FBF1ED; color:var(--c-rejected); }
-
   /* Form — Alpen & Horizont */
   .form-group {
     margin-bottom: 16px;
@@ -2748,46 +2659,6 @@
   </div>
 </div>
 
-<!-- Staff Management (Compact Team View) -->
-<div class="sm-overlay" id="staffMgmtOverlay" onclick="if(event.target===this)closeStaffMgmt()">
-  <div class="sm-panel">
-    <!-- Header -->
-    <div class="sm-header">
-      <h3 style="margin:0;font-size:17px;font-weight:700;color:var(--dark);">Mitarbeiter-Verwaltung</h3>
-      <button class="sm-close-btn" onclick="closeStaffMgmt()">&times;</button>
-    </div>
-    <!-- Toolbar: Suche + Filter + Einladen -->
-    <div class="sm-toolbar">
-      <input type="text" class="sm-search" id="smSearchInput" placeholder="Mitarbeiter suchen..." oninput="renderStaffMgmt()">
-      <div class="sm-filter-chips" id="smFilterChips"></div>
-      <button class="sm-invite-toggle-btn" id="smInviteToggle" onclick="toggleSmInvite()">+ Einladen</button>
-    </div>
-    <!-- Einladungsformular (einklappbar) -->
-    <div class="sm-invite-panel" id="smInvitePanel" style="display:none;">
-      <div class="sm-invite-card">
-        <h4 style="font-size:13px;font-weight:700;color:var(--dark);margin:0 0 12px;">Neuen Mitarbeiter einladen</h4>
-        <div class="sm-invite-form">
-          <input type="text" class="sm-invite-input" id="invName" placeholder="Name" maxlength="40">
-          <input type="email" class="sm-invite-input" id="invEmail" placeholder="E-Mail-Adresse">
-          <select class="sm-invite-select" id="invRole"></select>
-          <button class="sm-invite-btn" onclick="createInvitation()">Einladung senden</button>
-          <label class="full-width" style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--gray-500);margin-top:2px;">
-            <input type="checkbox" id="invSendEmail" checked> E-Mail direkt verschicken
-          </label>
-        </div>
-      </div>
-      <div id="invitationsList" style="margin-top:8px;"></div>
-    </div>
-    <!-- Kompakte Mitarbeiterliste -->
-    <div class="sm-count-bar" id="smCountBar"></div>
-    <div id="staffMgmtList"></div>
-  </div>
-</div>
-<!-- Staff Detail Panel (slide-in) -->
-<div class="sm-detail-overlay" id="smDetailOverlay" onclick="if(event.target===this)closeSmDetail()">
-  <div class="sm-detail-panel" id="smDetailPanel"></div>
-</div>
-
 <!-- Cancel Confirmation Modal -->
 <div class="modal-overlay" id="cancelModal">
   <div class="modal" style="text-align:center;">
@@ -2901,42 +2772,7 @@ function hasConflict(date, aircraft, startTime, endTime, excludeId) {
 // PLATZRUNDEN-ZEITEN (Motorsegler / UL)
 // ============================================================
 // Returns true if the given slot is OUTSIDE Platzrunden times (= restricted)
-function isRestrictedSlot(date, slotStartTime) {
-  const d = new Date(date + 'T12:00:00');
-  const dayOfWeek = d.getDay(); // 0=So, 1=Mo, ..., 6=Sa
-  const hour = parseInt(slotStartTime.split(':')[0]);
-  const min = parseInt(slotStartTime.split(':')[1]);
-  const timeMinutes = hour * 60 + min; // minutes since midnight
-
-  // Feiertage: vor 09:00 gesperrt, ab 09:00 buchbar (keine Platzrunden)
-  if (DASSU_HOLIDAYS && DASSU_HOLIDAYS.isHoliday(date)) return timeMinutes < 540;
-
-  // Sonntag: vor 09:00 gesperrt, ab 09:00 buchbar (keine Platzrunden)
-  if (dayOfWeek === 0) return timeMinutes < 540;
-
-  // Samstag: Platzrunden nur 08:00–12:00 → 12:00–18:00 eingeschränkt
-  if (dayOfWeek === 6) {
-    return timeMinutes >= 720; // >= 12:00
-  }
-
-  // Mo–Fr: Platzrunden 08:00–12:00 und 15:00–18:00
-  // Eingeschränkt = 12:00–15:00
-  if (timeMinutes >= 720 && timeMinutes < 900) return true; // 12:00–14:59
-
-  return false;
-}
-
 // Check if a slot is blocked (before 09:00 on Sunday/holiday)
-function isHolidayOrSundayBlocked(date, slotStartTime) {
-  const hour = parseInt(slotStartTime.split(':')[0]);
-  const min = parseInt(slotStartTime.split(':')[1]);
-  const timeMinutes = hour * 60 + min;
-  if (DASSU_HOLIDAYS && DASSU_HOLIDAYS.isHoliday(date)) return timeMinutes < 540;
-  const d = new Date(date + 'T12:00:00');
-  if (d.getDay() === 0) return timeMinutes < 540;
-  return false;
-}
-
 // D-MYIH: 10:00–13:30 reserviert für Schleppbetrieb
 function isTowingBlocked(aircraft, slotStartTime) {
   if (aircraft !== 'D-MYIH') return false;
@@ -3092,12 +2928,6 @@ function loadData() {
       }
     } catch(e) {}
   });
-
-  // Invitations listener (für Mitarbeiterverwaltung)
-  db.ref('invitations').on('value', (snapshot) => {
-    const data = snapshot.val();
-    appInvitations = data ? Object.values(data) : [];
-  }, () => {});
 }
 
 // Kontaktdaten (PII) der Buchungen — wird nur für Staff/Fluglehrer geladen.
@@ -3133,14 +2963,6 @@ function startBookingContactsListener() {
 // Schreibt nur globale Settings + LocalStorage-Fallback.
 // Bookings werden über saveBooking()/deleteBookingFromDb() per-ID geschrieben,
 // damit parallele Schreibvorgänge sich nicht überschreiben.
-function saveData() {
-  try {
-    db.ref('settings').set(settings);
-    localStorage.setItem('flugkalender_bookings', JSON.stringify(bookings));
-    localStorage.setItem('flugkalender_settings', JSON.stringify(settings));
-  } catch(e) { console.error('Fehler beim Speichern:', e); }
-}
-
 // Personenbezogene Felder einer Buchung — werden GETRENNT in bookingContacts/{id}
 // gespeichert, damit eingeloggte Kunden keine fremden Kontaktdaten sehen.
 // (instructorName = Fluglehrer-Name, KEINE Kunden-PII → bleibt in bookings.)
@@ -3382,7 +3204,7 @@ function renderWeekView() {
 
   // One row per aircraft
   aircraft.forEach(a => {
-    const wImg = AIRCRAFT_IMAGES[a] ? `<img src="${AIRCRAFT_IMAGES[a]}?format=80w" alt="${a}" style="width:40px;height:24px;object-fit:cover;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.1);" />` : '';
+    const wImg = AIRCRAFT_IMAGES[a] ? `<img src="${AIRCRAFT_IMAGES[a]}?format=80w" alt="${a}" loading="lazy" decoding="async" style="width:40px;height:24px;object-fit:cover;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.1);" />` : '';
     html += `<div class="week-grid-aircraft">${wImg}${a}</div>`;
     weekDays.forEach(d => {
       const dk = dateKey(d);
@@ -3980,7 +3802,7 @@ function renderGanttCalendar(dk, aircraft) {
   // --- Aircraft Columns ---
   let columnsHtml = '';
   aircraft.forEach((a, aIdx) => {
-    const img = AIRCRAFT_IMAGES[a] ? `<img src="${AIRCRAFT_IMAGES[a]}?format=100w" alt="${a}" class="gantt-col-thumb" />` : '';
+    const img = AIRCRAFT_IMAGES[a] ? `<img src="${AIRCRAFT_IMAGES[a]}?format=100w" alt="${a}" class="gantt-col-thumb" loading="lazy" decoding="async" />` : '';
     const type = AIRCRAFT_TYPES[a] || '';
 
     // Build hour slots
@@ -4051,8 +3873,8 @@ function renderGanttCalendar(dk, aircraft) {
       barDiv.title = tooltipText;
       barDiv.onclick = function(e) { e.stopPropagation(); showDetail(booking.id); };
       barDiv.innerHTML = `
-        <span class="gantt-bar-name">${shortName}</span>
-        <span class="gantt-bar-time">${booking.startTime}–${booking.endTime}</span>`;
+        <span class="gantt-bar-name">${escapeHtml(shortName)}</span>
+        <span class="gantt-bar-time">${escapeHtml(booking.startTime)}–${escapeHtml(booking.endTime)}</span>`;
       timelineEl.appendChild(barDiv);
     });
   });
@@ -4617,56 +4439,7 @@ function deleteBookingFromDetail() {
   deleteBookingFromDb(id);
   closeModal('detailModal');
   renderCalendar();
-  renderAdminTable();
   notify('Buchung gelöscht.', 'info');
-}
-
-function editBookingFromDetail(id) {
-  const b = bookings.find(x => x.id === id);
-  if (!b) return;
-
-  // Build aircraft options
-  const aircraftOpts = settings.aircraft.map(a =>
-    `<option value="${escapeAttr(a)}"${a === b.aircraft ? ' selected' : ''}>${escapeHtml(a)}</option>`
-  ).join('');
-
-  // Build time options
-  const fromOpts = TIME_POINTS.slice(0, -1).map(t =>
-    `<option value="${t}"${t === b.startTime ? ' selected' : ''}>${t}</option>`
-  ).join('');
-
-  const toOpts = TIME_POINTS.slice(1).map(t =>
-    `<option value="${t}"${t === b.endTime ? ' selected' : ''}>${t}</option>`
-  ).join('');
-
-  const instrSel = (val) => b.instructor === val ? ' selected' : '';
-
-  let html = `
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
-      <div><div class="label" style="font-size:10px;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:4px;">Flugzeug</div><select id="editAircraft" class="edit-field">${aircraftOpts}</select></div>
-      <div><div class="label" style="font-size:10px;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:4px;">Datum</div><input type="date" id="editDate" class="edit-field" value="${escapeAttr(b.date)}"></div>
-      <div><div class="label" style="font-size:10px;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:4px;">Von</div><select id="editFrom" class="edit-field">${fromOpts}</select></div>
-      <div><div class="label" style="font-size:10px;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:4px;">Bis</div><select id="editTo" class="edit-field">${toOpts}</select></div>
-    </div>
-    <div style="display:grid; gap:10px;">
-      <div><div class="label" style="font-size:10px;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:4px;">Name</div><input type="text" id="editName" class="edit-field" value="${escapeAttr(b.name)}"></div>
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-        <div><div class="label" style="font-size:10px;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:4px;">E-Mail</div><input type="email" id="editEmail" class="edit-field" value="${escapeAttr(b.email || '')}"></div>
-        <div><div class="label" style="font-size:10px;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:4px;">Telefon</div><input type="tel" id="editPhone" class="edit-field" value="${escapeAttr(b.phone || '')}"></div>
-      </div>
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-        <div><div class="label" style="font-size:10px;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:4px;">Fluglehrer</div><select id="editInstructor" class="edit-field" onchange="document.getElementById('editInstructorNameRow').style.display = this.value === 'ja' ? '' : 'none';"><option value="nein"${instrSel('nein')}>Nein</option><option value="ja"${instrSel('ja')}>Ja</option></select></div>
-        <div id="editInstructorNameRow" style="display:${b.instructor === 'ja' ? '' : 'none'};"><div class="label" style="font-size:10px;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:4px;">Lehrer</div><div class="ac-wrap" style="position:relative;"><input type="text" id="editInstructorName" class="edit-field" value="${escapeAttr(b.instructorName || '')}" placeholder="Name (optional)" autocomplete="nope" oninput="acFilterFluglehrer('editInstructorName')" onfocus="acFilterFluglehrer('editInstructorName')" onkeydown="acKeydownFl(event,'editInstructorName')"><div class="ac-list" id="editInstructorName-ac" style="position:absolute;top:100%;left:0;right:0;max-height:200px;overflow-y:auto;background:var(--white,#fff);border:2px solid var(--primary);border-top:none;border-radius:0 0 8px 8px;z-index:1000;display:none;box-shadow:0 8px 24px rgba(0,0,0,0.12);"></div></div></div>
-      </div>
-    </div>
-    <div style="margin-top:16px; display:flex; gap:8px;">
-      <button class="btn btn-primary btn-sm" onclick="saveBookingEdit('${b.id}')">Speichern</button>
-      <button class="btn btn-sm" onclick="showDetail('${b.id}')">Abbrechen</button>
-    </div>
-  `;
-
-  document.getElementById('detailContent').innerHTML = html;
-  document.getElementById('detailDeleteBtn').style.display = 'none';
 }
 
 // Fluglehrer-Autocomplete für Admin-Bearbeitungsdialog
@@ -4751,28 +4524,8 @@ function saveBookingEdit(id) {
   saveBooking(b);
   saveBookingContact(b);
   renderView();
-  renderAdminTable();
   closeModal('detailModal');
   notify('Buchung aktualisiert.', 'success');
-}
-
-function updateStatus(id, status) {
-  const b = bookings.find(x => x.id === id);
-  if (b) {
-    b.status = status;
-    saveBooking(b);
-    closeModal('detailModal');
-    renderCalendar();
-    renderAdminTable();
-    const labels = { approved: 'freigeschaltet', rejected: 'abgelehnt', pending: 'zurückgesetzt' };
-    notify(`Buchung ${labels[status]}.`, status === 'approved' ? 'success' : status === 'rejected' ? 'error' : 'info');
-
-    // Send email notification on approval or rejection
-    if (status === 'approved' || status === 'rejected') {
-      sendStatusEmail(b);
-    }
-
-  }
 }
 
 function isEmailConfigured() {
@@ -4909,10 +4662,7 @@ function sendAdminNotification(booking) {
       aircraft: booking.aircraft,
       date: booking.date,
       message: message
-    }).then(
-      () => console.log('Admin-Benachrichtigung gesendet.'),
-      (err) => console.error('Admin-Benachrichtigung fehlgeschlagen:', err)
-    );
+    }).catch(err => console.error('Admin-Benachrichtigung fehlgeschlagen:', err));
   } catch(e) { console.error('Admin-Benachrichtigung Fehler:', e); }
 }
 
@@ -5138,51 +4888,6 @@ function openMailtoFallback(booking, params) {
   window.open(`mailto:${booking.email}?subject=${subject}&body=${body}`, '_blank');
 }
 
-function testEmail() {
-  const statusEl = document.getElementById('emailTestStatus');
-  const sid = document.getElementById('emailServiceId').value.trim();
-  const tid = document.getElementById('emailTemplateId').value.trim();
-  const pk = document.getElementById('emailPublicKey').value.trim();
-
-  if (!sid || !tid || !pk) {
-    statusEl.textContent = 'Bitte alle drei EmailJS-Felder ausfüllen.';
-    statusEl.style.color = 'var(--danger)';
-    return;
-  }
-
-  statusEl.textContent = 'Sende Test-E-Mail...';
-  statusEl.style.color = 'var(--gray-500)';
-
-  try {
-    emailjs.init(pk);
-    const testBooking = {
-      email: 'info@dassu.de',
-      name: 'DASSU Admin',
-      aircraft: 'D-KYGL (Testbuchung)',
-      date: new Date().toLocaleDateString('de-DE'),
-      startTime: '10:00',
-      endTime: '12:00',
-      instructor: 'nein',
-      status: 'approved'
-    };
-    const testParams = buildEmailParams(testBooking);
-    emailjs.send(sid, tid, testParams).then(
-      () => {
-        statusEl.textContent = 'Test erfolgreich! Prüfe den Posteingang von info@dassu.de.';
-        statusEl.style.color = 'var(--primary)';
-      },
-      (err) => {
-        console.error('Test fehlgeschlagen:', err);
-        statusEl.textContent = 'Fehler: ' + (err.text || err.message || 'Unbekannter Fehler');
-        statusEl.style.color = 'var(--danger)';
-      }
-    );
-  } catch(e) {
-    statusEl.textContent = 'Fehler: ' + e.message;
-    statusEl.style.color = 'var(--danger)';
-  }
-}
-
 let vfConnected = null; // null = unbekannt, true/false
 
 async function getFirebaseToken() {
@@ -5369,226 +5074,8 @@ function myBookingShowInCalendar(dateStr) {
   showView('calendar');
 }
 
-// Admin-Funktionen entfernt – Staff-User werden zu staff.html weitergeleitet
-function adminLogin() { window.location.href = 'staff.html'; }
-function adminLogout() {}
-function renderAdminTable() {}
-function filterBookings() {}
+// Admin-/Staff-Funktionen wurden komplett nach staff.html ausgelagert.
 
-// Admin/Staff-Funktionen entfernt – Staff-User werden zu staff.html weitergeleitet
-// Stub-Funktionen nur zur Vermeidung von ReferenceErrors
-function showStaffMgmt() {}
-function closeStaffMgmt() {}
-function toggleSmInvite() {}
-
-function renderStaffMgmt() {
-  const el = document.getElementById('smListBody');
-  if (!el) return;
-  const query = (document.getElementById('smSearchInput')?.value || '').toLowerCase().trim();
-  let filtered = staffUsers.slice();
-  if (query) {
-    filtered = filtered.filter(u =>
-      (u.name || '').toLowerCase().includes(query) ||
-      (u.email || '').toLowerCase().includes(query) ||
-      (u.role || '').toLowerCase().includes(query)
-    );
-  }
-  if (smRoleFilter !== 'all') {
-    filtered = filtered.filter(u => u.role === smRoleFilter);
-  }
-  filtered.sort((a, b) => {
-    if (a.role === 'admin' && b.role !== 'admin') return -1;
-    if (b.role === 'admin' && a.role !== 'admin') return 1;
-    return (a.name || '').localeCompare(b.name || '');
-  });
-  // Filter chips
-  const roleCounts = {};
-  staffUsers.forEach(u => { roleCounts[u.role] = (roleCounts[u.role] || 0) + 1; });
-  const chipEl = document.getElementById('smFilterChips');
-  if (chipEl) {
-    const roles = [
-      { id: 'all', label: 'Alle' },
-      { id: 'admin', label: 'Admin' },
-      { id: 'team', label: 'Team' },
-      { id: 'guestGlider', label: 'Gast MS' },
-      { id: 'guestMotor', label: 'Gast UL' }
-    ];
-    chipEl.innerHTML = roles.map(r => {
-      const count = r.id === 'all' ? staffUsers.length : (roleCounts[r.id] || 0);
-      if (r.id !== 'all' && !count) return '';
-      return `<button class="sm-filter-chip${smRoleFilter === r.id ? ' active' : ''}" onclick="smRoleFilter='${r.id}';renderStaffMgmt();">${r.label}<span class="chip-count">${count}</span></button>`;
-    }).join('');
-  }
-  // Count bar
-  const countBar = document.getElementById('smCountBar');
-  if (countBar) {
-    const showing = filtered.length === staffUsers.length ? `${staffUsers.length} Mitarbeiter` : `${filtered.length} von ${staffUsers.length}`;
-    countBar.textContent = showing;
-  }
-  // Compact list rows
-  const currentUid = firebase.auth().currentUser ? firebase.auth().currentUser.uid : null;
-  el.innerHTML = filtered.map(u => {
-    const avatarCls = u.role === 'admin' ? 'role-admin' : (u.role === 'team' ? 'role-team' : 'role-guest');
-    const meta = roleMeta(u.role);
-    const badgeCls = u.role === 'admin' ? 'badge-admin' : (u.role === 'team' ? 'badge-team' : 'badge-guest');
-    const isMe = currentUid && u.id === currentUid;
-    const youTag = isMe ? '<span class="you-tag">(du)</span>' : '';
-    return `<div class="sm-row" onclick="openSmDetail('${u.id}')">
-      <div class="sm-row-avatar ${avatarCls}">${(u.name || '?').charAt(0).toUpperCase()}</div>
-      <div class="sm-row-info">
-        <div class="sm-row-name">${escapeAttr(u.name)}${youTag}</div>
-        <div class="sm-row-meta">${escapeAttr(u.email || '\u2014')}</div>
-      </div>
-      <span class="sm-row-badge ${badgeCls}">${meta.short || meta.label}</span>
-      <span class="sm-row-chevron">\u203A</span>
-    </div>`;
-  }).join('') || '<div style="text-align:center;padding:24px;color:var(--gray-500);font-size:13px;">Keine Mitarbeiter gefunden.</div>';
-  renderInvitations();
-  populateInvRoleOptions();
-}
-
-function openSmDetail(uid) {
-  const u = staffUsers.find(s => s.id === uid);
-  if (!u) return;
-  const panel = document.getElementById('smDetailPanel');
-  const overlay = document.getElementById('smDetailOverlay');
-  if (!panel || !overlay) return;
-  const isAdm = u.role === 'admin';
-  const adminCount = staffUsers.filter(s => s.role === 'admin').length;
-  const currentUid = firebase.auth().currentUser ? firebase.auth().currentUser.uid : null;
-  const isMe = currentUid && u.id === currentUid;
-  const lockedToAdmin = isAdm && adminCount === 1;
-  const canDelete = !isMe && !(isAdm && adminCount === 1);
-  const avatarCls = isAdm ? 'role-admin' : (u.role === 'team' ? 'role-team' : 'role-guest');
-  const createdAt = u.createdAt ? new Date(u.createdAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '\u2014';
-  // Permissions
-  const permsHtml = DASSU_PERMISSIONS.map(p => {
-    const effective = hasPermission(u, staffUsers, p.key);
-    const explicit = !isAdm && isPermissionExplicit(u, p.key);
-    const hint = isAdm ? '<span class="smd-perm-hint">(immer an)</span>' : (explicit ? '' : '<span class="smd-perm-hint">(Standard)</span>');
-    const toggleCls = 'smd-perm-toggle' + (effective ? ' on' : '') + (isAdm ? ' disabled' : '');
-    const onClick = isAdm ? '' : `onclick="staffMgmtTogglePermission('${u.id}','${p.key}');openSmDetail('${u.id}');"`;
-    return `<div class="smd-perm-row">
-      <div class="smd-perm-label">${p.label} ${hint}<small>${p.desc}</small></div>
-      <div class="${toggleCls}" ${onClick}></div>
-    </div>`;
-  }).join('');
-  // Role options
-  const roleOpts = DASSU_ROLES.filter(r => !r.legacy || r.id === u.role);
-  const roleDisabled = lockedToAdmin ? 'disabled' : '';
-  panel.innerHTML = `
-    <div class="smd-header">
-      <div class="smd-avatar ${avatarCls}">${(u.name || '?').charAt(0).toUpperCase()}</div>
-      <div>
-        <div class="smd-name">${escapeAttr(u.name)}${isMe ? ' <span style="font-size:11px;color:var(--gray-500);font-weight:400;">(du)</span>' : ''}</div>
-        <div class="smd-email">${escapeAttr(u.email || '\u2014')}</div>
-      </div>
-      <button class="smd-close" onclick="closeSmDetail()">\u2715</button>
-    </div>
-    <div class="smd-section">
-      <div class="smd-section-title">Name bearbeiten</div>
-      <div style="display:flex;gap:8px;">
-        <input type="text" class="smd-edit-input" id="smdName_${u.id}" value="${escapeAttr(u.name || '')}" style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault();smSaveName('${u.id}');}">
-        <button class="smd-btn-save" onclick="smSaveName('${u.id}');openSmDetail('${u.id}');">Speichern</button>
-      </div>
-    </div>
-    <div class="smd-section">
-      <div class="smd-section-title">Informationen</div>
-      <div class="smd-info-grid">
-        <div class="smd-info-item"><div class="smd-label">E-Mail</div><div class="smd-value">${escapeAttr(u.email || '\u2014')}</div></div>
-        <div class="smd-info-item"><div class="smd-label">Erstellt am</div><div class="smd-value">${createdAt}</div></div>
-        <div class="smd-info-item" style="grid-column:1/-1;"><div class="smd-label">ID</div><div class="smd-value mono">${u.id}</div></div>
-      </div>
-    </div>
-    <div class="smd-section">
-      <div class="smd-section-title">Rolle</div>
-      <select class="smd-role-select" ${roleDisabled} onchange="staffMgmtSetRole('${u.id}', this.value);openSmDetail('${u.id}');">
-        ${roleOpts.map(r => `<option value="${r.id}" ${u.role === r.id ? 'selected' : ''}>${r.label}</option>`).join('')}
-      </select>
-    </div>
-    <div class="smd-section">
-      <div class="smd-section-title">Berechtigungen</div>
-      ${permsHtml}
-    </div>
-    ${canDelete ? `<div class="smd-section">
-      <button class="smd-btn-delete" onclick="staffMgmtDelete('${u.id}');closeSmDetail();">Mitarbeiter entfernen</button>
-    </div>` : ''}
-  `;
-  overlay.classList.add('active');
-}
-
-function closeSmDetail() {
-  const overlay = document.getElementById('smDetailOverlay');
-  if (overlay) overlay.classList.remove('active');
-  renderStaffMgmt();
-}
-
-function smSaveName(id) {
-  const input = document.getElementById('smdName_' + id);
-  if (!input) return;
-  const newName = input.value.trim();
-  if (!newName) return notify('Name darf nicht leer sein.', 'error');
-  db.ref('staffUsers/' + id + '/name').set(newName);
-  notify('Name aktualisiert.', 'success');
-}
-
-function staffMgmtTogglePermission(id, key) {
-  const user = staffUsers.find(u => u.id === id);
-  if (!user) return;
-  const current = hasPermission(user, staffUsers, key);
-  const next = !current;
-  const update = Object.assign({}, user.permissions || {});
-  update[key] = next;
-  db.ref('staffUsers/' + id + '/permissions').set(update);
-  notify('Recht aktualisiert.', 'success');
-}
-
-// ============================================================
-// EINLADUNGEN
-// ============================================================
-let invitations = [];
-
-db.ref('invitations').on('value', snap => {
-  const data = snap.val() || {};
-  invitations = Object.entries(data).map(([key, v]) => ({ key, ...v }));
-  if (document.getElementById('staffMgmtOverlay').classList.contains('active')) {
-    renderInvitations();
-    populateInvRoleOptions();
-  }
-}, () => { /* invitations nur für Admins lesbar — Fehler bei Nicht-Admins ignorieren */ });
-
-function populateInvRoleOptions() {
-  const sel = document.getElementById('invRole');
-  if (!sel) return;
-  const roles = (typeof DASSU_ROLES !== 'undefined' ? DASSU_ROLES : []).filter(r => !r.legacy);
-  sel.innerHTML = roles.map(r => `<option value="${r.id}" ${r.id === 'team' ? 'selected' : ''}>${r.label}</option>`).join('');
-}
-
-function renderInvitations() {
-  const el = document.getElementById('invitationsList');
-  if (!el) return;
-  if (!invitations.length) {
-    el.innerHTML = '<div style="text-align:center;padding:12px;color:var(--gray-500);font-size:12px;font-style:italic;">Keine offenen Einladungen.</div>';
-    return;
-  }
-  el.innerHTML = invitations.map(inv => {
-    const meta = roleMeta(inv.role);
-    const sentInfo = inv.sentAt ? `<div class="inv-sent">\u2709 Gesendet am ${new Date(inv.sentAt).toLocaleDateString('de-DE')}</div>` : '';
-    return `<div class="sm-inv-pending">
-      <div class="inv-avatar">${(inv.name || '?').charAt(0).toUpperCase()}</div>
-      <div class="inv-details">
-        <div class="inv-name">${escapeAttr(inv.name)} <span style="font-size:10px;color:var(--gray-500);">${meta.short || meta.label}</span></div>
-        <div class="inv-email-line">${escapeAttr(inv.email)}</div>
-        ${sentInfo}
-      </div>
-      <div class="inv-btns">
-        <button class="sm-inv-btn-send" onclick="sendInvitationEmail('${inv.key}')">${inv.sentAt ? 'Erneut' : 'Mail'}</button>
-        <button class="sm-inv-btn-link" onclick="copyInvitationLink('${escapeAttr(inv.email)}')">Link</button>
-        <button class="sm-inv-btn-del" onclick="deleteInvitation('${inv.key}')">X</button>
-      </div>
-    </div>`;
-  }).join('');
-}
 
 function escapeAttr(s) { return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 // Alias: escapeHtml escaped dieselben Zeichen — sicher für Text-Inhalt UND Attributwerte.
@@ -5597,118 +5084,20 @@ function escapeHtml(s) { return escapeAttr(s); }
 // erst JS-String-escapen (\\ und '), dann HTML-Attribut-escapen.
 function jsArg(s) { return escapeAttr(String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")); }
 
-function createInvitation() {
-  const nameEl = document.getElementById('invName');
-  const emailEl = document.getElementById('invEmail');
-  const roleEl = document.getElementById('invRole');
-  const name = nameEl.value.trim();
-  const email = emailEl.value.trim().toLowerCase();
-  const role = roleEl.value;
-  if (!name) return notify('Bitte Name eintragen.', 'error');
-  if (!email || !/^\S+@\S+\.\S+$/.test(email)) return notify('Bitte gültige E-Mail eintragen.', 'error');
-  if (!role) return notify('Bitte Rolle wählen.', 'error');
-
-  // Prüfen ob schon ein User mit dieser E-Mail existiert
-  if (staffUsers.some(u => (u.email || '').toLowerCase() === email)) {
-    return notify('Es gibt bereits einen aktiven Mitarbeiter mit dieser E-Mail.', 'error');
-  }
-
-  const key = DASSU_AUTH.emailKey(email);
-  db.ref('invitations/' + key).set({
-    email: email,
-    name: name,
-    role: role,
-    createdAt: Date.now()
-  }).then(async () => {
-    nameEl.value = '';
-    emailEl.value = '';
-    const sendCheckbox = document.getElementById('invSendEmail');
-    if (sendCheckbox && sendCheckbox.checked) {
-      if (settings.emailServiceId && settings.emailInviteTemplateId && settings.emailPublicKey) {
-        notify(`Einladung für ${name} angelegt. Sende Mail...`, 'info');
-        await sendInvitationEmail(key);
-      } else {
-        notify(`Einladung für ${name} angelegt. ⚠ Einladungs-Template fehlt in Einstellungen – Link bitte manuell kopieren.`, 'info');
-      }
-    } else {
-      notify(`Einladung für ${name} angelegt. Link kopieren und verschicken.`, 'success');
-    }
-  }).catch(e => notify('Fehler: ' + e.message, 'error'));
-}
-
-function deleteInvitation(key) {
-  if (!confirm('Diese Einladung wirklich löschen?')) return;
-  db.ref('invitations/' + key).remove();
-  notify('Einladung entfernt.', 'info');
-}
-
-function copyInvitationLink(emailOrLink) {
-  const baseUrl = window.location.origin.startsWith('file') ? 'https://dassu-buchungskalender.netlify.app' : window.location.origin;
-  const link = emailOrLink.includes('://') ? emailOrLink : `${baseUrl}/welcome.html?email=${encodeURIComponent(emailOrLink)}`;
-  navigator.clipboard.writeText(link).then(
-    () => notify('Link kopiert! Jetzt per E-Mail / WhatsApp an den Mitarbeiter schicken.', 'success'),
-    () => notify('Kopieren fehlgeschlagen. Link: ' + link, 'error')
-  );
-}
-
-// Einladungs-E-Mail via EmailJS senden
-async function sendInvitationEmail(invKey) {
-  const inv = invitations.find(i => i.key === invKey);
-  if (!inv) return notify('Einladung nicht gefunden.', 'error');
-  if (!settings.emailServiceId || !settings.emailInviteTemplateId || !settings.emailPublicKey) {
-    notify('EmailJS ist nicht vollständig konfiguriert. Bitte Einstellungen prüfen (Einladungs-Template-ID fehlt).', 'error');
-    return;
-  }
-  const baseUrl = window.location.origin.startsWith('file') ? 'https://dassu-buchungskalender.netlify.app' : window.location.origin;
-  const link = `${baseUrl}/welcome.html?email=${encodeURIComponent(inv.email)}`;
-  const roleLabel = (typeof roleMeta === 'function' ? roleMeta(inv.role).label : inv.role);
+// Vor jedem firebase.auth().signOut() aufrufen: löscht User-Caches aus localStorage,
+// damit der nächste User im selben Browser nicht die Daten des Vorgängers sieht.
+function clearUserCaches() {
   try {
-    emailjs.init(settings.emailPublicKey);
-    await emailjs.send(settings.emailServiceId, settings.emailInviteTemplateId, {
-      to_name: inv.name || '',
-      to_email: inv.email || '',
-      invitation_link: link,
-      role: roleLabel,
-      inviter_name: settings.senderName || 'DASSU',
-      reply_to: 'info@dassu.de'
-    });
-    // Mark as sent
-    db.ref('invitations/' + invKey + '/sentAt').set(Date.now());
-    notify(`Einladungs-Mail an ${inv.email} verschickt.`, 'success');
-  } catch (e) {
-    console.error('Invite-Mail Fehler:', e);
-    notify('Mail-Versand fehlgeschlagen: ' + (e.text || e.message || 'Unbekannter Fehler'), 'error');
-  }
+    localStorage.removeItem('vfMembers');
+    localStorage.removeItem('vfMembersCachedAt');
+    localStorage.removeItem('vfInstructors');
+    localStorage.removeItem('vfInstructorsCachedAt');
+    localStorage.removeItem('dassu_staff_user');
+    localStorage.removeItem('dassu_user');
+  } catch (_) { /* localStorage evtl. nicht verfügbar */ }
 }
 
-function staffMgmtSetRole(id, role) {
-  const user = staffUsers.find(u => u.id === id);
-  if (!user) return;
-  if (user.role === 'admin' && role !== 'admin') {
-    const adminCount = staffUsers.filter(u => u.role === 'admin').length;
-    if (adminCount <= 1) {
-      notify('Mindestens ein Admin muss bleiben.', 'error');
-      renderStaffMgmt();
-      return;
-    }
-  }
-  db.ref('staffUsers/' + id + '/role').set(role);
-  notify('Rolle aktualisiert.', 'success');
-}
 
-function staffMgmtDelete(id) {
-  const currentUid = firebase.auth().currentUser ? firebase.auth().currentUser.uid : null;
-  if (currentUid && id === currentUid) { notify('Dich selbst kannst du nicht löschen.', 'error'); return; }
-  const user = staffUsers.find(u => u.id === id);
-  if (!user) return;
-  if (user.role === 'admin') {
-    const adminCount = staffUsers.filter(u => u.role === 'admin').length;
-    if (adminCount <= 1) { notify('Mindestens ein Admin muss bleiben.', 'error'); return; }
-  }
-  if (!confirm(`Mitarbeiter \u201e${user.name}\u201c wirklich löschen?`)) return;
-  db.ref('staffUsers/' + id).remove();
-  notify('Mitarbeiter entfernt.', 'success');
-}
 
 // ============================================================
 // AUSBILDUNGSNACHWEIS — Fluglehrer + Flugschüler
@@ -5749,7 +5138,7 @@ async function loadStudentTraining() {
   }
   if (content) content.style.display = 'block';
   try {
-    const token = await firebase.auth().currentUser.getIdToken();
+    const token = await getFirebaseToken();
     const resp = await fetch('/.netlify/functions/training?studentUid=' + encodeURIComponent(trainingStudentUid), {
       headers: { 'Authorization': 'Bearer ' + token }
     });
@@ -5884,7 +5273,7 @@ async function quickSaveTraining(exId, field) {
   }
 
   try {
-    const token = await firebase.auth().currentUser.getIdToken();
+    const token = await getFirebaseToken();
     const resp = await fetch('/.netlify/functions/training', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
@@ -6061,7 +5450,7 @@ async function saveExerciseProgress() {
   };
 
   try {
-    const token = await firebase.auth().currentUser.getIdToken();
+    const token = await getFirebaseToken();
     const resp = await fetch('/.netlify/functions/training', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
@@ -6087,7 +5476,7 @@ async function renderMyTrainingView() {
   const exEl = document.getElementById('myTrainingExercises');
 
   try {
-    const token = await firebase.auth().currentUser.getIdToken();
+    const token = await getFirebaseToken();
     const resp = await fetch('/.netlify/functions/training?studentUid=' + encodeURIComponent(uid), {
       headers: { 'Authorization': 'Bearer ' + token }
     });
@@ -6107,17 +5496,6 @@ async function renderMyTrainingView() {
   }
 }
 
-// Enter-Taste im Einladungs-Formular
-document.addEventListener('DOMContentLoaded', () => {
-  ['invName', 'invEmail'].forEach(id => {
-    const inp = document.getElementById(id);
-    if (inp) inp.addEventListener('keydown', e => {
-      if (e.key === 'Enter') { e.preventDefault(); createInvitation(); }
-    });
-  });
-});
-
-// ============================================================
 // ============================================================
 // DEV-TOOLBAR: Perspektivwechsel
 // ============================================================
@@ -6193,16 +5571,6 @@ function devApplyPerspective() {
     }
   }
 }
-
-// Admin-Stubs (Funktionen sind jetzt in staff.html)
-function showTheoryAdmin() {}
-function showSettings() {}
-function saveSettings() {}
-function exportData() {}
-function renderTheoryAdmin() {}
-function theoryAdminOpenForm() {}
-function theoryAdminSave() {}
-function theoryAdminDelete() {}
 
 // ============================================================
 // FLUGLEHRER: Schüler-Buchungen
@@ -6772,7 +6140,7 @@ async function customerLogin() {
     }
     // Kunden: E-Mail muss verifiziert sein
     if (!cred.user.emailVerified) {
-      await firebase.auth().signOut();
+      clearUserCaches(); await firebase.auth().signOut();
       caMsg('caLoginMsg', 'error', 'Bitte best\u00e4tige zuerst deine E-Mail-Adresse. Wir haben dir einen Best\u00e4tigungslink geschickt.<br><button onclick="resendVerifFromLogin()" style="margin-top:8px; background:none; border:1px solid var(--danger); color:var(--danger); border-radius:var(--radius-xs); padding:4px 12px; font-size:12px; cursor:pointer; font-family:var(--font-ui);">Best\u00e4tigungs-E-Mail erneut senden</button><input type="hidden" id="caLoginPendingEmail" value="' + email + '"><input type="hidden" id="caLoginPendingPw" value="' + pw + '">');
       btn.disabled = false; btn.textContent = 'Anmelden';
       return;
@@ -6806,7 +6174,7 @@ async function resendVerifFromLogin() {
     } catch (_) {
       await cred.user.sendEmailVerification();
     }
-    await firebase.auth().signOut();
+    clearUserCaches(); await firebase.auth().signOut();
     caMsg('caLoginMsg', 'success', 'Best\u00e4tigungs-E-Mail wurde erneut gesendet! Bitte pr\u00fcfe deinen Posteingang.');
   } catch (e) {
     if (e.code === 'auth/too-many-requests') {
@@ -6866,7 +6234,7 @@ async function customerRegister() {
         // Fallback: Firebase Standard-Mail
         try { await cred.user.sendEmailVerification(); emailSent = true; } catch (fbErr) { console.error('Verification email failed:', fbErr); }
       }
-      await firebase.auth().signOut();
+      clearUserCaches(); await firebase.auth().signOut();
       if (emailSent) {
         caMsg('caRegMsg', 'success', 'Fast geschafft! Wir haben dir eine Best\u00e4tigungs-E-Mail an <strong>' + email + '</strong> geschickt. Bitte klicke auf den Link in der E-Mail, um dein Konto zu aktivieren. Danach kannst du dich anmelden.<br><small style="color:#6b7280;">Pr\u00fcfe auch deinen Spam-Ordner!</small>');
       } else {
@@ -6905,7 +6273,7 @@ async function saveCustomerProfile() {
 }
 
 async function customerSignOut() {
-  await firebase.auth().signOut();
+  clearUserCaches(); await firebase.auth().signOut();
   closeModal('customerAuthModal');
 }
 
@@ -7056,7 +6424,7 @@ function updateCustomerButton() {
       if (nameEl) nameEl.textContent = customerProfile.name || 'Konto';
       if (avatarEl) {
         if (customerProfile.photoURL) {
-          avatarEl.innerHTML = '<img src="' + customerProfile.photoURL + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
+          avatarEl.innerHTML = '<img src="' + escapeAttr(customerProfile.photoURL) + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
         } else {
           avatarEl.textContent = (customerProfile.name || '?').charAt(0).toUpperCase();
         }
@@ -7091,7 +6459,7 @@ document.addEventListener('click', function(e) {
 });
 
 function customerLogout() {
-  firebase.auth().signOut();
+  clearUserCaches(); firebase.auth().signOut();
   customerProfile = null;
   updateCustomerButton();
   showView('calendar');
@@ -7152,7 +6520,7 @@ function renderAccountView() {
   const avatarEl = document.getElementById('acctAvatar');
   if (avatarEl) {
     if (customerProfile.photoURL) {
-      avatarEl.innerHTML = '<img src="' + customerProfile.photoURL + '" style="width:100%;height:100%;object-fit:cover;">';
+      avatarEl.innerHTML = '<img src="' + escapeAttr(customerProfile.photoURL) + '" style="width:100%;height:100%;object-fit:cover;">';
     } else {
       avatarEl.textContent = (customerProfile.name || '?').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
     }
@@ -7521,7 +6889,7 @@ firebase.auth().onAuthStateChanged(async (user) => {
       // 2. Kunden-Check → E-Mail muss verifiziert sein
       if (!user.emailVerified) {
         // Nicht verifiziert → abmelden, als Gast behandeln
-        await firebase.auth().signOut();
+        clearUserCaches(); await firebase.auth().signOut();
         return; // onAuthStateChanged wird erneut mit user=null getriggert
       }
       document.getElementById('mainViewTabs')?.classList.remove('has-staff-tabs');
@@ -7600,84 +6968,6 @@ window.addEventListener('load', () => {
 // SCHNELLBUCHUNG (Admin Quick-Book)
 // ============================================================
 let quickBookPopup = null;
-
-function openQuickBook(aircraft, slot, date, event) {
-  closeQuickBook();
-  const slotStart = slot.split(' - ')[0];
-  // Build popup
-  const popup = document.createElement('div');
-  popup.className = 'quick-book-popup';
-  popup.id = 'quickBookPopup';
-
-  // Position near click (or center if no event)
-  let top = window.innerHeight / 2 - 110;
-  let left = window.innerWidth / 2 - 130;
-  if (event && event.target) {
-    const rect = event.target.getBoundingClientRect();
-    top = rect.bottom + 4;
-    left = rect.left;
-    if (top + 220 > window.innerHeight) top = rect.top - 220;
-    if (left + 260 > window.innerWidth) left = window.innerWidth - 270;
-  } else if (event && event.clientY) {
-    top = event.clientY + 4;
-    left = event.clientX;
-    if (top + 220 > window.innerHeight) top = event.clientY - 220;
-    if (left + 260 > window.innerWidth) left = window.innerWidth - 270;
-  }
-  popup.style.top = top + 'px';
-  popup.style.left = left + 'px';
-
-  // Determine available start times (respect Sunday / towing rules)
-  const bookDate = new Date(date + 'T12:00:00');
-  const isSunday = bookDate.getDay() === 0;
-  let fromOptions = '';
-  let toOptions = '';
-  for (let i = 0; i < TIME_POINTS.length - 1; i++) {
-    if (isSunday && TIME_POINTS[i] < '09:00') continue;
-    fromOptions += `<option value="${TIME_POINTS[i]}"${TIME_POINTS[i] === slotStart ? ' selected' : ''}>${TIME_POINTS[i]}</option>`;
-  }
-
-  popup.innerHTML = `
-    <h4>Schnellbuchung · ${aircraft}</h4>
-    <form autocomplete="off" onsubmit="event.preventDefault(); submitQuickBook();">
-    <div class="qb-ac-wrap">
-      <input type="search" id="qbName" placeholder="Name eingeben" autocomplete="off" name="qb_${Date.now()}" autofocus
-             aria-autocomplete="list" role="combobox"
-             oninput="qbAcFilter()" onfocus="qbAcFilter()" onkeydown="qbAcKeydown(event)">
-      <div class="qb-ac-list" id="qbName-ac"></div>
-    </div>
-    <input type="search" id="qbInstructor" placeholder="Fluglehrer (optional)" autocomplete="off" name="qbi_${Date.now()}" style="margin-top:4px;">
-    <div class="quick-book-row">
-      <select id="qbFrom" onchange="updateQbTo()">${fromOptions}</select>
-      <select id="qbTo"></select>
-    </div>
-    <div class="quick-book-actions">
-      <button type="button" class="btn btn-sm" onclick="closeQuickBook()">Esc</button>
-      <button type="submit" class="btn btn-primary btn-sm">Buchen</button>
-    </div>
-    </form>
-  `;
-  popup._aircraft = aircraft;
-  popup._date = date;
-
-  document.body.appendChild(popup);
-  quickBookPopup = popup;
-
-  // Focus name input
-  setTimeout(() => {
-    const qbNameEl = document.getElementById('qbName');
-    if (qbNameEl) qbNameEl.focus();
-    updateQbTo();
-  }, 80);
-
-  // Enter = submit, Escape = close (but not when autocomplete is handling it)
-  popup.addEventListener('keydown', (e) => {
-    const acList = document.getElementById('qbName-ac');
-    const acOpen = acList && acList.classList.contains('open');
-    if (e.key === 'Enter' && !acOpen) { e.preventDefault(); submitQuickBook(); }
-    if (e.key === 'Escape' && !acOpen) { closeQuickBook(); }
-  });
-}
 
 function updateQbTo() {
   const fromEl = document.getElementById('qbFrom');
