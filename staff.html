@@ -5399,18 +5399,25 @@ let _vfDashboardLoadStarted = false;
 function _statsDelta(curr, prev) {
   if (prev == null) return null;
   if (!prev) {
-    if (curr > 0) return { dir: 'up', label: 'neu' };
-    return { dir: 'flat', label: '—' };
+    if (curr > 0) return { dir: 'up', label: 'neu', diff: null };
+    return { dir: 'flat', label: '—', diff: null };
   }
-  const pct = Math.round((curr - prev) / prev * 100);
-  if (pct === 0) return { dir: 'flat', label: '0%' };
-  if (pct > 0) return { dir: 'up', label: '+' + pct + '%' };
-  return { dir: 'down', label: pct + '%' };
+  const diff = curr - prev;
+  const pct = Math.round(diff / prev * 100);
+  if (pct === 0) return { dir: 'flat', label: '0%', diff };
+  if (pct > 0) return { dir: 'up', label: '+' + pct + '%', diff };
+  return { dir: 'down', label: pct + '%', diff };
 }
-function _statsDeltaHtml(d, suffix) {
+// fmtDiff: optionaler Formatter für die absolute Differenz (default: nackte Zahl mit Vorzeichen).
+// Bei Flugstunden z.B. fmtDiff = d => (d>0?'+':'') + Math.round(d/60) + 'h'
+function _statsDeltaHtml(d, suffix, fmtDiff) {
   if (!d) return '';
   const arrow = d.dir === 'up' ? '&#9650;' : d.dir === 'down' ? '&#9660;' : '&#9656;';
-  return `<div class="dash-card-delta ${d.dir}">${arrow} ${d.label}</div>${suffix ? `<div class="dash-card-sub">${suffix}</div>` : ''}`;
+  const fmt = fmtDiff || (n => (n > 0 ? '+' : '') + n);
+  // Absolute Differenz zeigen wenn vorhanden und ≠ 0
+  const showDiff = d.diff != null && d.diff !== 0;
+  const diffStr = showDiff ? ` <span style="opacity:.75;font-weight:500;">(${fmt(d.diff)})</span>` : '';
+  return `<div class="dash-card-delta ${d.dir}">${arrow} ${d.label}${diffStr}</div>${suffix ? `<div class="dash-card-sub">${suffix}</div>` : ''}`;
 }
 
 function renderStatsOverview() {
@@ -5480,7 +5487,7 @@ function renderStatsOverview() {
       <div class="dash-card">
         <div class="dash-card-label">Flugstunden ${curYear}</div>
         ${hasVf
-          ? `<div class="dash-card-value">${vfHoursYTD}<span class="dash-card-unit">h</span></div>${_statsDeltaHtml(vfHoursDelta, 'vs. Vorjahr · Stichtag')}`
+          ? `<div class="dash-card-value">${vfHoursYTD}<span class="dash-card-unit">h</span></div>${_statsDeltaHtml(vfHoursDelta, 'vs. Vorjahr · Stichtag', d => (d > 0 ? '+' : '') + Math.round(d / 60) + 'h')}`
           : skeleton}
       </div>
       <div class="dash-card">
