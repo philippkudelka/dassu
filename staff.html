@@ -5447,7 +5447,7 @@ function renderStatsOverview() {
   let vfStartsYTD = null, vfStartsDelta = null;
   let vfHoursYTD = null, vfHoursDelta = null, vfHoursMin = 0;
   let vfTopAircraft = null;
-  let vfFlyingDays = null;
+  let vfFlyingDays = null, vfFlyingDaysDelta = null;
   const hasVf = !!(vfData && vfData.thisYear);
 
   if (hasVf) {
@@ -5458,6 +5458,7 @@ function renderStatsOverview() {
     if (vfData.lastYearSameDay) {
       vfStartsDelta = _statsDelta(vfStartsYTD, vfData.lastYearSameDay.totalFlights);
       vfHoursDelta = _statsDelta(vfHoursMin, vfData.lastYearSameDay.totalMinutes);
+      vfFlyingDaysDelta = _statsDelta(vfFlyingDays, vfData.lastYearSameDay.flyingDays);
     }
     const acEntries = Object.entries(vfData.thisYear.byAircraft || {})
       .sort((a, b) => (b[1].count || 0) - (a[1].count || 0));
@@ -5491,7 +5492,7 @@ function renderStatsOverview() {
       <div class="dash-card">
         <div class="dash-card-label">Flugtage ${curYear}</div>
         ${hasVf
-          ? `<div class="dash-card-value">${vfFlyingDays}</div><div class="dash-card-sub">aktive Tage</div>`
+          ? `<div class="dash-card-value">${vfFlyingDays}</div>${_statsDeltaHtml(vfFlyingDaysDelta, 'vs. Vorjahr · Stichtag')}`
           : skeleton}
       </div>
       <div class="dash-card">
