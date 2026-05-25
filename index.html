@@ -2394,6 +2394,19 @@
       </details>
     </div>
 
+    <!-- DSGVO: eigene Daten exportieren / Konto löschen -->
+    <div class="acct-section" style="margin-top:24px;">
+      <h3 style="font-size:14px; font-weight:600; color:var(--ink); margin:0 0 8px;">Meine Daten</h3>
+      <div style="font-size:12px; color:var(--gray-500); margin-bottom:12px; line-height:1.5;">
+        Du kannst alle bei DASSU gespeicherten Daten als JSON-Datei herunterladen
+        oder dein Konto komplett löschen lassen. Beides ist unwiderruflich.
+      </div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn btn-sm" onclick="exportMyData()">Meine Daten herunterladen</button>
+        <button class="btn btn-sm" style="background:#fdecec; color:var(--danger);" onclick="deleteMyAccount()">Mein Konto löschen…</button>
+      </div>
+    </div>
+
     <!-- Footer: Abmelden -->
     <div class="acct-footer">
       <button class="acct-logout-btn" onclick="customerLogout()">Abmelden</button>
@@ -6463,6 +6476,93 @@ function customerLogout() {
   customerProfile = null;
   updateCustomerButton();
   showView('calendar');
+}
+
+// ============================================================
+// DSGVO — eigene Daten exportieren + Konto löschen
+// ============================================================
+async function exportMyData() {
+  const user = firebase.auth().currentUser;
+  if (!user) { notify('Bitte zuerst anmelden.', 'error'); return; }
+  const uid = user.uid;
+  const email = (user.email || '').toLowerCase();
+  try {
+    notify('Sammle deine Daten…', 'info');
+    const [custSnap, bookingsSnap, contactsSnap] = await Promise.all([
+      db.ref('customers/' + uid).once('value'),
+      db.ref('bookings').orderByChild('uid').equalTo(uid).once('value'),
+      db.ref('bookingContacts').orderByChild('uid').equalTo(uid).once('value')
+    ]);
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      exportedFor: { uid, email, name: customerProfile ? (customerProfile.name || '') : '' },
+      profile: { customer: custSnap.val() || null },
+      bookings: bookingsSnap.val() || {},
+      bookingContacts: contactsSnap.val() || {},
+      hinweis: 'Dieser Export enthält alle bei DASSU für deine UID gespeicherten Daten zum oben genannten Zeitpunkt. Buchungen anderer Personen, in denen du als Begleiter auftauchst, sind aus Datenschutzgründen NICHT enthalten.'
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `dassu-meine-daten-${new Date().toISOString().substring(0, 10)}.json`;
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+    notify('Daten heruntergeladen.', 'success');
+  } catch (e) {
+    notify('Export fehlgeschlagen: ' + e.message, 'error');
+  }
+}
+
+async function deleteMyAccount() {
+  const user = firebase.auth().currentUser;
+  if (!user) { notify('Bitte zuerst anmelden.', 'error'); return; }
+  const uid = user.uid;
+  const myName = customerProfile ? (customerProfile.name || '').trim() : (user.email || '');
+  const typed = prompt(
+    `Dein DASSU-Konto wird ENDGÜLTIG gelöscht.\n\n` +
+    `Folgendes wird entfernt:\n` +
+    `• dein Kunden-Profil\n` +
+    `• alle Buchungen, die unter deiner UID stehen\n` +
+    `• dein Login\n\n` +
+    `Gib zur Bestätigung deinen Namen exakt ein:\n${myName}`
+  );
+  if (typed === null) return;
+  if (typed.trim() !== myName) {
+    notify('Name stimmt nicht überein — Löschen abgebrochen.', 'error');
+    return;
+  }
+  try {
+    notify('Konto wird gelöscht…', 'info');
+    const bookingsSnap = await db.ref('bookings').orderByChild('uid').equalTo(uid).once('value');
+    const updates = {};
+    Object.keys(bookingsSnap.val() || {}).forEach(id => {
+      updates['bookings/' + id] = null;
+      updates['bookingContacts/' + id] = null;
+    });
+    updates['customers/' + uid] = null;
+    await db.ref().update(updates);
+
+    try {
+      const token = await getFirebaseToken();
+      await fetch('/.netlify/functions/delete-auth-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ uid })
+      });
+    } catch (e) {
+      console.warn('Auth-Account konnte nicht serverseitig gelöscht werden:', e);
+    }
+
+    try { localStorage.clear(); } catch (_) {}
+    clearUserCaches();
+    await firebase.auth().signOut();
+    customerProfile = null;
+    updateCustomerButton();
+    showView('calendar');
+    notify('Dein Konto wurde gelöscht.', 'success');
+  } catch (e) {
+    notify('Löschen fehlgeschlagen: ' + e.message, 'error');
+  }
 }
 
 function renderAccountView() {

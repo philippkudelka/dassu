@@ -1273,6 +1273,15 @@ body.dev-mode { padding-bottom: 48px; }
     <div id="walkInImporterList" style="padding:0 16px 16px;"></div>
   </details>
 
+  <!-- Aktivitäts-Protokoll (Admin-only) — letzte Änderungen an Benutzern/Kunden -->
+  <details class="member-audit" id="memberAuditBox" style="display:none; margin-top:10px; background:white; border:1px solid var(--c-line); border-radius:10px; overflow:hidden;">
+    <summary style="padding:12px 16px; font-size:13px; font-weight:600; color:var(--navy); cursor:pointer; list-style:none; display:flex; align-items:center; gap:8px;">
+      <span style="font-size:15px;">&#x1f5c2;&#xfe0f;</span> Aktivit&auml;ts-Protokoll (Benutzer &amp; Kunden)
+      <span id="memberAuditCount" style="margin-left:auto; font-size:11px; color:var(--gray-400); font-weight:400;"></span>
+    </summary>
+    <div id="memberAuditList" style="padding:0 16px 16px;"></div>
+  </details>
+
   <!-- Detail-Panel (Overlay) -->
   <div class="team-detail-overlay" id="teamDetailOverlay" onclick="if(event.target===this)closeTeamDetail()">
     <div class="team-detail-panel" id="teamDetailPanel"></div>
@@ -1592,6 +1601,18 @@ body.dev-mode { padding-bottom: 48px; }
   <div class="account-card">
     <h3>Vereinsflieger-Verbindung</h3>
     <div id="accVfSection"><div class="field-hint">Wird geladen…</div></div>
+  </div>
+
+  <div class="account-card">
+    <h3>Meine Daten (DSGVO)</h3>
+    <div style="font-size:12px; color:var(--gray-500); margin-bottom:12px; line-height:1.5;">
+      Du kannst alle deine bei DASSU gespeicherten Daten als JSON-Datei herunterladen
+      oder dein Konto komplett löschen lassen. Beides ist unwiderruflich.
+    </div>
+    <div class="account-actions" style="flex-wrap:wrap; gap:8px;">
+      <button class="acc-btn-secondary" onclick="exportMyData()">Meine Daten herunterladen</button>
+      <button class="acc-btn-danger" onclick="deleteMyAccount()">Mein Konto löschen…</button>
+    </div>
   </div>
 
   <div class="account-card" style="margin-bottom:80px;">
@@ -1959,6 +1980,7 @@ function togglePermission(id, key) {
   const update = Object.assign({}, user.permissions || {});
   update[key] = next;
   db.ref('staffUsers/' + id + '/permissions').set(update);
+  logActivity('user.permission', `Recht "${key}" ${next ? 'gesetzt' : 'entzogen'} bei ${user.name}`, id);
   notify('Recht aktualisiert.', 'success');
 }
 
@@ -1975,7 +1997,9 @@ function setUserRole(id, role) {
       return;
     }
   }
+  const oldRole = user.role;
   db.ref('staffUsers/' + id + '/role').set(role);
+  logActivity('user.role', `Rolle geändert: ${user.name}: ${oldRole} → ${role}`, id);
   notify('Rolle aktualisiert.', 'success');
 }
 
@@ -2014,6 +2038,7 @@ async function deleteStaffUser(id) {
     console.warn('Auth-Account konnte nicht gelöscht werden:', e);
   }
 
+  logActivity('user.delete', `Staff-Benutzer gelöscht: ${user.name} (Rolle: ${user.role || '—'})`, id);
   notify('Benutzer entfernt.', 'success');
 }
 
@@ -2221,6 +2246,115 @@ async function switchUser() {
   closeUserMenu();
   await DASSU_AUTH.signOut();
   // Auth-Guard reagiert automatisch und leitet auf welcome.html
+}
+
+// ============================================================
+// DSGVO — eigene Daten exportieren + Konto löschen
+// ============================================================
+// Lädt alle bei DASSU gespeicherten Daten der eingeloggten Person als JSON.
+async function exportMyData() {
+  if (!currentUser || !currentUser.id) { notify('Nicht eingeloggt.', 'error'); return; }
+  const uid = currentUser.id;
+  const email = (currentUser.email || '').toLowerCase();
+  try {
+    notify('Sammle deine Daten…', 'info');
+    const [staffSnap, custSnap, bookingsSnap, contactsSnap, timeSnap] = await Promise.all([
+      db.ref('staffUsers/' + uid).once('value'),
+      db.ref('customers/' + uid).once('value'),
+      db.ref('bookings').orderByChild('uid').equalTo(uid).once('value'),
+      db.ref('bookingContacts').orderByChild('uid').equalTo(uid).once('value'),
+      db.ref('timeEntries/' + uid).once('value')
+    ]);
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      exportedFor: { uid, email, name: currentUser.name || '' },
+      profile: {
+        staff: staffSnap.val() || null,
+        customer: custSnap.val() || null
+      },
+      bookings: bookingsSnap.val() || {},
+      bookingContacts: contactsSnap.val() || {},
+      timeEntries: timeSnap.val() || {},
+      hinweis: 'Dieser Export enthält alle bei DASSU für deine UID gespeicherten Daten zum oben genannten Zeitpunkt. Buchungen anderer Personen, in denen du als Begleiter/Lehrer auftauchst, sind aus Datenschutzgründen NICHT enthalten.'
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const filename = `dassu-meine-daten-${new Date().toISOString().substring(0, 10)}.json`;
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+    notify('Daten heruntergeladen.', 'success');
+  } catch (e) {
+    notify('Export fehlgeschlagen: ' + e.message, 'error');
+  }
+}
+
+// Löscht das eigene Konto endgültig. Vorher tippt der User seinen Namen zur Bestätigung.
+async function deleteMyAccount() {
+  if (!currentUser || !currentUser.id) { notify('Nicht eingeloggt.', 'error'); return; }
+  const uid = currentUser.id;
+  const myName = (currentUser.name || '').trim();
+  const typed = prompt(
+    `Dein DASSU-Konto wird ENDGÜLTIG gelöscht.\n\n` +
+    `Folgendes wird entfernt:\n` +
+    `• dein Mitglieder-/Kunden-Profil\n` +
+    `• alle Buchungen, die unter deiner UID stehen\n` +
+    `• deine Zeiterfassung\n` +
+    `• dein Login\n\n` +
+    `Gib zur Bestätigung deinen Namen exakt ein:\n${myName}`
+  );
+  if (typed === null) return;
+  if (typed.trim() !== myName) {
+    notify('Name stimmt nicht überein — Löschen abgebrochen.', 'error');
+    return;
+  }
+  try {
+    notify('Konto wird gelöscht…', 'info');
+
+    // 1) Eigene Buchungen + bookingContacts entfernen
+    const bookingsSnap = await db.ref('bookings').orderByChild('uid').equalTo(uid).once('value');
+    const updates = {};
+    const myBookingIds = Object.keys(bookingsSnap.val() || {});
+    myBookingIds.forEach(id => {
+      updates['bookings/' + id] = null;
+      updates['bookingContacts/' + id] = null;
+    });
+    // 2) Eigene Zeiterfassung
+    updates['timeEntries/' + uid] = null;
+    // 3) Eigene Profile
+    updates['staffUsers/' + uid] = null;
+    updates['customers/' + uid] = null;
+    await db.ref().update(updates);
+
+    // 4) Push-Tokens (separat, weil pro tokenKey)
+    try {
+      const ptSnap = await db.ref('pushTokens').once('value');
+      const pt = ptSnap.val() || {};
+      const ptUpdates = {};
+      Object.keys(pt).forEach(k => { if (pt[k] && pt[k].userId === uid) ptUpdates[k] = null; });
+      if (Object.keys(ptUpdates).length) await db.ref('pushTokens').update(ptUpdates);
+    } catch (_) { /* nicht kritisch */ }
+
+    // 5) Firebase-Auth-Konto via Netlify Function
+    try {
+      const token = await getFirebaseToken();
+      await fetch('/.netlify/functions/delete-auth-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ uid })
+      });
+    } catch (e) {
+      console.warn('Auth-Account konnte nicht serverseitig gelöscht werden:', e);
+    }
+
+    // 6) Lokale Caches + Logout
+    try { localStorage.clear(); } catch (_) {}
+    await firebase.auth().signOut();
+    // Auth-Guard leitet auf welcome.html
+  } catch (e) {
+    notify('Löschen fehlgeschlagen: ' + e.message, 'error');
+  }
 }
 
 function updateUserUI() {
@@ -2686,6 +2820,7 @@ function attachActivityListener() {
     const data = snap.val();
     activityLog = data ? Object.values(data).sort((a, b) => b.timestamp.localeCompare(a.timestamp)) : [];
     if (currentView === 'manage' && manageFilter === 'log') renderManage();
+    if (currentView === 'team' && isAdmin() && typeof renderMemberAudit === 'function') renderMemberAudit();
   });
 }
 
@@ -2695,12 +2830,19 @@ function renderActivityLog() {
     return '<div class="empty-msg">Noch keine Aktivitäten aufgezeichnet.</div>';
   }
   const icons = {
-    create: { cls: 'act-create', icon: '&#43;' },
-    edit:   { cls: 'act-edit',   icon: '&#9998;' },
-    approve:{ cls: 'act-approve',icon: '&#10003;' },
-    reject: { cls: 'act-reject', icon: '&#10007;' },
-    delete: { cls: 'act-delete', icon: '&#128465;' },
-    note:   { cls: 'act-note',   icon: '&#128221;' }
+    create:            { cls: 'act-create', icon: '&#43;' },
+    edit:              { cls: 'act-edit',   icon: '&#9998;' },
+    approve:           { cls: 'act-approve',icon: '&#10003;' },
+    reject:            { cls: 'act-reject', icon: '&#10007;' },
+    delete:            { cls: 'act-delete', icon: '&#128465;' },
+    note:              { cls: 'act-note',   icon: '&#128221;' },
+    'user.role':       { cls: 'act-edit',   icon: '&#128100;' },
+    'user.permission': { cls: 'act-edit',   icon: '&#128274;' },
+    'user.delete':     { cls: 'act-delete', icon: '&#128100;' },
+    'customer.create': { cls: 'act-create', icon: '&#128105;' },
+    'customer.update': { cls: 'act-edit',   icon: '&#128105;' },
+    'customer.delete': { cls: 'act-delete', icon: '&#128105;' },
+    'customer.type':   { cls: 'act-edit',   icon: '&#128105;' }
   };
   let html = visible.map(a => {
     const ic = icons[a.type] || icons.edit;
@@ -3767,6 +3909,44 @@ function renderTeamView() {
 
   // Walk-In-Importer (Admin)
   renderWalkInImporter();
+  renderMemberAudit();
+}
+
+// Aktivitäts-Protokoll für Benutzer/Kunden — Admin-only Anzeige im Mitglieder-Tab.
+// Filtert das globale activityLog auf user.*- und customer.*-Einträge.
+function renderMemberAudit() {
+  const wrap = document.getElementById('memberAuditBox');
+  const list = document.getElementById('memberAuditList');
+  const counter = document.getElementById('memberAuditCount');
+  if (!wrap || !list) return;
+  if (!isAdmin()) { wrap.style.display = 'none'; return; }
+  wrap.style.display = '';
+
+  // Stellt sicher, dass der activityLog-Listener läuft (wird sonst erst im Manage-Tab attached)
+  if (typeof attachActivityListener === 'function') attachActivityListener();
+
+  const relevant = (activityLog || []).filter(a => /^(user\.|customer\.)/.test(a.type || ''));
+  counter.textContent = relevant.length ? `${relevant.length} ${relevant.length === 1 ? 'Eintrag' : 'Einträge'}` : '—';
+  if (!relevant.length) {
+    list.innerHTML = `<div style="padding:12px 0;font-size:12px;color:var(--gray-500);font-style:italic;">Noch keine Mitglieder-/Kunden-Änderungen protokolliert.</div>`;
+    return;
+  }
+  const shown = relevant.slice(0, 50);
+  list.innerHTML = `
+    <div style="font-size:11px;color:var(--gray-500);margin:4px 0 10px;">Letzte ${shown.length} Änderungen an Benutzer- und Kundendaten (nur für Admins sichtbar).</div>
+    <div style="display:flex; flex-direction:column; gap:4px;">
+      ${shown.map(a => {
+        const ts = new Date(a.timestamp);
+        const dateLabel = ts.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+        return `<div style="display:flex; align-items:flex-start; gap:8px; padding:7px 10px; background:var(--c-bg); border-radius:6px; font-size:12px;">
+          <div style="font-weight:600; color:var(--navy); min-width:120px; flex-shrink:0;">${escapeHtml(a.user || '—')}</div>
+          <div style="flex:1; min-width:0; color:var(--ink);">${escapeHtml(a.text || '')}</div>
+          <div style="font-size:10px; color:var(--gray-400); white-space:nowrap;">${dateLabel}</div>
+        </div>`;
+      }).join('')}
+    </div>
+    ${relevant.length > shown.length ? `<div style="font-size:10px;color:var(--gray-400);margin-top:8px;text-align:center;">… ${relevant.length - shown.length} ältere Einträge nicht angezeigt</div>` : ''}
+  `;
 }
 
 // ---------- Walk-In-Importer ----------
@@ -3880,6 +4060,7 @@ async function createWalkInCustomer(name, email, phone) {
 
   try {
     await db.ref('customers/' + id).set(data);
+    logActivity('customer.create', `Walk-In-Kunde angelegt: ${name}${email ? ' (' + email + ')' : ''}`, id);
     notify(`„${name}" als Kunde angelegt.`, 'success');
     // Direkt das Detail öffnen, damit Admin weitere Daten ergänzen kann
     setTimeout(() => openMemberDetail(id, true), 200);
@@ -4147,6 +4328,7 @@ async function saveCustomerContact(uid) {
 
   try {
     await db.ref('customers/' + uid).update(data);
+    logActivity('customer.update', `Kontaktdaten aktualisiert: ${cust.name}`, uid);
     notify('Kontaktdaten gespeichert.', 'success');
     // Detail neu rendern, damit aktualisierte Werte erscheinen
     openMemberDetail(uid, true);
@@ -4159,9 +4341,11 @@ async function saveCustomerContact(uid) {
 async function changeCustomerType(uid, newType) {
   if (!isAdmin()) return;
   try {
-    await db.ref('customers/' + uid + '/customerType').set(newType);
     const cu = customerUsers.find(c => c.id === uid);
+    const oldType = cu ? cu.customerType : '';
+    await db.ref('customers/' + uid + '/customerType').set(newType);
     if (cu) cu.customerType = newType;
+    logActivity('customer.type', `Kundentyp geändert: ${cu ? cu.name : uid}: ${oldType || '—'} → ${newType}`, uid);
     notify(newType === 'student' ? 'Als Flugschüler markiert.' : 'Als Charterkunde markiert.', 'success');
   } catch (e) { notify('Fehler: ' + e.message, 'error'); }
 }
@@ -4196,6 +4380,7 @@ async function changeMemberRole(uid, newRole, wasCustomer) {
         }
       }
       await db.ref('staffUsers/' + uid).remove();
+      logActivity('user.role', `Staff → Kunde: ${u.name} (war ${u.role || '—'})`, uid);
       notify('Benutzer ist jetzt Kunde.', 'success');
       closeTeamDetail();
     } else if (newRole !== 'customer' && wasCustomer) {
@@ -4206,6 +4391,7 @@ async function changeMemberRole(uid, newRole, wasCustomer) {
         name: c.name || '', email: c.email || '', role: newRole,
         createdAt: c.createdAt || new Date().toISOString()
       });
+      logActivity('user.role', `Kunde → Staff: ${c.name} (neu: ${newRole})`, uid);
       notify('Benutzer ist jetzt ' + (roleMeta(newRole).label) + '.', 'success');
       setTimeout(() => { openMemberDetail(uid, false); }, 500);
     } else if (!wasCustomer) {
@@ -4236,6 +4422,7 @@ async function deleteCustomer(uid) {
     return;
   }
   await db.ref('customers/' + uid).remove();
+  logActivity('customer.delete', `Kunde gelöscht: ${c.name}${c.email ? ' (' + c.email + ')' : ''}`, uid);
   notify('Kunde gelöscht.', 'success');
   closeTeamDetail();
 }

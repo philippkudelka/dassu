@@ -79,13 +79,6 @@ exports.handler = async function(event) {
       return { statusCode: 401, headers, body: JSON.stringify({ ok: false, error: 'Ungültiger Token' }) };
     }
 
-    // Prüfen ob Aufrufer Admin ist
-    const callerSnap = await admin.database().ref('staffUsers/' + callerUid).once('value');
-    const callerProfile = callerSnap.val();
-    if (!callerProfile || callerProfile.role !== 'admin') {
-      return { statusCode: 403, headers, body: JSON.stringify({ ok: false, error: 'Nur Admins dürfen Accounts löschen' }) };
-    }
-
     // UID des zu löschenden Users
     const body = JSON.parse(event.body || '{}');
     const targetUid = body.uid;
@@ -93,8 +86,14 @@ exports.handler = async function(event) {
       return { statusCode: 400, headers, body: JSON.stringify({ ok: false, error: 'uid fehlt' }) };
     }
 
-    if (targetUid === callerUid) {
-      return { statusCode: 400, headers, body: JSON.stringify({ ok: false, error: 'Eigenen Account kann man nicht löschen' }) };
+    // Self-Delete (DSGVO Art. 17) IST erlaubt — User darf eigenes Konto löschen.
+    // Fremde Konten dürfen nur Admins löschen.
+    if (targetUid !== callerUid) {
+      const callerSnap = await admin.database().ref('staffUsers/' + callerUid).once('value');
+      const callerProfile = callerSnap.val();
+      if (!callerProfile || callerProfile.role !== 'admin') {
+        return { statusCode: 403, headers, body: JSON.stringify({ ok: false, error: 'Nur Admins dürfen fremde Accounts löschen' }) };
+      }
     }
 
     // 1. Firebase Auth Account löschen

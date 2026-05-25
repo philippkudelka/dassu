@@ -60,8 +60,24 @@ Die Bash-Sandbox hat KEINEN GitHub-Zugriff (403 Proxy-Fehler). Niemals versuchen
 
 - **Netlify Functions verlangen Bearer-Token** (außer `send-reset-email` für Passwort-vergessen-Flow). Bei Frontend-Erweiterungen immer `Authorization: Bearer ${idToken}` mitschicken.
 - **Bookings werden per-ID geschrieben** (`saveBooking(b)` / `deleteBookingFromDb(id)` in index.html). NIEMALS wieder `db.ref('bookings').set(...)` mit dem ganzen Tree — das überschreibt parallele Buchungen anderer User.
-- **User-Input immer escapen** beim Rendering: `escapeHtml(val)` für Text, `escapeAttr(val)` für Attribute. Beide Helper existieren in index.html und staff.html.
+- **User-Input immer escapen** beim Rendering: `escapeHtml(val)` für Text, `escapeAttr(val)` für Attribute. Beide Helper existieren in index.html und staff.html. Für inline-Handler-Argumente: `jsArg(val)`.
 - **CORS** ist hart auf `https://dassu-buchungskalender.netlify.app` beschränkt — bei lokalem Testen `netlify dev` nutzen (proxied korrekt) oder Origin temporär erweitern.
+- **Auth-Token holen**: `getFirebaseToken()` (existiert in beiden HTMLs) verwenden statt direkt `firebase.auth().currentUser.getIdToken()` — hat Null-Check.
+
+## Audit-Log
+
+- `logActivity(type, text, ref)` schreibt zentrale Aktivitäts-Einträge nach `/activityLog/`. Typen:
+  - **Buchungen**: `create`, `edit`, `approve`, `reject`, `delete`, `note`
+  - **User-Verwaltung**: `user.role`, `user.permission`, `user.delete`
+  - **Kunden**: `customer.create`, `customer.update`, `customer.delete`, `customer.type`
+- Anzeige in staff.html: (1) Manage-Tab Filter "Log", (2) Mitglieder-Tab "Aktivitäts-Protokoll" (admin-only, gefiltert auf user.*/customer.*).
+- Read: nur Admins (Rules); Write: alle eingeloggten User.
+
+## DSGVO
+
+- `exportMyData()` (staff.html + index.html, im "Mein Konto"-Bereich) — lädt alle eigenen Daten (Profile, Buchungen, bookingContacts, timeEntries) als JSON.
+- `deleteMyAccount()` (staff.html + index.html) — löscht eigenes Profil + eigene Buchungen + Push-Tokens, ruft `delete-auth-user`-Function für Firebase-Auth-Account.
+- **Self-Delete in `delete-auth-user.js`** ist explizit erlaubt (DSGVO Art. 17): wenn `targetUid === callerUid`, geht's auch ohne Admin-Rolle durch. Fremde Konten brauchen weiterhin Admin.
 
 ## Dateistruktur
 

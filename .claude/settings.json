@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(awk *)",
+      "Bash(node --check *)",
+      "Bash(node -c *)",
+      "Bash(sed -n *)",
+      "Bash(npm test)",
+      "Bash(npm run test)",
+      "Bash(npm run lint)",
+      "Bash(npm run typecheck)"
+    ]
+  }
+}
