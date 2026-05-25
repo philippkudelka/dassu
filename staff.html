@@ -2981,9 +2981,9 @@ function switchView(view) {
   ['Overview','Book','Manage','Theory','Team','Time','Stats','Messages','Account'].forEach(v => {
     const tab = document.getElementById('tab' + v);
     const cont = document.getElementById('view' + v);
-    if (!tab || !cont) return;
+    if (!cont) return; // View-Container ist Pflicht; Tab-Button ist optional (z.B. Mein Konto liegt im User-Menü)
     const isActive = v.toLowerCase() === view;
-    tab.classList.toggle('active', isActive);
+    if (tab) tab.classList.toggle('active', isActive);
     cont.style.display = isActive ? '' : 'none';
   });
   if (view === 'stats') { switchStatsTab(currentStatsTab); }
