@@ -991,9 +991,10 @@ body.dev-mode { padding-bottom: 48px; }
 
 <!-- User menu -->
 <div class="user-menu" id="userMenu">
-  <div class="user-menu-item danger" onclick="switchUser()">Abmelden</div>
+  <div class="user-menu-item" onclick="closeUserMenu();switchView('account');">Mein Konto</div>
   <div class="user-menu-item" id="notifMenuItem" onclick="enableNotifications()">Benachrichtigungen aktivieren</div>
   <div class="user-menu-item admin-only" id="userMgmtMenuItem" onclick="openUserMgmt()" style="display:none;">&#9733; Nutzerverwaltung</div>
+  <div class="user-menu-item danger" onclick="switchUser()">Abmelden</div>
 </div>
 
 <!-- User Management Overlay -->
@@ -1115,7 +1116,6 @@ body.dev-mode { padding-bottom: 48px; }
   <button class="view-tab" id="tabTime" onclick="switchView('time')" style="display:none;">Arbeitszeit</button>
   <button class="view-tab" id="tabStats" onclick="switchView('stats')" style="display:none;">Statistik</button>
   <button class="view-tab" id="tabMessages" onclick="switchView('messages')" style="display:none;">Nachrichten</button>
-  <button class="view-tab" id="tabAccount" onclick="switchView('account')">Mein Konto</button>
 </div>
 
 <div id="viewOverview" class="overview">
