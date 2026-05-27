@@ -145,26 +145,39 @@ exports.handler = async function(event) {
     }
 
     if (!process.env.BREVO_SMTP_USER || !process.env.BREVO_SMTP_PASS) {
+      console.error('[send-verification] BREVO_SMTP_USER/PASS env vars fehlen');
       return { statusCode: 500, headers, body: JSON.stringify({ error: 'BREVO SMTP nicht konfiguriert' }) };
     }
 
     // Verifikationslink generieren
-    const verifyLink = await admin.auth().generateEmailVerificationLink(email, {
-      url: 'https://dassu-buchungskalender.netlify.app/',
-      handleCodeInApp: false
-    });
+    let verifyLink;
+    try {
+      verifyLink = await admin.auth().generateEmailVerificationLink(email, {
+        url: 'https://dassu-buchungskalender.netlify.app/',
+        handleCodeInApp: false
+      });
+    } catch (linkErr) {
+      console.error('[send-verification] generateEmailVerificationLink fehlgeschlagen:', linkErr);
+      return { statusCode: 500, headers, body: JSON.stringify({ error: 'Verify-Link-Generierung fehlgeschlagen: ' + linkErr.message }) };
+    }
 
     // E-Mail über Brevo senden
-    await getTransporter().sendMail({
-      from: '"DASSU Buchungskalender" <info@dassu.de>',
-      to: email,
-      subject: 'Bestätige deine E-Mail-Adresse – DASSU Buchungskalender',
-      html: buildEmail(name, verifyLink)
-    });
+    try {
+      const result = await getTransporter().sendMail({
+        from: '"DASSU Buchungskalender" <info@dassu.de>',
+        to: email,
+        subject: 'Bestätige deine E-Mail-Adresse – DASSU Buchungskalender',
+        html: buildEmail(name, verifyLink)
+      });
+      console.log('[send-verification] Mail gesendet an', email, '· messageId:', result && result.messageId);
+    } catch (mailErr) {
+      console.error('[send-verification] Brevo SMTP Fehler:', mailErr);
+      return { statusCode: 500, headers, body: JSON.stringify({ error: 'SMTP-Versand fehlgeschlagen: ' + (mailErr.code || '') + ' ' + mailErr.message }) };
+    }
 
     return { statusCode: 200, headers, body: JSON.stringify({ ok: true }) };
   } catch (err) {
-    console.error('send-verification error:', err);
-    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Interner Fehler' }) };
+    console.error('[send-verification] unerwarteter Fehler:', err);
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Interner Fehler: ' + err.message }) };
   }
 };

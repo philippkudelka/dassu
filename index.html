@@ -6234,6 +6234,7 @@ async function customerRegister() {
     // Neue Accounts sind IMMER unverifiziert — Mail senden + abmelden
     {
       let emailSent = false;
+      let lastErr = '';
       try {
         const token = await cred.user.getIdToken();
         const vRes = await fetch('/.netlify/functions/send-verification', {
@@ -6241,17 +6242,31 @@ async function customerRegister() {
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
           body: JSON.stringify({ email, name })
         });
-        if (!vRes.ok) throw new Error('Verification API failed');
+        if (!vRes.ok) {
+          let body = '';
+          try { body = await vRes.text(); } catch (_) {}
+          lastErr = `send-verification HTTP ${vRes.status}: ${body.slice(0, 200)}`;
+          console.error('[Registrierung]', lastErr);
+          throw new Error(lastErr);
+        }
         emailSent = true;
-      } catch (_) {
-        // Fallback: Firebase Standard-Mail
-        try { await cred.user.sendEmailVerification(); emailSent = true; } catch (fbErr) { console.error('Verification email failed:', fbErr); }
+      } catch (apiErr) {
+        if (!lastErr) lastErr = (apiErr && apiErr.message) ? apiErr.message : String(apiErr);
+        console.warn('[Registrierung] send-verification fehlgeschlagen, Fallback Firebase-Mail:', apiErr);
+        try {
+          await cred.user.sendEmailVerification();
+          emailSent = true;
+          console.log('[Registrierung] Firebase-Fallback-Mail gesendet.');
+        } catch (fbErr) {
+          console.error('[Registrierung] Firebase-Fallback ebenfalls fehlgeschlagen:', fbErr);
+          lastErr += ' | Firebase: ' + ((fbErr && fbErr.message) ? fbErr.message : fbErr);
+        }
       }
       clearUserCaches(); await firebase.auth().signOut();
       if (emailSent) {
         caMsg('caRegMsg', 'success', 'Fast geschafft! Wir haben dir eine Best\u00e4tigungs-E-Mail an <strong>' + email + '</strong> geschickt. Bitte klicke auf den Link in der E-Mail, um dein Konto zu aktivieren. Danach kannst du dich anmelden.<br><small style="color:#6b7280;">Pr\u00fcfe auch deinen Spam-Ordner!</small>');
       } else {
-        caMsg('caRegMsg', 'error', 'Dein Konto wurde erstellt, aber wir konnten die Best\u00e4tigungs-E-Mail leider nicht senden. Bitte melde dich an und fordere die E-Mail erneut an.');
+        caMsg('caRegMsg', 'error', 'Dein Konto wurde erstellt, aber die Best\u00e4tigungs-Mail konnte nicht gesendet werden.<br><small style="color:#6b7280;">' + escapeHtml(lastErr).slice(0, 300) + '</small>');
       }
       btn.disabled = false; btn.textContent = 'Konto erstellen';
       return;
