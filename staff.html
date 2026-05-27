@@ -1282,6 +1282,23 @@ body.dev-mode { padding-bottom: 48px; }
     <div id="memberAuditList" style="padding:0 16px 16px;"></div>
   </details>
 
+  <!-- System-Diagnose (Admin-only) — Mail-Pipeline pr&uuml;fen -->
+  <details class="member-diagnose" id="memberDiagnoseBox" style="display:none; margin-top:10px; background:white; border:1px solid var(--c-line); border-radius:10px; overflow:hidden;">
+    <summary style="padding:12px 16px; font-size:13px; font-weight:600; color:var(--navy); cursor:pointer; list-style:none; display:flex; align-items:center; gap:8px;">
+      <span style="font-size:15px;">&#x1f527;</span> System-Diagnose
+      <span style="margin-left:auto; font-size:11px; color:var(--gray-400); font-weight:400;">Mail / Auth</span>
+    </summary>
+    <div style="padding:0 16px 16px;">
+      <div style="font-size:12px; color:var(--gray-500); margin:4px 0 10px; line-height:1.5;">
+        Pr&uuml;ft die komplette Mail-Pipeline (Env-Vars, SMTP-Verbindung, Brevo-Auth, Firebase-Setup)
+        und sendet dir eine Test-Mail an deine Admin-Adresse. Verwende das, wenn Bucher/Mitglieder
+        keine Best&auml;tigungs-Mail bekommen.
+      </div>
+      <button class="btn-book" onclick="runMailDiagnose()" id="mailDiagBtn" style="padding:8px 16px; font-size:13px;">Mail-Diagnose starten</button>
+      <div id="mailDiagResult" style="margin-top:12px;"></div>
+    </div>
+  </details>
+
   <!-- Detail-Panel (Overlay) -->
   <div class="team-detail-overlay" id="teamDetailOverlay" onclick="if(event.target===this)closeTeamDetail()">
     <div class="team-detail-panel" id="teamDetailPanel"></div>
@@ -1601,18 +1618,6 @@ body.dev-mode { padding-bottom: 48px; }
   <div class="account-card">
     <h3>Vereinsflieger-Verbindung</h3>
     <div id="accVfSection"><div class="field-hint">Wird geladen…</div></div>
-  </div>
-
-  <div class="account-card" id="accDiagnoseCard" style="display:none;">
-    <h3>Mail-System Diagnose <span style="font-size:11px;font-weight:400;color:var(--gray-500);">(nur Admin)</span></h3>
-    <div style="font-size:12px; color:var(--gray-500); margin-bottom:12px; line-height:1.5;">
-      Prüft alle Schritte der Mail-Pipeline (Env-Vars, SMTP-Verbindung, Brevo-Auth, Firebase-Setup)
-      und schickt dir eine Test-Mail an deine Admin-Adresse.
-    </div>
-    <div class="account-actions">
-      <button class="acc-btn-primary" onclick="runMailDiagnose()" id="mailDiagBtn">Diagnose starten</button>
-    </div>
-    <div id="mailDiagResult" style="margin-top:12px;"></div>
   </div>
 
   <div class="account-card">
@@ -3960,6 +3965,9 @@ function renderTeamView() {
   // Walk-In-Importer (Admin)
   renderWalkInImporter();
   renderMemberAudit();
+  // System-Diagnose-Box (admin-only) Sichtbarkeit
+  const diagBox = document.getElementById('memberDiagnoseBox');
+  if (diagBox) diagBox.style.display = isAdmin() ? '' : 'none';
 }
 
 // Aktivitäts-Protokoll für Benutzer/Kunden — Admin-only Anzeige im Mitglieder-Tab.
@@ -7659,10 +7667,6 @@ function renderAccountTab() {
   if (!currentUser) return;
   const user = currentUser;
   const auth = firebase.auth().currentUser;
-
-  // Diagnose-Karte nur für Admins sichtbar
-  const diagCard = document.getElementById('accDiagnoseCard');
-  if (diagCard) diagCard.style.display = isAdmin() ? '' : 'none';
 
   // Avatar
   const avatarEl = document.getElementById('accAvatar');
