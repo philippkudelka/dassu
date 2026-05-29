@@ -6703,35 +6703,6 @@ async function syncVereinsflieger() {
   btn.disabled = false;
 }
 
-// TEMPORÄR — F-Schlepp/Belegungs-Analyse. Aus Konsole: testTow()
-window.testTow = async function() {
-  console.log('%c⏳ Lade Motorsegler/UL-Analyse…', 'font-weight:bold;');
-  try {
-    const token = await getFirebaseToken();
-    const res = await fetch('/.netlify/functions/vereinsflieger-sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-      body: JSON.stringify({ action: 'debugTowAnalysis' })
-    });
-    const json = await res.json();
-    if (!json.ok) { console.error('❌', json.error); return null; }
-    const d = json.data;
-    console.log('%c🛩️ Motorsegler/UL-Flüge gesamt (lfd. Jahr):', 'font-weight:bold;color:#2A6B5E;', d.motorizedCount);
-    console.log('%c📊 Pro Flugzeug:', 'font-weight:bold;color:#2A6B5E;');
-    console.table(d.perAircraft);
-    console.log('%c🔢 flightmode-Verteilung:', 'font-weight:bold;', d.flightmodes);
-    console.log('%c🔢 ftid-Verteilung:', 'font-weight:bold;', d.ftids);
-    console.log('%c🪂 Beispiele MIT Schlepp-Indikator (flidtow/towcallsign/towtime):', 'background:#FFB300;color:black;padding:4px 8px;font-weight:bold;');
-    console.table(d.towExamples);
-    console.log('%c✈️ Beispiele OHNE Schlepp-Indikator (normale Flüge):', 'font-weight:bold;');
-    console.table(d.normalExamples);
-    console.log('%c📦 Komplett als JSON:', 'background:#1E4B4E;color:white;padding:4px 8px;font-weight:bold;');
-    console.log(JSON.stringify(d, null, 2));
-    window._towDump = d;
-    return d;
-  } catch (e) { console.error('Aufruf fehlgeschlagen:', e); return null; }
-};
-
 // Load data on tab switch — show cache immediately, then auto-refresh from API
 function loadVfCache() {
   if (vfData) { renderVfCompare(); return; }
@@ -6993,30 +6964,47 @@ function renderVfCompare() {
     return 'other';
   }
 
+  const newGS = () => ({ curr: { c:0, m:0 }, same: { c:0, m:0 }, full: { c:0, m:0 } });
   const groupLabels = {
-    gliderDouble: 'Segler · Doppelsitzer',
-    gliderSingle: 'Segler · Einsitzer',
-    motorglider:  'Motorsegler',
-    ul:           'Ultraleicht',
-    other:        'Sonstige'
+    gliderDouble:       'Segler · Doppelsitzer',
+    gliderSingle:       'Segler · Einsitzer',
+    motorglider_double: 'Motorsegler · doppelsitzig',
+    motorglider_solo:   'Motorsegler · einsitzig',
+    motorglider_tow:    'Motorsegler · F-Schlepp',
+    ul_double:          'UL · doppelsitzig',
+    ul_solo:            'UL · einsitzig',
+    ul_tow:             'UL · F-Schlepp',
+    other:              'Sonstige'
   };
   const groupSums = {
-    gliderDouble: { curr: { c:0, m:0 }, same: { c:0, m:0 }, full: { c:0, m:0 } },
-    gliderSingle: { curr: { c:0, m:0 }, same: { c:0, m:0 }, full: { c:0, m:0 } },
-    motorglider:  { curr: { c:0, m:0 }, same: { c:0, m:0 }, full: { c:0, m:0 } },
-    ul:           { curr: { c:0, m:0 }, same: { c:0, m:0 }, full: { c:0, m:0 } },
-    other:        { curr: { c:0, m:0 }, same: { c:0, m:0 }, full: { c:0, m:0 } }
+    gliderDouble: newGS(), gliderSingle: newGS(),
+    motorglider_double: newGS(), motorglider_solo: newGS(), motorglider_tow: newGS(),
+    ul_double: newGS(), ul_solo: newGS(), ul_tow: newGS(),
+    other: newGS()
   };
+  // Defensiver Zugriff auf die Nutzungs-Sub-Aggregate (alte Cache-Daten haben sie evtl. nicht)
+  const usageVal = (entry, u) => (entry && entry[u]) ? entry[u] : { count: 0, minutes: 0 };
 
   sortedAc.forEach(cs => {
     const a = thisYear.byAircraft[cs] || { count: 0, minutes: 0 };
     const bSame = lastSame.byAircraft[cs] || { count: 0, minutes: 0 };
     const bFull = lastFull.byAircraft[cs] || { count: 0, minutes: 0 };
 
-    const gKey = classifyAircraft(cs);
-    groupSums[gKey].curr.c += a.count;       groupSums[gKey].curr.m += a.minutes;
-    groupSums[gKey].same.c += bSame.count;   groupSums[gKey].same.m += bSame.minutes;
-    groupSums[gKey].full.c += bFull.count;   groupSums[gKey].full.m += bFull.minutes;
+    const baseClass = classifyAircraft(cs);
+    if (baseClass === 'motorglider' || baseClass === 'ul') {
+      // Motorsegler + UL nach Nutzung aufteilen: einsitzig / doppelsitzig / F-Schlepp
+      ['solo', 'double', 'tow'].forEach(u => {
+        const gKey = baseClass + '_' + u;
+        const av = usageVal(a, u), sv = usageVal(bSame, u), fv = usageVal(bFull, u);
+        groupSums[gKey].curr.c += av.count;  groupSums[gKey].curr.m += av.minutes;
+        groupSums[gKey].same.c += sv.count;  groupSums[gKey].same.m += sv.minutes;
+        groupSums[gKey].full.c += fv.count;  groupSums[gKey].full.m += fv.minutes;
+      });
+    } else {
+      groupSums[baseClass].curr.c += a.count;     groupSums[baseClass].curr.m += a.minutes;
+      groupSums[baseClass].same.c += bSame.count; groupSums[baseClass].same.m += bSame.minutes;
+      groupSums[baseClass].full.c += bFull.count; groupSums[baseClass].full.m += bFull.minutes;
+    }
 
     const grp = 'border-left:2px solid var(--c-line);';
     acHtml += `<tr>
@@ -7033,7 +7021,11 @@ function renderVfCompare() {
 
   // Group overview rows — only show groups that have data in at least one period
   // "other" (Schleppmaschinen, Fremdflugzeuge, Hubschrauber etc.) wird bewusst nicht angezeigt
-  const groupOrder = ['gliderDouble', 'gliderSingle', 'motorglider', 'ul'];
+  const groupOrder = [
+    'gliderDouble', 'gliderSingle',
+    'motorglider_double', 'motorglider_solo', 'motorglider_tow',
+    'ul_double', 'ul_solo', 'ul_tow'
+  ];
   let groupsHtml = '';
   groupOrder.forEach(gKey => {
     const g = groupSums[gKey];

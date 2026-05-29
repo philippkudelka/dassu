@@ -281,12 +281,28 @@ function aggregateFlights(flights) {
     totalMinutes += dur;
 
     const cs = f.callsign || 'Unbekannt';
-    if (!byAircraft[cs]) byAircraft[cs] = { count: 0, minutes: 0, starttypes: {} };
+    if (!byAircraft[cs]) byAircraft[cs] = {
+      count: 0, minutes: 0, starttypes: {},
+      // Nutzungs-Aufschlüsselung (v.a. für Motorsegler/UL):
+      solo: { count: 0, minutes: 0 },   // einsitzig geflogen (kein Begleiter)
+      double: { count: 0, minutes: 0 }, // doppelsitzig (Begleiter/Schüler an Bord)
+      tow: { count: 0, minutes: 0 }     // F-Schlepp-Einsatz (flidtow gesetzt)
+    };
     byAircraft[cs].count++;
     byAircraft[cs].minutes += dur;
     // Startart pro Flugzeug zählen (für Motorsegler-/Segler-Erkennung)
     const st = (f.starttype != null ? String(f.starttype) : '').trim();
     if (st) byAircraft[cs].starttypes[st] = (byAircraft[cs].starttypes[st] || 0) + 1;
+
+    // Nutzungs-Klassifizierung pro Flug:
+    //  1) flidtow != 0  → F-Schlepp (Motorflugzeug hat einen Segler hochgeschleppt)
+    //  2) uidattendant != 0 → doppelsitzig (Begleiter/Schüler an Bord)
+    //  3) sonst → einsitzig (Pilot allein)
+    const isTow = f.flidtow != null && String(f.flidtow) !== '0' && String(f.flidtow) !== '';
+    const hasAttendant = f.uidattendant != null && String(f.uidattendant) !== '0' && String(f.uidattendant) !== '';
+    const usage = isTow ? 'tow' : (hasAttendant ? 'double' : 'solo');
+    byAircraft[cs][usage].count++;
+    byAircraft[cs][usage].minutes += dur;
 
     const date = f.dateofflight || '';
     if (date) {
@@ -344,7 +360,7 @@ const ALLOWED_ORIGIN = 'https://dassu-buchungskalender.netlify.app';
 // Actions die VF-Credentials/firebaseToken aus dem Body nutzen — diese verifizieren den User selbst.
 const PERSONAL_ACTIONS = new Set(['saveVfCredentials', 'deleteVfCredentials', 'getVfStatus']);
 // Staff-Actions erfordern admin- oder team-Rolle.
-const STAFF_ONLY_ACTIONS = new Set(['instructors', 'instructorStats', 'yearCompare', 'debugTowAnalysis']);
+const STAFF_ONLY_ACTIONS = new Set(['instructors', 'instructorStats', 'yearCompare']);
 // "members" benötigt nur Authentifizierung (Member-Frontend nutzt es für Auswahllisten).
 
 exports.handler = async (event) => {
@@ -626,65 +642,6 @@ exports.handler = async (event) => {
           lastYearSameDay: { ...aggregateFlights(lastYearSameDay), from: lastYearFrom, to: lastYearTo },
           lastYearFull: { ...aggregateFlights(lastYearFull), from: lastYearFrom, to: lastYearFullTo },
           fetchedAt: new Date().toISOString()
-        };
-        break;
-      }
-      case 'debugTowAnalysis': {
-        // TEMPORÄR: Analysiert Motorsegler (D-K) + UL (D-M) Flüge des laufenden Jahres,
-        // um zu verstehen wie F-Schlepp-Einsätze + Belegung (1/2 Personen) in VF markiert sind.
-        const today = new Date();
-        const y = today.getFullYear();
-        const flights = await vfGetFlightsDateRange(accesstoken, `${y}-01-01`, `${y}-12-31`);
-        const motorized = flights.filter(f => /^D-?[KM]/i.test(f.callsign || ''));
-
-        const perAircraft = {};
-        const flightmodes = {};
-        const ftids = {};
-        motorized.forEach(f => {
-          const cs = f.callsign;
-          if (!perAircraft[cs]) perAircraft[cs] = {
-            total: 0, mitBegleiter: 0, soloPilot: 0,
-            mitFlidtow: 0, mitTowcallsign: 0, mitTowtime: 0, starttypes: {}
-          };
-          const a = perAircraft[cs];
-          a.total++;
-          if (f.uidattendant && f.uidattendant !== '0') a.mitBegleiter++; else a.soloPilot++;
-          if (f.flidtow && f.flidtow !== '0') a.mitFlidtow++;
-          if (f.towcallsign && String(f.towcallsign).trim()) a.mitTowcallsign++;
-          if (f.towtime && f.towtime !== '0') a.mitTowtime++;
-          const st = String(f.starttype || '');
-          a.starttypes[st] = (a.starttypes[st] || 0) + 1;
-          flightmodes[String(f.flightmode || '')] = (flightmodes[String(f.flightmode || '')] || 0) + 1;
-          ftids[String(f.ftid || '')] = (ftids[String(f.ftid || '')] || 0) + 1;
-        });
-
-        // Beispiele: Flüge die nach Schlepp aussehen (flidtow oder towcallsign oder towtime gesetzt)
-        const towExamples = motorized
-          .filter(f => (f.flidtow && f.flidtow !== '0') || (f.towcallsign && String(f.towcallsign).trim()) || (f.towtime && f.towtime !== '0'))
-          .slice(0, 12)
-          .map(f => ({
-            callsign: f.callsign, date: f.dateofflight, flighttime: f.flighttime,
-            starttype: f.starttype, flightmode: f.flightmode, ftid: f.ftid,
-            flidtow: f.flidtow, towcallsign: f.towcallsign, towtime: f.towtime, towheight: f.towheight,
-            uidattendant: f.uidattendant, attendantname: f.attendantname,
-            comment: (f.comment || '').slice(0, 60)
-          }));
-
-        // Beispiele: normale Flüge (kein Schlepp-Indikator)
-        const normalExamples = motorized
-          .filter(f => !((f.flidtow && f.flidtow !== '0') || (f.towcallsign && String(f.towcallsign).trim()) || (f.towtime && f.towtime !== '0')))
-          .slice(0, 6)
-          .map(f => ({
-            callsign: f.callsign, date: f.dateofflight, flighttime: f.flighttime,
-            starttype: f.starttype, flightmode: f.flightmode, ftid: f.ftid,
-            uidattendant: f.uidattendant, attendantname: f.attendantname
-          }));
-
-        result = {
-          motorizedCount: motorized.length,
-          perAircraft, flightmodes, ftids,
-          towExamples, normalExamples,
-          note: 'TEMPORÄR — F-Schlepp/Belegungs-Analyse. Nach Auswertung wieder entfernen.'
         };
         break;
       }
