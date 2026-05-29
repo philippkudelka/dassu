@@ -777,6 +777,17 @@ body { font-family: var(--font); background: var(--c-bg); color: var(--c-ink); m
 /* --- Sub-Tab-Navigation (Pill-Style) --- */
 .stats-subnav-wrap { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; flex-wrap: wrap; }
 .stats-pagetitle { font-size: 16px; font-weight: 700; color: var(--navy); margin: 0; }
+.stats-export-btn { background: var(--c-paper); border: 1px solid var(--c-line); border-radius: 8px; padding: 7px 12px; font-size: 12px; font-weight: 600; color: var(--navy); cursor: pointer; font-family: var(--font); transition: background .15s, border-color .15s; white-space: nowrap; }
+.stats-export-btn:hover { background: var(--c-bg); border-color: var(--c-alpine); }
+
+/* PDF-Druck: nur den aktiven Statistik-Bereich zeigen */
+@media print {
+  body.print-stats * { visibility: hidden !important; }
+  body.print-stats #viewStats, body.print-stats #viewStats * { visibility: visible !important; }
+  body.print-stats #viewStats { position: absolute; left: 0; top: 0; width: 100%; padding: 0; margin: 0; }
+  body.print-stats .stats-subnav, body.print-stats .stats-export-row { display: none !important; }
+  body.print-stats .stats-card, body.print-stats .dash-card, body.print-stats .vf-ac-table { break-inside: avoid; }
+}
 .stats-subnav { display: inline-flex; gap: 2px; background: var(--gray-100); padding: 3px; border-radius: 10px; flex-wrap: wrap; }
 .stats-subtab { background: transparent; border: none; padding: 7px 14px; font-size: 12px; font-weight: 600; color: var(--gray-500); cursor: pointer; border-radius: 7px; font-family: var(--font); transition: color .15s, background .15s, box-shadow .15s; white-space: nowrap; }
 .stats-subtab:hover { color: var(--navy); }
@@ -1484,6 +1495,10 @@ body.dev-mode { padding-bottom: 48px; }
       <button class="stats-subtab" data-tab="flights" onclick="switchStatsTab('flights')" role="tab">Flüge</button>
       <button class="stats-subtab" data-tab="instructors" onclick="switchStatsTab('instructors')" role="tab">Fluglehrer</button>
     </nav>
+    <div class="stats-export-row" style="margin-left:auto; display:flex; gap:6px;">
+      <button class="stats-export-btn" onclick="exportStatsExcel()" title="Aktuellen Bereich als Excel exportieren">&#128202; Excel</button>
+      <button class="stats-export-btn" onclick="exportStatsPdf()" title="Aktuellen Bereich als PDF drucken/speichern">&#128196; PDF</button>
+    </div>
   </div>
 
   <!-- TAB: Überblick -->
@@ -5608,6 +5623,108 @@ function switchStatsTab(tab) {
       loadInstructorStats();
     }
   }
+}
+
+// ---------- Statistik-Export (Excel + PDF) ----------
+const STATS_TAB_PANEL = {
+  overview: 'statsTabOverview', bookings: 'statsTabBookings',
+  flights: 'statsTabFlights', instructors: 'statsTabInstructors'
+};
+const STATS_TAB_LABEL = {
+  overview: 'Ueberblick', bookings: 'Buchungen', flights: 'Fluege', instructors: 'Fluglehrer'
+};
+
+// Eindeutigen, Excel-konformen Sheet-Namen erzeugen (max 31 Zeichen, keine Sonderzeichen)
+function _safeSheetName(name, used) {
+  let s = String(name || 'Tabelle').replace(/[\\\/\?\*\[\]:]/g, ' ').trim().substring(0, 28) || 'Tabelle';
+  let candidate = s, n = 2;
+  while (used.has(candidate.toLowerCase())) { candidate = (s.substring(0, 25) + ' ' + n); n++; }
+  used.add(candidate.toLowerCase());
+  return candidate;
+}
+
+// Exportiert den aktuell aktiven Statistik-Tab als .xlsx.
+// Generisch: liest KPI-Kacheln, Balken-Charts und echte Tabellen aus dem DOM.
+function exportStatsExcel() {
+  if (typeof XLSX === 'undefined') { notify('Excel-Bibliothek nicht geladen.', 'error'); return; }
+  const panel = document.getElementById(STATS_TAB_PANEL[currentStatsTab]);
+  if (!panel) { notify('Kein aktiver Bereich.', 'error'); return; }
+
+  const wb = XLSX.utils.book_new();
+  const used = new Set();
+  let sheets = 0;
+
+  // 1) KPI-Kacheln (Dashboard dash-card + Buchungs-KPIs stats-kpi)
+  const kpis = [];
+  panel.querySelectorAll('.dash-card').forEach(card => {
+    const label = (card.querySelector('.dash-card-label')?.textContent || '').trim();
+    const value = (card.querySelector('.dash-card-value')?.textContent || '').replace(/\s+/g, ' ').trim();
+    const sub = (card.querySelector('.dash-card-sub')?.textContent || '').trim();
+    if (label && value) kpis.push([label, value, sub]);
+  });
+  panel.querySelectorAll('.stats-kpi').forEach(kpi => {
+    const label = (kpi.querySelector('.kpi-label')?.textContent || '').trim();
+    const value = (kpi.querySelector('.kpi-val')?.textContent || '').trim();
+    if (label && value) kpis.push([label, value, '']);
+  });
+  if (kpis.length) {
+    const ws = XLSX.utils.aoa_to_sheet([['Kennzahl', 'Wert', 'Detail'], ...kpis]);
+    ws['!cols'] = [{ wch: 28 }, { wch: 16 }, { wch: 40 }];
+    XLSX.utils.book_append_sheet(wb, ws, _safeSheetName('Kennzahlen', used));
+    sheets++;
+  }
+
+  // 2) Balken-Charts (Buchungen-Tab: Auslastung, Startzeiten, pro Monat)
+  panel.querySelectorAll('.stats-card').forEach(card => {
+    const bars = card.querySelectorAll('.stats-bar-row');
+    if (!bars.length) return;
+    const title = (card.querySelector('h4')?.textContent || 'Chart').trim();
+    const rows = [['Kategorie', 'Wert']];
+    bars.forEach(b => {
+      const label = (b.querySelector('.stats-bar-label')?.textContent || '').trim();
+      const val = (b.querySelector('.stats-bar-val')?.textContent || '').trim();
+      if (label) rows.push([label, val]);
+    });
+    if (rows.length > 1) {
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      ws['!cols'] = [{ wch: 24 }, { wch: 16 }];
+      XLSX.utils.book_append_sheet(wb, ws, _safeSheetName(title, used));
+      sheets++;
+    }
+  });
+
+  // 3) Echte Tabellen (Flüge-Tab, Fluglehrer-Tab, Kunden-Tabelle)
+  panel.querySelectorAll('table').forEach((t, i) => {
+    let title = 'Tabelle ' + (i + 1);
+    const h4 = t.closest('.stats-card')?.querySelector('h4');
+    if (h4) title = h4.textContent.trim();
+    const ws = XLSX.utils.table_to_sheet(t, { raw: true });
+    XLSX.utils.book_append_sheet(wb, ws, _safeSheetName(title, used));
+    sheets++;
+  });
+
+  if (!sheets) { notify('In diesem Bereich gibt es keine exportierbaren Daten.', 'info'); return; }
+
+  // Bei VF-Tabs: falls noch nicht geladen, Hinweis
+  if ((currentStatsTab === 'flights' && !vfData) || (currentStatsTab === 'instructors' && !fiStatsData)) {
+    notify('Hinweis: Flugdaten waren noch nicht vollständig geladen — ggf. erst „Aktualisieren" klicken.', 'info');
+  }
+
+  const dateStr = new Date().toISOString().substring(0, 10);
+  XLSX.writeFile(wb, `DASSU-Statistik-${STATS_TAB_LABEL[currentStatsTab]}-${dateStr}.xlsx`);
+}
+
+// Druckt den aktiven Statistik-Tab (Browser → „Als PDF sichern").
+function exportStatsPdf() {
+  document.body.classList.add('print-stats');
+  const cleanup = () => {
+    document.body.classList.remove('print-stats');
+    window.removeEventListener('afterprint', cleanup);
+  };
+  window.addEventListener('afterprint', cleanup);
+  // Fallback falls afterprint nicht feuert (manche Browser)
+  setTimeout(cleanup, 3000);
+  window.print();
 }
 
 // ---------- Dashboard "Überblick" ----------
