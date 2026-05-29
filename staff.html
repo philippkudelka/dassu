@@ -5749,12 +5749,34 @@ function exportStatsPdf() {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(ALPINE[0], ALPINE[1], ALPINE[2]);
     doc.text(txt, margin, y); y += 8;
   };
+  // Entfernt Glyphen, die die Standard-PDF-Schrift nicht kennt (Dreiecke/Pfeile aus
+  // der Trend-Spalte) — sonst erscheinen Müllzeichen wie "%²".
+  const cleanGlyphs = (s) => String(s)
+    .replace(/[←-⇿■-◿✀-➿]/g, '') // Arrows + Geometric Shapes + Dingbats
+    .replace(/\s+/g, ' ').trim();
+
   const tableOpts = (extra) => Object.assign({
     startY: y, margin: { left: margin, right: margin },
-    styles: { fontSize: 9, cellPadding: 4, lineColor: LINE, lineWidth: 0.5 },
-    headStyles: { fillColor: ALPINE, textColor: 255, fontStyle: 'bold' },
+    styles: { fontSize: 9, cellPadding: 5, lineColor: LINE, lineWidth: 0.5, valign: 'middle', textColor: [40, 40, 40] },
+    headStyles: { fillColor: ALPINE, textColor: 255, fontStyle: 'bold', halign: 'center', valign: 'middle' },
     alternateRowStyles: { fillColor: [248, 245, 237] },
-    theme: 'grid'
+    theme: 'grid',
+    didParseCell: function(data) {
+      if (!data.cell || !Array.isArray(data.cell.text)) return;
+      // Pfeil-/Dreieck-Glyphen rauswerfen
+      data.cell.text = data.cell.text.map(cleanGlyphs);
+      // Trend-Werte einfärben (grün bei +/neu, rot bei -)
+      if (data.section === 'body') {
+        const v = data.cell.text.join(' ').trim();
+        if (/^\+/.test(v) || /^neu$/i.test(v)) {
+          data.cell.styles.textColor = [46, 125, 50];
+          data.cell.styles.fontStyle = 'bold';
+        } else if (/^-\s*\d/.test(v) || /^−/.test(v)) {
+          data.cell.styles.textColor = [192, 57, 43];
+          data.cell.styles.fontStyle = 'bold';
+        }
+      }
+    }
   }, extra || {});
 
   let produced = false;
