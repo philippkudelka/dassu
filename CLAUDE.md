@@ -103,7 +103,8 @@ Die Bash-Sandbox hat KEINEN GitHub-Zugriff (403 Proxy-Fehler). Niemals versuchen
 - Firebase Realtime Database + Firebase Auth
 - Netlify (Hosting + Serverless Functions)
 - SheetJS (xlsx.full.min.js) — für Zeiterfassungs-Excel-Export + Statistik-Export in staff.html
-- **Statistik-Export**: `exportStatsExcel()` (generisches DOM-Scraping: KPI-Kacheln, Balken-Charts, Tabellen des aktiven Sub-Tabs → mehrblättriges .xlsx) und `exportStatsPdf()` (Browser-Druck via `@media print` + `body.print-stats`-Klasse, zeigt nur den aktiven Stats-Bereich). Buttons in der Statistik-Kopfzeile.
+- jsPDF + jspdf-autotable (CDN) — für gebrandeten Statistik-PDF-Export in staff.html
+- **Statistik-Export**: `exportStatsExcel()` (generisches DOM-Scraping: KPI-Kacheln, Balken-Charts, Tabellen des aktiven Sub-Tabs → mehrblättriges .xlsx) und `exportStatsPdf()` (jsPDF + autoTable → gebrandetes PDF mit Kopf-/Fußzeile, KPIs + Charts + Tabellen des aktiven Sub-Tabs, direkter Download). Buttons in der Statistik-Kopfzeile.
 
 ## Wichtige Hinweise
 - Firebase Web-API-Keys sind öffentlich/client-seitig → Secret-Scanner ist in netlify.toml deaktiviert

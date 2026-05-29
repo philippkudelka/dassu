@@ -67,6 +67,9 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<!-- jsPDF + autoTable: für sauberen, gebrandeten Statistik-PDF-Export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.4/jspdf.plugin.autotable.min.js"></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
 :root {
@@ -779,15 +782,6 @@ body { font-family: var(--font); background: var(--c-bg); color: var(--c-ink); m
 .stats-pagetitle { font-size: 16px; font-weight: 700; color: var(--navy); margin: 0; }
 .stats-export-btn { background: var(--c-paper); border: 1px solid var(--c-line); border-radius: 8px; padding: 7px 12px; font-size: 12px; font-weight: 600; color: var(--navy); cursor: pointer; font-family: var(--font); transition: background .15s, border-color .15s; white-space: nowrap; }
 .stats-export-btn:hover { background: var(--c-bg); border-color: var(--c-alpine); }
-
-/* PDF-Druck: nur den aktiven Statistik-Bereich zeigen */
-@media print {
-  body.print-stats * { visibility: hidden !important; }
-  body.print-stats #viewStats, body.print-stats #viewStats * { visibility: visible !important; }
-  body.print-stats #viewStats { position: absolute; left: 0; top: 0; width: 100%; padding: 0; margin: 0; }
-  body.print-stats .stats-subnav, body.print-stats .stats-export-row { display: none !important; }
-  body.print-stats .stats-card, body.print-stats .dash-card, body.print-stats .vf-ac-table { break-inside: avoid; }
-}
 .stats-subnav { display: inline-flex; gap: 2px; background: var(--gray-100); padding: 3px; border-radius: 10px; flex-wrap: wrap; }
 .stats-subtab { background: transparent; border: none; padding: 7px 14px; font-size: 12px; font-weight: 600; color: var(--gray-500); cursor: pointer; border-radius: 7px; font-family: var(--font); transition: color .15s, background .15s, box-shadow .15s; white-space: nowrap; }
 .stats-subtab:hover { color: var(--navy); }
@@ -5714,17 +5708,115 @@ function exportStatsExcel() {
   XLSX.writeFile(wb, `DASSU-Statistik-${STATS_TAB_LABEL[currentStatsTab]}-${dateStr}.xlsx`);
 }
 
-// Druckt den aktiven Statistik-Tab (Browser → „Als PDF sichern").
+// Exportiert den aktiven Statistik-Tab als sauberes, gebrandetes PDF (jsPDF + autoTable).
 function exportStatsPdf() {
-  document.body.classList.add('print-stats');
-  const cleanup = () => {
-    document.body.classList.remove('print-stats');
-    window.removeEventListener('afterprint', cleanup);
+  const JsPDF = window.jspdf && window.jspdf.jsPDF;
+  if (!JsPDF) { notify('PDF-Bibliothek nicht geladen — Seite neu laden.', 'error'); return; }
+  const panel = document.getElementById(STATS_TAB_PANEL[currentStatsTab]);
+  if (!panel) { notify('Kein aktiver Bereich.', 'error'); return; }
+
+  const doc = new JsPDF({ unit: 'pt', format: 'a4' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margin = 40;
+  let y = margin;
+
+  const ALPINE = [30, 75, 78];     // --c-alpine / navy
+  const GRAY = [120, 120, 120];
+  const LINE = [213, 206, 191];    // --c-line
+
+  // ---- Kopfzeile ----
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(18); doc.setTextColor(ALPINE[0], ALPINE[1], ALPINE[2]);
+  doc.text('DASSU · Statistik', margin, y); y += 22;
+  const tabLabel = { overview: 'Überblick', bookings: 'Buchungen', flights: 'Flüge (Vereinsflieger)', instructors: 'Fluglehrer' }[currentStatsTab] || '';
+  let periodLabel = '';
+  if (currentStatsTab === 'bookings') {
+    try { periodLabel = ' · ' + getStatsPeriodLabel(); } catch (_) {}
+  }
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(11); doc.setTextColor(GRAY[0], GRAY[1], GRAY[2]);
+  doc.text(tabLabel + periodLabel, margin, y); y += 15;
+  doc.setFontSize(9);
+  doc.text('Erstellt: ' + new Date().toLocaleString('de-DE'), margin, y); y += 12;
+  doc.setDrawColor(LINE[0], LINE[1], LINE[2]); doc.line(margin, y, pageW - margin, y); y += 18;
+
+  // Hilfsfunktion: Seitenumbruch wenn nötig
+  const ensure = (need) => { if (y + need > pageH - margin) { doc.addPage(); y = margin; } };
+  // Abschnitts-Überschrift
+  const heading = (txt) => {
+    ensure(28);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(ALPINE[0], ALPINE[1], ALPINE[2]);
+    doc.text(txt, margin, y); y += 8;
   };
-  window.addEventListener('afterprint', cleanup);
-  // Fallback falls afterprint nicht feuert (manche Browser)
-  setTimeout(cleanup, 3000);
-  window.print();
+  const tableOpts = (extra) => Object.assign({
+    startY: y, margin: { left: margin, right: margin },
+    styles: { fontSize: 9, cellPadding: 4, lineColor: LINE, lineWidth: 0.5 },
+    headStyles: { fillColor: ALPINE, textColor: 255, fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [248, 245, 237] },
+    theme: 'grid'
+  }, extra || {});
+
+  let produced = false;
+
+  // ---- 1) KPI-Kacheln ----
+  const kpis = [];
+  panel.querySelectorAll('.dash-card').forEach(card => {
+    const label = (card.querySelector('.dash-card-label')?.textContent || '').trim();
+    const value = (card.querySelector('.dash-card-value')?.textContent || '').replace(/\s+/g, ' ').trim();
+    const sub = (card.querySelector('.dash-card-sub')?.textContent || '').trim();
+    if (label && value) kpis.push([label, value, sub]);
+  });
+  panel.querySelectorAll('.stats-kpi').forEach(kpi => {
+    const label = (kpi.querySelector('.kpi-label')?.textContent || '').trim();
+    const value = (kpi.querySelector('.kpi-val')?.textContent || '').trim();
+    if (label && value) kpis.push([label, value, '']);
+  });
+  if (kpis.length) {
+    heading('Kennzahlen');
+    doc.autoTable(tableOpts({ head: [['Kennzahl', 'Wert', 'Detail']], body: kpis, columnStyles: { 0: { cellWidth: 160 }, 1: { cellWidth: 90 } } }));
+    y = doc.lastAutoTable.finalY + 18; produced = true;
+  }
+
+  // ---- 2) Balken-Charts (Buchungen-Tab) ----
+  panel.querySelectorAll('.stats-card').forEach(card => {
+    const bars = card.querySelectorAll('.stats-bar-row');
+    if (!bars.length) return;
+    const title = (card.querySelector('h4')?.textContent || 'Chart').trim();
+    const rows = [];
+    bars.forEach(b => {
+      const label = (b.querySelector('.stats-bar-label')?.textContent || '').trim();
+      const val = (b.querySelector('.stats-bar-val')?.textContent || '').trim();
+      if (label) rows.push([label, val]);
+    });
+    if (rows.length) {
+      heading(title);
+      doc.autoTable(tableOpts({ head: [['Kategorie', 'Wert']], body: rows, columnStyles: { 0: { cellWidth: 200 } } }));
+      y = doc.lastAutoTable.finalY + 18; produced = true;
+    }
+  });
+
+  // ---- 3) Echte Tabellen (Flüge, Fluglehrer, Kunden) ----
+  panel.querySelectorAll('table').forEach(t => {
+    const h4 = t.closest('.stats-card')?.querySelector('h4');
+    if (h4) heading(h4.textContent.trim());
+    doc.autoTable(tableOpts({ html: t }));
+    y = doc.lastAutoTable.finalY + 18; produced = true;
+  });
+
+  if (!produced) { notify('In diesem Bereich gibt es keine exportierbaren Daten.', 'info'); return; }
+
+  // ---- Fußzeile auf allen Seiten ----
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(GRAY[0], GRAY[1], GRAY[2]);
+    doc.text('DASSU – Deutsche Alpensegelflugschule Unterwössen e.V.', margin, pageH - 20);
+    doc.text('Seite ' + i + ' / ' + pageCount, pageW - margin, pageH - 20, { align: 'right' });
+  }
+
+  const dateStr = new Date().toISOString().substring(0, 10);
+  doc.save(`DASSU-Statistik-${STATS_TAB_LABEL[currentStatsTab]}-${dateStr}.pdf`);
 }
 
 // ---------- Dashboard "Überblick" ----------
