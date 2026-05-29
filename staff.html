@@ -6703,6 +6703,35 @@ async function syncVereinsflieger() {
   btn.disabled = false;
 }
 
+// TEMPORÄR — F-Schlepp/Belegungs-Analyse. Aus Konsole: testTow()
+window.testTow = async function() {
+  console.log('%c⏳ Lade Motorsegler/UL-Analyse…', 'font-weight:bold;');
+  try {
+    const token = await getFirebaseToken();
+    const res = await fetch('/.netlify/functions/vereinsflieger-sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ action: 'debugTowAnalysis' })
+    });
+    const json = await res.json();
+    if (!json.ok) { console.error('❌', json.error); return null; }
+    const d = json.data;
+    console.log('%c🛩️ Motorsegler/UL-Flüge gesamt (lfd. Jahr):', 'font-weight:bold;color:#2A6B5E;', d.motorizedCount);
+    console.log('%c📊 Pro Flugzeug:', 'font-weight:bold;color:#2A6B5E;');
+    console.table(d.perAircraft);
+    console.log('%c🔢 flightmode-Verteilung:', 'font-weight:bold;', d.flightmodes);
+    console.log('%c🔢 ftid-Verteilung:', 'font-weight:bold;', d.ftids);
+    console.log('%c🪂 Beispiele MIT Schlepp-Indikator (flidtow/towcallsign/towtime):', 'background:#FFB300;color:black;padding:4px 8px;font-weight:bold;');
+    console.table(d.towExamples);
+    console.log('%c✈️ Beispiele OHNE Schlepp-Indikator (normale Flüge):', 'font-weight:bold;');
+    console.table(d.normalExamples);
+    console.log('%c📦 Komplett als JSON:', 'background:#1E4B4E;color:white;padding:4px 8px;font-weight:bold;');
+    console.log(JSON.stringify(d, null, 2));
+    window._towDump = d;
+    return d;
+  } catch (e) { console.error('Aufruf fehlgeschlagen:', e); return null; }
+};
+
 // Load data on tab switch — show cache immediately, then auto-refresh from API
 function loadVfCache() {
   if (vfData) { renderVfCompare(); return; }
