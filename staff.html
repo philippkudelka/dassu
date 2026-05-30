@@ -1630,6 +1630,15 @@ body.dev-mode { padding-bottom: 48px; }
   </div>
 
   <div class="account-card">
+    <h3>Kalender-Abo (iCal)</h3>
+    <div style="font-size:12px; color:var(--gray-500); margin-bottom:12px; line-height:1.5;">
+      Abonniere deine DASSU-Buchungen in Apple Kalender, Google Calendar oder Outlook.
+      Der Kalender wird automatisch aktualisiert (max. 1×/h), sobald sich Buchungen ändern.
+    </div>
+    <div id="accIcalSection"><div class="field-hint">Wird geladen…</div></div>
+  </div>
+
+  <div class="account-card">
     <h3>Meine Daten (DSGVO)</h3>
     <div style="font-size:12px; color:var(--gray-500); margin-bottom:12px; line-height:1.5;">
       Du kannst alle deine bei DASSU gespeicherten Daten als JSON-Datei herunterladen
@@ -2310,6 +2319,160 @@ async function runMailDiagnose() {
     out.innerHTML = `<div style="padding:10px;background:rgba(192,57,43,0.1);border-radius:6px;font-size:12px;color:var(--danger);">Diagnose-Aufruf selbst fehlgeschlagen: ${escapeHtml(e.message)}</div>`;
   }
   btn.disabled = false; btn.textContent = 'Diagnose erneut starten';
+}
+
+// ============================================================
+// Kalender-Abo (iCal) — Token verwalten + Abo-URL anzeigen
+// ============================================================
+// Erzeugt einen kryptographisch sicheren 32-Byte-Token, base64url-codiert.
+function _generateIcalToken() {
+  const a = new Uint8Array(32);
+  crypto.getRandomValues(a);
+  let s = '';
+  for (let i = 0; i < a.length; i++) s += String.fromCharCode(a[i]);
+  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function _icalUrl(token) {
+  return window.location.origin + '/.netlify/functions/ical-feed?token=' + encodeURIComponent(token);
+}
+
+async function renderIcalSection() {
+  const wrap = document.getElementById('accIcalSection');
+  if (!wrap || !currentUser || !currentUser.id) return;
+  const uid = currentUser.id;
+  let snap;
+  try { snap = await db.ref('users/' + uid).once('value'); }
+  catch (e) {
+    wrap.innerHTML = `<div class="field-hint" style="color:var(--danger);">Konnte Abo-Status nicht laden: ${escapeHtml(e.message)}</div>`;
+    return;
+  }
+  const data = snap.val() || {};
+  const token = data.icalToken || '';
+
+  if (!token) {
+    wrap.innerHTML = `
+      <div class="field-hint">Noch kein Abo-Link angelegt.</div>
+      <div class="account-actions" style="margin-top:10px;">
+        <button class="acc-btn-primary" onclick="createIcalToken()">Abo-Link erzeugen</button>
+        <button class="acc-btn-secondary" onclick="downloadIcalOnce()">Einmal herunterladen (.ics)</button>
+      </div>`;
+    return;
+  }
+
+  const url = _icalUrl(token);
+  wrap.innerHTML = `
+    <div class="field-hint" style="margin-bottom:6px;">Dein persönlicher Abo-Link:</div>
+    <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:stretch;">
+      <input type="text" readonly value="${escapeHtml(url)}" id="accIcalUrl" onclick="this.select()"
+             style="flex:1; min-width:240px; padding:8px 10px; border:1px solid var(--c-line); border-radius:8px; font-family:Menlo,monospace; font-size:11px; background:var(--c-bg); color:var(--ink); word-break:break-all;">
+      <button class="acc-btn-secondary" onclick="copyIcalUrl()">Link kopieren</button>
+    </div>
+    <div class="field-hint" style="margin-top:10px; color:var(--gray-500);">
+      <strong>So einrichten:</strong><br>
+      <strong>Apple Kalender (Mac):</strong> Ablage → Neues Kalender-Abonnement → Link einfügen → OK<br>
+      <strong>Apple Kalender (iPhone):</strong> Einstellungen → Kalender → Accounts → Account hinzufügen → Andere → Kalender-Abo<br>
+      <strong>Google Calendar:</strong> Andere Kalender → + → Per URL → Link einfügen<br>
+      <strong>Outlook:</strong> Kalender → Kalender hinzufügen → Aus dem Internet → Link einfügen
+    </div>
+    <div class="account-actions" style="margin-top:10px; flex-wrap:wrap;">
+      <button class="acc-btn-secondary" onclick="downloadIcalOnce()">Einmal herunterladen (.ics)</button>
+      <button class="acc-btn-secondary" onclick="rotateIcalToken()">Link rotieren</button>
+      <button class="acc-btn-danger" onclick="revokeIcalToken()">Abo widerrufen</button>
+    </div>
+    <div class="field-hint" style="margin-top:8px; color:var(--gray-500); font-size:11px;">
+      Behandle den Link wie ein Passwort — wer ihn hat, sieht deine Buchungen.
+      Bei Verdacht auf Weitergabe einfach „Link rotieren" → der alte funktioniert sofort nicht mehr.
+    </div>`;
+}
+
+async function createIcalToken() {
+  if (!currentUser || !currentUser.id) return;
+  try {
+    await db.ref('users/' + currentUser.id).update({
+      icalToken: _generateIcalToken(),
+      icalName: currentUser.name || '',
+      icalCreatedAt: Date.now()
+    });
+    notify('Abo-Link erstellt.', 'success');
+    renderIcalSection();
+  } catch (e) { notify('Fehler: ' + e.message, 'error'); }
+}
+
+async function rotateIcalToken() {
+  if (!confirm('Neuen Link erzeugen? Der alte funktioniert sofort nicht mehr — du musst das Abo in deinem Kalender mit dem neuen Link neu einrichten.')) return;
+  await createIcalToken();
+}
+
+async function revokeIcalToken() {
+  if (!confirm('Abo widerrufen? Der Link wird ungültig, das Abo in deinem Kalender liefert dann keine neuen Daten mehr.')) return;
+  try {
+    await db.ref('users/' + currentUser.id + '/icalToken').remove();
+    notify('Abo widerrufen.', 'info');
+    renderIcalSection();
+  } catch (e) { notify('Fehler: ' + e.message, 'error'); }
+}
+
+function copyIcalUrl() {
+  const el = document.getElementById('accIcalUrl');
+  if (!el) return;
+  el.select();
+  navigator.clipboard.writeText(el.value).then(
+    () => notify('Link kopiert.', 'success'),
+    () => notify('Kopieren fehlgeschlagen. Bitte manuell markieren + Cmd-C.', 'error')
+  );
+}
+
+// Direkt-Download ohne Abo: erstellt im Frontend einen einmaligen .ics aus den
+// schon geladenen bookings + bookingContacts (kein Server-Roundtrip nötig).
+async function downloadIcalOnce() {
+  if (!currentUser || !currentUser.id) return;
+  const uid = currentUser.id;
+  const my = bookings.filter(b => b.uid === uid);
+  if (!my.length) { notify('Keine eigenen Buchungen gefunden.', 'info'); return; }
+
+  const esc = s => String(s || '').replace(/\\/g, '\\\\').replace(/\r?\n/g, '\\n').replace(/,/g, '\\,').replace(/;/g, '\\;');
+  const local = (d, t) => (d || '').replace(/-/g, '') + 'T' + (t || '00:00').replace(':', '') + '00';
+  const nowUtc = (() => {
+    const d = new Date(), p = n => String(n).padStart(2, '0');
+    return d.getUTCFullYear() + p(d.getUTCMonth() + 1) + p(d.getUTCDate()) + 'T' + p(d.getUTCHours()) + p(d.getUTCMinutes()) + p(d.getUTCSeconds()) + 'Z';
+  })();
+  const stLabel = { pending: 'angefragt', approved: 'bestätigt', rejected: 'abgelehnt', cancelled: 'storniert' };
+  const stIcs = { pending: 'TENTATIVE', approved: 'CONFIRMED', rejected: 'CANCELLED', cancelled: 'CANCELLED' };
+
+  const lines = [
+    'BEGIN:VCALENDAR', 'VERSION:2.0',
+    'PRODID:-//DASSU Buchungskalender//Mein Kalender (Download)//DE',
+    'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+    'X-WR-CALNAME:' + esc('DASSU Buchungen · ' + (currentUser.name || '')),
+    'X-WR-TIMEZONE:Europe/Berlin'
+  ];
+  my.forEach(b => {
+    if (!b.date || !b.startTime || !b.endTime) return;
+    const status = b.status || 'pending';
+    const instr = (b.instructor === 'ja' || b.instructorName) ? (b.instructorName || 'benötigt') : '';
+    const desc = ['Status: ' + (stLabel[status] || status), instr ? 'Fluglehrer: ' + instr : '', b.comment ? 'Notiz: ' + b.comment : ''].filter(Boolean).join('\n');
+    lines.push('BEGIN:VEVENT',
+      'UID:booking-' + b.id + '@dassu-buchungskalender.netlify.app',
+      'DTSTAMP:' + nowUtc,
+      'DTSTART;TZID=Europe/Berlin:' + local(b.date, b.startTime),
+      'DTEND;TZID=Europe/Berlin:' + local(b.date, b.endTime),
+      'SUMMARY:' + esc((b.aircraft || '') + (status === 'pending' ? ' (angefragt)' : '')),
+      desc ? 'DESCRIPTION:' + esc(desc) : '',
+      'LOCATION:' + esc('Unterwössen'),
+      'STATUS:' + (stIcs[status] || 'TENTATIVE'),
+      'TRANSP:OPAQUE',
+      'END:VEVENT');
+  });
+  lines.push('END:VCALENDAR');
+
+  const blob = new Blob([lines.filter(Boolean).join('\r\n') + '\r\n'], { type: 'text/calendar' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `dassu-buchungen-${new Date().toISOString().substring(0, 10)}.ics`;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+  notify('Kalender heruntergeladen.', 'success');
 }
 
 // ============================================================
@@ -7962,6 +8125,8 @@ function renderAccountTab() {
 
   // Vereinsflieger-Verbindungsstatus laden
   renderAccountVfSection();
+  // iCal-Abo-Status laden
+  if (typeof renderIcalSection === 'function') renderIcalSection();
 }
 
 function accMsg(text, type) {

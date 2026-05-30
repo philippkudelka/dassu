@@ -79,6 +79,13 @@ Die Bash-Sandbox hat KEINEN GitHub-Zugriff (403 Proxy-Fehler). Niemals versuchen
 - `deleteMyAccount()` (staff.html + index.html) — löscht eigenes Profil + eigene Buchungen + Push-Tokens, ruft `delete-auth-user`-Function für Firebase-Auth-Account.
 - **Self-Delete in `delete-auth-user.js`** ist explizit erlaubt (DSGVO Art. 17): wenn `targetUid === callerUid`, geht's auch ohne Admin-Rolle durch. Fremde Konten brauchen weiterhin Admin.
 
+## Kalender-Abo (iCal)
+
+- **Function `netlify/functions/ical-feed.js`** — liefert die Buchungen eines Users als `.ics` (RFC 5545), via URL `…/.netlify/functions/ical-feed?token=<icalToken>`. Authentifizierung über geheimen Token statt Bearer-Auth (Kalender-Clients schicken keine Header).
+- **Token-Speicherort**: `users/{uid}/icalToken` — der User legt ihn selbst per "Mein Konto" → Kalender-Abo an. Bei Verdacht auf Weitergabe: "Link rotieren" generiert einen neuen, der alte ist sofort tot.
+- **Direkt-Download** via `downloadIcalOnce()` baut das ICS clientseitig aus den bereits geladenen Buchungen (kein Server-Roundtrip nötig).
+- **Rules-Anpassung**: `users/$uid` ist jetzt für den eigenen User lesbar+schreibbar (vorher komplett gesperrt). Daher: nach Rules-Update **VF-Credentials weiterhin nur über Backend** (sind verschlüsselt) — der User darf seine eigenen Felder sehen, das ist OK.
+
 ## Dateistruktur
 
 - `index.html` — Kunden-/Mitglieder-Ansicht (Buchungskalender, Login, Buchung erstellen)
