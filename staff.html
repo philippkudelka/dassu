@@ -5676,7 +5676,12 @@ function exportStatsExcel() {
     const rows = [['Kategorie', 'Wert']];
     bars.forEach(b => {
       const label = (b.querySelector('.stats-bar-label')?.textContent || '').trim();
-      const val = (b.querySelector('.stats-bar-val')?.textContent || '').trim();
+      // Wert: bevorzugt .stats-bar-val; Fallback = letztes span in der Zeile (für Charts ohne die Klasse)
+      let val = (b.querySelector('.stats-bar-val')?.textContent || '').trim();
+      if (!val) {
+        const spans = b.querySelectorAll('span');
+        if (spans.length >= 2) val = (spans[spans.length - 1].textContent || '').trim();
+      }
       if (label) rows.push([label, val]);
     });
     if (rows.length > 1) {
@@ -5808,7 +5813,12 @@ function exportStatsPdf() {
     const rows = [];
     bars.forEach(b => {
       const label = (b.querySelector('.stats-bar-label')?.textContent || '').trim();
-      const val = (b.querySelector('.stats-bar-val')?.textContent || '').trim();
+      // Wert: bevorzugt .stats-bar-val; Fallback = letztes span in der Zeile (für Charts ohne die Klasse)
+      let val = (b.querySelector('.stats-bar-val')?.textContent || '').trim();
+      if (!val) {
+        const spans = b.querySelectorAll('span');
+        if (spans.length >= 2) val = (spans[spans.length - 1].textContent || '').trim();
+      }
       if (label) rows.push([label, val]);
     });
     if (rows.length) {
@@ -6402,7 +6412,7 @@ function renderInstructorStats() {
       <div class="stats-bar-track" style="flex:1; position:relative;">
         <div class="stats-bar-fill" style="width:${pct * 0.75}%;background:${color}"></div>
       </div>
-      <span style="font-size:11px; color:var(--ink); white-space:nowrap; min-width:180px; text-align:right;">${d.flyingDays} Tage · ${d.landings} Starts · ${fmtH(d.minutes)}h</span>
+      <span class="stats-bar-val" style="font-size:11px; color:var(--ink); white-space:nowrap; min-width:180px; text-align:right; position:static; right:auto; top:auto;">${d.flyingDays} Tage · ${d.landings} Starts · ${fmtH(d.minutes)}h</span>
     </div>`;
   }).filter(Boolean).join('');
 
