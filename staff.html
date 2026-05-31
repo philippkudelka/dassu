@@ -6243,7 +6243,7 @@ function renderStatsOverview() {
   const bookingsYTDPrev = approved.filter(b => b.date >= startPrevYear && b.date <= stichtagKey).length;
   const bookingsDelta = _statsDelta(bookingsYTD, bookingsYTDPrev);
 
-  // Woche (Mo–So)
+  // Woche (Mo–So) — aktuelle Woche
   const monday = new Date(now);
   monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
   monday.setHours(0, 0, 0, 0);
@@ -6253,10 +6253,18 @@ function renderStatsOverview() {
   const sundayKey = dateKey(sunday);
   const bookingsWeek = approved.filter(b => b.date >= mondayKey && b.date <= sundayKey).length;
 
+  // Woche (Mo–So) — gleiche Kalenderwoche im Vorjahr (-52 Wochen = -364 Tage, KW-stabil)
+  const mondayPrev = new Date(monday); mondayPrev.setDate(monday.getDate() - 364);
+  const sundayPrev = new Date(sunday); sundayPrev.setDate(sunday.getDate() - 364);
+  const mondayPrevKey = dateKey(mondayPrev);
+  const sundayPrevKey = dateKey(sundayPrev);
+  const bookingsWeekPrev = approved.filter(b => b.date >= mondayPrevKey && b.date <= sundayPrevKey).length;
+  const bookingsWeekDelta = _statsDelta(bookingsWeek, bookingsWeekPrev);
+
   // ---- VF-Daten (lazy, evtl. null) ----
   let vfStartsYTD = null, vfStartsDelta = null;
   let vfHoursYTD = null, vfHoursDelta = null, vfHoursMin = 0;
-  let vfTopAircraft = null;
+  let vfTopAircraft = null, vfTopAircraftDelta = null;
   let vfFlyingDays = null, vfFlyingDaysDelta = null;
   const hasVf = !!(vfData && vfData.thisYear);
 
@@ -6274,6 +6282,14 @@ function renderStatsOverview() {
       .sort((a, b) => (b[1].count || 0) - (a[1].count || 0));
     if (acEntries.length) {
       vfTopAircraft = { callsign: acEntries[0][0], count: acEntries[0][1].count || 0, minutes: acEntries[0][1].minutes || 0 };
+      // Vorjahres-Vergleich für DAS SELBE Flugzeug (zeigt ob die Spitze gewachsen/geschrumpft ist)
+      const prevByAc = (vfData.lastYearSameDay && vfData.lastYearSameDay.byAircraft) || null;
+      if (prevByAc && prevByAc[vfTopAircraft.callsign]) {
+        vfTopAircraftDelta = _statsDelta(vfTopAircraft.count, prevByAc[vfTopAircraft.callsign].count || 0);
+      } else if (prevByAc) {
+        // Flugzeug ist neu / war Vorjahr nicht im Einsatz
+        vfTopAircraftDelta = { dir: 'up', label: 'neu', diff: null };
+      }
     }
   }
 
@@ -6296,7 +6312,9 @@ function renderStatsOverview() {
       <div class="dash-card">
         <div class="dash-card-label">Top-Flugzeug ${curYear}</div>
         ${vfTopAircraft
-          ? `<div class="dash-card-value" style="font-size:22px;">${escapeHtml(vfTopAircraft.callsign)}</div><div class="dash-card-sub">${vfTopAircraft.count} Starts · ${fmtH(vfTopAircraft.minutes)} h</div>`
+          ? `<div class="dash-card-value" style="font-size:22px;">${escapeHtml(vfTopAircraft.callsign)}</div>
+             <div class="dash-card-sub">${vfTopAircraft.count} Starts · ${fmtH(vfTopAircraft.minutes)} h</div>
+             ${vfTopAircraftDelta ? _statsDeltaHtml(vfTopAircraftDelta, 'vs. Vorjahr · Stichtag') : ''}`
           : (hasVf ? '<div class="dash-card-empty">Keine Daten</div>' : skeleton)}
       </div>
       <div class="dash-card">
@@ -6313,7 +6331,7 @@ function renderStatsOverview() {
       <div class="dash-card">
         <div class="dash-card-label">Buchungen diese Woche</div>
         <div class="dash-card-value">${bookingsWeek}</div>
-        <div class="dash-card-sub">Mo&ndash;So (bestätigt)</div>
+        ${_statsDeltaHtml(bookingsWeekDelta, 'vs. Vorjahres-Woche · Mo–So')}
       </div>
       <div class="dash-card">
         <div class="dash-card-label">Buchungen ${curYear}</div>
