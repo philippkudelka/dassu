@@ -1107,6 +1107,71 @@ input[type="search"]:hover, select:hover, textarea:hover {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Donut-Charts für Gruppen-Übersicht */
+.donut-row {
+  display: flex;
+  gap: var(--space-8);
+  justify-content: center;
+  flex-wrap: wrap;
+  margin: var(--space-4) 0 var(--space-6);
+}
+.donut-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+.donut-block .donut-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.donut-svg { width: 220px; height: 220px; display: block; }
+.donut-svg .seg {
+  transition: opacity var(--motion-fast), transform var(--motion);
+  transform-origin: 110px 110px;
+  cursor: default;
+}
+.donut-svg:hover .seg { opacity: 0.35; }
+.donut-svg .seg:hover { opacity: 1; transform: scale(1.025); }
+.donut-svg text.donut-center-val {
+  font-family: var(--font);
+  font-size: 24px;
+  font-weight: 800;
+  fill: var(--navy);
+}
+.donut-svg text.donut-center-lbl {
+  font-family: var(--font);
+  font-size: 10px;
+  font-weight: 600;
+  fill: var(--gray-500);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.donut-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  justify-content: center;
+  font-size: 12px;
+  color: var(--c-ink-2);
+  margin-top: var(--space-2);
+  padding: 0 var(--space-2);
+}
+.donut-legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.donut-legend-swatch {
+  width: 12px; height: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05);
+}
+@media (max-width: 640px) {
+  .donut-svg { width: 180px; height: 180px; }
+  .donut-row { gap: var(--space-4); }
+}
 </style>
 </head>
 <body>
@@ -7140,6 +7205,97 @@ function fmtH(minutes) {
   return h + ':' + String(m).padStart(2, '0');
 }
 
+// Farb-Palette für Gruppen-Donuts.
+// 3 Familien × Helligkeit pro Variante (Doppelsitzer / Einsitzer / F-Schlepp)
+// Werte aus der DASSU-Palette plus aufgehellt/abgedunkelt für Lesbarkeit.
+const GROUP_COLORS = {
+  gliderDouble:       '#1E4B4E', // alpine
+  gliderSingle:       '#4A7878', // alpine hell
+  motorglider_double: '#C56A1C', // amber
+  motorglider_solo:   '#E08A3F', // amber hell
+  motorglider_tow:    '#8A4915', // amber dunkel
+  ul_double:          '#789B6E', // green
+  ul_solo:            '#A4C19A', // green hell
+  ul_tow:             '#52704A'  // green dunkel
+};
+
+// SVG-Donut bauen.
+// segments: [{label, value, color}, ...]
+// title: Überschrift (z.B. "STARTS")
+// totalLabel: Center-Label (z.B. Total formatiert)
+function buildDonut(segments, title, totalLabel) {
+  const total = segments.reduce((s, x) => s + (x.value || 0), 0);
+  if (total === 0) {
+    return `<div class="donut-block">
+      <div class="donut-title">${escapeHtml(title)}</div>
+      <div style="width:220px;height:220px;display:flex;align-items:center;justify-content:center;color:var(--gray-400);font-size:13px;">Keine Daten</div>
+    </div>`;
+  }
+  // SVG: viewBox 220x220, Donut bei cx=110 cy=110 r=85 stroke-width=24
+  // stroke-dasharray nutzt pathLength=100 → einfache Prozent-Werte
+  const cx = 110, cy = 110, r = 85, sw = 24;
+  let offset = 0;
+  const segHtml = segments.filter(s => s.value > 0).map(s => {
+    const pct = s.value / total * 100;
+    const dash = `${pct.toFixed(3)} ${(100 - pct).toFixed(3)}`;
+    const titleAttr = `${s.label}: ${s.display || s.value} (${pct.toFixed(1)}%)`;
+    const html = `<circle class="seg" cx="${cx}" cy="${cy}" r="${r}"
+      fill="none" stroke="${s.color}" stroke-width="${sw}"
+      pathLength="100"
+      stroke-dasharray="${dash}"
+      stroke-dashoffset="${(-offset).toFixed(3)}"
+      transform="rotate(-90 ${cx} ${cy})">
+      <title>${escapeHtml(titleAttr)}</title>
+    </circle>`;
+    offset += pct;
+    return html;
+  }).join('');
+
+  return `<div class="donut-block">
+    <div class="donut-title">${escapeHtml(title)}</div>
+    <svg class="donut-svg" viewBox="0 0 220 220" role="img" aria-label="${escapeHtml(title)} ${escapeHtml(totalLabel)}">
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--c-line)" stroke-width="${sw}" opacity="0.5"/>
+      ${segHtml}
+      <text class="donut-center-val" x="${cx}" y="${cy - 2}" text-anchor="middle">${escapeHtml(totalLabel)}</text>
+      <text class="donut-center-lbl" x="${cx}" y="${cy + 18}" text-anchor="middle">${escapeHtml(title)}</text>
+    </svg>
+  </div>`;
+}
+
+// Baut die zwei Donuts (Starts + Stunden) + die gemeinsame Legende.
+// groupSums: { gKey: { curr: {c, m}, ... }, ... }
+function buildGroupDonutsHtml(groupSums, groupOrder, groupLabels, curYear) {
+  // Nur Gruppen mit Daten im aktuellen Jahr berücksichtigen
+  const active = groupOrder
+    .filter(k => (groupSums[k]?.curr?.c || 0) > 0 || (groupSums[k]?.curr?.m || 0) > 0)
+    .map(k => ({
+      key: k,
+      label: groupLabels[k],
+      color: GROUP_COLORS[k] || 'var(--gray-400)',
+      starts: groupSums[k].curr.c,
+      minutes: groupSums[k].curr.m
+    }));
+
+  if (active.length === 0) return '';
+
+  const totalStarts = active.reduce((s, g) => s + g.starts, 0);
+  const totalMin = active.reduce((s, g) => s + g.minutes, 0);
+
+  const startsSegs = active.map(g => ({ label: g.label, value: g.starts, color: g.color, display: g.starts + ' Starts' }));
+  const hoursSegs  = active.map(g => ({ label: g.label, value: g.minutes, color: g.color, display: fmtH(g.minutes) + ' h' }));
+
+  const donutStarts = buildDonut(startsSegs, 'Starts ' + curYear, String(totalStarts));
+  const donutHours  = buildDonut(hoursSegs,  'Stunden ' + curYear, fmtH(totalMin));
+
+  const legend = active.map(g => `
+    <span class="donut-legend-item">
+      <span class="donut-legend-swatch" style="background:${g.color}"></span>${escapeHtml(g.label)}
+    </span>`).join('');
+
+  return `<div class="donut-row">${donutStarts}${donutHours}</div>
+    <div class="donut-legend">${legend}</div>`;
+}
+
 function renderVfCompare() {
   const content = document.getElementById('vfCompareContent');
   if (!content || !vfData) return;
@@ -7431,6 +7587,7 @@ function renderVfCompare() {
 
     <div class="stats-card">
       <h4>Gruppen-Übersicht</h4>
+      ${buildGroupDonutsHtml(groupSums, groupOrder, groupLabels, curYear)}
       <table class="stats-table vf-ac-table" style="width:100%;border-collapse:collapse;">
         <thead>
           <tr>
