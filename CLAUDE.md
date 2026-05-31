@@ -79,6 +79,14 @@ Die Bash-Sandbox hat KEINEN GitHub-Zugriff (403 Proxy-Fehler). Niemals versuchen
 - `deleteMyAccount()` (staff.html + index.html) — löscht eigenes Profil + eigene Buchungen + Push-Tokens, ruft `delete-auth-user`-Function für Firebase-Auth-Account.
 - **Self-Delete in `delete-auth-user.js`** ist explizit erlaubt (DSGVO Art. 17): wenn `targetUid === callerUid`, geht's auch ohne Admin-Rolle durch. Fremde Konten brauchen weiterhin Admin.
 
+## Ausbildungs-Zuweisung
+
+- `customers/{uid}/assignedTraining` — Code einer der 12 in `shared/trainings.js` definierten Ausbildungen (z. B. `tmg-extension-spl`, `lapl-a`, `ppl-a`, …) oder leer.
+- **Tab „Meine Ausbildung" (index.html)** erscheint NUR wenn `assignedTraining` gesetzt ist (nicht mehr an `customerType === 'student'` gekoppelt). Bestandsschüler ohne Zuweisung sehen den Tab nicht mehr — Admin muss einmalig pro Kunde im Mitglieder-Tab eine Ausbildung wählen.
+- **Lehrplan-Anzeige**: Nur Code `tmg-extension-spl` (TMG-Erweiterung vom SPL, AMC1 SFCL.150) hat aktuell einen fertigen Lehrplan. Alle anderen 11 Ausbildungen zeigen den Platzhalter „Lehrplan in Vorbereitung". Wenn echte Lehrpläne dazu kommen: `TRAININGS_WITH_CURRICULUM` in `shared/trainings.js` erweitern + `renderMyTrainingView()` in index.html anpassen.
+- **Admin-UI**: Customer-Detail-Panel in staff.html → Section „Ausbildung" → Dropdown (admin-only, schreibt `changeAssignedTraining(uid, code)` + Audit-Log).
+- **Rules**: `customers/$uid/assignedTraining` ist mit `.validate` an `staffUsers.{uid}.role === 'admin'` gebunden — nur Admins können das Feld schreiben.
+
 ## Kalender-Abo (iCal)
 
 - **Function `netlify/functions/ical-feed.js`** — liefert die Buchungen eines Users als `.ics` (RFC 5545), via URL `…/.netlify/functions/ical-feed?token=<icalToken>`. Authentifizierung über geheimen Token statt Bearer-Auth (Kalender-Clients schicken keine Header).

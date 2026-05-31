@@ -60,6 +60,9 @@
         "customerType": {
           ".validate": "root.child('staffUsers').child(auth.uid).exists() || newData.val() === 'charter' || newData.val() === 'student'"
         },
+        "assignedTraining": {
+          ".validate": "root.child('staffUsers').child(auth.uid).child('role').val() === 'admin' && newData.isString() && newData.val().length <= 64"
+        },
         "name":      { ".validate": "newData.isString() && newData.val().length <= 200" },
         "email":     { ".validate": "newData.isString() && newData.val().length <= 200" },
         "phone":     { ".validate": "newData.isString() && newData.val().length <= 80" },

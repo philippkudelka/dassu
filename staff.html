@@ -61,6 +61,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
 <script src="shared/permissions.js"></script>
 <script src="shared/holidays.js"></script>
+<script src="shared/trainings.js"></script>
 <script src="shared/auth.js"></script>
 <script src="shared/messages.js"></script>
 <script src="shared/errorlog.js"></script>
@@ -969,6 +970,142 @@ body.dev-mode { padding-bottom: 48px; }
   .dev-toolbar { padding: 6px 10px; overflow-x: auto; }
   .dev-toolbar-btns { flex-wrap: nowrap; }
   .dev-toolbar-btn { padding: 5px 10px; font-size: 11px; white-space: nowrap; }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   STUFE 1 POLISH — Typografie · Motion · Focus · Empty-States
+   Rein additiv; bestehende Klassen unangetastet.
+   ════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Spacing-Skala — 4 / 8 / 12 / 16 / 24 / 32 / 48 px */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+
+  /* Motion (eigene Vars, damit bestehende --transition nicht überschrieben wird) */
+  --motion-fast: 120ms cubic-bezier(.2,.8,.2,1);
+  --motion:      160ms cubic-bezier(.2,.8,.2,1);
+  --motion-slow: 240ms cubic-bezier(.2,.8,.2,1);
+
+  /* Focus-Ring + verfeinerte Schatten */
+  --ring: 0 0 0 3px rgba(30,75,78,0.18);
+  --shadow-card: 0 1px 3px rgba(27,29,31,0.06), 0 1px 2px rgba(27,29,31,0.04);
+  --shadow-card-hover: 0 4px 12px rgba(27,29,31,0.08), 0 2px 4px rgba(27,29,31,0.04);
+}
+
+::selection { background: rgba(197,106,28,0.25); color: var(--c-ink); }
+
+button, .btn, [role="button"],
+input, select, textarea, a,
+.account-card, .card, .stat-card, .kpi-card, .td-section {
+  transition:
+    background-color var(--motion-fast),
+    border-color var(--motion-fast),
+    color var(--motion-fast),
+    box-shadow var(--motion-fast),
+    transform var(--motion-fast);
+}
+
+button:focus, .btn:focus, input:focus, select:focus, textarea:focus, a:focus { outline: none; }
+button:focus-visible, .btn:focus-visible,
+input:focus-visible, select:focus-visible, textarea:focus-visible,
+a:focus-visible, [tabindex]:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+button:not(:disabled):hover, .btn:not(:disabled):hover {
+  filter: brightness(1.04);
+}
+button:not(:disabled):active, .btn:not(:disabled):active {
+  filter: brightness(0.96);
+  transform: translateY(0.5px);
+}
+button:disabled, .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+input[type="text"]:hover, input[type="email"]:hover, input[type="password"]:hover,
+input[type="tel"]:hover, input[type="date"]:hover, input[type="number"]:hover,
+input[type="search"]:hover, select:hover, textarea:hover {
+  border-color: var(--c-stone);
+}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--c-line);
+  border-radius: 10px;
+  border: 2px solid var(--c-bg);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--c-stone); }
+
+/* Skeleton-Loading */
+.skeleton {
+  background: linear-gradient(90deg, var(--c-line) 25%, var(--c-paper) 50%, var(--c-line) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.6s infinite linear;
+  border-radius: 6px;
+  display: block;
+  color: transparent !important;
+  user-select: none;
+  pointer-events: none;
+}
+.skeleton.line { height: 14px; margin: 6px 0; }
+.skeleton.line-sm { height: 11px; margin: 4px 0; width: 60%; }
+.skeleton.line-lg { height: 18px; margin: 8px 0; }
+.skeleton.block { height: 72px; }
+.skeleton.w-40 { width: 40%; }
+.skeleton.w-60 { width: 60%; }
+.skeleton.w-80 { width: 80%; }
+@keyframes skeleton-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Empty-State */
+.empty-state {
+  padding: var(--space-8) var(--space-6);
+  text-align: center;
+  background: var(--c-paper);
+  border: 1px dashed var(--c-line);
+  border-radius: var(--radius);
+  color: var(--c-ink-3);
+}
+.empty-state .empty-icon {
+  width: 44px; height: 44px;
+  margin: 0 auto var(--space-3);
+  display: flex; align-items: center; justify-content: center;
+  background: var(--c-bg);
+  border-radius: 50%;
+  color: var(--c-stone);
+}
+.empty-state .empty-icon svg { width: 20px; height: 20px; }
+.empty-state .empty-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--c-ink);
+  margin-bottom: var(--space-1);
+  letter-spacing: -0.01em;
+}
+.empty-state .empty-desc {
+  font-size: 13px;
+  color: var(--c-ink-3);
+  max-width: 420px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
+
+/* Reduced motion respektieren (a11y) */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 </style>
 </head>
@@ -4381,6 +4518,24 @@ function openMemberDetail(uid, isCustomer) {
     </select>
   </div>` : '';
 
+  // Ausbildungs-Zuweisung (admin-only): bestimmt, ob beim Kunden der Tab
+  // „Meine Ausbildung" erscheint und welcher Lehrplan dort angezeigt wird.
+  const assignedTraining = custData.assignedTraining || '';
+  const trainingList = (typeof window !== 'undefined' && window.DASSU_TRAININGS) || [];
+  const trainingOptions = trainingList.map(t =>
+    `<option value="${escapeHtml(t.code)}" ${t.code === assignedTraining ? 'selected' : ''}>${escapeHtml(t.label)}</option>`
+  ).join('');
+  const assignedTrainingHtml = (canEdit && isAdmin()) ? `<div class="td-section">
+    <div class="td-section-title">Ausbildung</div>
+    <select class="team-role-select" onchange="changeAssignedTraining('${uid}', this.value);" style="width:100%;">
+      <option value="" ${!assignedTraining ? 'selected' : ''}>— keine zugewiesen —</option>
+      ${trainingOptions}
+    </select>
+    <div style="font-size:11px;color:var(--gray-500);margin-top:6px;">
+      Bei Zuweisung erscheint beim Kunden der Tab „Meine Ausbildung". Aktuell hat nur „TMG Umschüler vom SPL" einen fertigen Lehrplan — alle anderen zeigen den Platzhalter „Lehrplan in Vorbereitung".
+    </div>
+  </div>` : '';
+
   // Document access
   const docAccessHtml = buildDocAccessSection(email, uid, isCustomer);
 
@@ -4480,6 +4635,8 @@ function openMemberDetail(uid, isCustomer) {
 
     ${custTypeHtml}
 
+    ${isCustomer ? assignedTrainingHtml : ''}
+
     ${!isCustomer && permsHtml ? `<div class="td-section">
       <div class="td-section-title">Berechtigungen</div>
       ${permsHtml}
@@ -4577,6 +4734,31 @@ async function changeCustomerType(uid, newType) {
     if (cu) cu.customerType = newType;
     logActivity('customer.type', `Kundentyp geändert: ${cu ? cu.name : uid}: ${oldType || '—'} → ${newType}`, uid);
     notify(newType === 'student' ? 'Als Flugschüler markiert.' : 'Als Charterkunde markiert.', 'success');
+  } catch (e) { notify('Fehler: ' + e.message, 'error'); }
+}
+
+// Ausbildung eines Kunden zuweisen / entfernen.
+// Leerer Code → Feld wird gelöscht (kein assignedTraining = kein „Meine Ausbildung"-Tab).
+async function changeAssignedTraining(uid, newCode) {
+  if (!isAdmin()) return;
+  try {
+    const cu = customerUsers.find(c => c.id === uid);
+    const oldCode = cu && cu.assignedTraining ? cu.assignedTraining : '';
+    const valid = (window.DASSU_TRAININGS || []).some(t => t.code === newCode);
+    if (newCode && !valid) {
+      notify('Unbekannte Ausbildung.', 'error');
+      return;
+    }
+    if (newCode) {
+      await db.ref('customers/' + uid + '/assignedTraining').set(newCode);
+    } else {
+      await db.ref('customers/' + uid + '/assignedTraining').remove();
+    }
+    if (cu) cu.assignedTraining = newCode || null;
+    const oldLabel = oldCode ? (getTrainingLabel(oldCode) || oldCode) : '—';
+    const newLabel = newCode ? (getTrainingLabel(newCode) || newCode) : '—';
+    logActivity('customer.update', `Ausbildung geändert: ${cu ? cu.name : uid}: ${oldLabel} → ${newLabel}`, uid);
+    notify(newCode ? `Ausbildung „${newLabel}" zugewiesen.` : 'Ausbildung entfernt.', 'success');
   } catch (e) { notify('Fehler: ' + e.message, 'error'); }
 }
 

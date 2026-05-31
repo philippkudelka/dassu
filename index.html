@@ -47,6 +47,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
 <script src="shared/permissions.js"></script>
 <script src="shared/holidays.js"></script>
+<script src="shared/trainings.js"></script>
 <script src="shared/auth.js"></script>
 <script src="shared/messages.js"></script>
 <script src="shared/errorlog.js"></script>
@@ -1714,6 +1715,163 @@
     color: rgba(255,255,255,0.35);
   }
   body.dev-mode { padding-bottom: 48px; }
+
+  /* ════════════════════════════════════════════════════════════════
+     STUFE 1 POLISH — Typografie · Motion · Focus · Empty-States
+     Rein additiv; bestehende Klassen unangetastet.
+     ════════════════════════════════════════════════════════════════ */
+
+  :root {
+    /* Spacing-Skala — 4 / 8 / 12 / 16 / 24 / 32 / 48 px */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-12: 48px;
+
+    /* Motion (eigene Vars, damit bestehende --transition nicht überschrieben wird) */
+    --motion-fast: 120ms cubic-bezier(.2,.8,.2,1);
+    --motion:      160ms cubic-bezier(.2,.8,.2,1);
+    --motion-slow: 240ms cubic-bezier(.2,.8,.2,1);
+
+    /* Focus-Ring + verfeinerte Schatten */
+    --ring: 0 0 0 3px rgba(30,75,78,0.18);
+    --shadow-card: 0 1px 3px rgba(27,29,31,0.06), 0 1px 2px rgba(27,29,31,0.04);
+    --shadow-card-hover: 0 4px 12px rgba(27,29,31,0.08), 0 2px 4px rgba(27,29,31,0.04);
+  }
+
+  /* Selection-Farbe (Markierung) */
+  ::selection { background: rgba(197,106,28,0.25); color: var(--c-ink); }
+
+  /* Smooth motion auf interaktiven Elementen */
+  button, .btn, [role="button"],
+  input, select, textarea, a,
+  .acct-card, .card, .stat-card, .info-card {
+    transition:
+      background-color var(--motion-fast),
+      border-color var(--motion-fast),
+      color var(--motion-fast),
+      box-shadow var(--motion-fast),
+      transform var(--motion-fast);
+  }
+
+  /* Globaler Focus-Ring (Tastatur). NIE outline:none ohne Ersatz. */
+  button:focus, .btn:focus, input:focus, select:focus, textarea:focus, a:focus { outline: none; }
+  button:focus-visible, .btn:focus-visible,
+  input:focus-visible, select:focus-visible, textarea:focus-visible,
+  a:focus-visible, [tabindex]:focus-visible {
+    outline: none;
+    box-shadow: var(--ring);
+  }
+
+  /* Button Hover/Active — subtiler Lift + Brightness */
+  button:not(:disabled):hover, .btn:not(:disabled):hover {
+    filter: brightness(1.04);
+  }
+  button:not(:disabled):active, .btn:not(:disabled):active {
+    filter: brightness(0.96);
+    transform: translateY(0.5px);
+  }
+  button:disabled, .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* Inputs: ruhigere Borders + Hover */
+  input[type="text"]:hover, input[type="email"]:hover, input[type="password"]:hover,
+  input[type="tel"]:hover, input[type="date"]:hover, input[type="number"]:hover,
+  input[type="search"]:hover, select:hover, textarea:hover {
+    border-color: var(--c-stone);
+  }
+
+  /* Custom Scrollbar (WebKit only — Safari + Chrome) */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: var(--c-line);
+    border-radius: 10px;
+    border: 2px solid var(--c-bg);
+  }
+  ::-webkit-scrollbar-thumb:hover { background: var(--c-stone); }
+
+  /* Skeleton-Loading (Shimmer-Animation für „Wird geladen…"-Ersatz) */
+  .skeleton {
+    background: linear-gradient(90deg, var(--c-line) 25%, var(--c-paper) 50%, var(--c-line) 75%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.6s infinite linear;
+    border-radius: 6px;
+    display: block;
+    color: transparent !important;
+    user-select: none;
+    pointer-events: none;
+  }
+  .skeleton.line { height: 14px; margin: 6px 0; }
+  .skeleton.line-sm { height: 11px; margin: 4px 0; width: 60%; }
+  .skeleton.line-lg { height: 18px; margin: 8px 0; }
+  .skeleton.block { height: 72px; }
+  .skeleton.w-40 { width: 40%; }
+  .skeleton.w-60 { width: 60%; }
+  .skeleton.w-80 { width: 80%; }
+  @keyframes skeleton-shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* Empty-State (gemeinsame Klasse für „keine Daten"-Boxen) */
+  .empty-state {
+    padding: var(--space-8) var(--space-6);
+    text-align: center;
+    background: var(--c-paper);
+    border: 1px dashed var(--c-line);
+    border-radius: var(--radius);
+    color: var(--c-ink-3);
+  }
+  .empty-state .empty-icon {
+    width: 44px; height: 44px;
+    margin: 0 auto var(--space-3);
+    display: flex; align-items: center; justify-content: center;
+    background: var(--c-bg);
+    border-radius: 50%;
+    color: var(--c-stone);
+  }
+  .empty-state .empty-icon svg { width: 20px; height: 20px; }
+  .empty-state .empty-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--c-ink);
+    margin-bottom: var(--space-1);
+    letter-spacing: -0.01em;
+  }
+  .empty-state .empty-desc {
+    font-size: 13px;
+    color: var(--c-ink-3);
+    max-width: 420px;
+    margin: 0 auto;
+    line-height: 1.55;
+  }
+
+  /* Typografie-Konsistenz für sichtbare Überschriften (.h-style-* opt-in) */
+  .h-style-section {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--c-ink);
+    letter-spacing: -0.015em;
+    line-height: 1.3;
+  }
+  .h-style-sub {
+    font-size: 13px;
+    color: var(--c-ink-3);
+    margin-top: 2px;
+    letter-spacing: 0;
+  }
+
+  /* Reduzierte Motion respektieren (a11y) */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
 </style>
 </head>
 <body>
@@ -1984,7 +2142,13 @@
       <button class="mb-filter-tab" onclick="filterStudentBookings('upcoming', this)">Anstehend</button>
       <button class="mb-filter-tab" onclick="filterStudentBookings('past', this)">Vergangen</button>
     </div>
-    <div id="sbList"><p style="color:var(--c-muted); padding:24px 0;">Noch keine Schüler-Buchungen vorhanden.</p></div>
+    <div id="sbList"><div class="empty-state">
+      <div class="empty-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      </div>
+      <div class="empty-title">Noch keine Schüler-Buchungen</div>
+      <div class="empty-desc">Sobald deine Schüler Flüge buchen, erscheinen sie hier zur Übersicht.</div>
+    </div></div>
   </div>
 </div>
 
@@ -2001,7 +2165,13 @@
       <button class="mb-filter-tab" onclick="filterTheoryLessons('thisMonth', this)">Dieser Monat</button>
       <button class="mb-filter-tab" onclick="filterTheoryLessons('lastMonth', this)">Letzter Monat</button>
     </div>
-    <div id="thList"><p style="color:var(--c-muted); padding:24px 0;">Noch keine Theoriestunden erfasst.</p></div>
+    <div id="thList"><div class="empty-state">
+      <div class="empty-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+      </div>
+      <div class="empty-title">Noch keine Theoriestunden</div>
+      <div class="empty-desc">Trage oben rechts mit „+ Neu" deine erste Theoriestunde ein.</div>
+    </div></div>
   </div>
 </div>
 
@@ -2066,17 +2236,35 @@
 <div id="myTrainingView" style="display:none;">
   <div class="my-bookings-panel">
     <h2>Meine Ausbildung</h2>
-    <p class="mb-subtitle">Erweiterung SPL auf TMG — AMC1 SFCL.150</p>
-    <div id="myTrainingProgress" style="margin-bottom:20px;"></div>
-    <div style="margin-bottom:16px;text-align:right;">
-      <button onclick="exportTrainingXlsx()" class="btn" style="font-size:13px;padding:8px 16px;background:var(--c-alpine);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px;"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Export als Excel
-      </button>
+    <p class="mb-subtitle" id="myTrainingSubtitle">—</p>
+    <!-- Lehrplan-Inhalt (nur sichtbar, wenn ein fertiger Lehrplan für die zugewiesene Ausbildung existiert) -->
+    <div id="myTrainingCurriculumWrap">
+      <div id="myTrainingProgress" style="margin-bottom:20px;"></div>
+      <div style="margin-bottom:16px;text-align:right;">
+        <button onclick="exportTrainingXlsx()" class="btn" style="font-size:13px;padding:8px 16px;background:var(--c-alpine);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px;"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export als Excel
+        </button>
+      </div>
+      <div id="myTrainingExercises"></div>
+      <div id="myTrainingEmpty" class="empty-state" style="display:none;">
+        <div class="empty-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        </div>
+        <div class="empty-title">Noch kein Eintrag</div>
+        <div class="empty-desc">Sobald dein Fluglehrer die erste Übung einträgt, erscheint hier dein Fortschritt.</div>
+      </div>
     </div>
-    <div id="myTrainingExercises"></div>
-    <div id="myTrainingEmpty" style="display:none;">
-      <p style="color:var(--c-muted);padding:24px 0;">Dir wurde noch kein Ausbildungsnachweis zugewiesen. Bitte wende dich an deinen Fluglehrer.</p>
+    <!-- Platzhalter für Ausbildungen ohne fertigen Lehrplan -->
+    <div id="myTrainingPlaceholder" class="empty-state" style="display:none;">
+      <div class="empty-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/><line x1="9" y1="11" x2="15" y2="11"/></svg>
+      </div>
+      <div class="empty-title">Lehrplan in Vorbereitung</div>
+      <div class="empty-desc">
+        Für deine Ausbildung wird der digitale Ausbildungsnachweis gerade aufgebaut.
+        Bis dahin bespricht dein Fluglehrer den Fortschritt mit dir persönlich.
+      </div>
     </div>
   </div>
 </div>
@@ -5497,10 +5685,40 @@ async function saveExerciseProgress() {
 async function renderMyTrainingView() {
   const uid = firebase.auth().currentUser?.uid;
   if (!uid) return;
-  const emptyEl = document.getElementById('myTrainingEmpty');
-  const progEl = document.getElementById('myTrainingProgress');
-  const exEl = document.getElementById('myTrainingExercises');
+  const subEl    = document.getElementById('myTrainingSubtitle');
+  const curWrap  = document.getElementById('myTrainingCurriculumWrap');
+  const phEl     = document.getElementById('myTrainingPlaceholder');
+  const emptyEl  = document.getElementById('myTrainingEmpty');
+  const progEl   = document.getElementById('myTrainingProgress');
+  const exEl     = document.getElementById('myTrainingExercises');
 
+  // Welche Ausbildung wurde dem Kunden zugewiesen?
+  const assigned = (customerProfile && customerProfile.assignedTraining) || '';
+  const label = (typeof getTrainingLabel === 'function' && assigned) ? getTrainingLabel(assigned) : '';
+  const hasCurr = typeof hasTrainingCurriculum === 'function' && hasTrainingCurriculum(assigned);
+
+  // Subtitle setzen
+  if (subEl) {
+    if (assigned && hasCurr) {
+      // Fertiger Lehrplan: Label + Referenz auf die EASA-Vorschrift anzeigen
+      subEl.textContent = label + ' — AMC1 SFCL.150';
+    } else if (assigned) {
+      subEl.textContent = label;
+    } else {
+      subEl.textContent = '—';
+    }
+  }
+
+  // Ausbildung ohne Lehrplan → Platzhalter zeigen, Rest verstecken
+  if (!hasCurr) {
+    if (curWrap) curWrap.style.display = 'none';
+    if (phEl)    phEl.style.display    = '';
+    return;
+  }
+  if (curWrap) curWrap.style.display = '';
+  if (phEl)    phEl.style.display    = 'none';
+
+  // Lehrplan + Fortschritt laden (nur für Ausbildungen mit Curriculum)
   try {
     const token = await getFirebaseToken();
     const resp = await fetch('/.netlify/functions/training?studentUid=' + encodeURIComponent(uid), {
@@ -7197,8 +7415,9 @@ firebase.auth().onAuthStateChanged(async (user) => {
       document.getElementById('tabDocuments')?.classList.add('auth-revealed');
       document.getElementById('mobileTabDocuments')?.classList.add('auth-revealed');
       document.getElementById('mainViewTabs')?.classList.add('has-customer-tabs');
-      // Flugschüler: Meine Ausbildung Tab anzeigen
-      if (customerProfile.customerType === 'student') {
+      // „Meine Ausbildung" Tab nur zeigen, wenn dem Kunden eine konkrete
+      // Ausbildung zugewiesen wurde (customers/{uid}/assignedTraining).
+      if (customerProfile.assignedTraining) {
         document.getElementById('tabMyTraining')?.style.removeProperty('display');
         document.getElementById('mobileTabMyTraining')?.style.removeProperty('display');
       }
