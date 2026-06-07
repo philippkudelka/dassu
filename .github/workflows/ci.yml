@@ -1,0 +1,69 @@
+# CI: Tests + Syntax-Check für Pull Requests und Pushes auf main.
+#
+# Blockiert das Netlify-Deployment NICHT — Netlify zieht direkt vom Branch und
+# baut unabhängig. CI liefert nur ein grünes/rotes Signal am Commit auf GitHub,
+# damit Regressionen früh sichtbar werden.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Vitest + Function-Syntax-Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install root dependencies
+        run: npm ci || npm install
+
+      - name: Install function dependencies
+        working-directory: netlify/functions
+        run: npm ci || npm install
+
+      - name: Run Vitest (shared modules)
+        run: npm test
+
+      - name: Syntax-check all Netlify Functions
+        run: |
+          set -e
+          for f in netlify/functions/*.js; do
+            echo "→ $f"
+            node --check "$f"
+          done
+
+      - name: Syntax-check shared modules
+        run: |
+          set -e
+          for f in shared/*.js; do
+            echo "→ $f"
+            node --check "$f"
+          done
+
+      - name: Lint static HTML for missing closing tags (rudimentär)
+        run: |
+          set -e
+          for f in index.html staff.html welcome.html; do
+            if [ -f "$f" ]; then
+              opens=$(grep -oE '<(div|span|button|script|style)\b' "$f" | wc -l | tr -d ' ')
+              closes=$(grep -oE '</(div|span|button|script|style)>' "$f" | wc -l | tr -d ' ')
+              echo "$f: opens=$opens closes=$closes"
+              if [ "$opens" -ne "$closes" ]; then
+                echo "::warning file=$f::Mögliches Tag-Mismatch (opens=$opens, closes=$closes) — bitte manuell prüfen."
+              fi
+            fi
+          done
