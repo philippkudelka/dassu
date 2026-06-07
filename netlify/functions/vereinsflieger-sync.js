@@ -552,7 +552,11 @@ exports.handler = async (event) => {
         result = users.map(u => ({
           firstname: u.firstname || '',
           lastname: u.lastname || '',
-          memberid: u.memberid || u.uid || ''
+          memberid: u.memberid || u.uid || '',
+          // E-Mail für Buchungsbestätigung bei Staff-Schnellbuchungen.
+          // Wird im Frontend nur dann genutzt, wenn der Buchungsname aus den VF-Vorschlägen
+          // gewählt wurde und kein Firebase-Kunde mit dieser E-Mail existiert.
+          email: (u.email || '').trim().toLowerCase()
         })).filter(u => u.firstname || u.lastname)
           .sort((a, b) => (a.lastname || '').localeCompare(b.lastname || ''));
         break;

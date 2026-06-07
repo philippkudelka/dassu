@@ -2004,7 +2004,7 @@ let currentView = 'overview';
 let currentEditId = null;
 let manageFilter = 'pending';
 let firstLoad = true;
-let vfMembers = []; // Vereinsflieger-Mitgliedernamen für Autocomplete
+let vfMembers = []; // VF-Mitglieder für Autocomplete + Bestätigungsmail: [{ name, email }]
 // firebaseCustomers wurde entfernt — wir nutzen jetzt direkt customerUsers (Live-Listener)
 let acActiveIdx = -1; // Aktuell markierter Autocomplete-Eintrag
 let knownBookingIds = new Set();
@@ -7745,13 +7745,17 @@ function submitQuick() {
     }
   }
 
+  // E-Mail ableiten: Firebase-Kunde > VF-Mitgliederliste (für Bestätigungs-Mail).
+  // Leer = keine Bestätigung wird verschickt.
+  const derivedEmail = lookupEmailForName(name);
+
   const booking = {
     id: Date.now().toString(36) + Math.random().toString(36).substr(2, 4),
     aircraft: selectedAircraft,
     date: dk,
     slot: `${startTime} - ${endTime}`,
     startTime, endTime, name,
-    email: '', phone: '',
+    email: derivedEmail, phone: '',
     instructor: needInstructor ? 'ja' : 'nein',
     instructorName: needInstructor ? instructorName : '',
     status: 'approved',
@@ -7768,7 +7772,13 @@ function submitQuick() {
       logActivity('create', `Buchung erstellt: ${name}, ${selectedAircraft}, ${startTime}–${endTime}`, booking.id);
     } catch (e) { console.error('Audit/Log Fehler:', e); }
     closeQuick();
-    notify(`${name} gebucht: ${startTime}–${endTime}`, 'success');
+    // Bestätigungsmail nur verschicken, wenn wir eine E-Mail haben (sonst still bleiben).
+    if (derivedEmail) {
+      sendStatusEmail(booking, 'approved');
+      notify(`${name} gebucht: ${startTime}–${endTime} — Bestätigung an ${derivedEmail} verschickt.`, 'success');
+    } else {
+      notify(`${name} gebucht: ${startTime}–${endTime}`, 'success');
+    }
   }).catch(err => {
     console.error('Buchung Fehler:', err);
     notify('Fehler beim Buchen: ' + err.message, 'error');
@@ -8248,14 +8258,22 @@ if ('serviceWorker' in navigator) {
 // ============================================================
 // VEREINSFLIEGER MITGLIEDER-AUTOCOMPLETE
 // ============================================================
+// vfMembers ist ab v2 ein Array von { name, email } Objekten (war früher String[]).
+// Der Cache wird beim Lesen erkannt und ggf. invalidiert.
 async function loadVfMembers() {
   // Cache prüfen (max 24h)
   try {
     const cached = localStorage.getItem('vfMembers');
     const cachedAt = parseInt(localStorage.getItem('vfMembersCachedAt') || '0');
     if (cached && (Date.now() - cachedAt) < 86400000) {
-      vfMembers = JSON.parse(cached);
-      return;
+      const parsed = JSON.parse(cached);
+      // Alte Cache-Form (String[]) → ignorieren + Refresh erzwingen
+      const isNewShape = Array.isArray(parsed) && (parsed.length === 0 || typeof parsed[0] === 'object');
+      if (isNewShape) {
+        vfMembers = parsed;
+        return;
+      }
+      // alte Form: weiter zum Refresh
     }
   } catch (_) {}
 
@@ -8271,16 +8289,30 @@ async function loadVfMembers() {
     const json = await res.json();
     if (json.ok && json.data) {
       vfMembers = json.data.map(m => {
-        const name = [m.firstname, m.lastname].filter(Boolean).join(' ');
-        return name;
+        const name = [m.firstname, m.lastname].filter(Boolean).join(' ').trim();
+        return name ? { name, email: (m.email || '').trim().toLowerCase() } : null;
       }).filter(Boolean);
-      // Im Cache speichern
       localStorage.setItem('vfMembers', JSON.stringify(vfMembers));
       localStorage.setItem('vfMembersCachedAt', String(Date.now()));
     }
   } catch (err) {
     console.warn('VF-Mitglieder laden fehlgeschlagen:', err);
   }
+}
+
+// Helper: Findet die E-Mail zu einem Buchungsnamen.
+// Priorisiert Firebase-Kunden (autoritative Quelle), Fallback ist VF-Member-Cache.
+// Gibt '' zurück, wenn nichts gefunden — Caller verschickt dann keine Bestätigungs-Mail.
+function lookupEmailForName(name) {
+  if (!name) return '';
+  const key = name.trim().toLowerCase();
+  // 1) Firebase-Kunde
+  const cust = (customerUsers || []).find(c => (c.name || '').trim().toLowerCase() === key);
+  if (cust && cust.email) return cust.email.trim().toLowerCase();
+  // 2) VF-Mitglied
+  const vfm = (vfMembers || []).find(m => m && typeof m === 'object' && (m.name || '').trim().toLowerCase() === key);
+  if (vfm && vfm.email) return vfm.email;
+  return '';
 }
 
 // VF-Fluglehrer aus Schulungsflügen laden
@@ -8328,9 +8360,11 @@ function acFilter(inputId) {
   }
 
   // Alle Quellen kombinieren: VF-Mitglieder + Firebase-Kunden (live aus customerUsers) + Buchungsnamen
+  // vfMembers ist seit v2 ein Objekt-Array { name, email } — nur Name fürs Autocomplete.
   const bookingNames = [...new Set(bookings.map(b => b.name).filter(Boolean))];
   const customerNames = customerUsers.map(c => c.name).filter(Boolean);
-  const allNames = [...new Set([...vfMembers, ...customerNames, ...bookingNames])];
+  const vfNames = (vfMembers || []).map(m => (m && typeof m === 'object') ? m.name : m).filter(Boolean);
+  const allNames = [...new Set([...vfNames, ...customerNames, ...bookingNames])];
 
   if (allNames.length === 0) {
     list.classList.remove('open');
