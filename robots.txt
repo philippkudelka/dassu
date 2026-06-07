@@ -1,0 +1,24 @@
+# robots.txt für DASSU Buchungskalender
+# Erlaubt Crawling der öffentlichen Login-Seite, sperrt Admin-/Function-Pfade
+# und alle PII-relevanten Bereiche.
+
+User-agent: *
+
+# Admin-Oberfläche nicht indexieren
+Disallow: /staff.html
+Disallow: /welcome.html
+
+# Serverless Functions niemals crawlen
+Disallow: /.netlify/
+
+# Datenschutz- und Impressums-Templates sind statisch & öffentlich
+Allow: /impressum.html
+Allow: /datenschutz.html
+
+# Service Worker + Manifest niemals indexieren
+Disallow: /sw.js
+Disallow: /firebase-messaging-sw.js
+Disallow: /manifest.json
+
+# Optionale Sitemap (falls später angelegt)
+# Sitemap: https://dassu-buchungskalender.netlify.app/sitemap.xml

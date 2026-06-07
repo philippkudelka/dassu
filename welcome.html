@@ -3,51 +3,65 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#0c1b2e">
+<meta name="theme-color" content="#1E4B4E">
 <title>DASSU Staff – Willkommen</title>
 <link rel="icon" type="image/png" href="https://images.squarespace-cdn.com/content/v1/5a6084aad0e628eab9591587/66b4214a-b88b-427c-8350-c5907ffdcda4/DASSU-Logo+2022+web+768x768+2.png?format=32w">
+<link rel="preconnect" href="https://fonts.bunny.net">
+<link rel="stylesheet" href="https://fonts.bunny.net/css2?family=Inter:wght@400;500;600;700&family=Fraunces:ital,wght@0,400;0,500;0,600&display=swap">
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <script src="shared/auth.js"></script>
 <style>
+/* welcome.html — Design auf neue „Alpen & Horizont"-Palette angeglichen (gleich wie index.html / staff.html). */
 :root {
-  --primary: #3d9991;
-  --primary-dark: #2d7a73;
-  --accent: #c9a84c;
-  --navy: #0c1b2e;
-  --navy-light: #132640;
-  --danger: #b83232;
-  --gray-100: #f2f4f7;
-  --gray-200: #e4e7ec;
-  --gray-300: #cdd3dc;
-  --gray-500: #667085;
-  --gray-600: #475467;
-  --gray-900: #101828;
-  --radius: 10px;
-  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+  --primary: #1E4B4E;        /* --c-alpine */
+  --primary-dark: #163738;
+  --accent: #C56A1C;         /* --c-amber */
+  --navy: #1B1D1F;           /* --c-ink */
+  --navy-light: #4A4842;
+  --danger: #B36A5B;
+  --c-bg: #EFEAE0;
+  --c-paper: #F4EFE4;
+  --c-line: #D5CEBF;
+  --c-stone: #767068;
+  --gray-100: #EAE5DB;
+  --gray-200: #D5CEBF;
+  --gray-300: #C5BFB0;
+  --gray-500: #8E887D;
+  --gray-600: #767068;
+  --gray-900: #1B1D1F;
+  --radius: 12px;
+  --font: 'Inter', system-ui, -apple-system, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+  --font-brand: 'Fraunces', Georgia, serif;
+  --ring: 0 0 0 3px rgba(30,75,78,0.18);
+  --motion: 160ms cubic-bezier(.2,.8,.2,1);
 }
 * { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; font-family: var(--font); color: var(--navy); background: linear-gradient(180deg, #f6f8fa 0%, #eaf0f4 100%); min-height: 100vh; }
+html, body { margin: 0; padding: 0; font-family: var(--font); color: var(--navy); background: var(--c-bg); min-height: 100vh; -webkit-font-smoothing: antialiased; }
 .page { max-width: 480px; margin: 0 auto; padding: 24px 20px 40px; }
 .brand { text-align: center; margin-bottom: 20px; }
-.brand img { width: 72px; height: 72px; border-radius: 14px; box-shadow: 0 4px 14px rgba(12,27,46,0.15); }
-.brand h1 { font-size: 22px; font-weight: 800; margin: 12px 0 4px; letter-spacing: 0.02em; }
-.brand h1 span { color: var(--accent); font-weight: 600; }
-.brand p { font-size: 14px; color: var(--gray-600); margin: 0; }
+.brand img { width: 72px; height: 72px; border-radius: 50%; box-shadow: 0 1px 3px rgba(27,29,31,0.06), 0 1px 2px rgba(27,29,31,0.04); border: 1px solid var(--c-line); background: var(--c-paper); }
+.brand h1 { font-family: var(--font-brand); font-size: 24px; font-weight: 500; margin: 14px 0 2px; letter-spacing: 0.08em; color: var(--navy); text-transform: uppercase; }
+.brand h1 span { color: var(--accent); font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; font-size: 11px; display: block; margin-top: 4px; }
+.brand p { font-size: 13px; color: var(--gray-600); margin: 6px 0 0; }
 
-.card { background: white; border-radius: var(--radius); box-shadow: 0 2px 12px rgba(12,27,46,0.06); padding: 20px; margin-bottom: 16px; }
-.card h2 { font-size: 16px; font-weight: 700; margin: 0 0 14px; color: var(--navy); }
-.tab-row { display: flex; gap: 4px; background: var(--gray-100); padding: 3px; border-radius: 8px; margin-bottom: 18px; }
-.tab-row button { flex: 1; padding: 9px; background: transparent; border: none; border-radius: 6px; font-family: var(--font); font-size: 13px; font-weight: 600; color: var(--gray-600); cursor: pointer; }
-.tab-row button.active { background: white; color: var(--navy); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+.card { background: var(--c-paper); border: 1px solid var(--c-line); border-radius: var(--radius); box-shadow: 0 1px 3px rgba(27,29,31,0.06), 0 1px 2px rgba(27,29,31,0.04); padding: 24px; margin-bottom: 16px; }
+.card h2 { font-size: 16px; font-weight: 700; margin: 0 0 14px; color: var(--navy); letter-spacing: -0.01em; }
+.tab-row { display: flex; gap: 4px; background: var(--c-bg); padding: 3px; border-radius: 8px; margin-bottom: 18px; }
+.tab-row button { flex: 1; padding: 10px; background: transparent; border: none; border-radius: 6px; font-family: var(--font); font-size: 13px; font-weight: 600; color: var(--gray-600); cursor: pointer; transition: background var(--motion), color var(--motion); }
+.tab-row button:hover { color: var(--navy); }
+.tab-row button.active { background: var(--c-paper); color: var(--navy); box-shadow: 0 1px 3px rgba(27,29,31,0.08); }
 
-.field { margin-bottom: 12px; }
-.field label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gray-500); margin-bottom: 4px; }
-.field input { width: 100%; padding: 12px 14px; font-size: 15px; border: 1.5px solid var(--gray-200); border-radius: 8px; font-family: var(--font); outline: none; background: white; transition: border-color 0.15s; }
-.field input:focus { border-color: var(--primary); }
-.btn-primary { width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; font-family: var(--font); cursor: pointer; transition: background 0.15s; }
-.btn-primary:hover { background: var(--primary-dark); }
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gray-500); margin-bottom: 5px; }
+.field input { width: 100%; padding: 12px 14px; font-size: 15px; border: 1px solid var(--c-line); border-radius: 8px; font-family: var(--font); outline: none; background: white; transition: border-color var(--motion), box-shadow var(--motion); }
+.field input:hover { border-color: var(--c-stone); }
+.field input:focus-visible { border-color: var(--primary); box-shadow: var(--ring); }
+.btn-primary { width: 100%; padding: 13px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; font-family: var(--font); cursor: pointer; transition: filter var(--motion), transform var(--motion), box-shadow var(--motion); letter-spacing: 0.01em; }
+.btn-primary:hover { filter: brightness(1.06); }
+.btn-primary:active { filter: brightness(0.96); transform: translateY(0.5px); }
+.btn-primary:focus-visible { outline: none; box-shadow: var(--ring); }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-link { background: none; border: none; color: var(--primary); font-size: 13px; cursor: pointer; font-family: var(--font); padding: 0; text-decoration: underline; }
 .note { margin-top: 10px; font-size: 12px; color: var(--gray-600); text-align: center; }
@@ -58,14 +72,14 @@ html, body { margin: 0; padding: 0; font-family: var(--font); color: var(--navy)
 .msg.success { background: #e8f5ee; color: #1e7b4e; border: 1px solid #b5dfc5; }
 .msg.info { background: #e8f3ff; color: #0e4a88; border: 1px solid #b8d6f5; }
 
-details { background: white; border-radius: var(--radius); box-shadow: 0 2px 12px rgba(12,27,46,0.06); margin-bottom: 12px; }
+details { background: var(--c-paper); border: 1px solid var(--c-line); border-radius: var(--radius); box-shadow: 0 1px 3px rgba(27,29,31,0.05); margin-bottom: 12px; transition: border-color var(--motion); }
 details summary { padding: 14px 18px; font-size: 14px; font-weight: 600; cursor: pointer; list-style: none; display: flex; align-items: center; gap: 10px; color: var(--navy); }
-details summary::after { content: '▾'; margin-left: auto; transition: transform 0.15s; }
+details summary::after { content: '▾'; margin-left: auto; transition: transform var(--motion); color: var(--c-stone); }
 details[open] summary::after { transform: rotate(180deg); }
-details .body { padding: 0 18px 16px; font-size: 13px; color: var(--gray-600); line-height: 1.55; }
+details .body { padding: 0 18px 16px; font-size: 13px; color: var(--gray-600); line-height: 1.6; }
 details .body ol { padding-left: 20px; }
 details .body li { margin-bottom: 6px; }
-details .body code { background: var(--gray-100); padding: 1px 6px; border-radius: 4px; font-size: 12px; }
+details .body code { background: var(--c-bg); padding: 1px 6px; border-radius: 4px; font-size: 12px; border: 1px solid var(--c-line); }
 
 .device-icon { width: 20px; height: 20px; flex-shrink: 0; color: var(--primary); }
 .small-cta { text-align: center; margin-top: 14px; }
@@ -73,8 +87,10 @@ details .body code { background: var(--gray-100); padding: 1px 6px; border-radiu
 
 .hidden { display: none !important; }
 
-.footer { text-align: center; font-size: 11px; color: var(--gray-500); margin-top: 20px; }
-.footer a { color: var(--primary); }
+.footer { text-align: center; font-size: 11px; color: var(--gray-500); margin-top: 24px; line-height: 1.7; }
+.footer a { color: var(--primary); text-decoration: none; }
+.footer a:hover { text-decoration: underline; }
+.footer .sep { margin: 0 6px; color: var(--c-line); }
 
 #authedBox { text-align: center; padding: 28px 20px; }
 #authedBox p { margin: 8px 0; }
@@ -202,7 +218,8 @@ details .body code { background: var(--gray-100); padding: 1px 6px; border-radiu
 
   <div class="footer">
     DASSU – Deutsche Alpensegelflugschule Unterwössen e.V.<br>
-    Bei Problemen: <a href="mailto:info@dassu.de">info@dassu.de</a>
+    Bei Problemen: <a href="mailto:info@dassu.de">info@dassu.de</a><br>
+    <a href="impressum.html">Impressum</a><span class="sep">·</span><a href="datenschutz.html">Datenschutz</a>
   </div>
 </div>
 

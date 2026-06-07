@@ -39,7 +39,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="DASSU Staff">
-<meta name="theme-color" content="#2C5F5A">
+<meta name="theme-color" content="#1E4B4E">
 <link rel="apple-touch-icon" href="https://images.squarespace-cdn.com/content/v1/5a6084aad0e628eab9591587/66b4214a-b88b-427c-8350-c5907ffdcda4/DASSU-Logo+2022+web+768x768+2.png?format=180w">
 <link rel="icon" type="image/png" href="https://images.squarespace-cdn.com/content/v1/5a6084aad0e628eab9591587/66b4214a-b88b-427c-8350-c5907ffdcda4/DASSU-Logo+2022+web+768x768+2.png?format=32w">
 <link rel="manifest" href="/manifest.json">
@@ -6358,7 +6358,12 @@ function renderStatsOverview() {
     }
   }
 
-  const skeleton = '<div class="dash-card-empty">Wird geladen…</div>';
+  // Drei VF-Kachel-Zustände: hat Daten / lädt / Fehler
+  const vfErrored = !hasVf && !!vfLastError;
+  const vfPlaceholder = vfErrored
+    ? '<div class="dash-card-empty" style="color:var(--danger);">VF nicht erreichbar</div>'
+    : '<div class="dash-card-empty">Wird geladen…</div>';
+  const skeleton = vfPlaceholder;
 
   container.innerHTML = `
     <div class="dash-grid">
@@ -6404,7 +6409,14 @@ function renderStatsOverview() {
         ${_statsDeltaHtml(bookingsDelta, 'vs. Vorjahr · Stichtag')}
       </div>
     </div>
-    ${!hasVf ? '<div class="empty-msg" style="font-size:12px;color:var(--gray-500);margin-top:4px;">Flugdaten werden aus Vereinsflieger geladen&hellip;</div>' : ''}
+    ${!hasVf
+      ? (vfErrored
+          ? `<div class="empty-msg" style="font-size:12px;color:var(--danger);margin-top:4px;">
+              Vereinsflieger-Daten konnten nicht geladen werden: ${escapeHtml(vfLastError || 'Unbekannter Fehler')}.
+              <button onclick="_vfDashboardLoadStarted=false; syncVereinsflieger();" style="margin-left:8px;padding:3px 10px;font-size:11px;background:var(--c-paper);border:1px solid var(--c-line);border-radius:6px;cursor:pointer;font-family:var(--font);">Erneut versuchen</button>
+            </div>`
+          : '<div class="empty-msg" style="font-size:12px;color:var(--gray-500);margin-top:4px;">Flugdaten werden aus Vereinsflieger geladen&hellip;</div>')
+      : ''}
   `;
 
   // Background-Load von VF-Daten triggern (nur einmal pro Session)
@@ -7103,6 +7115,9 @@ function openPdfData(docId, aircraft) {
 // VEREINSFLIEGER JAHRESVERGLEICH
 // ============================================================
 let vfData = null;
+// Letzte VF-Fehlermeldung, damit das Dashboard statt Endlos-Skeleton einen
+// konkreten Hinweis zeigen kann.
+let vfLastError = null;
 
 async function syncVereinsflieger() {
   const btn = document.getElementById('vfSyncBtn');
@@ -7112,6 +7127,7 @@ async function syncVereinsflieger() {
 
   btn.disabled = true;
   label.textContent = 'Lade…';
+  vfLastError = null;
 
   try {
     const token = await getFirebaseToken();
@@ -7124,6 +7140,7 @@ async function syncVereinsflieger() {
     if (!json.ok) throw new Error(json.error || 'Unbekannter Fehler');
 
     vfData = json.data;
+    vfLastError = null;
     renderVfCompare();
     // Wenn der Überblick-Tab aktiv ist, KPI-Kacheln direkt mit den frischen VF-Daten füllen
     if (typeof currentStatsTab !== 'undefined' && currentStatsTab === 'overview') {
@@ -7131,10 +7148,15 @@ async function syncVereinsflieger() {
     }
     label.textContent = 'Aktualisieren';
   } catch (err) {
+    vfLastError = err.message || 'Unbekannter Fehler';
     if (/Vereinsflieger-Konto/i.test(err.message || '')) {
       renderVfConnectForm(content, syncVereinsflieger);
     } else {
       content.innerHTML = `<div class="empty-msg" style="color:var(--danger);">Fehler: ${escapeHtml(err.message)}</div>`;
+    }
+    // Dashboard-Kacheln aktualisieren, damit der Fehler statt Endlos-Skeleton sichtbar wird
+    if (typeof currentStatsTab !== 'undefined' && currentStatsTab === 'overview') {
+      try { renderStatsOverview(); } catch (_) {}
     }
     label.textContent = 'Erneut versuchen';
   }
@@ -7749,6 +7771,19 @@ function submitQuick() {
   // Leer = keine Bestätigung wird verschickt.
   const derivedEmail = lookupEmailForName(name);
 
+  // Storno-Code nur generieren, wenn der Pilot eine Mail bekommt — er soll damit
+  // den im Mail-Footer angekündigten Code zum Stornieren der Buchung haben.
+  // 6 Zeichen, Großbuchstaben + Zahlen ohne Verwechslungs-Kandidaten (0/O, 1/I).
+  const _genCancelToken = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let s = '';
+    const a = new Uint8Array(6);
+    crypto.getRandomValues(a);
+    for (let i = 0; i < 6; i++) s += chars[a[i] % chars.length];
+    return s;
+  };
+  const cancelToken = derivedEmail ? _genCancelToken() : '';
+
   const booking = {
     id: Date.now().toString(36) + Math.random().toString(36).substr(2, 4),
     aircraft: selectedAircraft,
@@ -7759,7 +7794,7 @@ function submitQuick() {
     instructor: needInstructor ? 'ja' : 'nein',
     instructorName: needInstructor ? instructorName : '',
     status: 'approved',
-    cancelToken: '',
+    cancelToken,
     quickBook: true,
     uid: '', // Staff-Buchung — kein Kunden-Besitzer
     createdBy: currentUser ? currentUser.name : '',
@@ -8028,12 +8063,33 @@ function setStatus(id, status) {
   });
 }
 
+// Returnt true wenn Mail gesendet wurde, false wenn übersprungen oder fehlgeschlagen.
+// Caller kann die UI entsprechend anpassen (statt blind „Mail verschickt" zu zeigen).
 async function sendStatusEmail(booking, status) {
-  if (!appSettings.emailServiceId || !appSettings.emailTemplateId || !appSettings.emailPublicKey) return;
-  const statusLabel = status === 'approved' ? 'Bestätigt' : 'Abgelehnt';
-  const statusText = status === 'approved' ? 'bestätigt' : 'abgelehnt';
-  const statusColor = status === 'approved' ? '#3d9991' : '#c0392b';
-  const statusBg = status === 'approved' ? '#edf7f6' : '#fdf0ee';
+  if (!booking || !booking.email) {
+    console.warn('[sendStatusEmail] Skip — keine E-Mail-Adresse in der Buchung.', booking);
+    return false;
+  }
+  if (!appSettings.emailServiceId || !appSettings.emailTemplateId || !appSettings.emailPublicKey) {
+    console.warn('[sendStatusEmail] Skip — EmailJS-Konfiguration unvollständig.');
+    return false;
+  }
+  // Status → Label / Text / Farben für die Bestätigungs-Mail.
+  // 'deleted' wird als „storniert" kommuniziert — Pilot muss wissen, dass der Flug ausfällt.
+  let statusLabel, statusText, statusColor, statusBg, introText;
+  if (status === 'approved') {
+    statusLabel = 'Bestätigt'; statusText = 'bestätigt';
+    statusColor = '#3d9991'; statusBg = '#edf7f6';
+    introText = 'deine Buchung wurde <strong style="color: #3d9991;">bestätigt</strong>.';
+  } else if (status === 'deleted') {
+    statusLabel = 'Storniert'; statusText = 'storniert';
+    statusColor = '#c0392b'; statusBg = '#fdf0ee';
+    introText = 'deine Buchung wurde von unserem Team <strong style="color: #c0392b;">storniert</strong> und aus dem Kalender entfernt. Falls das ein Versehen ist oder du eine neue Buchung möchtest, melde dich bitte bei uns.';
+  } else {
+    statusLabel = 'Abgelehnt'; statusText = 'abgelehnt';
+    statusColor = '#c0392b'; statusBg = '#fdf0ee';
+    introText = 'deine Buchung wurde <strong style="color: #c0392b;">abgelehnt</strong>.';
+  }
   const time = (booking.startTime && booking.endTime) ? `${booking.startTime} – ${booking.endTime}` : (booking.slot || '');
   const instructorText = booking.instructor === 'ja' ? (booking.instructorName || 'Ja, benötigt') : 'Nein';
 
@@ -8050,7 +8106,7 @@ async function sendStatusEmail(booking, status) {
   </div>
   <div style="padding: 24px 40px 32px; color: #4a4a4a; line-height: 1.7;">
     <p style="margin: 0 0 16px 0; font-size: 16px;">Hallo ${booking.name || ''},</p>
-    <p style="margin: 0 0 24px 0; font-size: 15px; color: #666;">deine Buchung wurde <strong style="color: ${statusColor};">${statusText}</strong>.</p>
+    <p style="margin: 0 0 24px 0; font-size: 15px; color: #666;">${introText}</p>
     <table style="width: 100%; border-collapse: collapse; font-size: 14px; font-family: Arial, Helvetica, sans-serif;">
       <tr><td style="padding: 10px 0; color: #999; border-bottom: 1px solid #f0f0f0; width: 120px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Flugzeug</td><td style="padding: 10px 0; border-bottom: 1px solid #f0f0f0; color: #272727; font-weight: 600;">${booking.aircraft}</td></tr>
       <tr><td style="padding: 10px 0; color: #999; border-bottom: 1px solid #f0f0f0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Datum</td><td style="padding: 10px 0; border-bottom: 1px solid #f0f0f0; color: #272727; font-weight: 600;">${booking.date}</td></tr>
@@ -8086,22 +8142,47 @@ async function sendStatusEmail(booking, status) {
       message: message,
       reply_to: 'info@dassu.de'
     });
-    notify(`Status-Mail an ${booking.email} gesendet.`, 'info');
+    console.log('[sendStatusEmail] OK →', booking.email, status);
+    return true;
   } catch (e) {
-    console.warn('Status-Mail fehlgeschlagen:', e);
+    console.error('[sendStatusEmail] Versand fehlgeschlagen:', e);
+    return false;
   }
 }
 
-function deleteBooking(id) {
+async function deleteBooking(id) {
   if (!currentUserHas('deleteBookings')) { notify('Du darfst Buchungen nicht löschen. Du kannst sie ablehnen statt l\u00f6schen.', 'error'); return; }
-  if (!confirm('Buchung wirklich löschen?')) return;
   const b = bookings.find(x => x.id === id);
+
+  // Confirm-Dialog: macht klar, ob eine Mail rausgeht.
+  const willMail = !!(b && b.email);
+  const confirmMsg = willMail
+    ? `Buchung wirklich löschen?\n\nDer Pilot (${b.name || ''}) wird per E-Mail an ${b.email} über die Stornierung informiert.`
+    : 'Buchung wirklich löschen?';
+  if (!confirm(confirmMsg)) return;
+
   addAuditEntry(id, 'gelöscht', b ? `${b.name}, ${b.aircraft}, ${b.startTime || ''}–${b.endTime || ''}` : '');
   logActivity('delete', `Buchung gelöscht: ${b ? b.name + ', ' + b.aircraft + ', ' + (b.startTime || '') + '–' + (b.endTime || '') : id}`, id);
-  deleteBookingSplit(id);
 
+  // Mail VOR dem DB-Delete senden — danach sind die Buchungsdaten weg.
+  // sendStatusEmail returnt true/false, damit wir den User ehrlich informieren können.
+  let mailSent = false;
+  if (willMail) {
+    try { mailSent = await sendStatusEmail(b, 'deleted'); }
+    catch (e) { console.error('Storno-Mail fehlgeschlagen:', e); mailSent = false; }
+  }
+
+  deleteBookingSplit(id);
   closeDetail();
-  notify('Buchung gelöscht.', 'success');
+
+  // Klare Status-Meldung — kein Vorgaukeln dass eine Mail rausging wenn sie tatsächlich nicht ging.
+  if (mailSent) {
+    notify(`Buchung gelöscht — Storno-Mail an ${b.email} verschickt.`, 'success');
+  } else if (willMail) {
+    notify(`Buchung gelöscht. Storno-Mail an ${b.email} fehlgeschlagen — bitte manuell informieren. (Details: Console)`, 'error');
+  } else {
+    notify('Buchung gelöscht. Keine Mail verschickt (keine E-Mail-Adresse beim Pilot hinterlegt).', 'info');
+  }
 }
 
 function closeDetail() {

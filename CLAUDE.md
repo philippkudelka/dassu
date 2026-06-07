@@ -98,13 +98,18 @@ Die Bash-Sandbox hat KEINEN GitHub-Zugriff (403 Proxy-Fehler). Niemals versuchen
 
 - `index.html` — Kunden-/Mitglieder-Ansicht (Buchungskalender, Login, Buchung erstellen)
 - `staff.html` — Staff/Admin-Ansicht (Übersicht, Buchungsverwaltung, Zeiterfassung, Vereinsflieger-Sync)
-- `welcome.html` — Willkommensseite
+- `welcome.html` — Staff-Login / Einladungs-Landingpage (Design auf Cream/Alpine angeglichen)
+- `impressum.html` — statisches Impressum (DSGVO-Pflichtangaben). **Enthält Platzhalter `[BITTE ERGÄNZEN: …]` für Vorstandsnamen, Vereinsregister, USt-IdNr.**
+- `datenschutz.html` — statische Datenschutzerklärung (DSGVO Art. 13)
+- `robots.txt` — sperrt staff.html, welcome.html, /.netlify/ und SW/Manifest vom Crawling
 - `shared/auth.js` — Firebase Auth (gemeinsam genutzt)
 - `shared/permissions.js` — Rechte-System (Rollen: admin, vorstand, flugleiter, member)
+- `shared/trainings.js` — Liste der 12 DASSU-Ausbildungen
 - `deploy.command` — Shell-Skript für Git commit + push
 - `netlify.toml` — Netlify-Konfiguration (esbuild, functions)
 - `sw.js`, `firebase-messaging-sw.js` — Service Worker / Push Notifications
-- `manifest.json` — PWA Manifest
+- `manifest.json` — PWA Manifest (zeigt auf `/` als Kunden-App, Theme-Color `#1E4B4E`)
+- `.github/workflows/ci.yml` — GitHub Actions CI (Vitest + Function-Syntax-Check). Blockiert NICHT das Netlify-Deployment.
 
 ### Netlify Functions (`netlify/functions/`)
 - `send-push.js` — Push-Benachrichtigungen
@@ -125,3 +130,20 @@ Die Bash-Sandbox hat KEINEN GitHub-Zugriff (403 Proxy-Fehler). Niemals versuchen
 - Firebase Web-API-Keys sind öffentlich/client-seitig → Secret-Scanner ist in netlify.toml deaktiviert
 - Sprache im Code: Deutsch (Variablen/Kommentare gemischt DE/EN)
 - Philipp ist Admin und Hauptentwickler
+
+## Pre-Launch / Operations-Hinweise
+
+### Vor jedem Launch / Update
+- **Impressum-Platzhalter** in `impressum.html` einmalig durch echte Daten ersetzen (Vorstand, Register, USt-IdNr, Verantwortlich i.S.d. § 18 Abs. 2 MStV).
+- **Datenschutz-Stand-Datum** in `datenschutz.html` setzen.
+- **Backup-Restore einmal getestet?** Mind. einmal vor Go-Live: JSON-Backup aus Mail laden + in Firebase Console importieren (Test-Pfad), nicht produktiv überschreiben.
+- **EmailJS-Quota** prüfen — Free-Tier nur 200 Mails/Monat. Bei nahendem Limit auf Brevo migrieren (SMTP-Creds existieren schon).
+
+### Custom-Domain (z. B. kalender.dassu.de)
+- Wenn umgestellt: **9 Functions** in `netlify/functions/` haben `ALLOWED_ORIGIN = 'https://dassu-buchungskalender.netlify.app'` hartcodiert. Alle parallel ändern.
+- Auch: `manifest.json` `start_url` + `scope`, `robots.txt` Sitemap-URL, evtl. iCal-Feed-URL in den Bestandsabos der User (alte Links funktionieren nicht mehr — User muss neu erzeugen).
+
+### Bekannte Lücken (Roadmap)
+- **Push-Benachrichtigungen für Kunden** — VAPID/getToken sind aktuell nur in staff.html eingebaut. Kunden bekommen nur Mail.
+- **Storno-per-Token-Flow** — Schnellbuchungen mit Empfänger-Mail erzeugen einen `cancelToken` (6 Zeichen). Frontend-Stelle, die diesen Token entgegennimmt und die Buchung storniert, ist noch nicht gebaut. Mail nennt den Code, aber der Pilot kann ihn aktuell nicht einlösen.
+- **Sentry / Live-Error-Alerting** fehlt. Aktuell nur tägliche Mail aus `error-report.js`.
