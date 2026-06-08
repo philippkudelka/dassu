@@ -26,17 +26,26 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
       - name: Install root dependencies
-        run: npm ci || npm install
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install --no-audit --no-fund
+          fi
 
       - name: Install function dependencies
         working-directory: netlify/functions
-        run: npm ci || npm install
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install --no-audit --no-fund
+          fi
 
       - name: Run Vitest (shared modules)
-        run: npm test
+        run: npm test -- --reporter=verbose
 
       - name: Syntax-check all Netlify Functions
         run: |
@@ -54,16 +63,20 @@ jobs:
             node --check "$f"
           done
 
-      - name: Lint static HTML for missing closing tags (rudimentär)
+      # HTML-Tag-Balance-Check als Warning-only (set +e), damit grep-Mismatches den Build nicht killen.
+      - name: HTML tag balance (warn-only)
+        continue-on-error: true
         run: |
-          set -e
-          for f in index.html staff.html welcome.html; do
+          set +e
+          for f in index.html staff.html welcome.html impressum.html datenschutz.html; do
             if [ -f "$f" ]; then
-              opens=$(grep -oE '<(div|span|button|script|style)\b' "$f" | wc -l | tr -d ' ')
-              closes=$(grep -oE '</(div|span|button|script|style)>' "$f" | wc -l | tr -d ' ')
+              opens=$(grep -oE '<(div|span|button|script|style)\b' "$f" 2>/dev/null | wc -l | tr -d ' ')
+              closes=$(grep -oE '</(div|span|button|script|style)>' "$f" 2>/dev/null | wc -l | tr -d ' ')
+              opens=${opens:-0}; closes=${closes:-0}
               echo "$f: opens=$opens closes=$closes"
-              if [ "$opens" -ne "$closes" ]; then
+              if [ "$opens" != "$closes" ]; then
                 echo "::warning file=$f::Mögliches Tag-Mismatch (opens=$opens, closes=$closes) — bitte manuell prüfen."
               fi
             fi
           done
+          exit 0

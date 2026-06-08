@@ -1,7 +1,15 @@
 // Tests für das Rechte-System (shared/permissions.js).
-// permissions.js ist eine IIFE, die ihre Funktionen global registriert.
-import { describe, it, expect } from 'vitest';
+// permissions.js ist eine IIFE, die ihre Funktionen auf globalThis registriert.
+// Im Vitest-Sandbox (ESM) müssen wir explizit über globalThis darauf zugreifen,
+// nicht über bare references — die werden in ES Modules nicht aus globalThis aufgelöst.
+import { describe, it, expect, beforeAll } from 'vitest';
 import '../shared/permissions.js';
+
+let hasPermission, isPermissionExplicit;
+beforeAll(() => {
+  hasPermission = globalThis.hasPermission;
+  isPermissionExplicit = globalThis.isPermissionExplicit;
+});
 
 describe('hasPermission – Rollen-Defaults', () => {
   it('Admin hat immer alle Rechte', () => {
