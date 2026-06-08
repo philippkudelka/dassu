@@ -3725,12 +3725,20 @@ function computeFlyingIndicators(hourly, relevantIdx, temps, dews, clouds, avgWi
 
   schulScore = Math.max(0, Math.min(100, schulScore));
 
+  // Wie viele Tage liegt der angezeigte Tag in der Zukunft? Brauchen wir, um
+  // Prognosen ab Tag 4 nicht mehr zu zeigen (Wetter-Modelle sind dann unzuverlässig).
+  const _today = new Date(); _today.setHours(0,0,0,0);
+  const _target = new Date(date); _target.setHours(0,0,0,0);
+  const daysAhead = Math.round((_target - _today) / 86400000);
+  const isLongRange = daysAhead > 3;
+
   // Daten für Info-Popup speichern
   _fiData = {
     schulScore, schulReasons, maxPrecip, avgPrecip,
     ceilingAmsl, ceilingFt, avgCloud, avgLowCloud,
     wind, gust, minVis, spread: spread,
-    avgTemp, avgDew
+    avgTemp, avgDew,
+    daysAhead, isLongRange
   };
 
   const dotEl = document.getElementById('schulungDot');
@@ -3739,16 +3747,24 @@ function computeFlyingIndicators(hourly, relevantIdx, temps, dews, clouds, avgWi
   if (dotEl && schulVal) {
     // Glow-Klassen zurücksetzen
     indicator?.classList.remove('green-glow', 'yellow-glow', 'red-glow');
-    if (schulScore >= 70) {
+    if (isLongRange) {
+      // Mehr als 3 Tage Vorlauf — keine Prognose, neutraler grauer Status.
+      dotEl.className = 'fi-dot';
+      dotEl.style.background = 'var(--c-line)';
+      schulVal.textContent = 'Zu früh für seriöse Prognose';
+    } else if (schulScore >= 70) {
       dotEl.className = 'fi-dot green';
+      dotEl.style.background = '';
       schulVal.textContent = schulReasons.length ? 'Ja, gute Bedingungen' : 'Ja, ideale Bedingungen';
       indicator?.classList.add('green-glow');
     } else if (schulScore >= 40) {
       dotEl.className = 'fi-dot yellow';
+      dotEl.style.background = '';
       schulVal.textContent = 'Eingeschränkt' + (schulReasons.length ? ' · ' + schulReasons.slice(0, 2).join(', ') : '');
       indicator?.classList.add('yellow-glow');
     } else {
       dotEl.className = 'fi-dot red';
+      dotEl.style.background = '';
       schulVal.textContent = 'Eher nicht' + (schulReasons.length ? ' · ' + schulReasons.slice(0, 2).join(', ') : '');
       indicator?.classList.add('red-glow');
     }
@@ -3770,6 +3786,48 @@ function openSchulungPopup() {
   icon.className = 'fi-popup-icon schulung';
   icon.textContent = '🎓';
   title.textContent = 'Lohnt sich heute Schulung?';
+
+  // ===== Long-Range-Modus (>3 Tage Vorlauf) =====
+  // Wetter-Modelle sind ab Tag 4 unzuverlässig. Statt einer Pseudo-Prognose
+  // zeigen wir einen klaren Hinweis — wir verkaufen keine Vorhersagen,
+  // an die wir selbst nicht glauben.
+  if (d.isLongRange) {
+    title.textContent = 'Wetter-Prognose: noch nicht seriös';
+    body.innerHTML = `
+      <div style="padding:18px 16px; background:rgba(0,0,0,0.03); border-radius:10px; font-size:13px; line-height:1.7; color:var(--c-ink);">
+        <p style="margin:0 0 12px 0; font-size:14px;">
+          <b>Für ${d.daysAhead} Tage im Voraus geben wir hier bewusst keine Wettereinschätzung ab.</b>
+        </p>
+        <p style="margin:0 0 12px 0;">
+          Wetter-Modelle (auch die guten wie ICON oder ECMWF) sind ab dem 4. Tag
+          nicht mehr verlässlich genug, um daraus eine Schulungs-Entscheidung
+          abzuleiten — gerade hier in den Bergen, wo lokale Effekte das
+          Großwetter dominieren.
+        </p>
+        <p style="margin:0 0 12px 0;">
+          <b>Faustregel:</b> Eine seriöse Aussage gibt's für <b>heute, morgen und übermorgen</b>.
+          Alles darüber hinaus ist eher Glaskugel als Prognose.
+        </p>
+        <p style="margin:0 0 12px 0;">
+          📱 <b>Vorsicht bei Standard-Wetter-Apps</b> (iPhone-Wetter, Google,
+          windy.com auf 10-Tage-Ansicht): die zeigen oft ein einzelnes Modell
+          gemittelt, blenden Unsicherheit aus und lassen das aussehen als wüsste
+          man heute schon, ob es Donnerstag in einer Woche regnet. Wisst ihr nicht.
+        </p>
+        <p style="margin:14px 0 0 0; padding:10px 12px; background:rgba(30,75,78,0.08); border-radius:8px; font-size:12.5px;">
+          💡 <b>Was zu tun ist:</b> Bucht den Termin trotzdem ein —
+          spätestens <b>3 Tage vorher</b> kommen hier verlässliche Zahlen rein.
+          Bei sehr unklarer Lage hilft am Vortag auch ein kurzer Anruf beim Fluglehrer.
+        </p>
+        <p style="margin:14px 0 0 0; font-size:11px; color:var(--c-muted); text-align:center;">
+          Datenquelle: Open-Meteo ICON · Modell-Verlässlichkeit bis Tag 3
+        </p>
+      </div>
+    `;
+    overlay.classList.add('open');
+    popup.classList.add('open');
+    return;
+  }
 
   const scoreColor = d.schulScore >= 70 ? '#22c55e' : d.schulScore >= 40 ? '#eab308' : '#ef4444';
   const scoreLabel = d.schulScore >= 70 ? (d.schulReasons.length ? 'Ja, gute Bedingungen' : 'Ja, ideale Bedingungen')
