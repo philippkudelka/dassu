@@ -3664,13 +3664,13 @@ function applyWeather(data, date) {
   updateWeatherIcon(wCode, avgCloud);
 
   // ===== FLYING INDICATORS =====
-  computeFlyingIndicators(hourly, relevantIdx, temps, dews, clouds, avgWind, maxGust);
+  computeFlyingIndicators(hourly, relevantIdx, temps, dews, clouds, avgWind, maxGust, date);
 }
 
 // Gespeicherte Wetter-Parameter für Info-Popup
 let _fiData = {};
 
-function computeFlyingIndicators(hourly, relevantIdx, temps, dews, clouds, avgWind, maxGust) {
+function computeFlyingIndicators(hourly, relevantIdx, temps, dews, clouds, avgWind, maxGust, date) {
   const container = document.getElementById('heroFlyingIndicators');
   if (!container) return;
   container.style.display = 'flex';
@@ -3727,8 +3727,11 @@ function computeFlyingIndicators(hourly, relevantIdx, temps, dews, clouds, avgWi
 
   // Wie viele Tage liegt der angezeigte Tag in der Zukunft? Brauchen wir, um
   // Prognosen ab Tag 4 nicht mehr zu zeigen (Wetter-Modelle sind dann unzuverlässig).
+  // Fallback auf "heute" wenn date nicht übergeben wurde — dann zeigt sich die normale Wettereinschätzung.
   const _today = new Date(); _today.setHours(0,0,0,0);
-  const _target = new Date(date); _target.setHours(0,0,0,0);
+  const _target = date ? new Date(date) : new Date(_today);
+  if (isNaN(_target.getTime())) _target.setTime(_today.getTime());
+  _target.setHours(0,0,0,0);
   const daysAhead = Math.round((_target - _today) / 86400000);
   const isLongRange = daysAhead > 3;
 
