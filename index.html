@@ -3831,55 +3831,123 @@ function openSchulungPopup() {
         <span class="fi-param-note">${d.avgLowCloud > 70 ? '⛔ dicht' : d.avgLowCloud > 40 ? '⚠ bewölkt' : '✓ wenig'}</span>
       </div>
     </div>
-    <div style="margin-top:16px; padding:12px 14px; background:rgba(0,0,0,0.03); border-radius:10px; font-size:12px; line-height:1.6; color:var(--c-ink);">
-      <b>Heutige Einschätzung im Detail:</b><br><br>
+    <div style="margin-top:16px; padding:14px 16px; background:rgba(0,0,0,0.03); border-radius:10px; font-size:12.5px; line-height:1.65; color:var(--c-ink);">
       ${(() => {
-        let details = [];
+        // ============================================================
+        // Integrierte Wetter-Einschätzung: erst Killer/Warner identifizieren,
+        // dann konsistentes Fazit bauen, das sich NICHT widerspricht.
+        // ============================================================
 
-        // Wind-Einschätzung
-        if (d.gust > 30) {
-          details.push('Der <b>Wind ist heute das Hauptproblem</b>: Böen bis ' + d.gust + ' kt sind für Flugschüler echt heftig. Da wird jede Landung zum Abenteuer, und das ist nicht der Sinn der Sache.');
-        } else if (d.gust > 20) {
-          details.push('Die <b>Böen mit ' + d.gust + ' kt</b> sind schon spürbar. Für Schüler mit ein paar Stunden geht das, aber Anfänger tun sich bei der Landung damit schwer. Am besten morgens fliegen, da ist es oft noch ruhiger.');
-        } else if (d.wind > 12) {
-          details.push('Wind mit ' + d.wind + ' kt im Schnitt ist okay — da merkt man was, aber nichts Wildes. Gute Übung für Seitenwindlandungen, wenn der Fluglehrer das für sinnvoll hält.');
+        // 1) Hard-Stop-Faktoren ("Killer") — wenn einer davon zutrifft,
+        // ist die Hauptaussage NEGATIV, andere positive Punkte werden runterpriorisiert.
+        const killers = [];
+        if (d.maxPrecip > 60)    killers.push({k: 'rain',    desc: `<b>Regen mit ${d.maxPrecip}% Wahrscheinlichkeit</b>`});
+        if (d.ceilingAmsl < 2500) killers.push({k: 'ceiling', desc: `<b>Wolkenbasis nur ${d.ceilingAmsl} ft</b> (zu tief für Platzrunden)`});
+        if (d.minVis < 3000)     killers.push({k: 'vis',     desc: `<b>Sicht unter ${(d.minVis/1000).toFixed(1)} km</b> — VFR-Mindeste unterschritten`});
+        if (d.gust > 30)         killers.push({k: 'gust',    desc: `<b>Böen bis ${d.gust} kt</b> — für Schüler nicht beherrschbar`});
+
+        // 2) Warner (gelbe Faktoren) — relevant nur wenn keine Killer da sind
+        const warners = [];
+        if (d.maxPrecip > 30 && d.maxPrecip <= 60) warners.push(`<b>Schauer möglich</b> (${d.maxPrecip}%)`);
+        if (d.ceilingAmsl >= 2500 && d.ceilingAmsl < 3500) warners.push(`<b>Wolkenbasis knapp</b> (${d.ceilingAmsl} ft — gerade so für Platzrunden)`);
+        if (d.minVis >= 3000 && d.minVis < 5000) warners.push(`<b>Sicht mäßig</b> (${(d.minVis/1000).toFixed(1)} km)`);
+        if (d.gust > 20 && d.gust <= 30) warners.push(`<b>böig</b> (Böen bis ${d.gust} kt — Anfänger tun sich schwer)`);
+        if (d.wind > 12 && d.wind <= 20 && d.gust <= 20) warners.push(`<b>frischer Wind</b> (${d.wind} kt — Seitenwindlandungen üben)`);
+
+        // 3) Positive Faktoren (für Konsistenz: zählen NICHT, wenn ein Killer
+        // sie ohnehin obsolet macht)
+        const positives = [];
+        const hasRainKiller = killers.some(x => x.k === 'rain');
+        if (d.wind < 8 && d.gust < 12)               positives.push('<b>sehr ruhiger Wind</b>');
+        else if (d.wind < 12 && d.gust < 20)         positives.push('moderater Wind');
+        if (!hasRainKiller && d.maxPrecip < 20)      positives.push('praktisch kein Regen');
+        if (d.minVis >= 8000)                        positives.push('gute Sicht');
+        if (d.ceilingAmsl >= 4000)                   positives.push('hohe Wolkenbasis');
+        // Bewölkung erwähnen wir nur als positiv wenn KEIN Regen-Killer da ist —
+        // sonst wäre "bewölkt = ruhig" widersprüchlich zu "Regen kommt".
+        if (!hasRainKiller && d.avgCloud > 60 && d.avgLowCloud < 50) {
+          positives.push('bewölkt → wenig Thermik → ruhige Luft');
+        }
+
+        // ----------------------------------------------------------------
+        // FAZIT bauen
+        // ----------------------------------------------------------------
+        let html = '';
+
+        if (killers.length > 0) {
+          // ===== ROT: Killer-Modus =====
+          const primary = killers[0];
+          html += `<b style="font-size:13.5px;">Heute eher nicht zum Schulen.</b><br>`;
+          html += `Hauptgrund: ${primary.desc}. `;
+
+          // Begleitende Killer und Warner erwähnen — aber als Verstärkung, nicht widersprüchlich
+          if (killers.length > 1) {
+            html += `Dazu kommt: ${killers.slice(1).map(x => x.desc).join(' und ')}. `;
+          }
+          // Spezifischer Verstärker: tiefe Wolken + Regen ist klassisches Schmuddelwetter
+          if (primary.k === 'rain' && d.avgLowCloud > 70) {
+            html += `Die ${Math.round(d.avgLowCloud)}% tiefen Wolken passen dazu — typische Regenwetterlage.`;
+          }
+
+          html += '<br><br>';
+
+          // Konkrete Empfehlung
+          if (primary.k === 'rain' && d.maxPrecip > 80) {
+            html += `💡 <b>Empfehlung:</b> Heute eindeutig nicht — Termin verschieben. Bei mehrtägigen Schulungstagen einen besseren Tag in der Woche suchen.`;
+          } else if (primary.k === 'rain') {
+            html += `💡 <b>Empfehlung:</b> Wenn ihr flexibel seid, am Vormittag den Regenradar checken — manchmal gibt's Lücken. Sonst lieber verschieben.`;
+          } else if (primary.k === 'ceiling' || primary.k === 'vis') {
+            html += `💡 <b>Empfehlung:</b> Verschieben. Mit dieser Basis/Sicht ist VFR-Schulung nicht sinnvoll.`;
+          } else if (primary.k === 'gust') {
+            html += `💡 <b>Empfehlung:</b> Verschieben. Bei diesen Böen lernt niemand etwas Sinnvolles.`;
+          }
+
+          // Trotzdem positive Punkte als Trost — wenn überhaupt welche da sind
+          if (positives.length >= 2) {
+            html += `<br><br><span style="opacity:0.75;">Immerhin: ${positives.slice(0, 2).join(' und ')}. Wenn das Regenrisiko sich dreht, könnte später noch was gehen.</span>`;
+          }
+
+        } else if (warners.length >= 2) {
+          // ===== GELB: Mehrere Einschränkungen =====
+          html += `<b style="font-size:13.5px;">Eingeschränkt machbar.</b><br>`;
+          html += `Zwei Punkte zu beachten: ${warners.slice(0, 2).join(' und ')}. `;
+          if (warners.length > 2) html += `Außerdem ${warners[2]}. `;
+          html += '<br><br>';
+
+          // Konkrete Empfehlung je nach Konstellation
+          if (warners.some(w => w.includes('Schauer'))) {
+            html += `💡 <b>Empfehlung:</b> Mit dem Fluglehrer kurz abstimmen. Wer schon ein paar Stunden hat, kann mit Augenmerk auf den Regenradar trotzdem was mitnehmen. Anfänger lieber verschieben.`;
+          } else if (warners.some(w => w.includes('böig')) || warners.some(w => w.includes('Seitenwind'))) {
+            html += `💡 <b>Empfehlung:</b> Vormittags fliegen — da ist es meist ruhiger. Nachmittags wird's durch Thermik unruhiger.`;
+          } else {
+            html += `💡 <b>Empfehlung:</b> Geht, aber nicht ideal. Kurze Absprache mit dem Fluglehrer ob heute Sinn macht.`;
+          }
+
+        } else if (warners.length === 1) {
+          // ===== GELB-LEICHT: Eine Einschränkung =====
+          html += `<b style="font-size:13.5px;">Gut machbar, eine Einschränkung:</b><br>`;
+          html += `${warners[0].charAt(0).toUpperCase() + warners[0].slice(1)}. `;
+          if (positives.length > 0) {
+            html += `Sonst aber: ${positives.slice(0, 2).join(', ')}. `;
+          }
+          html += '<br><br>';
+          html += `💡 <b>Empfehlung:</b> Auf jeden Fall fliegen — die Einschränkung ist machbar, gerade auch als Übung.`;
+
         } else {
-          details.push('Beim <b>Wind sieht es super aus</b>: nur ' + d.wind + ' kt im Mittel' + (d.gust > 5 ? ', Böen bis ' + d.gust + ' kt' : '') + '. Da wackelt nix, perfekt zum Üben.');
+          // ===== GRÜN: Idealer Tag =====
+          html += `<b style="font-size:13.5px;">Top Schulungstag!</b><br>`;
+          if (positives.length > 0) {
+            html += `Die Stärken heute: ${positives.slice(0, 3).join(', ')}. `;
+          }
+          // Spezialfall: viel Sonne → Thermik-Hinweis
+          if (d.avgCloud < 30 && d.avgTemp > 18) {
+            html += `Einziger Hinweis: bei wenig Bewölkung und um die ${Math.round(d.avgTemp)}° wird's nachmittags durch Thermik unruhiger. `;
+          }
+          html += '<br><br>';
+          html += `💡 <b>Empfehlung:</b> ${d.avgCloud < 30 ? 'Früh starten — vormittags ist es am ruhigsten.' : 'Den ganzen Tag nutzen — bessere Bedingungen kriegt ihr selten.'}`;
         }
 
-        // Wolken/Bewölkung
-        if (d.avgCloud > 60) {
-          details.push('Der Himmel ist <b>ordentlich bedeckt</b> (' + Math.round(d.avgCloud) + '% Bewölkung) — und das ist für uns gut! Keine Thermik, die Luft bleibt ruhig. Die Wolkenbasis liegt bei ca. ' + d.ceilingAmsl + ' ft' + (d.ceilingAmsl < 2500 ? ', das ist allerdings schon ziemlich tief für Platzrunden.' : d.ceilingAmsl < 3500 ? ', reicht knapp für Platzrunden, aber viel Spielraum ist da nicht.' : ', das ist genug Platz nach oben.'));
-        } else if (d.avgCloud > 20) {
-          details.push('Bewölkung liegt bei ' + Math.round(d.avgCloud) + '%, also <b>ein Mix aus Wolken und Sonne</b>. Basis geschätzt auf ' + d.ceilingAmsl + ' ft — Platz genug. Durch die Sonne kann es nachmittags etwas thermisch werden, also lieber vormittags schulen.');
-        } else {
-          details.push('Heute ist es <b>überwiegend klar</b> (' + Math.round(d.avgCloud) + '% Bewölkung). Die Sonne heizt den Boden auf, ab dem späten Vormittag bilden sich Thermikblasen — die Luft wird dann unruhiger. Tipp: <b>früh morgens fliegen</b>, da ist es noch ruhig.');
-        }
-
-        // Regen
-        if (d.maxPrecip > 60) {
-          details.push('<b>Regen ist heute sehr wahrscheinlich</b> (bis ' + d.maxPrecip + '% Regenwahrscheinlichkeit). Nasse Piste, schlechte Sicht, und Spaß macht es auch nicht. Lieber verschieben.');
-        } else if (d.maxPrecip > 30) {
-          details.push('Es könnten <b>Schauer durchziehen</b> (bis ' + d.maxPrecip + '% Wahrscheinlichkeit). Wenn ihr flexibel seid und ein Auge auf den Regenradar habt, kann man die Lücken nutzen.');
-        } else if (d.maxPrecip > 10) {
-          details.push('Regenrisiko ist gering (' + d.maxPrecip + '%) — sollte trocken bleiben.');
-        }
-
-        // Sicht
-        if (d.minVis < 3000) {
-          details.push('Die <b>Sicht ist schlecht</b> (unter ' + (d.minVis/1000).toFixed(1) + ' km). Für VFR-Schulung brauchen wir deutlich mehr — das geht heute nicht.');
-        } else if (d.minVis < 5000) {
-          details.push('Die <b>Sicht ist mäßig</b> (ca. ' + (d.minVis/1000).toFixed(1) + ' km). Für VFR reicht das gerade so, aber gemütlich ist anders. Orientierung am Boden wird schwieriger.');
-        } else if (d.minVis < 10000) {
-          details.push('Sicht um die ' + (d.minVis/1000).toFixed(0) + ' km — ausreichend, keine Einschränkung.');
-        }
-
-        // Tiefe Wolken
-        if (d.avgLowCloud > 70) {
-          details.push('Dazu kommen <b>viele tiefe Wolken</b> (' + Math.round(d.avgLowCloud) + '%). Das drückt die Basis zusätzlich runter und schränkt den nutzbaren Luftraum ein.');
-        }
-
-        return details.join('<br><br>');
+        return html;
       })()}
     </div>
     <p style="margin-top:12px; font-size:11px; color:var(--c-muted);">
