@@ -662,6 +662,104 @@
   /* Hide entire tab bar when no extra tabs are visible */
   .view-tabs:not(.has-customer-tabs) { display: none !important; }
 
+  /* Guest-only elements: nur für nicht-angemeldete sichtbar. Wird via
+     body.is-guest gesteuert — JS toggelt diese Klasse beim Auth-Wechsel. */
+  .guest-only { display: none !important; }
+  body.is-guest .guest-only { display: revert !important; }
+  /* Spezialfall: Block-Display erzwingen, falls "revert" auf den computed Wert "none" fällt (bei <div style="display:none">) */
+  body.is-guest .guest-only[data-display="block"] { display: block !important; }
+  body.is-guest .guest-only[data-display="flex"]  { display: flex !important; }
+
+  /* Sidebar-Bereich gehört für Gäste komplett zur „Login-Aufforderung" */
+  body.is-guest .sidebar-card.customer-only,
+  body.is-guest #nextFlightCard,
+  body.is-guest #myBookingsCard { display: none !important; }
+
+  /* Login-CTA-Card in der Sidebar (für Gäste) */
+  .guest-login-card {
+    background: linear-gradient(135deg, var(--c-alpine) 0%, #2d6063 100%);
+    color: #fff;
+    border-radius: var(--radius);
+    padding: 24px 22px;
+    box-shadow: var(--shadow-md);
+  }
+  .guest-login-card h3 {
+    margin: 0 0 8px;
+    font-size: 17px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.01em;
+  }
+  .guest-login-card p {
+    margin: 0 0 16px;
+    font-size: 13px;
+    line-height: 1.55;
+    color: rgba(255,255,255,0.85);
+  }
+  .guest-login-card .gl-btn {
+    display: block;
+    width: 100%;
+    padding: 12px 16px;
+    background: var(--c-amber);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    letter-spacing: 0.01em;
+    margin-bottom: 8px;
+    transition: filter var(--motion, 0.15s);
+  }
+  .guest-login-card .gl-btn:hover { filter: brightness(1.06); }
+  .guest-login-card .gl-btn.secondary {
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.25);
+  }
+  .guest-login-card .gl-divider {
+    border-top: 1px solid rgba(255,255,255,0.18);
+    margin: 16px 0;
+  }
+  .guest-login-card .gl-help {
+    font-size: 11.5px;
+    color: rgba(255,255,255,0.7);
+    line-height: 1.5;
+  }
+  .guest-login-card .gl-help a { color: var(--c-amber); text-decoration: none; font-weight: 500; }
+
+  /* Login-Button im Header für Gäste größer/auffälliger */
+  body.is-guest .header-login-btn {
+    background: var(--c-amber) !important;
+    color: #fff !important;
+    border: none !important;
+    padding: 9px 18px !important;
+    font-weight: 600 !important;
+    box-shadow: 0 1px 3px rgba(197,106,28,0.25), 0 1px 2px rgba(197,106,28,0.15);
+  }
+  body.is-guest .header-login-btn:hover { filter: brightness(1.06); }
+
+  /* Gast-Banner über dem Kalender: ergänzt den vorhandenen Info-Streifen */
+  .guest-cta-banner {
+    background: rgba(197,106,28,0.08);
+    border-bottom: 1px solid rgba(197,106,28,0.2);
+    padding: 12px 36px;
+    text-align: center;
+    font-size: 13.5px;
+    color: var(--c-ink);
+    line-height: 1.5;
+  }
+  .guest-cta-banner b { color: var(--c-alpine); }
+  .guest-cta-banner .cta-link {
+    color: var(--c-amber);
+    font-weight: 700;
+    text-decoration: none;
+    border-bottom: 2px solid var(--c-amber);
+    padding-bottom: 1px;
+    margin-left: 6px;
+    cursor: pointer;
+  }
+
   /* Meine Buchungen */
   .my-bookings-panel { padding: 24px 20px; max-width: 900px; margin: 0 auto; }
   .my-bookings-panel h2 { font-size: 20px; font-weight: 700; font-family: var(--font-ui); margin-bottom: 4px; color: var(--c-ink); }
@@ -1912,7 +2010,7 @@
   </div>
   <div class="header-actions">
     <button id="staffAdminBtn" class="btn btn-sm header-desktop-only" onclick="window.location.href='staff.html?' + (devMode ? 'dev=1&role=' + (devPerspective||'admin') : 'staff=1')" style="font-size:11px; letter-spacing:0.04em; text-transform:uppercase; display:none;">Verwaltung</button>
-    <button id="customerAuthBtn" class="btn btn-sm header-desktop-only" onclick="openCustomerAuth()" style="font-size:11px; letter-spacing:0.04em; text-transform:uppercase; background:var(--navy); color:white; border-color:var(--navy);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span id="custAuthLabel">Login</span></button>
+    <button id="customerAuthBtn" class="btn btn-sm header-desktop-only header-login-btn" onclick="openCustomerAuth()" style="font-size:11px; letter-spacing:0.04em; text-transform:uppercase; background:var(--navy); color:white; border-color:var(--navy);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span id="custAuthLabel">Login</span></button>
     <div id="customerUserMenu" class="customer-user-menu header-desktop-only" style="display:none;">
       <button class="customer-user-btn" onclick="toggleCustomerDropdown()">
         <span class="customer-user-avatar" id="custMenuAvatar"></span>
@@ -2071,6 +2169,24 @@
 
     <!-- Sidebar -->
     <div class="sidebar" id="sidebar">
+
+      <!-- ===== GUEST-ONLY: Login-CTA ersetzt Next-Flight + Meine Buchungen ===== -->
+      <div class="sidebar-card guest-login-card guest-only" data-display="block">
+        <h3>Login erforderlich</h3>
+        <p>
+          Buchungen sind nur für angemeldete Mitglieder und Charterkunden möglich.
+          Melde dich an oder lege dir ein neues Konto an.
+        </p>
+        <button type="button" class="gl-btn" onclick="showAuthPage('login')">Anmelden</button>
+        <button type="button" class="gl-btn secondary" onclick="showAuthPage('register')">Neues Konto erstellen</button>
+        <div class="gl-divider"></div>
+        <div class="gl-help">
+          Du fliegst zum ersten Mal bei uns? Melde dich kurz im Büro:
+          <a href="tel:+498641698787">+49 8641 698787</a> oder
+          <a href="mailto:info@dassu.de">info@dassu.de</a>.
+        </div>
+      </div>
+
       <!-- Next Flight Card -->
       <div class="sidebar-card next-flight-card" id="nextFlightCard">
         <h3>Nächster Flug</h3>
@@ -6511,6 +6627,13 @@ function openCustomerAuth() {
   }
 }
 
+// Direkt einen bestimmten Auth-Tab öffnen (z.B. von Sidebar-Buttons aus).
+function showAuthPage(which) {
+  showAuthView(which || 'login');
+  document.getElementById('customerAuthPage').classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
 function closeAuthPage() {
   document.getElementById('customerAuthPage').classList.remove('active');
   document.body.style.overflow = '';
@@ -7554,6 +7677,11 @@ function autofillBookingForm() {
   }
 }
 
+// Initialer Gast-Status: bis Firebase Auth den User aufgelöst hat, ist der
+// Besucher rechtlich + technisch ein Gast. Verhindert den „Flash of Logged-In
+// Content" beim Laden.
+document.body.classList.add('is-guest');
+
 // Firebase Auth: Rolle erkennen, Tabs + Admin-Status setzen
 firebase.auth().onAuthStateChanged(async (user) => {
   const customerAuthBtn = document.getElementById('customerAuthBtn');
@@ -7635,6 +7763,8 @@ firebase.auth().onAuthStateChanged(async (user) => {
       } else {
         customerProfile = { name: user.displayName || '', email: user.email || '' };
       }
+      // Body NICHT mehr als Gast markieren — Sidebar-Cards + Header-CTA-Style werden wieder ausgeblendet
+      document.body.classList.remove('is-guest');
       // Kunden-Tabs sichtbar machen
       document.getElementById('tabMyBookings')?.classList.add('auth-revealed');
       document.getElementById('mobileTabMyBookings')?.classList.add('auth-revealed');
@@ -7655,6 +7785,8 @@ firebase.auth().onAuthStateChanged(async (user) => {
     customerProfile = null;
     vfConnected = null;
     updateCustomerButton();
+    // Body als Gast markieren — CSS blendet Sidebar-Cards aus und zeigt die Login-CTA
+    document.body.classList.add('is-guest');
     // Staff- und Kunden-Elemente verstecken (auth-revealed entfernen)
     document.querySelectorAll('.customer-only').forEach(el => el.classList.remove('auth-revealed'));
     document.getElementById('mainViewTabs')?.classList.remove('has-staff-tabs');
