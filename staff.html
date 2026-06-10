@@ -2811,8 +2811,9 @@ function updateUserUI() {
   if (typeof updateStatsTabVisibility === 'function') updateStatsTabVisibility();
   // Nachrichten-Tab für Admins
   if (typeof setupMessagesTab === 'function') setupMessagesTab();
-  // Dev-Toolbar für Admins anzeigen
-  if (_devStaffMode && isAdmin()) {
+  // Dev-Toolbar nur für User mit explizit gesetztem permissions.devTools=true
+  // (NICHT für jeden Admin — Standard-Admins wie Sofia sollen die nicht sehen).
+  if (_devStaffMode && typeof hasDevTools === 'function' && hasDevTools(currentUser)) {
     document.body.classList.add('dev-mode');
     var tb = document.getElementById('devToolbar');
     if (tb) tb.classList.add('visible');

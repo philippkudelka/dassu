@@ -84,9 +84,27 @@
     return !!(user && user.permissions && typeof user.permissions[key] === 'boolean');
   }
 
+  /**
+   * Sonder-Check für die Dev-Toolbar (Perspektiv-Switcher unten).
+   *
+   * Bewusst NICHT durch hasPermission() laufen lassen, weil dort jeder Admin
+   * über den Hard-Override auf true käme. devTools ist eine reine
+   * Entwickler-/Superadmin-Funktion und muss pro User explizit aktiviert
+   * werden:
+   *
+   *   staffUsers/<uid>/permissions/devTools = true
+   *
+   * (Manuell in der Firebase Console gesetzt — taucht bewusst NICHT im
+   * Berechtigungs-Editor im Mitglieder-Tab auf.)
+   */
+  function hasDevTools(user) {
+    return !!(user && user.permissions && user.permissions.devTools === true);
+  }
+
   global.DASSU_PERMISSIONS = PERMISSIONS;
   global.DASSU_ROLES = ROLES;
   global.roleMeta = roleMeta;
   global.hasPermission = hasPermission;
   global.isPermissionExplicit = isExplicit;
+  global.hasDevTools = hasDevTools;
 })(typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : this));

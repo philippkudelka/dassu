@@ -131,6 +131,14 @@ Die Bash-Sandbox hat KEINEN GitHub-Zugriff (403 Proxy-Fehler). Niemals versuchen
 - Sprache im Code: Deutsch (Variablen/Kommentare gemischt DE/EN)
 - Philipp ist Admin und Hauptentwickler
 
+## Dev-Toolbar / Superadmin-Mode
+
+- Die DEV-Toolbar am unteren Bildschirmrand (Perspektiv-Switcher Kunde / Gast Segel / Gast Motor / Team / Admin) ist standardmäßig **für niemanden sichtbar** — auch nicht für normale Admins.
+- Aktivierung pro User: in Firebase Console → Realtime Database → `staffUsers/<uid>/permissions/devTools = true` setzen.
+- Bedingung: `?dev=1` in der URL **plus** `permissions.devTools === true` auf dem eigenen Staff-User-Eintrag. Beides muss zusammenkommen.
+- Auswahllogik in `shared/permissions.js` → `hasDevTools(user)` (geht bewusst NICHT durch den Admin-Hard-Override von `hasPermission`).
+- Im Mitglieder-Tab des Admin-UIs taucht dieser Permission-Key absichtlich **NICHT** auf — er soll versteckt bleiben und nicht versehentlich vergeben werden.
+
 ## Pre-Launch / Operations-Hinweise
 
 ### Vor jedem Launch / Update

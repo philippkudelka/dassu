@@ -7726,7 +7726,10 @@ firebase.auth().onAuthStateChanged(async (user) => {
         currentStaffRole = staffProfile.role;
         // Staff/Fluglehrer dürfen Kontaktdaten sehen → bookingContacts laden
         startBookingContactsListener();
-        if (devMode && staffProfile.role === 'admin') {
+        // Dev-Toolbar nur für User mit explizit gesetztem permissions.devTools=true.
+        // Standard-Admins (wie Sofia) sehen die Toolbar bewusst NICHT, auch wenn
+        // sie zufällig ?dev=1 in der URL haben.
+        if (devMode && typeof hasDevTools === 'function' && hasDevTools(staffProfile)) {
           // Dev-Modus: Admin bleibt auf index.html, Toolbar zeigen
           devStaffProfile = staffProfile;
           customerProfile = { name: staffProfile.name || user.displayName || '', email: user.email || '', phone: staffProfile.phone || '' };
