@@ -10,7 +10,7 @@
         ".write": "auth != null && (root.child('staffUsers').child(auth.uid).exists() || (!data.exists() && newData.child('uid').val() === auth.uid) || (data.exists() && data.child('uid').val() === auth.uid))",
         "aircraft": { ".validate": "newData.isString() && newData.val().length <= 120" },
         "date":     { ".validate": "newData.isString() && newData.val().length <= 20" },
-        "status":   { ".validate": "newData.isString() && newData.val().length <= 20" }
+        "status":   { ".validate": "newData.isString() && newData.val().length <= 20 && (root.child('staffUsers').child(auth.uid).exists() || newData.val() === 'pending' || (data.exists() && newData.val() === data.val()))" }
       }
     },
 
