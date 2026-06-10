@@ -146,16 +146,21 @@
   </div>
 
   <!-- INITIAL VIEW: User klickt aktiv um zu bestätigen.
-       Wichtig: Wir starten NICHT automatisch — sonst würden E-Mail-Scanner
-       beim Preview-Aufruf den oobCode konsumieren. -->
+       Wichtig: Wir starten NICHT automatisch UND der Button ist initial deaktiviert,
+       bis ein echtes User-Interaktions-Event (mousemove/touchstart/keydown/scroll)
+       erkannt wurde. Aggressive E-Mail-Scanner (Microsoft 365 ATP) führen zwar JS
+       aus und können Buttons klicken — aber die meisten machen keine vorgelagerten
+       User-Interaktions-Events. Zusätzlich akzeptieren wir den Klick nur wenn
+       event.isTrusted true ist (kein synthetic click). -->
   <div class="card" id="confirmView">
     <div class="icon-wrap pending">
       <svg viewBox="0 0 24 24" fill="none" stroke="#1E4B4E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
     </div>
     <h1>E-Mail bestätigen</h1>
-    <p>Klicke unten auf den Button, um deine E-Mail-Adresse für den DASSU Buchungskalender zu bestätigen.</p>
-    <button class="btn" id="confirmBtn" type="button">E-Mail jetzt bestätigen</button>
-    <p class="small" style="margin-top:18px;">Nach der Bestätigung kannst du dich anmelden.</p>
+    <p>Klicke unten auf den Button, um die folgende E-Mail-Adresse für den DASSU Buchungskalender zu bestätigen:</p>
+    <p style="font-weight:600; color:var(--c-ink); font-size:15px; padding:10px 14px; background:var(--c-bg); border-radius:8px; word-break:break-all; margin-bottom:18px;" id="confirmEmail">…</p>
+    <button class="btn" id="confirmBtn" type="button" disabled>E-Mail jetzt bestätigen</button>
+    <p class="small" id="confirmHint" style="margin-top:18px;">Bewege kurz die Maus / berühre den Bildschirm — dann ist der Button bereit.</p>
   </div>
 
   <!-- WORKING VIEW: Verifikation läuft -->
@@ -227,17 +232,69 @@ const params = new URLSearchParams(window.location.search);
 const mode = params.get('mode');
 const oobCode = params.get('oobCode');
 
-// Nur bei mode=verifyEmail relevant. Andere Modes (resetPassword) leiten wir
-// an die Firebase-Default-Page weiter, die kümmert sich darum.
+// Andere Modes (resetPassword) leiten wir an die Firebase-Default-Page weiter.
 if (mode && mode !== 'verifyEmail') {
-  // Reset-Password etc. — Standard-Page übernimmt
   window.location.href = 'https://buchungskalender-ffe4c.firebaseapp.com/__/auth/action' + window.location.search;
 } else if (!oobCode) {
   show('noCodeView');
 } else {
-  // OK: wir warten auf den expliziten User-Klick.
+  // Sofort den Confirm-View zeigen — aber Button ist disabled,
+  // bis User-Presence detektiert wurde (siehe unten).
   show('confirmView');
-  document.getElementById('confirmBtn').addEventListener('click', applyVerification);
+  initVerifyFlow();
+}
+
+async function initVerifyFlow() {
+  // 1) checkActionCode: holt die Email aus dem Code, OHNE ihn zu verbrauchen.
+  // Wenn das schon fehlschlägt (Code abgelaufen / schon verwendet), gehen wir
+  // direkt in den Error-View. Damit erkennen wir vorab, ob der Scanner den
+  // Code bereits konsumiert hat.
+  try {
+    const info = await firebase.auth().checkActionCode(oobCode);
+    const email = info && info.data ? info.data.email : '';
+    if (email) {
+      document.getElementById('confirmEmail').textContent = email;
+    } else {
+      document.getElementById('confirmEmail').textContent = '(unbekannte Adresse)';
+    }
+  } catch (err) {
+    // Code ist bereits ungültig — zeige Error-View
+    console.error('[verify-email] checkActionCode error:', err);
+    handleVerifyError(err);
+    return;
+  }
+
+  // 2) User-Presence Detection.
+  // Echte Nutzer bewegen die Maus / scrollen / tippen, bevor sie klicken.
+  // Aggressive E-Mail-Scanner (M365 SafeLinks, Mimecast etc.) klicken Buttons
+  // OHNE vorherige Interaktion. Wir aktivieren den Button erst nach einem
+  // echten Interaktions-Event UND ignorieren Klicks ohne event.isTrusted.
+  let userPresent = false;
+  const arm = () => {
+    if (userPresent) return;
+    userPresent = true;
+    const btn = document.getElementById('confirmBtn');
+    if (btn) btn.disabled = false;
+    const hint = document.getElementById('confirmHint');
+    if (hint) hint.textContent = '✓ Bereit. Klicke jetzt zur Bestätigung.';
+  };
+  const events = ['mousemove', 'pointermove', 'pointerdown', 'touchstart', 'keydown', 'scroll'];
+  events.forEach(ev => {
+    window.addEventListener(ev, arm, { once: true, passive: true });
+  });
+
+  // 3) Click-Handler — nur echte User-Klicks akzeptieren.
+  document.getElementById('confirmBtn').addEventListener('click', (e) => {
+    if (!userPresent) {
+      console.warn('[verify-email] Click ohne vorherige User-Presence ignoriert.');
+      return;
+    }
+    if (!e.isTrusted) {
+      console.warn('[verify-email] Synthetic click ignoriert (isTrusted=false).');
+      return;
+    }
+    applyVerification();
+  });
 }
 
 async function applyVerification() {
@@ -246,37 +303,36 @@ async function applyVerification() {
   show('workingView');
 
   try {
-    // applyActionCode verifiziert die Email.
-    // Wenn der Code schon verbraucht wurde (z.B. weil User schon mal geklickt
-    // hat) wirft das einen auth/invalid-action-code Fehler — wir behandeln
-    // das aber freundlich: "schon bestätigt, alles gut".
     await firebase.auth().applyActionCode(oobCode);
     show('successView');
-    // Nach 3s zur App
     setTimeout(() => { window.location.href = '/'; }, 3000);
   } catch (err) {
     console.error('[verify-email] applyActionCode error:', err);
-    const code = err.code || '';
-    let title = 'Link nicht mehr gültig';
-    let desc = 'Der Bestätigungs-Link ist abgelaufen oder wurde bereits verwendet. Bitte fordere einen neuen Link an.';
-
-    if (code === 'auth/expired-action-code') {
-      title = 'Link abgelaufen';
-      desc = 'Dieser Bestätigungs-Link ist nicht mehr gültig (älter als 24 Stunden). Bitte fordere auf der Anmeldeseite einen neuen Link an.';
-    } else if (code === 'auth/invalid-action-code') {
-      title = 'Link bereits verwendet';
-      desc = 'Dieser Link wurde bereits verwendet — möglicherweise hat ein Spam-Filter deiner E-Mail-Software den Link automatisch geöffnet. Falls du dich noch nicht anmelden kannst, fordere einen neuen Link an.';
-    } else if (code === 'auth/user-disabled') {
-      title = 'Konto deaktiviert';
-      desc = 'Dieses Konto wurde deaktiviert. Bitte melde dich bei info@dassu.de.';
-    } else if (code === 'auth/user-not-found') {
-      title = 'Konto nicht gefunden';
-      desc = 'Das zugehörige Konto wurde inzwischen gelöscht.';
-    }
-    document.getElementById('errorTitle').textContent = title;
-    document.getElementById('errorDesc').textContent = desc;
-    show('errorView');
+    handleVerifyError(err);
   }
+}
+
+function handleVerifyError(err) {
+  const code = (err && err.code) || '';
+  let title = 'Link nicht mehr gültig';
+  let desc = 'Der Bestätigungs-Link ist abgelaufen oder wurde bereits verwendet. Bitte fordere einen neuen Link an.';
+
+  if (code === 'auth/expired-action-code') {
+    title = 'Link abgelaufen';
+    desc = 'Dieser Bestätigungs-Link ist nicht mehr gültig (älter als 24 Stunden). Bitte fordere auf der Anmeldeseite einen neuen Link an.';
+  } else if (code === 'auth/invalid-action-code') {
+    title = 'Link bereits verwendet';
+    desc = 'Dieser Link wurde bereits verwendet — möglicherweise hat ein Spam-Filter deiner E-Mail-Software den Link automatisch geöffnet. Bitte fordere auf der Anmeldeseite einen neuen Link an.';
+  } else if (code === 'auth/user-disabled') {
+    title = 'Konto deaktiviert';
+    desc = 'Dieses Konto wurde deaktiviert. Bitte melde dich bei info@dassu.de.';
+  } else if (code === 'auth/user-not-found') {
+    title = 'Konto nicht gefunden';
+    desc = 'Das zugehörige Konto wurde inzwischen gelöscht.';
+  }
+  document.getElementById('errorTitle').textContent = title;
+  document.getElementById('errorDesc').textContent = desc;
+  show('errorView');
 }
 </script>
 </body>
