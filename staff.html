@@ -217,7 +217,14 @@ body { font-family: var(--font); background: var(--c-bg); color: var(--c-ink); m
 .ov-time { font-size: 11px; font-weight: 700; color: var(--navy); padding: 0 4px; display: flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums; border-right: 2px solid var(--navy); border-bottom: 1px solid var(--c-line); min-height: 38px; background: var(--gray-100); }
 .ov-time.ov-hour { font-size: 12px; color: var(--navy); }
 .ov-time.ov-half { color: var(--gray-500); font-weight: 600; font-size: 10px; border-bottom-color: var(--gray-400); }
-.ov-cell { min-height: 38px; border-bottom: 1px solid var(--c-line); border-right: 1px solid var(--c-line); position: relative; cursor: pointer; transition: background 0.1s; }
+.ov-cell { min-height: 38px; border-bottom: 1px solid var(--c-line); border-right: 1px solid var(--c-line); position: relative; cursor: pointer; transition: background 0.1s; user-select: none; -webkit-user-select: none; }
+/* Drag-Range-Highlight für Mehrslot-Auswahl */
+.ov-cell.ov-drag-selected:not(.ov-booked):not(.ov-towing) {
+  background: rgba(30,75,78,0.15) !important;
+  box-shadow: inset 0 0 0 2px var(--c-alpine);
+}
+body.ov-dragging, body.ov-dragging * { cursor: crosshair !important; }
+body.ov-dragging .ov-cell:not(.ov-booked):not(.ov-towing) { cursor: crosshair !important; }
 .ov-cell.ov-hour { }
 .ov-cell.ov-half { background: var(--c-bg); border-bottom-color: var(--gray-400); }
 .ov-cell:active { background: rgba(30,75,78,0.08); }
@@ -3486,6 +3493,9 @@ function paintOverviewGrid(dk, lookup) {
     AIRCRAFT.forEach(a => {
       const entry = lookup[a][tp];
       const restrictedCls = slotRestricted ? ' ov-restricted' : '';
+      // data-Attribute auf JEDEN Cell für Drag-Select-Erkennung (auch belegte —
+      // damit der Drag durch eine belegte Cell hindurch trotzdem terminiert).
+      const dataAttrs = `data-aircraft="${escapeHtml(a)}" data-slot="${escapeHtml(tp)}"`;
       if (entry) {
         const hasInstructor = entry.instructor === 'ja' || (entry.instructorName && entry.instructorName.trim());
         const instrCls = hasInstructor ? ' ov-instructor' : '';
@@ -3495,13 +3505,13 @@ function paintOverviewGrid(dk, lookup) {
         const metaHtml = entry.isFirst && hasInstructor ? `<span class="ov-meta">${escapeHtml(instrName || 'FL benötigt')}</span>` : '';
         const onclick = `onclick="showDetail('${jsArg(entry.id)}')"`;
         const colorStyle = entry.color ? `style="background:${escapeHtml(entry.color)} !important;${isDarkColor(entry.color) ? 'color:#fff;' : ''}"` : '';
-        html += `<div class="ov-cell ${rowCls} ov-booked${instrCls}${pendingCls}${restrictedCls}" ${onclick} ${colorStyle}>${nameHtml}${metaHtml}</div>`;
+        html += `<div class="ov-cell ${rowCls} ov-booked${instrCls}${pendingCls}${restrictedCls}" ${dataAttrs} data-booked="1" ${onclick} ${colorStyle}>${nameHtml}${metaHtml}</div>`;
       } else if (isSundayBlocked(dk, tp)) {
-        html += `<div class="ov-cell ${rowCls} ov-towing"></div>`;
+        html += `<div class="ov-cell ${rowCls} ov-towing" ${dataAttrs} data-blocked="1"></div>`;
       } else if (isTowingBlocked(a, tp)) {
-        html += `<div class="ov-cell ${rowCls} ov-towing ov-bookable" onclick="confirmTowingBook('${a}','${tp}')"></div>`;
+        html += `<div class="ov-cell ${rowCls} ov-towing ov-bookable" ${dataAttrs} onclick="confirmTowingBook('${a}','${tp}')"></div>`;
       } else {
-        html += `<div class="ov-cell ${rowCls}${restrictedCls}" onclick="switchToBook('${a}','${tp}')"></div>`;
+        html += `<div class="ov-cell ${rowCls}${restrictedCls}" ${dataAttrs} data-free="1" onclick="switchToBook('${a}','${tp}')"></div>`;
       }
     });
   });
@@ -7705,7 +7715,7 @@ function _renderNow() {
 // ============================================================
 let quickSlotStart = '';
 
-function openQuick(slotStart) {
+function openQuick(slotStart, slotEnd) {
   quickSlotStart = slotStart;
   const dk = dateKey(currentDate);
   document.getElementById('quickAircraft').textContent = selectedAircraft;
@@ -7731,9 +7741,138 @@ function openQuick(slotStart) {
   updateQbTo();
   fromSel.onchange = updateQbTo;
 
+  // Wenn ein expliziter Endslot mitgegeben wurde (Drag-Select), entsprechend
+  // vorbelegen — sonst bleibt es bei den Defaults von updateQbTo().
+  if (slotEnd) {
+    const opt = Array.from(toSel.options).find(o => o.value === slotEnd);
+    if (opt) toSel.value = slotEnd;
+  }
+
   document.getElementById('quickOverlay').classList.add('active');
   setTimeout(() => document.getElementById('qbName').focus(), 300);
 }
+
+// ============================================================
+// Drag-Select über mehrere Zeitslots in der Tagesübersicht.
+// Staff zieht mit der Maus über eine Aircraft-Spalte → Buchungsfenster
+// öffnet sich mit Start = oberster gewählter Slot, Ende = nach dem
+// untersten gewählten Slot (slotEnd = nächster Zeitpunkt nach dem letzten
+// 30-Minuten-Block).
+// ============================================================
+let _ovDragState = null; // { aircraft, startIdx, currentIdx, fromAircraftSwitch }
+
+function _ovIdxFromSlot(slotTime) {
+  return TIME_POINTS.findIndex(t => t === slotTime);
+}
+function _ovCellFromEvent(e) {
+  const el = (e.target && e.target.closest) ? e.target.closest('.ov-cell') : null;
+  if (!el || !el.dataset.aircraft || !el.dataset.slot) return null;
+  return el;
+}
+function _ovClearSelection() {
+  document.querySelectorAll('.ov-cell.ov-drag-selected').forEach(c => c.classList.remove('ov-drag-selected'));
+}
+function _ovHighlightRange(aircraft, startIdx, endIdx) {
+  _ovClearSelection();
+  const [lo, hi] = startIdx <= endIdx ? [startIdx, endIdx] : [endIdx, startIdx];
+  for (let i = lo; i <= hi; i++) {
+    const t = TIME_POINTS[i];
+    const cell = document.querySelector(`.ov-cell[data-aircraft="${CSS.escape(aircraft)}"][data-slot="${CSS.escape(t)}"]`);
+    if (cell) cell.classList.add('ov-drag-selected');
+  }
+}
+
+function _ovDragStart(e) {
+  // Nur linke Maustaste, nur freie Cells (nicht belegt / nicht blockiert / nicht towing)
+  if (e.button !== 0) return;
+  const cell = _ovCellFromEvent(e);
+  if (!cell) return;
+  if (cell.dataset.booked || cell.dataset.blocked) return;
+  // Towing-Cells (auch towing-bookable) bei Drag ignorieren — sie haben eigene Confirm-Logik
+  if (cell.classList.contains('ov-towing')) return;
+
+  const aircraft = cell.dataset.aircraft;
+  const startIdx = _ovIdxFromSlot(cell.dataset.slot);
+  if (startIdx < 0) return;
+
+  _ovDragState = { aircraft, startIdx, currentIdx: startIdx, moved: false };
+  // Cursor + Highlight setzen wir erst, wenn der User wirklich zieht (im _ovDragMove)
+  // — so bleibt der einfache Klick visuell unverändert.
+}
+
+function _ovDragMove(e) {
+  if (!_ovDragState) return;
+  const cell = _ovCellFromEvent(e);
+  if (!cell) return;
+  // Nur in derselben Aircraft-Spalte ziehen
+  if (cell.dataset.aircraft !== _ovDragState.aircraft) return;
+  const idx = _ovIdxFromSlot(cell.dataset.slot);
+  if (idx < 0 || idx === _ovDragState.currentIdx) return;
+  // Range darf keine belegten/blockierten Cells überspringen — kappe stattdessen.
+  const dir = idx > _ovDragState.startIdx ? 1 : -1;
+  let lastValid = _ovDragState.startIdx;
+  for (let i = _ovDragState.startIdx; dir > 0 ? i <= idx : i >= idx; i += dir) {
+    const t = TIME_POINTS[i];
+    const c = document.querySelector(`.ov-cell[data-aircraft="${CSS.escape(_ovDragState.aircraft)}"][data-slot="${CSS.escape(t)}"]`);
+    if (!c) break;
+    if (c.dataset.booked || c.dataset.blocked || c.classList.contains('ov-towing')) break;
+    lastValid = i;
+  }
+  _ovDragState.currentIdx = lastValid;
+  if (lastValid !== _ovDragState.startIdx && !_ovDragState.moved) {
+    _ovDragState.moved = true;
+    document.body.classList.add('ov-dragging');
+  }
+  _ovHighlightRange(_ovDragState.aircraft, _ovDragState.startIdx, lastValid);
+}
+
+function _ovDragEnd(e) {
+  if (!_ovDragState) return;
+  const state = _ovDragState;
+  _ovDragState = null;
+  document.body.classList.remove('ov-dragging');
+
+  // Wenn der User NICHT gezogen hat, lass den nativen onclick-Handler die Cell-Klick-Aktion
+  // ausführen (öffnet QuickBook bei freier Cell). Selection einfach löschen.
+  if (!state.moved) {
+    _ovClearSelection();
+    return;
+  }
+
+  // Multi-Slot-Range gewählt → QuickBook öffnen.
+  // Den nachfolgenden Click-Event auf der Start-Cell schlucken, damit nicht
+  // zusätzlich switchToBook(…) feuert.
+  _ovSuppressNextClick = true;
+  const [lo, hi] = state.startIdx <= state.currentIdx ? [state.startIdx, state.currentIdx] : [state.currentIdx, state.startIdx];
+  const fromSlot = TIME_POINTS[lo];
+  // hi ist der letzte gewählte 30-Minuten-Slot — Ende = der Zeitpunkt DANACH
+  const toSlot = TIME_POINTS[hi + 1];
+  _ovClearSelection();
+  if (!fromSlot || !toSlot) return;
+
+  // selectedAircraft umstellen, damit openQuick die richtige Aircraft zeigt
+  if (typeof selectedAircraft !== 'undefined') selectedAircraft = state.aircraft;
+  openQuick(fromSlot, toSlot);
+}
+
+// Nach einem echten Drag schlucken wir das nachfolgende click-Event, damit
+// nicht zusätzlich der native onclick="switchToBook(...)" der Start-Cell
+// feuert (würde sonst den QuickBook-Dialog ein zweites Mal öffnen).
+let _ovSuppressNextClick = false;
+document.addEventListener('click', (e) => {
+  if (_ovSuppressNextClick) {
+    _ovSuppressNextClick = false;
+    e.stopPropagation();
+    e.preventDefault();
+  }
+}, true);
+
+// Listeners EINMAL auf document — funktioniert auch wenn Grid neu gerendert wird.
+document.addEventListener('mousedown', _ovDragStart);
+document.addEventListener('mousemove', _ovDragMove);
+document.addEventListener('mouseup', _ovDragEnd);
+// Wenn der Mauszeiger das Fenster verlässt: Drag abbrechen
+document.addEventListener('mouseleave', () => { if (_ovDragState) { _ovDragState = null; document.body.classList.remove('ov-dragging'); _ovClearSelection(); } });
 
 function updateQbTo() {
   const fromVal = document.getElementById('qbFrom').value;
