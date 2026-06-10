@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1E4B4E">
+<meta name="robots" content="noindex">
+<title>E-Mail bestätigen – DASSU Buchungskalender</title>
+<link rel="icon" type="image/png" href="https://images.squarespace-cdn.com/content/v1/5a6084aad0e628eab9591587/66b4214a-b88b-427c-8350-c5907ffdcda4/DASSU-Logo+2022+web+768x768+2.png?format=32w">
+<link rel="preconnect" href="https://fonts.bunny.net">
+<link rel="stylesheet" href="https://fonts.bunny.net/css2?family=Inter:wght@400;500;600;700&family=Fraunces:ital,wght@0,400;0,500;0,600&display=swap">
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<style>
+  :root {
+    --primary: #1E4B4E;
+    --primary-dark: #163738;
+    --accent: #C56A1C;
+    --success: #789B6E;
+    --danger: #B36A5B;
+    --c-bg: #EFEAE0;
+    --c-paper: #F4EFE4;
+    --c-line: #D5CEBF;
+    --c-ink: #1B1D1F;
+    --c-ink-2: #4A4842;
+    --c-ink-3: #8E887D;
+    --font: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-brand: 'Fraunces', Georgia, serif;
+    --ring: 0 0 0 3px rgba(30,75,78,0.18);
+    --motion: 160ms cubic-bezier(.2,.8,.2,1);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--font);
+    background: var(--c-bg);
+    color: var(--c-ink);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 20px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 14px; margin-bottom: 28px;
+  }
+  .brand img { width: 56px; height: 56px; border-radius: 50%; border: 1px solid var(--c-line); }
+  .brand-text {
+    font-family: var(--font-brand);
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--c-ink);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .brand-text span {
+    display: block;
+    font-family: var(--font);
+    font-size: 10px;
+    color: var(--accent);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+  .card {
+    max-width: 480px;
+    width: 100%;
+    background: var(--c-paper);
+    border: 1px solid var(--c-line);
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(27,29,31,0.06), 0 1px 2px rgba(27,29,31,0.04);
+    padding: 32px 28px;
+    text-align: center;
+  }
+  .icon-wrap {
+    width: 72px; height: 72px;
+    margin: 0 auto 18px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(120,155,110,0.15);
+  }
+  .icon-wrap.error { background: rgba(179,106,91,0.15); }
+  .icon-wrap.pending { background: rgba(30,75,78,0.1); }
+  .icon-wrap svg { width: 38px; height: 38px; }
+  h1 {
+    font-family: var(--font-brand);
+    font-size: 24px;
+    font-weight: 500;
+    margin-bottom: 10px;
+    color: var(--c-ink);
+    letter-spacing: -0.01em;
+  }
+  p { font-size: 14.5px; color: var(--c-ink-2); line-height: 1.6; margin-bottom: 18px; }
+  p.small { font-size: 12.5px; color: var(--c-ink-3); }
+  .btn {
+    display: inline-block;
+    background: var(--primary);
+    color: #fff;
+    padding: 14px 28px;
+    border: none;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    letter-spacing: 0.01em;
+    transition: filter var(--motion), transform var(--motion);
+  }
+  .btn:hover { filter: brightness(1.06); }
+  .btn:active { filter: brightness(0.96); transform: translateY(0.5px); }
+  .btn:focus-visible { outline: none; box-shadow: var(--ring); }
+  .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+  .btn-secondary {
+    background: transparent;
+    color: var(--primary);
+    border: 1.5px solid var(--c-line);
+  }
+  .footer {
+    margin-top: 28px;
+    font-size: 11.5px;
+    color: var(--c-ink-3);
+    text-align: center;
+    line-height: 1.7;
+  }
+  .footer a { color: var(--primary); text-decoration: none; }
+  .footer a:hover { text-decoration: underline; }
+  .footer .sep { margin: 0 8px; color: var(--c-line); }
+  .hidden { display: none !important; }
+  .spinner {
+    width: 38px; height: 38px;
+    border: 3px solid var(--c-line);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 18px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+  <div class="brand">
+    <img src="https://images.squarespace-cdn.com/content/v1/5a6084aad0e628eab9591587/66b4214a-b88b-427c-8350-c5907ffdcda4/DASSU-Logo+2022+web+768x768+2.png?format=128w" alt="DASSU">
+    <div class="brand-text">DASSU<span>Buchungskalender</span></div>
+  </div>
+
+  <!-- INITIAL VIEW: User klickt aktiv um zu bestätigen.
+       Wichtig: Wir starten NICHT automatisch — sonst würden E-Mail-Scanner
+       beim Preview-Aufruf den oobCode konsumieren. -->
+  <div class="card" id="confirmView">
+    <div class="icon-wrap pending">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#1E4B4E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+    </div>
+    <h1>E-Mail bestätigen</h1>
+    <p>Klicke unten auf den Button, um deine E-Mail-Adresse für den DASSU Buchungskalender zu bestätigen.</p>
+    <button class="btn" id="confirmBtn" type="button">E-Mail jetzt bestätigen</button>
+    <p class="small" style="margin-top:18px;">Nach der Bestätigung kannst du dich anmelden.</p>
+  </div>
+
+  <!-- WORKING VIEW: Verifikation läuft -->
+  <div class="card hidden" id="workingView">
+    <div class="spinner"></div>
+    <h1>Wird bestätigt…</h1>
+    <p>Einen Moment bitte.</p>
+  </div>
+
+  <!-- SUCCESS VIEW: Mail bestätigt -->
+  <div class="card hidden" id="successView">
+    <div class="icon-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#789B6E" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+    </div>
+    <h1>E-Mail bestätigt!</h1>
+    <p>Dein Konto ist jetzt aktiv. Du wirst gleich automatisch zur Anmeldung weitergeleitet — oder klicke direkt:</p>
+    <a class="btn" href="/">Zur App</a>
+  </div>
+
+  <!-- ERROR VIEW: oobCode ungültig/abgelaufen -->
+  <div class="card hidden" id="errorView">
+    <div class="icon-wrap error">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#B36A5B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    </div>
+    <h1 id="errorTitle">Link nicht mehr gültig</h1>
+    <p id="errorDesc">Der Bestätigungs-Link ist abgelaufen oder wurde bereits verwendet. Bitte fordere einen neuen Link an.</p>
+    <a class="btn" href="/">Zur Anmeldung</a>
+    <p class="small" style="margin-top:14px;">Auf der Anmeldeseite findest du oben einen Hinweis „Bestätigungs-Mail erneut senden".</p>
+  </div>
+
+  <!-- NO-CODE VIEW: Direkt-Aufruf ohne oobCode -->
+  <div class="card hidden" id="noCodeView">
+    <div class="icon-wrap error">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#B36A5B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    </div>
+    <h1>Kein Bestätigungs-Code gefunden</h1>
+    <p>Bitte öffne diese Seite über den Link aus deiner Bestätigungs-E-Mail. Wenn du keine Mail bekommen hast, melde dich an und fordere eine neue an.</p>
+    <a class="btn" href="/">Zur Anmeldung</a>
+  </div>
+
+  <div class="footer">
+    DASSU – Deutsche Alpensegelflugschule Unterwössen e.V.<br>
+    Bei Problemen: <a href="mailto:info@dassu.de">info@dassu.de</a> oder <a href="tel:+498641698787">+49 8641 698787</a><br>
+    <a href="/impressum.html">Impressum</a><span class="sep">·</span><a href="/datenschutz.html">Datenschutz</a>
+  </div>
+
+<script>
+// Firebase initialisieren — gleiche Config wie der Rest der App.
+const firebaseConfig = {
+  apiKey: "AIzaSyAe5CPZl8kb0bKfHIiGclHTpQK88MMsnTI",
+  authDomain: "buchungskalender-ffe4c.firebaseapp.com",
+  databaseURL: "https://buchungskalender-ffe4c-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "buchungskalender-ffe4c",
+  storageBucket: "buchungskalender-ffe4c.appspot.com",
+  messagingSenderId: "751891337063",
+  appId: "1:751891337063:web:c83a3e7d09a8c39e8e2fde"
+};
+firebase.initializeApp(firebaseConfig);
+
+// View-Switcher
+function show(id) {
+  ['confirmView','workingView','successView','errorView','noCodeView']
+    .forEach(v => document.getElementById(v).classList.toggle('hidden', v !== id));
+}
+
+// oobCode aus URL lesen.
+// Firebase liefert die URL als ?mode=verifyEmail&oobCode=XYZ&...
+const params = new URLSearchParams(window.location.search);
+const mode = params.get('mode');
+const oobCode = params.get('oobCode');
+
+// Nur bei mode=verifyEmail relevant. Andere Modes (resetPassword) leiten wir
+// an die Firebase-Default-Page weiter, die kümmert sich darum.
+if (mode && mode !== 'verifyEmail') {
+  // Reset-Password etc. — Standard-Page übernimmt
+  window.location.href = 'https://buchungskalender-ffe4c.firebaseapp.com/__/auth/action' + window.location.search;
+} else if (!oobCode) {
+  show('noCodeView');
+} else {
+  // OK: wir warten auf den expliziten User-Klick.
+  show('confirmView');
+  document.getElementById('confirmBtn').addEventListener('click', applyVerification);
+}
+
+async function applyVerification() {
+  const btn = document.getElementById('confirmBtn');
+  if (btn) btn.disabled = true;
+  show('workingView');
+
+  try {
+    // applyActionCode verifiziert die Email.
+    // Wenn der Code schon verbraucht wurde (z.B. weil User schon mal geklickt
+    // hat) wirft das einen auth/invalid-action-code Fehler — wir behandeln
+    // das aber freundlich: "schon bestätigt, alles gut".
+    await firebase.auth().applyActionCode(oobCode);
+    show('successView');
+    // Nach 3s zur App
+    setTimeout(() => { window.location.href = '/'; }, 3000);
+  } catch (err) {
+    console.error('[verify-email] applyActionCode error:', err);
+    const code = err.code || '';
+    let title = 'Link nicht mehr gültig';
+    let desc = 'Der Bestätigungs-Link ist abgelaufen oder wurde bereits verwendet. Bitte fordere einen neuen Link an.';
+
+    if (code === 'auth/expired-action-code') {
+      title = 'Link abgelaufen';
+      desc = 'Dieser Bestätigungs-Link ist nicht mehr gültig (älter als 24 Stunden). Bitte fordere auf der Anmeldeseite einen neuen Link an.';
+    } else if (code === 'auth/invalid-action-code') {
+      title = 'Link bereits verwendet';
+      desc = 'Dieser Link wurde bereits verwendet — möglicherweise hat ein Spam-Filter deiner E-Mail-Software den Link automatisch geöffnet. Falls du dich noch nicht anmelden kannst, fordere einen neuen Link an.';
+    } else if (code === 'auth/user-disabled') {
+      title = 'Konto deaktiviert';
+      desc = 'Dieses Konto wurde deaktiviert. Bitte melde dich bei info@dassu.de.';
+    } else if (code === 'auth/user-not-found') {
+      title = 'Konto nicht gefunden';
+      desc = 'Das zugehörige Konto wurde inzwischen gelöscht.';
+    }
+    document.getElementById('errorTitle').textContent = title;
+    document.getElementById('errorDesc').textContent = desc;
+    show('errorView');
+  }
+}
+</script>
+</body>
+</html>

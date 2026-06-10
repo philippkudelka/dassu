@@ -149,13 +149,25 @@ exports.handler = async function(event) {
       return { statusCode: 500, headers, body: JSON.stringify({ error: 'BREVO SMTP nicht konfiguriert' }) };
     }
 
-    // Verifikationslink generieren
+    // Verifikationslink generieren.
+    // WICHTIG: Wir geben als URL unsere eigene /verify-email.html an statt der
+    // Firebase-Default-Action-Page. Hintergrund: E-Mail-Anbieter mit Link-Preview
+    // (Microsoft 365 SafeLinks, Mimecast, Proofpoint etc.) öffnen Links automatisch
+    // zur Phishing-Prüfung. Der Firebase-Default-Handler konsumiert dabei den
+    // oobCode sofort — der User sieht dann beim Klick "Link bereits verwendet".
+    // Unsere Custom-Page zeigt einen Button "E-Mail jetzt bestätigen" und ruft
+    // applyActionCode() erst beim ECHTEN User-Klick auf. Scanner laden nur die
+    // Page, klicken nicht den Button → Code überlebt bis zum Nutzer.
     let verifyLink;
     try {
-      verifyLink = await admin.auth().generateEmailVerificationLink(email, {
-        url: 'https://dassu-buchungskalender.netlify.app/',
-        handleCodeInApp: false
+      const rawLink = await admin.auth().generateEmailVerificationLink(email, {
+        url: 'https://dassu-buchungskalender.netlify.app/verify-email.html',
+        handleCodeInApp: true
       });
+      // Firebase liefert eine vollständige URL — wir lassen sie unverändert,
+      // weil sie sowieso schon auf unsere verify-email.html zeigt und alle
+      // nötigen Parameter (oobCode, mode, apiKey, continueUrl) enthält.
+      verifyLink = rawLink;
     } catch (linkErr) {
       console.error('[send-verification] generateEmailVerificationLink fehlgeschlagen:', linkErr);
       return { statusCode: 500, headers, body: JSON.stringify({ error: 'Verify-Link-Generierung fehlgeschlagen: ' + linkErr.message }) };

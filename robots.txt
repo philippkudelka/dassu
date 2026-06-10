@@ -7,6 +7,8 @@ User-agent: *
 # Admin-Oberfläche nicht indexieren
 Disallow: /staff.html
 Disallow: /welcome.html
+# Auth-Handler-Page hat noindex im Head, hier defensiv auch noch sperren
+Disallow: /verify-email.html
 
 # Serverless Functions niemals crawlen
 Disallow: /.netlify/
