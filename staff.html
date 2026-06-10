@@ -8256,6 +8256,40 @@ async function sendStatusEmail(booking, status) {
       Du möchtest stornieren? Klicke im Buchungskalender oben rechts auf <strong style="color:#666;">„Stornieren"</strong> und gib folgenden Code ein:<br>
       <span style="display: inline-block; margin-top: 6px; padding: 6px 16px; background: var(--c-paper); border: 1px solid var(--c-line); border-radius: 4px; font-family: monospace; font-size: 15px; letter-spacing: 2px; color: #272727; font-weight: 700;">${booking.cancelToken}</span>
     </div>` : ''}
+    ${(() => {
+      // Onboarding-Block für unregistrierte Piloten — nur bei Erst-Buchung über Staff anhängen.
+      // Bedingungen: Status approved + Email vorhanden + Buchung hat KEIN uid (Schnellbuchung)
+      // + Empfänger ist NICHT in customerUsers (Firebase customers) bekannt
+      if (status !== 'approved' || !booking.email || booking.uid) return '';
+      const emailNorm = (booking.email || '').trim().toLowerCase();
+      const isRegistered = (typeof customerUsers !== 'undefined' && Array.isArray(customerUsers))
+        ? customerUsers.some(c => c && c.email && c.email.trim().toLowerCase() === emailNorm)
+        : false;
+      if (isRegistered) return '';
+      // Onboarding-Block — eingerahmt, freundlich, mit klarer Schritt-für-Schritt-Anleitung
+      return `<div style="margin: 28px 0 0 0; padding: 20px 22px; background: linear-gradient(135deg, #f0f7f5, #e8f0ed); border-radius: 8px; border-left: 3px solid #3d9991; font-family: Arial, Helvetica, sans-serif;">
+        <div style="font-size: 14px; font-weight: 700; color: #2d7a73; margin-bottom: 10px;">💡 Tipp: Dein eigenes Konto im Buchungskalender</div>
+        <p style="font-size: 13px; line-height: 1.6; color: #4a4a4a; margin: 0 0 12px 0;">
+          Wir haben dich für diesen Flug eingebucht. Damit du künftige Buchungen einfacher selbst verwalten kannst, lohnt sich ein eigenes DASSU-Konto:
+        </p>
+        <ul style="font-size: 13px; line-height: 1.6; color: #4a4a4a; margin: 0 0 14px 18px; padding: 0;">
+          <li>Übersicht über alle deine Buchungen — vergangen und kommend</li>
+          <li>Selbst Buchungen anlegen oder stornieren</li>
+          <li>Kalender-Abo für Apple Kalender / Google Calendar / Outlook</li>
+        </ul>
+        <div style="font-size: 13px; font-weight: 600; color: #272727; margin-bottom: 8px;">So geht's:</div>
+        <ol style="font-size: 13px; line-height: 1.8; color: #4a4a4a; margin: 0 0 14px 18px; padding: 0;">
+          <li>Öffne <a href="https://dassu-buchungskalender.netlify.app" style="color:#3d9991;font-weight:600;text-decoration:none;">dassu-buchungskalender.netlify.app</a></li>
+          <li>Klicke rechts in der Login-Karte auf <strong>„Neues Konto erstellen"</strong></li>
+          <li>Verwende dabei <strong style="color:#272727;">${booking.email}</strong> als E-Mail — damit findest du diese und alle künftigen Buchungen wieder</li>
+          <li>Wähle ein Passwort und bestätige die E-Mail über den Link in der Verifikations-Mail</li>
+          <li>Fertig — du kannst dich anmelden und loslegen</li>
+        </ol>
+        <p style="font-size: 12px; color: #888; margin: 0; line-height: 1.5;">
+          Fragen? Wir helfen gerne weiter: <a href="mailto:info@dassu.de" style="color:#3d9991;text-decoration:none;">info@dassu.de</a> · <a href="tel:+498641698787" style="color:#3d9991;text-decoration:none;">+49 8641 698787</a>
+        </p>
+      </div>`;
+    })()}
     <p style="margin: 24px 0 0 0; font-size: 14px; color: #888; font-family: Arial, Helvetica, sans-serif;">Bei Fragen erreichst du uns jederzeit.</p>
   </div>
   <div style="margin: 0 40px; border-top: 1px solid #e8e8e8;"></div>
