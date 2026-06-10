@@ -2654,6 +2654,41 @@
       </div>
     </div>
 
+    <!-- ===== REGISTRIERUNG ERFOLGREICH VIEW ===== -->
+    <div id="caRegSuccessView" style="display:none;">
+      <div class="auth-card" style="text-align:center; padding:32px 28px;">
+        <div style="width:72px; height:72px; margin:0 auto 18px; border-radius:50%; background:rgba(120,155,110,0.15); display:flex; align-items:center; justify-content:center;">
+          <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="#789B6E" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+          </svg>
+        </div>
+        <h2 style="margin-bottom:8px;">Konto angelegt!</h2>
+        <p style="font-size:14px; color:var(--c-ink-3); line-height:1.55; margin:0 0 18px;">
+          Wir haben dir gerade eine Bestätigungs-E-Mail geschickt an:<br>
+          <strong id="caSuccessEmail" style="color:var(--c-ink); font-size:15px; word-break:break-all;">—</strong>
+        </p>
+
+        <div style="background:rgba(30,75,78,0.06); border-radius:10px; padding:14px 16px; margin:18px 0; text-align:left; font-size:13px; line-height:1.65; color:var(--c-ink-2);">
+          <strong style="color:var(--c-ink); display:block; margin-bottom:6px;">So geht's weiter:</strong>
+          <ol style="margin:0; padding-left:18px;">
+            <li>E-Mail-Postfach öffnen</li>
+            <li>Falls nicht im Posteingang: <strong>Spam-Ordner prüfen</strong></li>
+            <li>Auf den <strong>Bestätigungs-Link</strong> in der Mail klicken</li>
+            <li>Dann hier anmelden — die App ist sofort startklar</li>
+          </ol>
+        </div>
+
+        <p style="font-size:12px; color:var(--c-ink-3); margin:14px 0;">
+          Keine Mail nach ein paar Minuten? Probier <button type="button" class="auth-link" onclick="customerResendVerification()">erneut senden</button> oder melde dich bei uns: <a href="mailto:info@dassu.de" style="color:var(--c-alpine);">info@dassu.de</a>
+        </p>
+
+        <div id="caSuccessMsg" style="font-size:12px; margin:8px 0;"></div>
+
+        <button type="button" class="auth-btn-primary" style="margin-top:8px;" onclick="showAuthView('login')">Zur Anmeldung</button>
+      </div>
+    </div>
+
     <!-- ===== REGISTER VIEW ===== -->
     <div id="caRegView" style="display:none;">
       <form class="auth-card" onsubmit="event.preventDefault(); customerRegister();">
@@ -6484,6 +6519,8 @@ function closeAuthPage() {
 function showAuthView(which) {
   document.getElementById('caLoginView').style.display = which === 'login' ? '' : 'none';
   document.getElementById('caRegView').style.display = which === 'register' ? '' : 'none';
+  const successView = document.getElementById('caRegSuccessView');
+  if (successView) successView.style.display = which === 'regSuccess' ? '' : 'none';
   document.getElementById('caLoginMsg').innerHTML = '';
   document.getElementById('caRegMsg').innerHTML = '';
   // Scroll to top of auth page
@@ -6626,12 +6663,21 @@ async function customerRegister() {
         }
       }
       clearUserCaches(); await firebase.auth().signOut();
+      btn.disabled = false; btn.textContent = 'Konto erstellen';
+
       if (emailSent) {
-        caMsg('caRegMsg', 'success', 'Fast geschafft! Wir haben dir eine Best\u00e4tigungs-E-Mail an <strong>' + email + '</strong> geschickt. Bitte klicke auf den Link in der E-Mail, um dein Konto zu aktivieren. Danach kannst du dich anmelden.<br><small style="color:#6b7280;">Pr\u00fcfe auch deinen Spam-Ordner!</small>');
+        // Email-Adresse f\u00fcr \u201eErneut senden" und Anzeige merken (Session-Lebenszeit)
+        try { sessionStorage.setItem('dassu_pending_verification_email', email); } catch (_) {}
+        const emailEl = document.getElementById('caSuccessEmail');
+        if (emailEl) emailEl.textContent = email;
+        // Form zur\u00fccksetzen, damit beim Zur\u00fcckwechseln nichts mehr drin steht
+        document.getElementById('caRegMsg').innerHTML = '';
+        // Auf die prominente Erfolgs-Seite wechseln
+        showAuthView('regSuccess');
       } else {
+        // Bei Fehler im Formular bleiben + roter Hinweis
         caMsg('caRegMsg', 'error', 'Dein Konto wurde erstellt, aber die Best\u00e4tigungs-Mail konnte nicht gesendet werden.<br><small style="color:#6b7280;">' + escapeHtml(lastErr).slice(0, 300) + '</small>');
       }
-      btn.disabled = false; btn.textContent = 'Konto erstellen';
       return;
     }
   } catch (e) {
@@ -6660,6 +6706,54 @@ async function saveCustomerProfile() {
     setTimeout(() => closeModal('customerAuthModal'), 800);
   } catch (e) {
     caMsg('caEditMsg', 'error', 'Fehler: ' + e.message);
+  }
+}
+
+// „Erneut senden" auf der Erfolgs-Seite. Nutzt die Adresse aus sessionStorage,
+// die customerRegister() beim Erfolg gemerkt hat. Wir müssen den User dafür
+// kurz erneut anmelden — er hat ja gerade ein gültiges Passwort gewählt.
+// Für die UX: User muss das Passwort nochmal eingeben (Sicherheit + DSGVO).
+async function customerResendVerification() {
+  const email = sessionStorage.getItem('dassu_pending_verification_email') || '';
+  const msgEl = document.getElementById('caSuccessMsg');
+  const setMsg = (text, color) => { if (msgEl) { msgEl.innerHTML = '<span style="color:' + color + '">' + text + '</span>'; } };
+  if (!email) {
+    setMsg('Bitte über „Zur Anmeldung" einloggen und dort „Bestätigungs-Mail erneut senden" verwenden.', '#b83232');
+    return;
+  }
+  const pw = prompt('Zur Sicherheit: bitte gib dein Passwort nochmal ein, damit wir die Mail neu schicken können.');
+  if (!pw) return;
+  setMsg('Wird gesendet…', 'var(--c-ink-3)');
+  try {
+    const cred = await firebase.auth().signInWithEmailAndPassword(email, pw);
+    let ok = false;
+    try {
+      const token = await cred.user.getIdToken();
+      const vRes = await fetch('/.netlify/functions/send-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ email, name: cred.user.displayName || '' })
+      });
+      if (vRes.ok) ok = true;
+    } catch (_) {}
+    if (!ok) {
+      // Fallback: Firebase-Standard-Mail
+      try { await cred.user.sendEmailVerification(); ok = true; } catch (_) {}
+    }
+    clearUserCaches(); await firebase.auth().signOut();
+    if (ok) {
+      setMsg('✓ Mail erneut verschickt an ' + email + '. Bitte Spam-Ordner prüfen.', '#1e7b4e');
+    } else {
+      setMsg('Versand fehlgeschlagen. Bitte melde dich bei info@dassu.de.', '#b83232');
+    }
+  } catch (e) {
+    if (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential') {
+      setMsg('Passwort stimmt nicht. Bitte erneut versuchen.', '#b83232');
+    } else if (e.code === 'auth/too-many-requests') {
+      setMsg('Zu viele Versuche — bitte warte 1–2 Minuten.', '#b83232');
+    } else {
+      setMsg('Fehler: ' + (e.message || 'Unbekannt'), '#b83232');
+    }
   }
 }
 
