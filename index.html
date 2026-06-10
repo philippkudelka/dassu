@@ -4376,8 +4376,10 @@ function renderGanttCalendar(dk, aircraft) {
       const customerName = booking.customer || booking.name || '—';
       const effRole = getEffectiveRole();
       const isStaffRole = effRole === 'admin' || effRole === 'staff' || effRole === 'team' || effRole === 'fluglehrer' || effRole === 'guestGlider' || effRole === 'guestMotor';
-      // Eigene Buchung erkennen: per UID (Standard) oder per E-Mail-Match (Fallback
-      // für Staff-Schnellbuchungen, die uid leer lassen aber email setzen).
+      // Eigene Buchung erkennen: per UID (Standard-Weg — Schnellbuchungen für
+      // registrierte Kunden tragen seit lookupCustomerForName auch die UID).
+      // E-Mail-Match greift nur in Staff-Ansichten: für Kunden ist email PII
+      // und liegt gar nicht im bookings-Node (PII-Trennung).
       const _u = firebase.auth().currentUser;
       const ownByUid = !!(_u && booking.uid && booking.uid === _u.uid);
       const ownByEmail = !!(_u && _u.email && booking.email && booking.email.trim().toLowerCase() === _u.email.toLowerCase());
@@ -5073,7 +5075,8 @@ function emailHeader() {
 
 function emailBookingTable(booking) {
   const timeDisplay = booking.startTime ? `${booking.startTime} – ${booking.endTime}` : (booking.slot || '');
-  const instructorText = booking.instructor === 'ja' ? (booking.instructorName || 'Ja, benötigt') : 'Nein';
+  // Fluglehrer-Name ist User-Input → escapen (HTML-Injection in Mails verhindern)
+  const instructorText = escapeHtml(booking.instructor === 'ja' ? (booking.instructorName || 'Ja, benötigt') : 'Nein');
   return `
     <table style="width: 100%; border-collapse: collapse; font-size: 14px; font-family: Arial, Helvetica, sans-serif;">
       <tr><td style="padding: 10px 0; color: #999; border-bottom: 1px solid #f0f0f0; width: 120px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Flugzeug</td><td style="padding: 10px 0; border-bottom: 1px solid #f0f0f0; color: #272727; font-weight: 600;">${booking.aircraft}</td></tr>
@@ -5112,7 +5115,7 @@ function buildEmailParams(booking) {
 
   <!-- Content -->
   <div style="padding: 24px 40px 32px; color: #4a4a4a; line-height: 1.7;">
-    <p style="margin: 0 0 16px 0; font-size: 16px;">Hallo ${booking.name},</p>
+    <p style="margin: 0 0 16px 0; font-size: 16px;">Hallo ${escapeHtml(booking.name || '')},</p>
     <p style="margin: 0 0 24px 0; font-size: 15px; color: #666;">deine Buchung wurde <strong style="color: ${statusColor};">${statusText}</strong>.</p>
 
     ${emailBookingTable(booking)}
@@ -5142,7 +5145,13 @@ function buildEmailParams(booking) {
 function sendAdminNotification(booking) {
   if (!isEmailConfigured()) return;
   const timeDisplay = booking.startTime ? `${booking.startTime} – ${booking.endTime}` : '';
-  const instructorText = booking.instructor === 'ja' ? (booking.instructorName || 'Ja, benötigt') : 'Nein';
+  // Alle Formularfelder escapen — sonst könnte ein Bucher per Kommentar/Name
+  // HTML (z.B. Phishing-Links) in die Büro-Mail injizieren.
+  const instructorText = escapeHtml(booking.instructor === 'ja' ? (booking.instructorName || 'Ja, benötigt') : 'Nein');
+  const safeName = escapeHtml(booking.name || '');
+  const safeEmail = escapeHtml(booking.email || '');
+  const safePhone = escapeHtml(booking.phone || '—');
+  const safeComment = escapeHtml(booking.comment || '');
 
   const message = `
 <div style="font-family: 'Georgia', 'Times New Roman', serif; max-width: 560px; margin: 0 auto; background: #ffffff;">
@@ -5159,11 +5168,11 @@ function sendAdminNotification(booking) {
       <tr><td style="padding: 10px 0; color: #999; border-bottom: 1px solid #f0f0f0; width: 120px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Flugzeug</td><td style="padding: 10px 0; border-bottom: 1px solid #f0f0f0; color: #272727; font-weight: 600;">${booking.aircraft}</td></tr>
       <tr><td style="padding: 10px 0; color: #999; border-bottom: 1px solid #f0f0f0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Datum</td><td style="padding: 10px 0; border-bottom: 1px solid #f0f0f0; color: #272727; font-weight: 600;">${booking.date}</td></tr>
       <tr><td style="padding: 10px 0; color: #999; border-bottom: 1px solid #f0f0f0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Uhrzeit</td><td style="padding: 10px 0; border-bottom: 1px solid #f0f0f0; color: #272727; font-weight: 600;">${timeDisplay}</td></tr>
-      <tr><td style="padding: 10px 0; color: #999; border-bottom: 1px solid #f0f0f0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Name</td><td style="padding: 10px 0; border-bottom: 1px solid #f0f0f0; color: #272727; font-weight: 600;">${booking.name}</td></tr>
-      <tr><td style="padding: 10px 0; color: #999; border-bottom: 1px solid #f0f0f0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">E-Mail</td><td style="padding: 10px 0; border-bottom: 1px solid #f0f0f0;"><a href="mailto:${booking.email}" style="color: #3d9991; text-decoration: none;">${booking.email}</a></td></tr>
-      <tr><td style="padding: 10px 0; color: #999; border-bottom: 1px solid #f0f0f0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Telefon</td><td style="padding: 10px 0; border-bottom: 1px solid #f0f0f0; color: #272727;">${booking.phone || '—'}</td></tr>
+      <tr><td style="padding: 10px 0; color: #999; border-bottom: 1px solid #f0f0f0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Name</td><td style="padding: 10px 0; border-bottom: 1px solid #f0f0f0; color: #272727; font-weight: 600;">${safeName}</td></tr>
+      <tr><td style="padding: 10px 0; color: #999; border-bottom: 1px solid #f0f0f0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">E-Mail</td><td style="padding: 10px 0; border-bottom: 1px solid #f0f0f0;"><a href="mailto:${encodeURIComponent(booking.email || '')}" style="color: #3d9991; text-decoration: none;">${safeEmail}</a></td></tr>
+      <tr><td style="padding: 10px 0; color: #999; border-bottom: 1px solid #f0f0f0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Telefon</td><td style="padding: 10px 0; border-bottom: 1px solid #f0f0f0; color: #272727;">${safePhone}</td></tr>
       <tr><td style="padding: 10px 0; color: #999; ${booking.comment ? 'border-bottom: 1px solid #f0f0f0;' : ''} font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Fluglehrer</td><td style="padding: 10px 0; ${booking.comment ? 'border-bottom: 1px solid #f0f0f0;' : ''} color: #272727; font-weight: 600;">${instructorText}</td></tr>
-      ${booking.comment ? `<tr><td style="padding: 10px 0; color: #999; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Bemerkung</td><td style="padding: 10px 0; color: #272727; font-style: italic;">${booking.comment}</td></tr>` : ''}
+      ${booking.comment ? `<tr><td style="padding: 10px 0; color: #999; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Bemerkung</td><td style="padding: 10px 0; color: #272727; font-style: italic;">${safeComment}</td></tr>` : ''}
     </table>
 
     <div style="text-align: center; margin-top: 28px;">
@@ -5209,7 +5218,7 @@ function sendBookingReceivedEmail(booking) {
   </div>
 
   <div style="padding: 24px 40px 32px; color: #4a4a4a; line-height: 1.7;">
-    <p style="margin: 0 0 16px 0; font-size: 16px;">Hallo ${booking.name},</p>
+    <p style="margin: 0 0 16px 0; font-size: 16px;">Hallo ${escapeHtml(booking.name || '')},</p>
     <p style="margin: 0 0 24px 0; font-size: 15px; color: #666;">vielen Dank f&uuml;r deine Buchungsanfrage! Wir haben folgende Daten erhalten:</p>
 
     ${emailBookingTable(booking)}
@@ -5296,7 +5305,7 @@ function cancelBookingById(bookingId) {
     <div style="display: inline-block; padding: 6px 24px; border-radius: 20px; background: #fdf0ee; color: #c0392b; font-family: Arial, Helvetica, sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;">Stornierung</div>
   </div>
   <div style="padding: 24px 40px 32px; color: #4a4a4a; line-height: 1.7;">
-    <p style="margin: 0 0 16px 0; font-size: 15px; color: #666;"><strong style="color: #272727;">${booking.name}</strong> hat folgende Buchung storniert:</p>
+    <p style="margin: 0 0 16px 0; font-size: 15px; color: #666;"><strong style="color: #272727;">${escapeHtml(booking.name || '')}</strong> hat folgende Buchung storniert:</p>
     <p style="margin: 0; font-size: 15px; color: #272727; font-weight: 600;">${booking.aircraft} am ${booking.date}, ${timeDisplay}</p>
   </div>
   ${emailFooter()}
@@ -5311,7 +5320,7 @@ function cancelBookingById(bookingId) {
   </div>
 
   <div style="padding: 24px 40px 32px; color: #4a4a4a; line-height: 1.7;">
-    <p style="margin: 0 0 16px 0; font-size: 16px;">Hallo ${booking.name},</p>
+    <p style="margin: 0 0 16px 0; font-size: 16px;">Hallo ${escapeHtml(booking.name || '')},</p>
     <p style="margin: 0 0 24px 0; font-size: 15px; color: #666;">deine Buchung wurde erfolgreich storniert.</p>
 
     <table style="width: 100%; border-collapse: collapse; font-size: 14px; font-family: Arial, Helvetica, sans-serif;">
@@ -6705,10 +6714,14 @@ async function customerLogin() {
       btn.disabled = false; btn.textContent = 'Anmelden';
       return;
     }
-    // Kunden: E-Mail muss verifiziert sein
+    // Kunden: E-Mail muss verifiziert sein.
+    // Credentials NUR in JS-Variablen halten \u2014 niemals ins DOM schreiben
+    // (kein XSS-Vektor, kein Klartext-Passwort im HTML).
     if (!cred.user.emailVerified) {
       clearUserCaches(); await firebase.auth().signOut();
-      caMsg('caLoginMsg', 'error', 'Bitte best\u00e4tige zuerst deine E-Mail-Adresse. Wir haben dir einen Best\u00e4tigungslink geschickt.<br><button onclick="resendVerifFromLogin()" style="margin-top:8px; background:none; border:1px solid var(--danger); color:var(--danger); border-radius:var(--radius-xs); padding:4px 12px; font-size:12px; cursor:pointer; font-family:var(--font-ui);">Best\u00e4tigungs-E-Mail erneut senden</button><input type="hidden" id="caLoginPendingEmail" value="' + email + '"><input type="hidden" id="caLoginPendingPw" value="' + pw + '">');
+      _pendingVerifEmail = email;
+      _pendingVerifPw = pw;
+      caMsg('caLoginMsg', 'error', 'Bitte best\u00e4tige zuerst deine E-Mail-Adresse. Wir haben dir einen Best\u00e4tigungslink geschickt.<br><button onclick="resendVerifFromLogin()" style="margin-top:8px; background:none; border:1px solid var(--danger); color:var(--danger); border-radius:var(--radius-xs); padding:4px 12px; font-size:12px; cursor:pointer; font-family:var(--font-ui);">Best\u00e4tigungs-E-Mail erneut senden</button>');
       btn.disabled = false; btn.textContent = 'Anmelden';
       return;
     }
@@ -6723,25 +6736,33 @@ async function customerLogin() {
   btn.disabled = false; btn.textContent = 'Anmelden';
 }
 
+// Zwischengespeicherte Login-Daten f\u00fcr \u201eBest\u00e4tigungs-Mail erneut senden".
+// Bewusst nur im JS-Speicher (Closure-Scope der Page), nie im DOM/localStorage.
+let _pendingVerifEmail = '';
+let _pendingVerifPw = '';
+
 async function resendVerifFromLogin() {
   try {
-    const em = document.getElementById('caLoginPendingEmail');
-    const pw = document.getElementById('caLoginPendingPw');
-    if (!em || !pw) return;
-    const cred = await firebase.auth().signInWithEmailAndPassword(em.value, pw.value);
+    if (!_pendingVerifEmail || !_pendingVerifPw) {
+      caMsg('caLoginMsg', 'error', 'Bitte melde dich zuerst mit E-Mail und Passwort an.');
+      return;
+    }
+    const cred = await firebase.auth().signInWithEmailAndPassword(_pendingVerifEmail, _pendingVerifPw);
     // Gebrandete Mail \u00fcber Brevo
     try {
       const token = await cred.user.getIdToken();
       const vRes = await fetch('/.netlify/functions/send-verification', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-        body: JSON.stringify({ email: em.value, name: cred.user.displayName || '' })
+        body: JSON.stringify({ email: _pendingVerifEmail, name: cred.user.displayName || '' })
       });
       if (!vRes.ok) throw new Error('API failed');
     } catch (_) {
       await cred.user.sendEmailVerification();
     }
     clearUserCaches(); await firebase.auth().signOut();
+    // Credentials nach Gebrauch aus dem Speicher entfernen
+    _pendingVerifPw = '';
     caMsg('caLoginMsg', 'success', 'Best\u00e4tigungs-E-Mail wurde erneut gesendet! Bitte pr\u00fcfe deinen Posteingang.');
   } catch (e) {
     if (e.code === 'auth/too-many-requests') {
