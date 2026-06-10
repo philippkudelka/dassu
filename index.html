@@ -1517,6 +1517,24 @@
     opacity: 0.65;
     text-decoration: line-through;
   }
+  /* Eigene Buchung — kräftiger Border + leichtes Glühen, damit der Kunde
+     seine Buchungen sofort sieht. Funktioniert sowohl auf pending als auch
+     auf approved. */
+  .gantt-bar.own-booking {
+    border-width: 2px;
+    border-color: var(--c-alpine);
+    box-shadow: 0 0 0 1px rgba(30,75,78,0.18), 0 2px 6px rgba(30,75,78,0.12);
+    font-weight: 600;
+  }
+  .gantt-bar.own-booking::before {
+    content: '★';
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    font-size: 9px;
+    color: var(--c-alpine);
+    line-height: 1;
+  }
   .gantt-bar.approved.with-instructor {
     background: linear-gradient(135deg, #FFF4EC, #FEE8D6);
     border-color: #C08E36;
@@ -4357,17 +4375,27 @@ function renderGanttCalendar(dk, aircraft) {
       const hasInstructor = booking.instructor === 'ja' || (booking.instructorName && booking.instructorName.trim());
       const customerName = booking.customer || booking.name || '—';
       const effRole = getEffectiveRole();
-      const canSeeName = effRole === 'admin' || effRole === 'staff' || effRole === 'team' || effRole === 'fluglehrer' || effRole === 'guestGlider' || effRole === 'guestMotor';
-      const displayName = canSeeName ? customerName : 'Belegt';
+      const isStaffRole = effRole === 'admin' || effRole === 'staff' || effRole === 'team' || effRole === 'fluglehrer' || effRole === 'guestGlider' || effRole === 'guestMotor';
+      // Eigene Buchung erkennen: per UID (Standard) oder per E-Mail-Match (Fallback
+      // für Staff-Schnellbuchungen, die uid leer lassen aber email setzen).
+      const _u = firebase.auth().currentUser;
+      const ownByUid = !!(_u && booking.uid && booking.uid === _u.uid);
+      const ownByEmail = !!(_u && _u.email && booking.email && booking.email.trim().toLowerCase() === _u.email.toLowerCase());
+      const isOwnBooking = ownByUid || ownByEmail;
+      // Detail-Anzeige für Staff (alle Buchungen) ODER eigene Buchung
+      const canSeeName = isStaffRole || isOwnBooking;
+      const displayName = canSeeName
+        ? (isOwnBooking && !isStaffRole ? 'Meine Buchung' : customerName)
+        : 'Belegt';
       const shortName = displayName.length > 12 ? displayName.substring(0, 11) + '…' : displayName;
       const instrName = booking.instructorName && booking.instructorName.trim();
       const instrTooltip = hasInstructor ? `\nFluglehrer: ${instrName || 'benötigt'}` : '';
       const tooltipText = canSeeName
-        ? `${customerName}\n${booking.startTime}–${booking.endTime}${instrTooltip}\nStatus: ${booking.status}`
+        ? `${isOwnBooking && !isStaffRole ? 'Meine Buchung — ' : ''}${customerName}\n${booking.startTime}–${booking.endTime}${instrTooltip}\nStatus: ${booking.status}`
         : `Belegt\n${booking.startTime}–${booking.endTime}`;
 
       const barDiv = document.createElement('div');
-      barDiv.className = `gantt-bar ${booking.status}${hasInstructor ? ' with-instructor' : ''}`;
+      barDiv.className = `gantt-bar ${booking.status}${hasInstructor ? ' with-instructor' : ''}${isOwnBooking ? ' own-booking' : ''}`;
       barDiv.style.top = topPx + 'px';
       barDiv.style.height = heightPx + 'px';
       barDiv.title = tooltipText;
