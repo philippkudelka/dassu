@@ -150,24 +150,40 @@ exports.handler = async function(event) {
     }
 
     // Verifikationslink generieren.
-    // WICHTIG: Wir geben als URL unsere eigene /verify-email.html an statt der
-    // Firebase-Default-Action-Page. Hintergrund: E-Mail-Anbieter mit Link-Preview
-    // (Microsoft 365 SafeLinks, Mimecast, Proofpoint etc.) öffnen Links automatisch
-    // zur Phishing-Prüfung. Der Firebase-Default-Handler konsumiert dabei den
-    // oobCode sofort — der User sieht dann beim Klick "Link bereits verwendet".
-    // Unsere Custom-Page zeigt einen Button "E-Mail jetzt bestätigen" und ruft
-    // applyActionCode() erst beim ECHTEN User-Klick auf. Scanner laden nur die
-    // Page, klicken nicht den Button → Code überlebt bis zum Nutzer.
+    //
+    // Hintergrund: E-Mail-Sicherheits-Scanner (Microsoft 365 SafeLinks, Mimecast,
+    // Proofpoint etc.) öffnen Links automatisch zur Phishing-Prüfung. Wenn diese
+    // Scanner die Firebase-Default-Page (firebaseapp.com/__/auth/action) öffnen,
+    // konsumieren sie den oobCode sofort — der User sieht dann beim eigenen Klick
+    // "Link bereits verwendet".
+    //
+    // Lösung: Firebase Admin SDK gibt eine URL zurück, die immer auf firebaseapp.com
+    // zeigt (auch mit handleCodeInApp: true — das ist nur für Mobile Apps mit
+    // Dynamic Links anders). Wir parsen den oobCode aus der URL und bauen einen
+    // Link auf unsere eigene verify-email.html. Diese Custom-Page zeigt einen
+    // Button "E-Mail jetzt bestätigen" und ruft applyActionCode() erst beim
+    // ECHTEN User-Klick auf. Scanner laden die Page, klicken den Button aber
+    // nicht → Code überlebt bis zum Nutzer.
     let verifyLink;
     try {
       const rawLink = await admin.auth().generateEmailVerificationLink(email, {
-        url: 'https://dassu-buchungskalender.netlify.app/verify-email.html',
-        handleCodeInApp: true
+        url: 'https://dassu-buchungskalender.netlify.app/',
+        handleCodeInApp: false
       });
-      // Firebase liefert eine vollständige URL — wir lassen sie unverändert,
-      // weil sie sowieso schon auf unsere verify-email.html zeigt und alle
-      // nötigen Parameter (oobCode, mode, apiKey, continueUrl) enthält.
-      verifyLink = rawLink;
+      // rawLink-Format:
+      //   https://buchungskalender-ffe4c.firebaseapp.com/__/auth/action?
+      //     mode=verifyEmail&oobCode=XXX&apiKey=YYY&continueUrl=...&lang=de
+      // Wir extrahieren oobCode (allein das ist für applyActionCode() nötig)
+      // und bauen unsere eigene URL.
+      const parsed = new URL(rawLink);
+      const oobCode = parsed.searchParams.get('oobCode');
+      if (!oobCode) {
+        console.error('[send-verification] Konnte oobCode aus rawLink nicht extrahieren:', rawLink);
+        return { statusCode: 500, headers, body: JSON.stringify({ error: 'Konnte Verifikationscode nicht extrahieren' }) };
+      }
+      verifyLink = 'https://dassu-buchungskalender.netlify.app/verify-email.html'
+        + '?mode=verifyEmail'
+        + '&oobCode=' + encodeURIComponent(oobCode);
     } catch (linkErr) {
       console.error('[send-verification] generateEmailVerificationLink fehlgeschlagen:', linkErr);
       return { statusCode: 500, headers, body: JSON.stringify({ error: 'Verify-Link-Generierung fehlgeschlagen: ' + linkErr.message }) };
