@@ -675,13 +675,16 @@
   body.is-guest #nextFlightCard,
   body.is-guest #myBookingsCard { display: none !important; }
 
-  /* Login-CTA-Card in der Sidebar (für Gäste) */
-  .guest-login-card {
+  /* Login-CTA-Card in der Sidebar (für Gäste).
+     Höhere Spezifität als .sidebar-card, damit der dunkelgrüne Gradient
+     nicht vom default sidebar-card-Background überschrieben wird. */
+  .sidebar-card.guest-login-card {
     background: linear-gradient(135deg, var(--c-alpine) 0%, #2d6063 100%);
     color: #fff;
+    border: 1px solid rgba(255,255,255,0.08);
     border-radius: var(--radius);
     padding: 24px 22px;
-    box-shadow: var(--shadow-md);
+    box-shadow: 0 2px 12px rgba(30,75,78,0.18);
   }
   .guest-login-card h3 {
     margin: 0 0 8px;
