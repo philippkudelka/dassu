@@ -47,11 +47,12 @@ jobs:
           node-version: '20'
 
       # Java wird vom Firebase-Emulator (Rules-Verhaltenstest) benötigt.
+      # firebase-tools verlangt seit 2026 mindestens JDK 21.
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
 
       - name: Validate database.rules.json (JSON-Syntax)
         run: node -e "JSON.parse(require('fs').readFileSync('database.rules.json','utf8')); console.log('✓ database.rules.json ist valides JSON')"
