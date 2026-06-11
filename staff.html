@@ -403,9 +403,9 @@ body.ov-dragging .ov-cell:not(.ov-booked):not(.ov-towing) { cursor: crosshair !i
 .notify.info { background: var(--primary); color: white; }
 
 /* Booking detail bottom sheet */
-.detail-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 200; align-items: flex-end; justify-content: center; }
+.detail-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 200; align-items: center; justify-content: center; padding: 16px; }
 .detail-overlay.active { display: flex; }
-.detail-sheet { background: var(--c-paper); width: 100%; max-width: 420px; border-radius: 16px 16px 0 0; padding: 20px 20px env(safe-area-inset-bottom); animation: slideUp 0.25s ease; max-height: 90vh; overflow-y: auto; }
+.detail-sheet { background: var(--c-paper); width: 100%; max-width: 420px; border-radius: 16px; padding: 20px; animation: slideUp 0.25s ease; max-height: 90vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,0.18); }
 .detail-sheet h3 { font-size: 14px; color: var(--gray-500); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 14px; }
 .detail-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f0f0; gap: 10px; }
 .detail-label { font-size: 11px; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; flex-shrink: 0; }
@@ -8166,6 +8166,10 @@ function showDetail(id) {
     ${b.createdBy ? `<div class="detail-row"><span class="detail-label">Erstellt von</span><span class="detail-value">${escapeHtml(b.createdBy)}</span></div>` : ''}
     ${b.status === 'pending' ? buildDayOverview(b) : ''}
     <div class="audit-log" id="auditLog"><h4>Verlauf</h4><div id="auditEntries">Lade...</div></div>
+    ${b.email ? `<div style="margin:14px 0 4px;">
+      <label style="display:block;font-size:11px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px;">Nachricht an den Kunden (optional)</label>
+      <textarea id="staffMsgToCustomer" rows="2" placeholder="Wird in die Mail beim Freischalten, Ablehnen oder Löschen übernommen…" style="width:100%;padding:9px 11px;border:1px solid var(--c-line);border-radius:8px;font-size:13px;font-family:var(--font);resize:vertical;box-sizing:border-box;background:#fff;color:var(--c-ink);"></textarea>
+    </div>` : ''}
     <div class="detail-actions">
       ${b.status !== 'approved' ? `<button class="btn-approve" onclick="setStatus('${b.id}','approved')">Freischalten</button>` : ''}
       ${b.status !== 'rejected' ? `<button class="btn-reject" onclick="setStatus('${b.id}','rejected')">Ablehnen</button>` : ''}
@@ -8213,7 +8217,7 @@ function setStatus(id, status) {
     }
     addAuditEntry(id, labels[status] || status);
     logActivity(logType, `Buchung ${labels[status]}: ${b ? b.name + ', ' + b.aircraft : id}`, id);
-    if (b && b.email) sendStatusEmail(b, status);
+    if (b && b.email) sendStatusEmail(b, status, _readStaffMsgToCustomer());
     closeDetail();
     notify(`Buchung ${labels[status]}.`, 'success');
   }).catch(err => {
@@ -8221,9 +8225,17 @@ function setStatus(id, status) {
   });
 }
 
+// Liest die optionale Staff-Nachricht aus dem Buchungsdetails-Sheet.
+// Muss VOR closeDetail() aufgerufen werden (Feld lebt im Sheet-DOM).
+function _readStaffMsgToCustomer() {
+  const el = document.getElementById('staffMsgToCustomer');
+  return el ? el.value.trim() : '';
+}
+
 // Returnt true wenn Mail gesendet wurde, false wenn übersprungen oder fehlgeschlagen.
 // Caller kann die UI entsprechend anpassen (statt blind „Mail verschickt" zu zeigen).
-async function sendStatusEmail(booking, status) {
+// personalMsg: optionale Staff-Nachricht — wird escaped als eigener Block in die Mail eingebaut.
+async function sendStatusEmail(booking, status, personalMsg) {
   if (!booking || !booking.email) {
     console.warn('[sendStatusEmail] Skip — keine E-Mail-Adresse in der Buchung.', booking);
     return false;
@@ -8275,6 +8287,10 @@ async function sendStatusEmail(booking, status) {
       <tr><td style="padding: 10px 0; color: #999; border-bottom: 1px solid #f0f0f0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Uhrzeit</td><td style="padding: 10px 0; border-bottom: 1px solid #f0f0f0; color: #272727; font-weight: 600;">${time}</td></tr>
       <tr><td style="padding: 10px 0; color: #999; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Fluglehrer</td><td style="padding: 10px 0; color: #272727; font-weight: 600;">${instructorText}</td></tr>
     </table>
+    ${personalMsg ? `<div style="margin: 24px 0 0 0; padding: 16px 20px; background: #fef8ec; border-left: 3px solid #d4880f; border-radius: 6px; font-family: Arial, Helvetica, sans-serif;">
+      <div style="font-size: 12px; font-weight: 700; color: #b97a10; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Nachricht vom DASSU-Team</div>
+      <div style="font-size: 14px; color: #4a4a4a; line-height: 1.6;">${escapeHtml(personalMsg).replace(/\n/g, '<br>')}</div>
+    </div>` : ''}
     ${status === 'approved' && booking.cancelToken ? `<div style="margin: 24px 0 0 0; padding: 14px 18px; background: #fafafa; border-radius: 6px; font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #999; line-height: 1.6; text-align: center;">
       Du möchtest stornieren? Klicke im Buchungskalender oben rechts auf <strong style="color:#666;">„Stornieren"</strong> und gib folgenden Code ein:<br>
       <span style="display: inline-block; margin-top: 6px; padding: 6px 16px; background: var(--c-paper); border: 1px solid var(--c-line); border-radius: 4px; font-family: monospace; font-size: 15px; letter-spacing: 2px; color: #272727; font-weight: 700;">${booking.cancelToken}</span>
@@ -8364,7 +8380,7 @@ async function deleteBooking(id) {
   // sendStatusEmail returnt true/false, damit wir den User ehrlich informieren können.
   let mailSent = false;
   if (willMail) {
-    try { mailSent = await sendStatusEmail(b, 'deleted'); }
+    try { mailSent = await sendStatusEmail(b, 'deleted', _readStaffMsgToCustomer()); }
     catch (e) { console.error('Storno-Mail fehlgeschlagen:', e); mailSent = false; }
   }
 
