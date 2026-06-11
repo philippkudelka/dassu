@@ -999,6 +999,15 @@
     font-weight: 600;
     border: 1px solid;
   }
+  /* Neutral-Optik für nicht angemeldete Besucher: ALLE Buchungen sehen gleich
+     aus (eine Farbe, kein Status erkennbar) — Gäste sollen nicht ablesen können,
+     welche Buchung bestätigt/angefragt/mit Fluglehrer ist. */
+  .gantt-bar.neutral,
+  .week-booking-bar.neutral {
+    background: #E7E2D5;
+    border-color: var(--c-stone);
+    color: var(--c-ink-2);
+  }
   .week-booking-bar.pending { background: #FAF3EB; color: var(--c-requested); border-color: var(--c-requested); }
   .week-booking-bar.approved { background: #F1F6EE; color: var(--c-confirmed); border-color: var(--c-confirmed); }
   .week-booking-bar.approved.with-instructor { background: #FEF6F1; color: var(--c-requested); border-color: var(--c-requested); }
@@ -3610,8 +3619,11 @@ function renderWeekView() {
       }
       dayBookings.forEach(b => {
         const timeLabel = b.startTime ? `${b.startTime}–${b.endTime}` : (b.slot || '');
+        // Gäste: neutrale Optik ohne Status-/Fluglehrer-Farben (siehe Tagesansicht)
+        const weekGuest = !firebase.auth().currentUser;
         const instrClass = (b.instructor === 'ja' || (b.instructorName && b.instructorName.trim())) ? ' with-instructor' : '';
-        cellContent += `<div class="week-booking-bar ${b.status}${instrClass}" onclick="event.stopPropagation(); showDetail('${b.id}')" title="Belegt: ${timeLabel}">${timeLabel}</div>`;
+        const barClass = weekGuest ? 'week-booking-bar neutral' : `week-booking-bar ${b.status}${instrClass}`;
+        cellContent += `<div class="${barClass}" onclick="event.stopPropagation(); showDetail('${b.id}')" title="Belegt: ${timeLabel}">${timeLabel}</div>`;
       });
 
       const pastCellClass = isPast ? ' past-day' : '';
@@ -3621,11 +3633,14 @@ function renderWeekView() {
 
   html += '</div>';
 
-  // Platzrunden-Legende unter der Wochenansicht
+  // Platzrunden-Legende unter der Wochenansicht.
+  // Farb-Legende (Fluglehrer ja/nein) nur für eingeloggte Nutzer — Gäste sehen
+  // alle Buchungen neutral, die Erklärung wäre irreführend.
+  const _legendLoggedIn = !!firebase.auth().currentUser;
   html += `<div class="platzrunden-legend">
-    <div class="legend-item"><div class="legend-swatch" style="background:#43a047;"></div> Ohne Fluglehrer</div>
+    ${_legendLoggedIn ? `<div class="legend-item"><div class="legend-swatch" style="background:#43a047;"></div> Ohne Fluglehrer</div>
     <div class="legend-item"><div class="legend-swatch" style="background:#ef8c00;"></div> Mit Fluglehrer</div>
-    <span style="color: var(--gray-300);">|</span>
+    <span style="color: var(--gray-300);">|</span>` : ''}
     <div class="legend-item"><div class="legend-swatch swatch-open"></div> Platzrundenbetrieb MS/UL</div>
     <div class="legend-item"><div class="legend-swatch swatch-restricted"></div> Keine Platzrunden in Unterwössen *</div>
     <span style="color: var(--gray-300);">|</span>
@@ -4381,6 +4396,10 @@ function renderGanttCalendar(dk, aircraft) {
       // E-Mail-Match greift nur in Staff-Ansichten: für Kunden ist email PII
       // und liegt gar nicht im bookings-Node (PII-Trennung).
       const _u = firebase.auth().currentUser;
+      // Echter Gast (nicht eingeloggt): ALLE Bars neutral rendern — eine Farbe,
+      // kein Status, kein Fluglehrer-Hinweis. Gäste sollen aus dem Kalender nur
+      // „belegt / frei" ablesen können, sonst nichts.
+      const isGuestViewer = !_u;
       const ownByUid = !!(_u && booking.uid && booking.uid === _u.uid);
       const ownByEmail = !!(_u && _u.email && booking.email && booking.email.trim().toLowerCase() === _u.email.toLowerCase());
       const isOwnBooking = ownByUid || ownByEmail;
@@ -4397,7 +4416,9 @@ function renderGanttCalendar(dk, aircraft) {
         : `Belegt\n${booking.startTime}–${booking.endTime}`;
 
       const barDiv = document.createElement('div');
-      barDiv.className = `gantt-bar ${booking.status}${hasInstructor ? ' with-instructor' : ''}${isOwnBooking ? ' own-booking' : ''}`;
+      barDiv.className = isGuestViewer
+        ? 'gantt-bar neutral'
+        : `gantt-bar ${booking.status}${hasInstructor ? ' with-instructor' : ''}${isOwnBooking ? ' own-booking' : ''}`;
       barDiv.style.top = topPx + 'px';
       barDiv.style.height = heightPx + 'px';
       barDiv.title = tooltipText;
@@ -7751,7 +7772,11 @@ firebase.auth().onAuthStateChanged(async (user) => {
         // Standard-Admins (wie Sofia) sehen die Toolbar bewusst NICHT, auch wenn
         // sie zufällig ?dev=1 in der URL haben.
         if (devMode && typeof hasDevTools === 'function' && hasDevTools(staffProfile)) {
-          // Dev-Modus: Admin bleibt auf index.html, Toolbar zeigen
+          // Dev-Modus: Admin bleibt auf index.html, Toolbar zeigen.
+          // is-guest entfernen — die Dev-Perspektive „Kunde" simuliert einen
+          // EINGELOGGTEN Kunden; sonst zeigt die Sidebar fälschlich die Login-Card
+          // während gleichzeitig „Meine Buchung" gerendert wird (Zwitter-Zustand).
+          document.body.classList.remove('is-guest');
           devStaffProfile = staffProfile;
           customerProfile = { name: staffProfile.name || user.displayName || '', email: user.email || '', phone: staffProfile.phone || '' };
           document.body.classList.add('dev-mode');
@@ -7794,6 +7819,7 @@ firebase.auth().onAuthStateChanged(async (user) => {
         }
 
         // Staff-User auch als Kunde behandeln (E-Mail automatisch verifiziert)
+        document.body.classList.remove('is-guest');
         customerProfile = { name: staffProfile.name || user.displayName || '', email: user.email || '', phone: staffProfile.phone || '' };
         document.getElementById('tabMyBookings')?.classList.add('auth-revealed');
         document.getElementById('mobileTabMyBookings')?.classList.add('auth-revealed');
