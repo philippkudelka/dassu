@@ -7,6 +7,13 @@ node_modules/
 firebase-service-account*.json
 serviceAccount*.json
 firebase-restore-admin.json
+# Firebase Admin SDK Service-Account-Schlüssel — NIEMALS committen!
+# (z.B. buchungskalender-ffe4c-firebase-adminsdk-fbsvc-XXXX.json)
+*firebase-adminsdk*.json
+*-adminsdk-*.json
+# Firebase Realtime DB-Exporte (enthalten PII)
+*-default-rtdb-export.json
+*rtdb-export*.json
 *.pdf
 DOKUMENTATION.md
 .claude/settings.local.json
