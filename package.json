@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "test": "vitest run",
+    "test:rules": "vitest run --config vitest.rules.config.js",
     "lint:xss": "node scripts/xss-lint.js"
   },
   "dependencies": {
@@ -11,6 +12,8 @@
     "nodemailer": "^6.9.0"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^4.0.1",
+    "firebase": "^11.0.0",
     "vitest": "^2.1.0"
   }
 }

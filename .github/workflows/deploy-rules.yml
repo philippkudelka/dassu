@@ -46,8 +46,29 @@ jobs:
         with:
           node-version: '20'
 
+      # Java wird vom Firebase-Emulator (Rules-Verhaltenstest) benötigt.
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
       - name: Validate database.rules.json (JSON-Syntax)
         run: node -e "JSON.parse(require('fs').readFileSync('database.rules.json','utf8')); console.log('✓ database.rules.json ist valides JSON')"
+
+      - name: Install dependencies
+        run: |
+          npm install --no-audit --no-fund
+          npm install -g firebase-tools
+
+      # SICHERHEITS-GATE: Verhaltenstest der Rules gegen den Emulator.
+      # Prüft Kern-Invarianten (Kunde kann nicht selbst freischalten, PII-Trennung,
+      # Besitz-Checks, Gäste-Sperre) gegen die ECHTE database.rules.json.
+      # Schlägt ein Test fehl, bricht der Job ab → KEIN Deploy. Damit kann ein
+      # valides-aber-falsches Regel-JSON nicht in Produktion gelangen.
+      - name: Rules-Verhaltenstest (Firebase Emulator)
+        run: |
+          firebase emulators:exec --only database --project demo-dassu "npm run test:rules"
 
       - name: Deploy Rules (nur wenn Secret gesetzt)
         env:
@@ -61,7 +82,6 @@ jobs:
           # Service-Account-JSON in temporäre Datei schreiben (von der CLI gelesen)
           echo "$SA" > "$RUNNER_TEMP/sa.json"
           export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
-          npm install -g firebase-tools
           firebase deploy --only database \
             --project buchungskalender-ffe4c \
             --non-interactive
