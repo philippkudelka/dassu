@@ -1008,6 +1008,15 @@
     border-color: var(--c-stone);
     color: var(--c-ink-2);
   }
+  /* Fremde Buchungen aus Kunden-Sicht: einheitlich rot „belegt" — Status und
+     Fluglehrer-Einsatz anderer Piloten gehen Kunden nichts an. Eigene Buchungen
+     behalten die Status-Farben + Stern. */
+  .gantt-bar.foreign,
+  .week-booking-bar.foreign {
+    background: linear-gradient(135deg, #F0D7D0, #EBC9C0);
+    border-color: var(--c-rejected);
+    color: #5B251B;
+  }
   .week-booking-bar.pending { background: #FAF3EB; color: var(--c-requested); border-color: var(--c-requested); }
   .week-booking-bar.approved { background: #F1F6EE; color: var(--c-confirmed); border-color: var(--c-confirmed); }
   .week-booking-bar.approved.with-instructor { background: #FEF6F1; color: var(--c-requested); border-color: var(--c-requested); }
@@ -3619,10 +3628,20 @@ function renderWeekView() {
       }
       dayBookings.forEach(b => {
         const timeLabel = b.startTime ? `${b.startTime}–${b.endTime}` : (b.slot || '');
-        // Gäste: neutrale Optik ohne Status-/Fluglehrer-Farben (siehe Tagesansicht)
-        const weekGuest = !firebase.auth().currentUser;
+        // Farb-Logik wie in der Tagesansicht: Gast neutral, Staff volle Farben,
+        // Kunde nur eigene Buchungen farbig — fremde einheitlich rot „belegt".
+        const wU = firebase.auth().currentUser;
+        const wEff = getEffectiveRole();
+        const wIsStaff = wEff === 'admin' || wEff === 'staff' || wEff === 'team' || wEff === 'fluglehrer' || wEff === 'guestGlider' || wEff === 'guestMotor';
+        const wIsOwn = !!(wU && b.uid && b.uid === wU.uid);
         const instrClass = (b.instructor === 'ja' || (b.instructorName && b.instructorName.trim())) ? ' with-instructor' : '';
-        const barClass = weekGuest ? 'week-booking-bar neutral' : `week-booking-bar ${b.status}${instrClass}`;
+        const barClass = !wU
+          ? 'week-booking-bar neutral'
+          : wIsStaff
+            ? `week-booking-bar ${b.status}${instrClass}`
+            : wIsOwn
+              ? `week-booking-bar ${b.status}${instrClass}`
+              : 'week-booking-bar foreign';
         cellContent += `<div class="${barClass}" onclick="event.stopPropagation(); showDetail('${b.id}')" title="Belegt: ${timeLabel}">${timeLabel}</div>`;
       });
 
@@ -3634,11 +3653,12 @@ function renderWeekView() {
   html += '</div>';
 
   // Platzrunden-Legende unter der Wochenansicht.
-  // Farb-Legende (Fluglehrer ja/nein) nur für eingeloggte Nutzer — Gäste sehen
-  // alle Buchungen neutral, die Erklärung wäre irreführend.
-  const _legendLoggedIn = !!firebase.auth().currentUser;
+  // Farb-Legende (Fluglehrer ja/nein) nur für Staff — Kunden sehen fremde
+  // Buchungen einheitlich rot, Gäste gar keine; die Erklärung wäre irreführend.
+  const _legEff = getEffectiveRole();
+  const _legendStaff = _legEff === 'admin' || _legEff === 'staff' || _legEff === 'team' || _legEff === 'fluglehrer' || _legEff === 'guestGlider' || _legEff === 'guestMotor';
   html += `<div class="platzrunden-legend">
-    ${_legendLoggedIn ? `<div class="legend-item"><div class="legend-swatch" style="background:#43a047;"></div> Ohne Fluglehrer</div>
+    ${_legendStaff ? `<div class="legend-item"><div class="legend-swatch" style="background:#43a047;"></div> Ohne Fluglehrer</div>
     <div class="legend-item"><div class="legend-swatch" style="background:#ef8c00;"></div> Mit Fluglehrer</div>
     <span style="color: var(--gray-300);">|</span>` : ''}
     <div class="legend-item"><div class="legend-swatch swatch-open"></div> Platzrundenbetrieb MS/UL</div>
@@ -4416,9 +4436,17 @@ function renderGanttCalendar(dk, aircraft) {
         : `Belegt\n${booking.startTime}–${booking.endTime}`;
 
       const barDiv = document.createElement('div');
+      // Farb-Logik nach Betrachter:
+      //  - Gast: alles neutral (greift nur, falls Daten je ohne Login ankommen)
+      //  - Staff: volle Status-/Fluglehrer-Farben für alle Buchungen
+      //  - Kunde: eigene Buchung mit Status-Farben + Stern, fremde einheitlich rot
       barDiv.className = isGuestViewer
         ? 'gantt-bar neutral'
-        : `gantt-bar ${booking.status}${hasInstructor ? ' with-instructor' : ''}${isOwnBooking ? ' own-booking' : ''}`;
+        : isStaffRole
+          ? `gantt-bar ${booking.status}${hasInstructor ? ' with-instructor' : ''}${isOwnBooking ? ' own-booking' : ''}`
+          : isOwnBooking
+            ? `gantt-bar ${booking.status}${hasInstructor ? ' with-instructor' : ''} own-booking`
+            : 'gantt-bar foreign';
       barDiv.style.top = topPx + 'px';
       barDiv.style.height = heightPx + 'px';
       barDiv.title = tooltipText;
