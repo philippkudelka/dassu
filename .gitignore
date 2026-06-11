@@ -8,4 +8,5 @@ firebase-service-account*.json
 serviceAccount*.json
 firebase-restore-admin.json
 *.pdf
+DOKUMENTATION.md
 .claude/settings.local.json

@@ -63,6 +63,12 @@ jobs:
             node --check "$f"
           done
 
+      # XSS-Regressions-Check: ungeschützte User-Input-Interpolationen in HTML-Templates.
+      # Ersetzt die fehlende script-src-CSP durch maschinelle Escaping-Disziplin.
+      # Blockiert die CI bei Funden (Exit 1).
+      - name: XSS-Lint (ungeschützte User-Input-Interpolationen)
+        run: node scripts/xss-lint.js
+
       # HTML-Tag-Balance-Check als Warning-only (set +e), damit grep-Mismatches den Build nicht killen.
       - name: HTML tag balance (warn-only)
         continue-on-error: true

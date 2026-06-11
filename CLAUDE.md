@@ -23,8 +23,8 @@ Die Bash-Sandbox hat KEINEN GitHub-Zugriff (403 Proxy-Fehler). Niemals versuchen
 
 ### Firebase Database Rules
 
-`database.rules.json` liegt im Repo als Vorschlag und ist NICHT automatisch synchronisiert.
-- Import: Firebase Console → Realtime Database → Rules → JSON aus `database.rules.json` einfügen → **Publish**
+**Automatisiertes Deployment (bevorzugt):** `.github/workflows/deploy-rules.yml` deployt `database.rules.json` automatisch bei jeder Änderung auf `main` — versioniert, im selben Commit wie der Code. Voraussetzung: GitHub-Secret `FIREBASE_SERVICE_ACCOUNT` (Einrichtung im Workflow-Kommentar beschrieben). Config: `firebase.json` (Rules-Pfad) + `.firebaserc` (Projekt). Solange das Secret fehlt, wird der Deploy übersprungen (kein roter Build) — dann gilt der manuelle Weg:
+- Manuell: Firebase Console → Realtime Database → Rules → JSON aus `database.rules.json` einfügen → **Publish**
 - Vor dem Import: aktuelle Rules sichern (Firebase Console → Rules → "..." → Export)
 - **WICHTIG**: Rules vor Publish im "Rules Playground" testen (Lesen + Schreiben mit echten UIDs simulieren). Falsche Rules können die App komplett blockieren — dann sofort Rollback auf die exportierten Original-Rules.
 
@@ -39,8 +39,17 @@ Die Bash-Sandbox hat KEINEN GitHub-Zugriff (403 Proxy-Fehler). Niemals versuchen
 
 - **`tests/`** enthält Vitest-Tests für die isolierten Module `shared/permissions.js` und `shared/holidays.js`.
 - Lokal ausführen: `npm install` (einmalig), dann `npm test`.
-- **`.github/workflows/ci.yml`** führt bei jedem Push automatisch `npm test` + einen Syntax-Check aller Functions aus. Das blockiert das Netlify-Deployment NICHT — es gibt nur ein grünes/rotes Signal am Commit auf GitHub.
+- **`.github/workflows/ci.yml`** führt bei jedem Push automatisch `npm test` + Syntax-Check aller Functions + den **XSS-Lint** aus. Das blockiert das Netlify-Deployment NICHT — es gibt nur ein grünes/rotes Signal am Commit auf GitHub.
 - Hinweis: `shared/permissions.js` + `holidays.js` haben einen `globalThis`-Fallback, damit sie auch in Node (Tests) laufen.
+
+### XSS-Lint (`scripts/xss-lint.js`)
+
+Maschineller Ersatz für die fehlende `script-src`-CSP. Sucht in `index.html`/`staff.html` nach User-Input-Feldern (Name, E-Mail, Kommentar, Telefon, Fluglehrername, Adresse …), die per `${…}` in einen **HTML-Kontext** interpoliert werden, **ohne** `escapeHtml()`/`escapeAttr()`/`jsArg()`/`encodeURIComponent()`. Blockiert die CI bei Funden (Exit 1).
+- Lokal: `npm run lint:xss`
+- Präzise gehalten (wenig False Positives): nur Zeilen mit HTML-Tag gelten als Sink; `.charAt(0)`-Initialen, reine Ternary-Tests und bereits-escapte `safe…`-Variablen werden ignoriert.
+- **Freigabe** einer nachweislich sicheren Stelle: `// xss-lint-ok: <Begründung>` in derselben Zeile.
+- Selbst getestet: `tests/xss-lint.test.js` prüft, dass der Linter echte Lücken FINDET und sichere Muster NICHT flaggt.
+- **Regel beim Coden:** User-Input in HTML immer escapen. Wenn der Lint anschlägt, ist das ein echtes Signal — nicht einfach freigeben, sondern escapen.
 
 ## Fehler-Monitoring
 

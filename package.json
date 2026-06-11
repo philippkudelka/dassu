@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run",
+    "lint:xss": "node scripts/xss-lint.js"
   },
   "dependencies": {
     "firebase-admin": "^12.0.0",
