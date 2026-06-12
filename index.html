@@ -839,6 +839,11 @@
     .view-tabs { display: none !important; }
     .burger-btn { display: flex; }
 
+    /* iOS zoomt beim Fokus automatisch rein, wenn ein Eingabefeld < 16px hat.
+       Auf Mobile alle Formularfelder auf 16px zwingen (auch inline-gestylte). */
+    input:not([type="radio"]):not([type="checkbox"]):not([type="range"]),
+    select, textarea { font-size: 16px !important; }
+
     /* Info-Banner: 1 Zeile, einklappbar */
     .info-banner-mobile { padding: 8px 12px !important; font-size: 10px !important; line-height: 1.4 !important; }
     .info-banner-mobile span { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
@@ -914,7 +919,7 @@
   /* Notification */
   .notification {
     position: fixed;
-    top: 20px;
+    top: calc(20px + env(safe-area-inset-top));
     right: 20px;
     padding: 12px 20px;
     border-radius: var(--radius-sm);
@@ -1069,7 +1074,7 @@
   /* Auth-Page (Amazon-Stil) */
   .auth-page { position:fixed; inset:0; z-index:200; background:var(--c-bg); display:none; overflow-y:auto; }
   .auth-page.active { display:block; }
-  .auth-page-inner { min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:32px 16px 48px; }
+  .auth-page-inner { min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:calc(32px + env(safe-area-inset-top)) 16px calc(48px + env(safe-area-inset-bottom)); }
   .auth-logo { margin-bottom:28px; display:flex; align-items:center; gap:10px; text-decoration:none; }
   .auth-logo img { width:40px; height:40px; }
   .auth-logo-text { font-family:var(--font-brand); font-size:22px; font-weight:700; color:var(--c-alpine); letter-spacing:0.02em; }
@@ -2019,7 +2024,7 @@
 <body>
 
 <!-- Datenschutz-Banner -->
-<div id="privacyBanner" style="display:none; position:fixed; bottom:0; left:0; right:0; z-index:10000; background:var(--navy); color:rgba(255,255,255,0.75); padding:20px 36px; box-shadow:0 -4px 20px rgba(0,0,0,0.2); font-size:13px; line-height:1.6;">
+<div id="privacyBanner" style="display:none; position:fixed; bottom:0; left:0; right:0; z-index:10000; background:var(--navy); color:rgba(255,255,255,0.75); padding:20px 36px calc(20px + env(safe-area-inset-bottom)); box-shadow:0 -4px 20px rgba(0,0,0,0.2); font-size:13px; line-height:1.6;">
   <div style="max-width:960px; margin:0 auto; display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
     <div style="flex:1; min-width:280px;">
       <strong style="color:white;">Datenschutzhinweis</strong><br>
