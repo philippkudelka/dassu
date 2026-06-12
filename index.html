@@ -41,7 +41,6 @@
 </script>
 <title>DASSU - Buchungskalender</title>
 <link rel="icon" type="image/png" href="https://images.squarespace-cdn.com/content/v1/5a6084aad0e628eab9591587/66b4214a-b88b-427c-8350-c5907ffdcda4/DASSU-Logo+2022+web+768x768+2.png?format=32w">
-<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
@@ -2020,7 +2019,7 @@
   <div style="max-width:960px; margin:0 auto; display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
     <div style="flex:1; min-width:280px;">
       <strong style="color:white;">Datenschutzhinweis</strong><br>
-      Diese Seite nutzt den lokalen Speicher deines Browsers (LocalStorage) zur Verwaltung von Buchungsdaten sowie den Dienst <strong style="color:rgba(255,255,255,0.9);">EmailJS</strong> zum Versand von E-Mail-Benachrichtigungen. Bilder werden &uuml;ber ein externes CDN geladen. Es werden keine Tracking-Cookies verwendet. Weitere Informationen findest du in unserer <a href="datenschutz.html" target="_blank" style="color:var(--accent); text-decoration:underline;">Datenschutzerkl&auml;rung</a>.
+      Diese Seite nutzt den lokalen Speicher deines Browsers (LocalStorage) zur Verwaltung von Buchungsdaten sowie den Dienst <strong style="color:rgba(255,255,255,0.9);">Brevo</strong> (Sendinblue SAS, Frankreich) zum Versand von E-Mail-Benachrichtigungen. Bilder werden &uuml;ber ein externes CDN geladen. Es werden keine Tracking-Cookies verwendet. Weitere Informationen findest du in unserer <a href="datenschutz.html" target="_blank" style="color:var(--accent); text-decoration:underline;">Datenschutzerkl&auml;rung</a>.
     </div>
     <div style="display:flex; gap:8px; flex-shrink:0;">
       <button onclick="acceptPrivacy()" style="padding:8px 24px; background:var(--primary); color:white; border:none; border-radius:var(--radius-sm); font-size:13px; font-weight:600; cursor:pointer; letter-spacing:0.02em;">Verstanden</button>
@@ -3217,16 +3216,11 @@ let currentFilter = 'all';
 let detailBookingId = null;
 let viewMode = 'day'; // 'day' or 'week'
 
-// Settings — EmailJS-Werte fest als Default, damit E-Mail-Versand auch ohne
-// den settings-Knoten in der DB funktioniert. (Public Key ist client-seitig
-// öffentlich — kein Geheimnis.) DB-Werte überschreiben diese Defaults via Listener.
+// Settings — DB-Werte (settings-Knoten) überschreiben diese Defaults via Listener.
+// (E-Mail-Versand läuft seit der Brevo-Migration serverseitig über die Function
+// send-booking-mail; es gibt keine clientseitigen EmailJS-Keys mehr.)
 let settings = {
-  aircraft: [...DEFAULT_AIRCRAFT],
-  emailServiceId: 'service_v2wd3ji',
-  emailTemplateId: 'template_4yxxj22',
-  emailInviteTemplateId: 'template_tqnc8t4',
-  emailPublicKey: 'aNDJA3t4YBKvH5ynz',
-  senderName: 'DASSU - Alpensegelflugschule Unterwössen'
+  aircraft: [...DEFAULT_AIRCRAFT]
 };
 
 // ============================================================
@@ -5107,8 +5101,31 @@ function saveBookingEdit(id) {
   notify('Buchung aktualisiert.', 'success');
 }
 
-function isEmailConfigured() {
-  return settings.emailServiceId && settings.emailTemplateId && settings.emailPublicKey;
+// Versendet eine HTML-Mail über die Brevo-Function (ersetzt den früheren
+// clientseitigen EmailJS-Versand wegen dessen 200-Mails/Monat-Limit).
+// Das HTML wird hier im Frontend gebaut (User-Input ist dort bereits per
+// escapeHtml() escaped) und serverseitig nur noch abgesichert relayt.
+// Gibt true/false zurück und wirft nie — Aufrufer können fire-and-forget nutzen.
+async function sendBrevoMail({ to, subject, html, replyTo }) {
+  if (!to || !html) return false;
+  try {
+    const token = await getFirebaseToken();
+    const res = await fetch('/.netlify/functions/send-booking-mail', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ to, subject, html, replyTo: replyTo || undefined })
+    });
+    if (!res.ok) {
+      let detail = '';
+      try { detail = (await res.json()).error || ''; } catch (_) {}
+      console.error('[Mail] Versand fehlgeschlagen:', res.status, detail);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.error('[Mail] Fehler beim Versand:', e);
+    return false;
+  }
 }
 
 // Shared email layout builder
@@ -5146,53 +5163,10 @@ function emailFooter() {
   </div>`;
 }
 
-function buildEmailParams(booking) {
-  const timeDisplay = booking.startTime ? `${booking.startTime} – ${booking.endTime}` : (booking.slot || '');
-  const statusText = booking.status === 'approved' ? 'bestätigt' : 'abgelehnt';
-  const instructorText = booking.instructor === 'ja' ? (booking.instructorName || 'Ja, benötigt') : 'Nein';
-  const statusColor = booking.status === 'approved' ? '#3d9991' : '#c0392b';
-  const statusLabel = booking.status === 'approved' ? 'Bestätigt' : 'Abgelehnt';
-
-  const message = `
-<div style="font-family: 'Georgia', 'Times New Roman', serif; max-width: 560px; margin: 0 auto; background: #ffffff;">
-  ${emailHeader()}
-
-  <!-- Status -->
-  <div style="text-align: center; padding: 28px 40px 8px;">
-    <div style="display: inline-block; padding: 6px 24px; border-radius: 20px; background: ${booking.status === 'approved' ? '#edf7f6' : '#fdf0ee'}; color: ${statusColor}; font-family: Arial, Helvetica, sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;">${statusLabel}</div>
-  </div>
-
-  <!-- Content -->
-  <div style="padding: 24px 40px 32px; color: #4a4a4a; line-height: 1.7;">
-    <p style="margin: 0 0 16px 0; font-size: 16px;">Hallo ${escapeHtml(booking.name || '')},</p>
-    <p style="margin: 0 0 24px 0; font-size: 15px; color: #666;">deine Buchung wurde <strong style="color: ${statusColor};">${statusText}</strong>.</p>
-
-    ${emailBookingTable(booking)}
-
-    <p style="margin: 24px 0 0 0; font-size: 14px; color: #888; font-family: Arial, Helvetica, sans-serif;">Bei Fragen erreichst du uns jederzeit.</p>
-  </div>
-
-  ${emailFooter()}
-</div>`;
-
-  return {
-    to_email: booking.email,
-    to_name: booking.name,
-    aircraft: booking.aircraft,
-    date: booking.date,
-    time: timeDisplay,
-    instructor: instructorText,
-    status_text: statusText,
-    sender_name: settings.senderName || 'DASSU - Alpensegelflugschule Unterwössen',
-    message: message
-  };
-}
-
 // ============================================================
 // ADMIN NOTIFICATION (new booking received)
 // ============================================================
 function sendAdminNotification(booking) {
-  if (!isEmailConfigured()) return;
   const timeDisplay = booking.startTime ? `${booking.startTime} – ${booking.endTime}` : '';
   // Alle Formularfelder escapen — sonst könnte ein Bucher per Kommentar/Name
   // HTML (z.B. Phishing-Links) in die Büro-Mail injizieren.
@@ -5239,24 +5213,21 @@ function sendAdminNotification(booking) {
   ${emailFooter()}
 </div>`;
 
-  try {
-    emailjs.init(settings.emailPublicKey);
-    emailjs.send(settings.emailServiceId, settings.emailTemplateId, {
-      to_email: 'info@dassu.de',
-      to_name: 'DASSU Büro',
-      status_text: 'Neue Anfrage',
-      aircraft: booking.aircraft,
-      date: booking.date,
-      message: message
-    }).catch(err => console.error('Admin-Benachrichtigung fehlgeschlagen:', err));
-  } catch(e) { console.error('Admin-Benachrichtigung Fehler:', e); }
+  // Büro-Benachrichtigung. reply_to = Kunden-Mail, damit das Büro direkt
+  // antworten kann (die Function verwirft eine ungültige Adresse selbst).
+  sendBrevoMail({
+    to: 'info@dassu.de',
+    subject: `Neue Buchungsanfrage – ${booking.aircraft} am ${booking.date}`,
+    html: message,
+    replyTo: booking.email || ''
+  });
 }
 
 // ============================================================
 // BOOKING RECEIVED EMAIL (to customer)
 // ============================================================
 function sendBookingReceivedEmail(booking) {
-  if (!isEmailConfigured()) return;
+  if (!booking.email) return;
 
   const message = `
 <div style="font-family: 'Georgia', 'Times New Roman', serif; max-width: 560px; margin: 0 auto; background: #ffffff;">
@@ -5282,20 +5253,11 @@ function sendBookingReceivedEmail(booking) {
   ${emailFooter()}
 </div>`;
 
-  try {
-    emailjs.init(settings.emailPublicKey);
-    emailjs.send(settings.emailServiceId, settings.emailTemplateId, {
-      to_email: booking.email,
-      to_name: booking.name,
-      status_text: 'Anfrage eingegangen',
-      aircraft: booking.aircraft,
-      date: booking.date,
-      message: message
-    }).then(
-      () => console.log('Eingangsbestätigung an Kunden gesendet.'),
-      (err) => console.error('Eingangsbestätigung fehlgeschlagen:', err)
-    );
-  } catch(e) { console.error('Eingangsbestätigung Fehler:', e); }
+  sendBrevoMail({
+    to: booking.email,
+    subject: `Anfrage eingegangen – ${booking.aircraft} am ${booking.date}`,
+    html: message
+  });
 }
 
 // ============================================================
@@ -5344,7 +5306,7 @@ function cancelBookingById(bookingId) {
   notify('Deine Buchung wurde erfolgreich storniert.', 'success');
 
   // Notify admin + customer about cancellation
-  if (isEmailConfigured()) {
+  {
     const booking = bookingCopy;
     const timeDisplay = booking.startTime ? `${booking.startTime} – ${booking.endTime}` : '';
     const adminMessage = `
@@ -5384,27 +5346,21 @@ function cancelBookingById(bookingId) {
   ${emailFooter()}
 </div>`;
 
-    try {
-      emailjs.init(settings.emailPublicKey);
-      // E-Mail an Admin
-      emailjs.send(settings.emailServiceId, settings.emailTemplateId, {
-        to_email: 'info@dassu.de',
-        to_name: 'DASSU Büro',
-        status_text: 'Storniert',
-        aircraft: booking.aircraft,
-        date: booking.date,
-        message: adminMessage
+    // E-Mail an Büro (reply_to = Kunde, damit das Büro direkt antworten kann)
+    sendBrevoMail({
+      to: 'info@dassu.de',
+      subject: `Stornierung – ${booking.aircraft} am ${booking.date}`,
+      html: adminMessage,
+      replyTo: booking.email || ''
+    });
+    // E-Mail an Kunden (nur wenn Adresse vorhanden)
+    if (booking.email) {
+      sendBrevoMail({
+        to: booking.email,
+        subject: `Buchung storniert – ${booking.aircraft} am ${booking.date}`,
+        html: customerMessage
       });
-      // E-Mail an Kunden
-      emailjs.send(settings.emailServiceId, settings.emailTemplateId, {
-        to_email: booking.email,
-        to_name: booking.name,
-        status_text: 'Storniert',
-        aircraft: booking.aircraft,
-        date: booking.date,
-        message: customerMessage
-      });
-    } catch(e) {}
+    }
   }
 }
 
@@ -5434,44 +5390,6 @@ function showCancelConfirmation(booking) {
   `;
   document.getElementById('cancelConfirmBtn').style.display = 'inline-flex';
   document.getElementById('cancelModal').classList.add('active');
-}
-
-function sendStatusEmail(booking) {
-  const params = buildEmailParams(booking);
-
-  if (isEmailConfigured()) {
-    try {
-      emailjs.init(settings.emailPublicKey);
-      emailjs.send(settings.emailServiceId, settings.emailTemplateId, params).then(
-        () => notify(`E-Mail an ${booking.email} gesendet!`, 'success'),
-        (err) => {
-          console.error('EmailJS Fehler:', err);
-          notify('E-Mail-Versand fehlgeschlagen. Öffne Outlook als Fallback.', 'error');
-          openMailtoFallback(booking, params);
-        }
-      );
-    } catch(e) {
-      console.error('EmailJS Fehler:', e);
-      openMailtoFallback(booking, params);
-    }
-  } else {
-    openMailtoFallback(booking, params);
-  }
-}
-
-function openMailtoFallback(booking, params) {
-  const subject = encodeURIComponent(`Buchung ${params.status_text}: ${params.aircraft} am ${params.date}`);
-  const body = encodeURIComponent(
-    `Hallo ${params.to_name},\n\n` +
-    `deine Flugzeug-Buchung wurde ${params.status_text}.\n\n` +
-    `Flugzeug: ${params.aircraft}\n` +
-    `Datum: ${params.date}\n` +
-    `Uhrzeit: ${params.time}\n` +
-    `Fluglehrer: ${params.instructor}\n\n` +
-    `Bei Fragen melde dich gerne bei uns.\n\n` +
-    `Viele Grüße\n${params.sender_name}\ninfo@dassu.de`
-  );
-  window.open(`mailto:${booking.email}?subject=${subject}&body=${body}`, '_blank');
 }
 
 let vfConnected = null; // null = unbekannt, true/false

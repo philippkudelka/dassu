@@ -66,7 +66,6 @@
 <script src="shared/messages.js"></script>
 <script src="shared/errorlog.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <!-- jsPDF + autoTable: für sauberen, gebrandeten Statistik-PDF-Export -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -1989,15 +1988,10 @@ let customerUsers = [];
 let dailyNotes = {};
 let theoryLessons = [];
 let theoryFilterMode = 'mine'; // 'mine' | 'all' (nur für Admins/Berechtigte)
-// EmailJS-Werte fest als Default, damit Einladungs-/Status-Mails auch ohne
-// den settings-Knoten in der DB funktionieren. DB-Werte überschreiben via Listener.
-let appSettings = {
-  emailServiceId: 'service_v2wd3ji',
-  emailTemplateId: 'template_4yxxj22',
-  emailInviteTemplateId: 'template_tqnc8t4',
-  emailPublicKey: 'aNDJA3t4YBKvH5ynz',
-  senderName: 'DASSU - Alpensegelflugschule Unterwössen'
-};
+// App-Settings — DB-Werte (settings-Knoten) werden via Listener hineingemerged.
+// (Mail-Versand läuft seit der Brevo-Migration serverseitig über die Function
+// send-booking-mail; es gibt keine clientseitigen EmailJS-Keys mehr.)
+let appSettings = {};
 let appInvitations = [];
 let currentUser = null;
 // Fallback: wenn Auth-Callback currentUser nicht gesetzt hat, aus localStorage wiederherstellen
@@ -2344,6 +2338,32 @@ async function getFirebaseToken() {
   return user.getIdToken();
 }
 
+// Versendet eine HTML-Mail über die Brevo-Function (ersetzt EmailJS, dessen
+// 200-Mails/Monat-Limit bei ~800 Mitgliedern zu klein war). Das HTML wird hier
+// im Frontend gebaut (User-Input ist dort bereits per escapeHtml() escaped) und
+// serverseitig nur noch abgesichert relayt. Gibt true/false zurück, wirft nie.
+async function sendBrevoMail({ to, subject, html, replyTo }) {
+  if (!to || !html) return false;
+  try {
+    const token = await getFirebaseToken();
+    const res = await fetch('/.netlify/functions/send-booking-mail', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ to, subject, html, replyTo: replyTo || undefined })
+    });
+    if (!res.ok) {
+      let detail = '';
+      try { detail = (await res.json()).error || ''; } catch (_) {}
+      console.error('[Mail] Versand fehlgeschlagen:', res.status, detail);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.error('[Mail] Fehler beim Versand:', e);
+    return false;
+  }
+}
+
 // Debounce-Helper für Such-Inputs (verhindert Re-Render pro Tastenanschlag)
 function debounce(fn, ms) {
   let t;
@@ -2360,7 +2380,7 @@ const renderTeamViewDebounced = debounce(() => renderTeamView(), 150);
 // EINLADUNGEN (APP)
 // ============================================================
 db.ref('settings').on('value', snap => {
-  // Merge statt Überschreiben — so bleiben die Code-Defaults (EmailJS) erhalten,
+  // Merge statt Überschreiben — so bleiben evtl. vorhandene Code-Defaults erhalten,
   // falls der settings-Knoten in der DB fehlt oder unvollständig ist.
   const data = snap.val();
   if (data) {
@@ -2430,12 +2450,8 @@ function appCreateInvitation() {
     emailEl.value = '';
     const sendCb = document.getElementById('appInvSendEmail');
     if (sendCb && sendCb.checked) {
-      if (appSettings.emailServiceId && appSettings.emailInviteTemplateId && appSettings.emailPublicKey) {
-        notify(`Einladung f\u00fcr ${name} angelegt. Sende Mail\u2026`, 'info');
-        await appSendInvEmail(key, { key, email, name, role, createdAt: Date.now() });
-      } else {
-        notify(`Einladung f\u00fcr ${name} angelegt. \u26a0 EmailJS nicht konfiguriert \u2013 Link manuell kopieren.`, 'info');
-      }
+      notify(`Einladung f\u00fcr ${name} angelegt. Sende Mail\u2026`, 'info');
+      await appSendInvEmail(key, { key, email, name, role, createdAt: Date.now() });
     } else {
       notify(`Einladung f\u00fcr ${name} angelegt.`, 'success');
     }
@@ -2446,27 +2462,80 @@ async function appSendInvEmail(invKey, invData) {
   if (!isAdmin()) return;
   const inv = invData || appInvitations.find(i => i.key === invKey);
   if (!inv) return notify('Einladung nicht gefunden.', 'error');
-  if (!appSettings.emailServiceId || !appSettings.emailInviteTemplateId || !appSettings.emailPublicKey) {
-    return notify('EmailJS ist nicht konfiguriert. Bitte im Admin-Bereich der Website Einstellungen pr\u00fcfen.', 'error');
-  }
   const baseUrl = window.location.origin.startsWith('file') ? 'https://dassu-buchungskalender.netlify.app' : window.location.origin;
   const link = `${baseUrl}/welcome.html?email=${encodeURIComponent(inv.email)}`;
   const roleLabel = roleMeta(inv.role).label;
-  try {
-    emailjs.init(appSettings.emailPublicKey);
-    await emailjs.send(appSettings.emailServiceId, appSettings.emailInviteTemplateId, {
-      to_name: inv.name || '',
-      to_email: inv.email || '',
-      invitation_link: link,
-      role: roleLabel,
-      inviter_name: appSettings.senderName || 'DASSU',
-      reply_to: 'info@dassu.de'
-    });
+  // User-Input f\u00fcr die HTML-Mail escapen (Name ist admin-eingegeben, Rolle aus
+  // fixer Liste \u2014 trotzdem konsequent escapen).
+  const safeName = escapeHtml(inv.name || '');
+  const safeRole = escapeHtml(roleLabel || '');
+  const firstName = safeName.split(' ')[0] || 'zusammen';
+  const html = `<!DOCTYPE html>
+<html lang="de">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f6f8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8;padding:32px 16px;">
+  <tr><td align="center">
+    <table role="presentation" width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+      <tr>
+        <td style="background:linear-gradient(135deg,#1e4b4e 0%,#2d7a73 100%);padding:28px 32px;text-align:center;">
+          <img src="https://images.squarespace-cdn.com/content/v1/5a6084aad0e628eab9591587/66b4214a-b88b-427c-8350-c5907ffdcda4/DASSU-Logo+2022+web+768x768+2.png?format=100w" alt="DASSU" width="56" height="56" style="border-radius:10px;margin-bottom:8px;display:block;margin-left:auto;margin-right:auto;">
+          <div style="color:#ffffff;font-size:20px;font-weight:700;letter-spacing:0.5px;">DASSU Buchungskalender</div>
+          <div style="color:rgba(255,255,255,0.7);font-size:13px;margin-top:4px;">Deutsche Alpensegelflugschule Unterw\u00f6ssen</div>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:32px;">
+          <h2 style="margin:0 0 16px;color:#1e4b4e;font-size:18px;font-weight:600;">Hallo ${firstName}!</h2>
+          <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6;">
+            Du wurdest als <strong>${safeRole}</strong> in das Team des DASSU Buchungskalenders eingeladen.
+            \u00dcber den Button unten richtest du dein Konto ein und kannst direkt loslegen.
+          </p>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;">
+            <tr><td align="center">
+              <a href="${link}" target="_blank" style="display:inline-block;background:#1e4b4e;color:#ffffff;text-decoration:none;padding:14px 36px;border-radius:8px;font-size:15px;font-weight:600;letter-spacing:0.3px;">
+                Einladung annehmen
+              </a>
+            </td></tr>
+          </table>
+          <p style="margin:0 0 8px;color:#6b7280;font-size:13px;line-height:1.5;">
+            Falls der Button nicht funktioniert, kopiere diesen Link in deinen Browser:
+          </p>
+          <p style="margin:0 0 24px;word-break:break-all;color:#2d7a73;font-size:12px;line-height:1.5;">
+            ${link}
+          </p>
+          <div style="border-top:1px solid #e5e7eb;padding-top:16px;margin-top:16px;">
+            <p style="margin:0;color:#9ca3af;font-size:12px;line-height:1.5;">
+              Du kannst diese E-Mail ignorieren, falls du nicht wei\u00dft, worum es geht.
+            </p>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td style="background:#f9fafb;padding:20px 32px;border-top:1px solid #e5e7eb;text-align:center;">
+          <p style="margin:0;color:#9ca3af;font-size:11px;line-height:1.6;">
+            DASSU \u2013 Deutsche Alpensegelflugschule Unterw\u00f6ssen e.V.<br>
+            <a href="https://www.dassu.de" style="color:#2d7a73;text-decoration:none;">www.dassu.de</a> \u00b7
+            <a href="mailto:info@dassu.de" style="color:#2d7a73;text-decoration:none;">info@dassu.de</a>
+          </p>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>`;
+
+  const ok = await sendBrevoMail({
+    to: inv.email,
+    subject: 'Einladung ins DASSU-Team \u2013 Buchungskalender',
+    html
+  });
+  if (ok) {
     db.ref('invitations/' + invKey + '/sentAt').set(Date.now());
     notify(`Mail an ${inv.email} verschickt.`, 'success');
-  } catch (e) {
-    console.error('Invite-Mail Fehler:', e);
-    notify('Mail-Versand fehlgeschlagen: ' + (e.text || e.message || 'Unbekannt'), 'error');
+  } else {
+    notify('Mail-Versand fehlgeschlagen. Bitte Einladungs-Link manuell kopieren.', 'error');
   }
 }
 
@@ -5042,12 +5111,8 @@ function teamCreateInvitation() {
     emailEl.value = '';
     const sendCb = document.getElementById('teamInvSendEmail');
     if (sendCb && sendCb.checked) {
-      if (appSettings.emailServiceId && appSettings.emailInviteTemplateId && appSettings.emailPublicKey) {
-        notify(`Einladung f\u00fcr ${name} angelegt. Sende Mail\u2026`, 'info');
-        await appSendInvEmail(key, { key, email, name, role, createdAt: Date.now() });
-      } else {
-        notify(`Einladung f\u00fcr ${name} angelegt. \u26a0 EmailJS nicht konfiguriert \u2013 Link manuell kopieren.`, 'info');
-      }
+      notify(`Einladung f\u00fcr ${name} angelegt. Sende Mail\u2026`, 'info');
+      await appSendInvEmail(key, { key, email, name, role, createdAt: Date.now() });
     } else {
       notify(`Einladung f\u00fcr ${name} angelegt.`, 'success');
     }
@@ -8240,10 +8305,6 @@ async function sendStatusEmail(booking, status, personalMsg) {
     console.warn('[sendStatusEmail] Skip — keine E-Mail-Adresse in der Buchung.', booking);
     return false;
   }
-  if (!appSettings.emailServiceId || !appSettings.emailTemplateId || !appSettings.emailPublicKey) {
-    console.warn('[sendStatusEmail] Skip — EmailJS-Konfiguration unvollständig.');
-    return false;
-  }
   // Status → Label / Text / Farben für die Bestätigungs-Mail.
   // 'deleted' wird als „storniert" kommuniziert — Pilot muss wissen, dass der Flug ausfällt.
   let statusLabel, statusText, statusColor, statusBg, introText;
@@ -8340,26 +8401,18 @@ async function sendStatusEmail(booking, status, personalMsg) {
   </div>
 </div>`;
 
-  try {
-    emailjs.init(appSettings.emailPublicKey);
-    await emailjs.send(appSettings.emailServiceId, appSettings.emailTemplateId, {
-      to_name: booking.name || '',
-      to_email: booking.email,
-      subject: `Buchung ${statusText} – ${booking.aircraft} am ${booking.date}`,
-      aircraft: booking.aircraft,
-      date: booking.date,
-      time: time,
-      status_text: statusText,
-      sender_name: appSettings.senderName || 'DASSU - Alpensegelflugschule Unterwössen',
-      message: message,
-      reply_to: 'info@dassu.de'
-    });
+  const ok = await sendBrevoMail({
+    to: booking.email,
+    subject: `Buchung ${statusText} – ${booking.aircraft} am ${booking.date}`,
+    html: message,
+    replyTo: 'info@dassu.de'
+  });
+  if (ok) {
     console.log('[sendStatusEmail] OK →', booking.email, status);
     return true;
-  } catch (e) {
-    console.error('[sendStatusEmail] Versand fehlgeschlagen:', e);
-    return false;
   }
+  console.error('[sendStatusEmail] Versand fehlgeschlagen →', booking.email, status);
+  return false;
 }
 
 async function deleteBooking(id) {

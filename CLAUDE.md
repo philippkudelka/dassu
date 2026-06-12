@@ -122,6 +122,8 @@ Maschineller Ersatz für die fehlende `script-src`-CSP. Sucht in `index.html`/`s
 
 ### Netlify Functions (`netlify/functions/`)
 - `send-push.js` — Push-Benachrichtigungen
+- **`send-booking-mail.js`** — versendet ALLE transaktionalen Mails über Brevo SMTP (Büro-Benachrichtigung, Eingangsbestätigung, Status-/Storno-Mail, Schnellbuchungs-Bestätigung, Staff-Einladung). Ersetzt den früheren clientseitigen EmailJS-Versand (200 Mails/Monat zu wenig bei ~800 Mitgliedern). **Thin Relay**: das gebrandete HTML wird weiterhin im Frontend gebaut (User-Input dort bereits per `escapeHtml()` escaped) und nur serverseitig verschickt. Frontend-Helfer: `sendBrevoMail({to, subject, html, replyTo})` in `index.html` + `staff.html`. **Sicherheit gegen Spam-Relay-Missbrauch**: gültiger Firebase-Token Pflicht; Nicht-Staff dürfen NUR an die eigene Token-Adresse oder `info@dassu.de` senden, Staff (Eintrag in `/staffUsers`) an beliebige Empfänger; genau ein Empfänger pro Call (kein Komma/CRLF). Nutzt dieselben Env-Vars wie `send-verification.js` (`BREVO_SMTP_USER/PASS`, `FIREBASE_SERVICE_ACCOUNT`, `FIREBASE_DATABASE_URL`) — keine neuen Secrets.
+- `send-verification.js`, `send-reset-email.js` — E-Mail-Verifizierung / Passwort-Reset über Brevo SMTP.
 - `vereinsflieger-sync.js` — Vereinsflieger-API Sync. **Staff-Actions (Statistik, Jahresvergleich, Listen) nutzen die PERSÖNLICHEN VF-Zugangsdaten des eingeloggten Admins** (verschlüsselt in `users/{uid}/vfCredentials`). Jeder Admin muss sein VF-Konto einmal im Konto-Bereich (index.html) verknüpfen. Kein zentrales VF-Konto mehr.
   - **DASSU-Flotten-Whitelist**: Alle Flüge werden in `vfGetFlightsDateRange()` zentral auf die Flotte (`DASSU_FLEET` Set, ganz oben in der Datei) gefiltert — Quelle ist <https://www.dassu.de/flotte>. Fremdflugzeuge, Schleppmaschinen (D-E…), Hubschrauber etc. tauchen nirgendwo in Statistik/Listen auf. **Verkaufte Flugzeuge bleiben in der Liste** (im "Historisch / verkauft"-Block), damit Vorjahres-Vergleiche stimmen. **Neue Vereinsflugzeuge ergänzen** und Funktion neu deployen.
 - `backup-database.js`, `error-report.js` — geplante Funktionen (Backup, Fehler-Report)
@@ -154,7 +156,7 @@ Maschineller Ersatz für die fehlende `script-src`-CSP. Sucht in `index.html`/`s
 - **Impressum-Platzhalter** in `impressum.html` einmalig durch echte Daten ersetzen (Vorstand, Register, USt-IdNr, Verantwortlich i.S.d. § 18 Abs. 2 MStV).
 - **Datenschutz-Stand-Datum** in `datenschutz.html` setzen.
 - **Backup-Restore einmal getestet?** Mind. einmal vor Go-Live: JSON-Backup aus Mail laden + in Firebase Console importieren (Test-Pfad), nicht produktiv überschreiben.
-- **EmailJS-Quota** prüfen — Free-Tier nur 200 Mails/Monat. Bei nahendem Limit auf Brevo migrieren (SMTP-Creds existieren schon).
+- **Mail-Versand läuft über Brevo** (`send-booking-mail.js` + `send-verification.js` + `send-reset-email.js`). Free-Tier 300 Mails/Tag (~9.000/Monat). Bei Annäherung ans Limit: Brevo-Dashboard prüfen, ggf. kostenpflichtiges Paket. **SPF/DKIM/DMARC für dassu.de sind bereits gesetzt** (SPF `include:spf.brevo.com`, DKIM `brevo1/brevo2._domainkey`, DMARC `p=none`) — bei Domain-/Mailhoster-Wechsel neu prüfen.
 
 ### Custom-Domain (z. B. kalender.dassu.de)
 - Wenn umgestellt: **9 Functions** in `netlify/functions/` haben `ALLOWED_ORIGIN = 'https://dassu-buchungskalender.netlify.app'` hartcodiert. Alle parallel ändern.

@@ -70,7 +70,7 @@
   <ul>
     <li><strong>Kontoanlage</strong>: Name, E-Mail, Telefon, Geburtsdatum, Postanschrift, optional Foto, Passwort (verschlüsselt bei Firebase Authentication gespeichert).</li>
     <li><strong>Buchungen</strong>: Datum, Flugzeug, Start-/Endzeit, Status, optionale Notiz, optional gewünschter Fluglehrer.</li>
-    <li><strong>Kommunikation</strong>: ausgehende Bestätigungs-/Hinweismails über den Versanddienst Brevo bzw. EmailJS.</li>
+    <li><strong>Kommunikation</strong>: ausgehende Bestätigungs-/Hinweismails über den Versanddienst Brevo.</li>
     <li><strong>Browser-Informationen</strong> bei Fehlern (User-Agent, URL der Fehlerseite) zur technischen Fehleranalyse.</li>
     <li><strong>Optional</strong>: Push-Benachrichtigungs-Token (wenn aktiviert), iCal-Abo-Token (wenn erzeugt), verschlüsselt gespeicherte Vereinsflieger-Zugangsdaten (wenn verknüpft).</li>
   </ul>
@@ -96,8 +96,7 @@
   <ul>
     <li><strong>Google Firebase</strong> (Google Ireland Ltd., Dublin) — Auth & Realtime-Datenbank, Server in EU.</li>
     <li><strong>Netlify</strong> (Netlify Inc., USA) — Hosting & Serverless Functions. Datentransfer in die USA auf Basis von EU-Standardvertragsklauseln + EU-US Data Privacy Framework.</li>
-    <li><strong>Brevo</strong> (Sendinblue SAS, Frankreich) — SMTP für transaktionale E-Mails.</li>
-    <li><strong>EmailJS</strong> (USA) — für einzelne client-seitige Mails (Buchungsbestätigungen).</li>
+    <li><strong>Brevo</strong> (Sendinblue SAS, Frankreich) — SMTP-Versand aller transaktionalen E-Mails (Buchungs-, Status-, Storno-, Verifizierungs- und Einladungsmails).</li>
     <li><strong>Vereinsflieger</strong> (Bornfeld + Patté GbR, Deutschland) — nur bei aktiver Verknüpfung, zur Synchronisation der Flugdaten.</li>
     <li><strong>Bunny Fonts</strong> (Tirana, Albanien) — GDPR-konformer Webfont-Service, keine Cookies.</li>
   </ul>
