@@ -110,7 +110,7 @@
   --shadow-lg: 0 4px 12px rgba(27,29,31,0.1);
   --transition: 0.12s ease-out;
 }
-body { font-family: var(--font); background: var(--c-bg); color: var(--c-ink); min-height: 100vh; padding-bottom: env(safe-area-inset-bottom); }
+body { font-family: var(--font); background: var(--c-bg); color: var(--c-ink); min-height: 100vh; padding-bottom: env(safe-area-inset-bottom); overflow-x: clip; }
 
 /* Header */
 .header { background: var(--c-paper); padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid var(--c-line); box-shadow: var(--shadow); }
@@ -1422,8 +1422,8 @@ input[type="search"]:hover, select:hover, textarea:hover {
       <span style="font-size:15px;">&#x1f6e1;</span> Rollen &amp; Rechte &Uuml;bersicht
       <span style="margin-left:auto; font-size:11px; color:var(--gray-400); font-weight:400;">aufklappen</span>
     </summary>
-    <div style="padding:0 16px 16px; font-size:12px; line-height:1.7; color:var(--gray-600);">
-      <table style="width:100%; border-collapse:collapse; margin-top:8px; font-size:12px;">
+    <div style="padding:0 16px 16px; font-size:12px; line-height:1.7; color:var(--gray-600); overflow-x:auto; -webkit-overflow-scrolling:touch;">
+      <table style="width:100%; min-width:560px; border-collapse:collapse; margin-top:8px; font-size:12px;">
         <thead>
           <tr style="border-bottom:2px solid var(--gray-200); text-align:left;">
             <th style="padding:6px 8px; font-weight:700; color:var(--navy);">Rolle</th>
