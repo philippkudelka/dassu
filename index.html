@@ -130,8 +130,12 @@
   /* Header — Alpen & Horizont */
   .header {
     background: var(--c-paper);
-    padding: 0 36px;
-    height: 56px;
+    /* Safe-Area oben (iOS Notch/Statusleiste): wegen viewport-fit=cover reicht
+       der Inhalt sonst unter die Statusleiste — der Burger läge in der iOS-
+       Tap-Totzone und wäre nicht klickbar. Auf Desktop ist der Inset 0. */
+    padding: env(safe-area-inset-top) max(36px, env(safe-area-inset-left)) 0 max(36px, env(safe-area-inset-right));
+    min-height: calc(56px + env(safe-area-inset-top));
+    box-sizing: border-box;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -803,7 +807,7 @@
     .aircraft-thumb { width: 54px; height: 34px; }
     .aircraft-reg { font-size: 9px; }
     .aircraft-type { display: none; }
-    .header { padding: 0 16px; height: 50px; }
+    .header { padding: env(safe-area-inset-top) 16px 0; min-height: calc(50px + env(safe-area-inset-top)); height: auto; }
     .header h1 { font-size: 16px; letter-spacing: 0.08em; }
     .calendar-container { padding: 12px 12px 24px; }
     .date-nav { padding: 14px 16px; gap: 8px; }
@@ -826,7 +830,7 @@
 
   /* Responsive Mobile */
   @media (max-width: 480px) {
-    .header { padding: 0 10px; height: 46px; position: relative; }
+    .header { padding: env(safe-area-inset-top) 10px 0; min-height: calc(46px + env(safe-area-inset-top)); height: auto; position: relative; }
     .header h1 { font-size: 14px; letter-spacing: 0.06em; }
     .header h1 span { display: none; }
     .header img { height: 28px !important; width: 28px !important; }
