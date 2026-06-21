@@ -1452,7 +1452,7 @@ input[type="search"]:hover, select:hover, textarea:hover {
             <td style="padding:6px 8px; color:var(--gray-400);">&#10007;</td>
           </tr>
           <tr style="border-bottom:1px solid var(--gray-100);">
-            <td style="padding:6px 8px;"><span style="background:var(--gray-100); color:var(--gray-500); padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; text-transform:uppercase;">Gast Segel</span></td>
+            <td style="padding:6px 8px;"><span style="background:var(--gray-100); color:var(--gray-500); padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; text-transform:uppercase;">Segelfluglehrer</span></td>
             <td style="padding:6px 8px; color:var(--success);">&#10003; Sehen + Buchen</td>
             <td style="padding:6px 8px; color:var(--success);">&#10003; Erstellen + Best&auml;tigen</td>
             <td style="padding:6px 8px; color:var(--success);">&#10003; Eigene erfassen</td>
@@ -1460,7 +1460,7 @@ input[type="search"]:hover, select:hover, textarea:hover {
             <td style="padding:6px 8px; color:var(--gray-400);">&#10007;</td>
           </tr>
           <tr>
-            <td style="padding:6px 8px;"><span style="background:var(--gray-100); color:var(--gray-500); padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; text-transform:uppercase;">Gast Motor</span></td>
+            <td style="padding:6px 8px;"><span style="background:var(--gray-100); color:var(--gray-500); padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; text-transform:uppercase;">Motorfluglehrer</span></td>
             <td style="padding:6px 8px; color:var(--success);">&#10003; Sehen + Buchen</td>
             <td style="padding:6px 8px; color:var(--success);">&#10003; Erstellen + Best&auml;tigen</td>
             <td style="padding:6px 8px; color:var(--success);">&#10003; Eigene erfassen</td>
@@ -1755,21 +1755,38 @@ input[type="search"]:hover, select:hover, textarea:hover {
   </div>
 </div>
 
-<!-- Nachrichten (Admin → Fluglehrer) -->
+<!-- Nachrichten -->
 <div id="viewMessages" style="display:none; padding:16px;">
   <div class="msg-compose">
-    <h3 style="font-size:14px;font-weight:600;margin:0 0 12px;color:var(--ink);">Neue Nachricht an Fluglehrer</h3>
-    <input type="text" id="msgTitle" placeholder="Betreff" maxlength="120" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;margin-bottom:8px;box-sizing:border-box;">
+    <h3 style="font-size:14px;font-weight:600;margin:0 0 12px;color:var(--ink);">Neue Nachricht</h3>
+    <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+      <select id="msgAudience" onchange="updateMsgAudienceHint()" style="flex:1;min-width:150px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;box-sizing:border-box;background:#fff;">
+        <option value="leadership">Intern an die Leitung</option>
+        <option value="all">Ank&uuml;ndigung an alle</option>
+      </select>
+      <select id="msgCategory" style="flex:1;min-width:150px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;box-sizing:border-box;background:#fff;">
+        <option value="hinweis">Hinweis</option>
+        <option value="kritik">Kritik</option>
+        <option value="anmerkung">Anmerkung</option>
+        <option value="sonstiges">Sonstiges</option>
+      </select>
+    </div>
+    <input type="text" id="msgTitle" placeholder="Betreff" maxlength="200" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;margin-bottom:8px;box-sizing:border-box;">
     <textarea id="msgBody" placeholder="Nachricht..." rows="5" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;resize:vertical;margin-bottom:8px;box-sizing:border-box;font-family:inherit;"></textarea>
     <div id="msgDropzone" style="border:2px dashed var(--line);border-radius:10px;padding:16px;text-align:center;cursor:pointer;margin-bottom:8px;transition:all 0.2s;background:rgba(30,75,78,0.02);">
       <span style="font-size:12px;color:var(--stone);">Dateien hier ablegen oder klicken (max 5 Dateien, je 10 MB)</span>
       <input type="file" id="msgFileInput" multiple style="display:none;">
     </div>
-    <div id="msgAttachments" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;"></div>
-    <button class="btn btn-primary" id="msgSendBtn" onclick="staffSendMessage()" style="width:100%;">Nachricht senden</button>
+    <div id="msgAttachments" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;"></div>
+    <div id="msgAudienceHint" style="font-size:11px;color:var(--stone);margin-bottom:8px;line-height:1.5;"></div>
+    <button class="btn btn-primary" id="msgSendBtn" onclick="staffSendMessage()" style="width:100%;">Senden</button>
   </div>
   <div style="margin-top:24px;">
-    <h3 style="font-size:14px;font-weight:600;margin:0 0 12px;color:var(--ink);">Gesendete Nachrichten</h3>
+    <h3 style="font-size:14px;font-weight:600;margin:0 0 12px;color:var(--ink);">Posteingang &middot; Interne Nachrichten</h3>
+    <div id="msgInternalList"></div>
+  </div>
+  <div style="margin-top:24px;">
+    <h3 style="font-size:14px;font-weight:600;margin:0 0 12px;color:var(--ink);">Ank&uuml;ndigungen</h3>
     <div id="msgSentList"></div>
   </div>
 </div>
@@ -4355,7 +4372,7 @@ function renderTeamView() {
   }
 
   // Sort: admins first, then staff, then customers, alphabetical within groups
-  const roleOrder = { admin: 0, vorstand: 1, flugleiter: 2, team: 3, guestGlider: 4, guestMotor: 4 };
+  const roleOrder = { admin: 0, team: 1, staff: 1, guestGlider: 2, guestMotor: 2 };
   filtered.sort((a, b) => {
     const aOrder = a._type === 'customer' ? 10 : (roleOrder[a.role] ?? 5);
     const bOrder = b._type === 'customer' ? 10 : (roleOrder[b.role] ?? 5);
@@ -4373,8 +4390,8 @@ function renderTeamView() {
       { id: 'all', label: 'Alle' },
       { id: 'admin', label: 'Admin' },
       { id: 'team', label: 'Team' },
-      { id: 'guestGlider', label: 'Gast MS' },
-      { id: 'guestMotor', label: 'Gast UL' },
+      { id: 'guestGlider', label: 'Segelfluglehrer' },
+      { id: 'guestMotor', label: 'Motorfluglehrer' },
       { id: 'customer', label: 'Kunden' },
       { id: 'student', label: 'Schüler' }
     ];
@@ -8795,8 +8812,8 @@ function acFilterInstructor(inputId) {
   // Alle Gastfluglehrer-Namen dazumischen (auch vergangene/zukünftige)
   const allGuests = (typeof guestInstructors !== 'undefined' ? guestInstructors : [])
     .map(g => g.name).filter(Boolean);
-  // Staff-Flugleiter-Namen (Rolle flugleiter) hinzufügen
-  const staffFlugleiter = staffUsers.filter(u => u.role === 'flugleiter' && u.name).map(u => u.name);
+  // Namen der Fluglehrer-Accounts (Segel-/Motorfluglehrer) hinzufügen
+  const staffFlugleiter = staffUsers.filter(u => (u.role === 'guestGlider' || u.role === 'guestMotor') && u.name).map(u => u.name);
   // VF-Fluglehrer aus Schulungsflügen
   const vfFl = (typeof vfInstructors !== 'undefined') ? vfInstructors : [];
   const allInstructors = [...new Set([...fluglehrerNames, ...allGuests, ...staffFlugleiter, ...vfFl])].sort((a, b) => a.localeCompare(b, 'de'));
@@ -8858,7 +8875,7 @@ function renderAccountTab() {
 
   // Display
   document.getElementById('accDisplayName').textContent = user.name || '—';
-  const roleNames = { admin: 'Administrator', vorstand: 'Vorstand', flugleiter: 'Flugleiter', team: 'Teammitglied', member: 'Mitglied', guest: 'Gast' };
+  const roleNames = { admin: 'Admin', team: 'Team', staff: 'Team', guestGlider: 'Segelfluglehrer', guestMotor: 'Motorfluglehrer' };
   document.getElementById('accDisplayRole').textContent = roleNames[user.role] || user.role || '—';
 
   // Form fields
@@ -9013,7 +9030,8 @@ function resizeImage(file, maxSize) {
 let staffMsgFiles = [];
 
 function setupMessagesTab() {
-  if (!currentUser || currentUser.role !== 'admin') return;
+  // Nachrichten-Tab für Leitung (Team + Admin)
+  if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'team')) return;
   document.getElementById('tabMessages').style.display = '';
   // Dropzone
   const dz = document.getElementById('msgDropzone');
@@ -9023,6 +9041,27 @@ function setupMessagesTab() {
   dz.addEventListener('dragleave', () => { dz.style.borderColor = 'var(--line)'; dz.style.background = 'rgba(30,75,78,0.02)'; });
   dz.addEventListener('drop', e => { e.preventDefault(); dz.style.borderColor = 'var(--line)'; dz.style.background = 'rgba(30,75,78,0.02)'; addMsgFiles(e.dataTransfer.files); });
   document.getElementById('msgFileInput').onchange = e => addMsgFiles(e.target.files);
+  updateMsgAudienceHint();
+}
+
+// Kategorie-Darstellung (Hinweis / Kritik / Anmerkung / Sonstiges)
+const MSG_CAT_META = {
+  hinweis:   { label: 'Hinweis',   bg: '#e8f0fe', fg: '#1a56b3' },
+  kritik:    { label: 'Kritik',    bg: '#fdecea', fg: '#b3261e' },
+  anmerkung: { label: 'Anmerkung', bg: '#fef6e6', fg: '#9a6700' },
+  sonstiges: { label: 'Sonstiges', bg: '#eef0f2', fg: '#555555' }
+};
+function msgCatBadge(cat) {
+  const m = MSG_CAT_META[cat] || MSG_CAT_META.sonstiges;
+  return '<span style="display:inline-block;padding:2px 9px;border-radius:10px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;background:' + m.bg + ';color:' + m.fg + ';">' + m.label + '</span>';
+}
+function updateMsgAudienceHint() {
+  const a = document.getElementById('msgAudience');
+  const hint = document.getElementById('msgAudienceHint');
+  if (!a || !hint) return;
+  hint.innerHTML = a.value === 'all'
+    ? '&#128226; Ank&uuml;ndigung: alle Staff (inkl. Fluglehrer) sehen das.'
+    : '&#128274; Intern: nur Team/Admin sehen das &mdash; Fluglehrer nicht.';
 }
 
 function addMsgFiles(files) {
@@ -9047,15 +9086,20 @@ function renderMsgAttachments() {
 }
 
 async function staffSendMessage() {
+  const audience = (document.getElementById('msgAudience') || {}).value || 'leadership';
+  const category = (document.getElementById('msgCategory') || {}).value || 'sonstiges';
   const title = (document.getElementById('msgTitle').value || '').trim();
   const body = (document.getElementById('msgBody').value || '').trim();
-  if (!title || !body) { notify('Betreff und Nachricht ausfüllen', 'error'); return; }
+  if (!title && !body) { notify('Betreff oder Nachricht ausfüllen', 'error'); return; }
   const btn = document.getElementById('msgSendBtn');
   btn.disabled = true; btn.textContent = 'Wird gesendet...';
   try {
-    const res = await DASSU_MESSAGES.sendMessage(title, body, staffMsgFiles, currentUser.name || currentUser.email);
+    const name = currentUser.name || currentUser.email;
+    const res = audience === 'all'
+      ? await DASSU_MESSAGES.sendAnnouncement(title, body, category, staffMsgFiles, name)
+      : await DASSU_MESSAGES.sendInternal(title, body, category, staffMsgFiles, name);
     if (res.ok) {
-      notify('Nachricht gesendet!', 'success');
+      notify(audience === 'all' ? 'Ankündigung gesendet!' : 'Interne Nachricht gespeichert.', 'success');
       document.getElementById('msgTitle').value = '';
       document.getElementById('msgBody').value = '';
       staffMsgFiles = [];
@@ -9066,15 +9110,57 @@ async function staffSendMessage() {
       notify('Fehler: ' + res.error, 'error');
     }
   } catch (e) { notify('Fehler: ' + e.message, 'error'); }
-  btn.disabled = false; btn.textContent = 'Nachricht senden';
+  btn.disabled = false; btn.textContent = 'Senden';
 }
 
 async function staffRenderMessages() {
+  await staffRenderInternal();
+  await staffRenderAnnouncements();
+}
+
+// Posteingang: alle internen Nachrichten (Lehrer/Team → Leitung)
+async function staffRenderInternal() {
+  const el = document.getElementById('msgInternalList');
+  if (!el) return;
+  const myUid = firebase.auth().currentUser && firebase.auth().currentUser.uid;
+  const canDelete = currentUser && currentUser.role === 'admin';
+  try {
+    const msgs = await DASSU_MESSAGES.getInternalAll(100);
+    if (!msgs.length) { el.innerHTML = '<p style="text-align:center;color:var(--stone);font-size:12px;padding:20px;">Noch keine internen Nachrichten.</p>'; return; }
+    el.innerHTML = msgs.map(m => {
+      const isUnread = myUid && (!m.readBy || !m.readBy[myUid]);
+      const dt = new Date(m.createdAt).toLocaleString('de-DE', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' });
+      const filesHtml = (m.files && m.files.length) ? m.files.map(f =>
+        '<a href="' + f.url + '" target="_blank" download="' + escHtml(f.name) + '" style="display:inline-block;padding:4px 8px;background:var(--sand);border-radius:4px;font-size:11px;color:var(--alpine);text-decoration:none;margin-right:4px;margin-top:6px;">📎 ' + escHtml(f.name) + '</a>'
+      ).join('') : '';
+      return '<div style="background:#fff;border:1px solid ' + (isUnread ? 'var(--alpine)' : 'var(--line)') + ';border-radius:10px;padding:12px;margin-bottom:8px;">' +
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">' +
+        '<div style="flex:1;min-width:0;">' +
+        '<div style="margin-bottom:5px;">' + msgCatBadge(m.category) + (isUnread ? ' <span style="display:inline-block;width:8px;height:8px;background:var(--alpine);border-radius:50%;vertical-align:middle;margin-left:4px;"></span>' : '') + '</div>' +
+        '<div style="font-size:13px;font-weight:600;">' + escHtml(m.title || 'Ohne Betreff') + '</div>' +
+        '<div style="font-size:11px;color:var(--stone);">von ' + escHtml(m.createdByName || 'Unbekannt') + ' · ' + dt + '</div>' +
+        '</div>' +
+        (canDelete ? '<button onclick="staffDeleteInternal(\'' + m.authorUid + '\',\'' + m.id + '\')" style="background:var(--rejected);color:#fff;border:none;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;flex-shrink:0;">Löschen</button>' : '') +
+        '</div>' +
+        '<div style="font-size:12px;color:var(--ink-2);margin-top:8px;line-height:1.5;white-space:pre-wrap;">' + escHtml(m.body) + '</div>' +
+        filesHtml +
+        '</div>';
+    }).join('');
+    // Posteingang geöffnet → als gelesen markieren (für „von der Leitung gelesen"-Status beim Absender)
+    if (myUid) {
+      msgs.forEach(m => { if (!m.readBy || !m.readBy[myUid]) DASSU_MESSAGES.markInternalRead(m.authorUid, m.id, myUid); });
+    }
+  } catch (e) { el.innerHTML = '<p style="color:var(--rejected);">Fehler: ' + e.message + '</p>'; }
+}
+
+// Ankündigungen (Team/Admin → alle)
+async function staffRenderAnnouncements() {
   const el = document.getElementById('msgSentList');
   if (!el) return;
+  const canDelete = currentUser && currentUser.role === 'admin';
   try {
-    const msgs = await DASSU_MESSAGES.getMessages(50);
-    if (!msgs.length) { el.innerHTML = '<p style="text-align:center;color:var(--stone);font-size:12px;padding:20px;">Noch keine Nachrichten gesendet.</p>'; return; }
+    const msgs = await DASSU_MESSAGES.getAnnouncements(50);
+    if (!msgs.length) { el.innerHTML = '<p style="text-align:center;color:var(--stone);font-size:12px;padding:20px;">Noch keine Ankündigungen.</p>'; return; }
     el.innerHTML = msgs.map(m => {
       const readCount = m.readBy ? Object.keys(m.readBy).length : 0;
       const dt = new Date(m.createdAt).toLocaleString('de-DE', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' });
@@ -9082,10 +9168,12 @@ async function staffRenderMessages() {
         '<a href="' + f.url + '" target="_blank" download="' + escHtml(f.name) + '" style="display:inline-block;padding:4px 8px;background:var(--sand);border-radius:4px;font-size:11px;color:var(--alpine);text-decoration:none;margin-right:4px;">📎 ' + escHtml(f.name) + '</a>'
       ).join('') : '';
       return '<div style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:8px;">' +
-        '<div style="display:flex;justify-content:space-between;align-items:flex-start;">' +
-        '<div><div style="font-size:13px;font-weight:600;">' + escHtml(m.title) + '</div>' +
-        '<div style="font-size:11px;color:var(--stone);">' + dt + ' · ✓ ' + readCount + ' gelesen</div></div>' +
-        '<button onclick="staffDeleteMsg(\'' + m.id + '\')" style="background:var(--rejected);color:#fff;border:none;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;">Löschen</button></div>' +
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">' +
+        '<div style="flex:1;min-width:0;"><div style="margin-bottom:5px;">' + msgCatBadge(m.category) + '</div>' +
+        '<div style="font-size:13px;font-weight:600;">' + escHtml(m.title) + '</div>' +
+        '<div style="font-size:11px;color:var(--stone);">' + escHtml(m.createdByName || '') + ' · ' + dt + ' · ✓ ' + readCount + ' gelesen</div></div>' +
+        (canDelete ? '<button onclick="staffDeleteMsg(\'' + m.id + '\')" style="background:var(--rejected);color:#fff;border:none;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;flex-shrink:0;">Löschen</button>' : '') +
+        '</div>' +
         '<div style="font-size:12px;color:var(--ink-2);margin-top:8px;line-height:1.5;white-space:pre-wrap;">' + escHtml(m.body) + '</div>' +
         (filesHtml ? '<div style="margin-top:8px;">' + filesHtml + '</div>' : '') +
         '</div>';
@@ -9094,9 +9182,16 @@ async function staffRenderMessages() {
 }
 
 async function staffDeleteMsg(id) {
-  if (!confirm('Nachricht wirklich löschen?')) return;
-  const res = await DASSU_MESSAGES.deleteMessage(id);
-  if (res.ok) { notify('Gelöscht', 'info'); staffRenderMessages(); }
+  if (!confirm('Ankündigung wirklich löschen?')) return;
+  const res = await DASSU_MESSAGES.deleteAnnouncement(id);
+  if (res.ok) { notify('Gelöscht', 'info'); staffRenderAnnouncements(); }
+  else notify('Fehler: ' + res.error, 'error');
+}
+
+async function staffDeleteInternal(authorUid, id) {
+  if (!confirm('Interne Nachricht wirklich löschen? (Dokumentation geht verloren)')) return;
+  const res = await DASSU_MESSAGES.deleteInternal(authorUid, id);
+  if (res.ok) { notify('Gelöscht', 'info'); staffRenderInternal(); }
   else notify('Fehler: ' + res.error, 'error');
 }
 
@@ -9109,8 +9204,8 @@ function escHtml(t) { const d = document.createElement('div'); d.textContent = t
   <span class="dev-toolbar-label">DEV</span>
   <div class="dev-toolbar-btns">
     <button class="dev-toolbar-btn" onclick="window.location.href='/?dev=1'"><span class="dot c-kunde"></span>Kunde</button>
-    <button class="dev-toolbar-btn" data-dev-role="guestGlider" onclick="devStaffSwitch('guestGlider')"><span class="dot c-fluglehrer"></span>Gast Segel</button>
-    <button class="dev-toolbar-btn" data-dev-role="guestMotor" onclick="devStaffSwitch('guestMotor')"><span class="dot c-fluglehrer"></span>Gast Motor</button>
+    <button class="dev-toolbar-btn" data-dev-role="guestGlider" onclick="devStaffSwitch('guestGlider')"><span class="dot c-fluglehrer"></span>Segelfluglehrer</button>
+    <button class="dev-toolbar-btn" data-dev-role="guestMotor" onclick="devStaffSwitch('guestMotor')"><span class="dot c-fluglehrer"></span>Motorfluglehrer</button>
     <button class="dev-toolbar-btn" data-dev-role="team" onclick="devStaffSwitch('team')"><span class="dot c-staff"></span>Team</button>
     <button class="dev-toolbar-btn active" data-dev-role="admin" onclick="devStaffSwitch('admin')"><span class="dot c-admin"></span>Admin</button>
   </div>
@@ -9142,8 +9237,8 @@ function devStaffSwitch(role) {
   var labels = {
     'admin': 'Ansicht: Admin (voller Zugriff)',
     'team': 'Ansicht: Staff/Team (eingeschränkt)',
-    'guestGlider': 'Ansicht: Gastfluglehrer Segelflug',
-    'guestMotor': 'Ansicht: Gastfluglehrer Motor/UL'
+    'guestGlider': 'Ansicht: Segelfluglehrer',
+    'guestMotor': 'Ansicht: Motorfluglehrer'
   };
   document.getElementById('devToolbarInfo').textContent = labels[role] || '';
   // UI neu aufbauen

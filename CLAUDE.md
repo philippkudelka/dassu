@@ -103,6 +103,17 @@ Maschineller Ersatz für die fehlende `script-src`-CSP. Sucht in `index.html`/`s
 - **Direkt-Download** via `downloadIcalOnce()` baut das ICS clientseitig aus den bereits geladenen Buchungen (kein Server-Roundtrip nötig).
 - **Rules-Anpassung**: `users/$uid` ist jetzt für den eigenen User lesbar+schreibbar (vorher komplett gesperrt). Daher: nach Rules-Update **VF-Credentials weiterhin nur über Backend** (sind verschlüsselt) — der User darf seine eigenen Felder sehen, das ist OK.
 
+## Nachrichten (Team-Kommunikation)
+
+Modul `shared/messages.js` (`DASSU_MESSAGES`), **zwei Kanäle**:
+- **Ankündigungen** — `/messages/{id}`. Senden: **Team + Admin**. Lesen: **alle Staff**. (`sendAnnouncement`, `getAnnouncements`.)
+- **Interne Nachrichten** — `/internalMessages/{autorUid}/{id}`. Senden: **jeder Staff** (inkl. Segel-/Motorfluglehrer) → an die Leitung. Lesen: **nur Leitung (Team/Admin) + der Autor selbst**. (`sendInternal`, `getInternalAll` = Leitung sieht alle, `getInternalMine` = Autor sieht eigene.)
+- **Vertraulichkeit serverseitig** in `database.rules.json`: `/internalMessages` nur für Team/Admin lesbar, `/internalMessages/$uid` zusätzlich für den Autor; Schreiben nur in den eigenen Teilbaum, **Löschen nur Admin**, Einträge unveränderlich.
+- **Kategorien:** Hinweis / Kritik / Anmerkung / Sonstiges (`MSG_CAT_META`/`msgCatBadge` in beiden HTMLs).
+- **Kein Chat/Threads** — diskrete, dokumentierte Posts. Gelesen-Status via `readBy/{uid}`.
+- **UI:** index.html (Fluglehrer-Tab „Nachrichten") = Ankündigungen lesen + an Leitung schreiben + eigene Liste. staff.html (Team/Admin-Tab) = Posteingang aller internen Nachrichten + Ankündigung/intern senden (Empfänger-Wahl).
+- **Anhänge:** über Firebase Storage. Interne Anhänge liegen bewusst unter `messages/_internal/{uid}/…` (der `messages/`-Storage-Pfad ist in der Console bereits freigegeben; `internalMessages/` evtl. nicht). **Storage-Rules liegen NUR in der Firebase Console**, nicht im Repo.
+
 ## Dateistruktur
 
 - `index.html` — Kunden-/Mitglieder-Ansicht (Buchungskalender, Login, Buchung erstellen)
@@ -112,7 +123,7 @@ Maschineller Ersatz für die fehlende `script-src`-CSP. Sucht in `index.html`/`s
 - `datenschutz.html` — statische Datenschutzerklärung (DSGVO Art. 13)
 - `robots.txt` — sperrt staff.html, welcome.html, /.netlify/ und SW/Manifest vom Crawling
 - `shared/auth.js` — Firebase Auth (gemeinsam genutzt)
-- `shared/permissions.js` — Rechte-System (Rollen: admin, vorstand, flugleiter, member)
+- `shared/permissions.js` — Rechte-System. **Kanonische Rollen (genau diese 5, projektweit):** `admin` (Admin), `team` (Team = Staff), `guestGlider` (**Segelfluglehrer**), `guestMotor` (**Motorfluglehrer**), plus Kunden (`customers`, kein staffUsers-Eintrag). Die internen Schlüssel (`guestGlider`/`guestMotor`) bleiben aus Daten-Kompatibilität, angezeigt werden überall die kanonischen Namen via `roleMeta().label`. `staff` ist nur ein unsichtbarer Legacy-Alias für `team`. Alt-Rollen (vorstand/flugleiter/member/fluglehrer) wurden entfernt — nicht wieder einführen.
 - `shared/trainings.js` — Liste der 12 DASSU-Ausbildungen
 - `deploy.command` — Shell-Skript für Git commit + push
 - `netlify.toml` — Netlify-Konfiguration (esbuild, functions)

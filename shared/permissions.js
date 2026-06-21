@@ -13,9 +13,9 @@
   // steht aber nicht neu zur Auswahl.
   const ROLES = [
     { id: 'admin',       label: 'Admin',                     short: 'Admin' },
-    { id: 'team',        label: 'DASSU Team',                short: 'Team' },
-    { id: 'guestGlider', label: 'Gastfluglehrer Segelflug',  short: 'Gast Segel' },
-    { id: 'guestMotor',  label: 'Gastfluglehrer Motor/UL',   short: 'Gast Motor' },
+    { id: 'team',        label: 'Team',             short: 'Team' },
+    { id: 'guestGlider', label: 'Segelfluglehrer',  short: 'Segelfluglehrer' },
+    { id: 'guestMotor',  label: 'Motorfluglehrer',  short: 'Motorfluglehrer' },
     { id: 'staff',       label: 'Staff (alt)',               short: 'Staff', legacy: true },
   ];
 

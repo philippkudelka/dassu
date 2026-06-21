@@ -2344,26 +2344,40 @@
 <div id="messagesView" style="display:none;">
   <div class="my-bookings-panel">
     <h2>Nachrichten</h2>
-    <p class="mb-subtitle">Nachrichten vom Admin-Team</p>
+    <p class="mb-subtitle">Ank&uuml;ndigungen lesen &amp; Hinweise an die Leitung senden</p>
 
-    <!-- Compose (nur Admin) -->
-    <div id="msgComposeBox" style="display:none; background:var(--c-bg); border:1px solid var(--c-border); border-radius:8px; padding:16px; margin-bottom:20px;">
-      <div style="font-size:12px; font-weight:600; color:var(--c-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:8px;">Neue Nachricht</div>
-      <input id="msgComposeTitle" type="text" placeholder="Betreff" style="width:100%; padding:8px 10px; border:1px solid var(--c-border); border-radius:6px; font-size:14px; margin-bottom:8px; background:var(--c-card); color:var(--c-text); box-sizing:border-box;">
-      <textarea id="msgComposeBody" placeholder="Nachricht eingeben..." rows="4" style="width:100%; padding:8px 10px; border:1px solid var(--c-border); border-radius:6px; font-size:14px; margin-bottom:10px; background:var(--c-card); color:var(--c-text); resize:vertical; font-family:inherit; box-sizing:border-box;"></textarea>
+    <!-- Compose: an die Leitung (vertraulich) -->
+    <div style="background:var(--c-bg); border:1px solid var(--c-border); border-radius:8px; padding:16px; margin-bottom:24px;">
+      <div style="font-size:12px; font-weight:600; color:var(--c-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:10px;">Nachricht an die Leitung</div>
+      <select id="msgLehrerCat" style="width:100%; padding:10px 10px; border:1px solid var(--c-border); border-radius:6px; font-size:14px; margin-bottom:8px; background:var(--c-card); color:var(--c-text); box-sizing:border-box;">
+        <option value="hinweis">Hinweis</option>
+        <option value="kritik">Kritik</option>
+        <option value="anmerkung">Anmerkung</option>
+        <option value="sonstiges">Sonstiges</option>
+      </select>
+      <input id="msgLehrerTitle" type="text" placeholder="Betreff" maxlength="200" style="width:100%; padding:10px 10px; border:1px solid var(--c-border); border-radius:6px; font-size:14px; margin-bottom:8px; background:var(--c-card); color:var(--c-text); box-sizing:border-box;">
+      <textarea id="msgLehrerBody" placeholder="Hinweis, Kritik oder Anmerkung an die Leitung&hellip;" rows="4" style="width:100%; padding:10px 10px; border:1px solid var(--c-border); border-radius:6px; font-size:14px; margin-bottom:8px; background:var(--c-card); color:var(--c-text); resize:vertical; font-family:inherit; box-sizing:border-box;"></textarea>
+      <div style="font-size:11px; color:var(--c-muted); margin-bottom:10px; line-height:1.5;">&#128274; Vertraulich &mdash; nur die Leitung (Team/Admin) sieht das. Andere Fluglehrer nicht.</div>
       <div style="text-align:right;">
-        <button onclick="sendMsgFromIndex()" style="background:var(--navy); color:white; border:none; padding:8px 20px; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer;">Senden</button>
+        <button id="msgLehrerSendBtn" onclick="lehrerSendInternal()" style="background:var(--navy); color:white; border:none; padding:9px 22px; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer;">Senden</button>
       </div>
     </div>
 
-    <div id="msgList"><p style="color:var(--c-muted); padding:24px 0;">Keine Nachrichten vorhanden.</p></div>
+    <!-- Meine gesendeten Nachrichten an die Leitung -->
+    <div style="font-size:12px; font-weight:700; color:var(--c-muted); text-transform:uppercase; letter-spacing:0.04em; margin:0 0 8px;">Meine Nachrichten an die Leitung</div>
+    <div id="msgMineList" style="margin-bottom:28px;"><p style="color:var(--c-muted); padding:8px 0; font-size:13px;">Noch nichts gesendet.</p></div>
+
+    <!-- Ank&uuml;ndigungen -->
+    <div style="font-size:12px; font-weight:700; color:var(--c-muted); text-transform:uppercase; letter-spacing:0.04em; margin:0 0 8px;">Ank&uuml;ndigungen</div>
+    <div id="msgList"><p style="color:var(--c-muted); padding:16px 0;">Keine Ank&uuml;ndigungen vorhanden.</p></div>
   </div>
 </div>
 
 <!-- Nachricht-Detail-Modal -->
 <div class="modal-overlay" id="messageModal">
   <div class="modal" style="max-width:560px;">
-    <h3 id="msgModalTitle" style="margin-bottom:4px;"></h3>
+    <h3 id="msgModalTitle" style="margin-bottom:6px;"></h3>
+    <div id="msgModalCat" style="margin-bottom:8px;"></div>
     <div id="msgModalMeta" style="font-size:12px; color:var(--c-muted); margin-bottom:12px;"></div>
     <div id="msgModalBody" style="white-space:pre-wrap; line-height:1.6; margin-bottom:16px;"></div>
     <div id="msgModalFiles" style="margin-bottom:16px;"></div>
@@ -3635,7 +3649,7 @@ function renderWeekView() {
         // Kunde nur eigene Buchungen farbig — fremde einheitlich rot „belegt".
         const wU = firebase.auth().currentUser;
         const wEff = getEffectiveRole();
-        const wIsStaff = wEff === 'admin' || wEff === 'staff' || wEff === 'team' || wEff === 'fluglehrer' || wEff === 'guestGlider' || wEff === 'guestMotor';
+        const wIsStaff = wEff === 'admin' || wEff === 'staff' || wEff === 'team' || wEff === 'guestGlider' || wEff === 'guestMotor';
         const wIsOwn = !!(wU && b.uid && b.uid === wU.uid);
         const instrClass = (b.instructor === 'ja' || (b.instructorName && b.instructorName.trim())) ? ' with-instructor' : '';
         const barClass = !wU
@@ -3659,7 +3673,7 @@ function renderWeekView() {
   // Farb-Legende (Fluglehrer ja/nein) nur für Staff — Kunden sehen fremde
   // Buchungen einheitlich rot, Gäste gar keine; die Erklärung wäre irreführend.
   const _legEff = getEffectiveRole();
-  const _legendStaff = _legEff === 'admin' || _legEff === 'staff' || _legEff === 'team' || _legEff === 'fluglehrer' || _legEff === 'guestGlider' || _legEff === 'guestMotor';
+  const _legendStaff = _legEff === 'admin' || _legEff === 'staff' || _legEff === 'team' || _legEff === 'guestGlider' || _legEff === 'guestMotor';
   html += `<div class="platzrunden-legend">
     ${_legendStaff ? `<div class="legend-item"><div class="legend-swatch" style="background:#43a047;"></div> Ohne Fluglehrer</div>
     <div class="legend-item"><div class="legend-swatch" style="background:#ef8c00;"></div> Mit Fluglehrer</div>
@@ -4413,7 +4427,7 @@ function renderGanttCalendar(dk, aircraft) {
       const hasInstructor = booking.instructor === 'ja' || (booking.instructorName && booking.instructorName.trim());
       const customerName = booking.customer || booking.name || '—';
       const effRole = getEffectiveRole();
-      const isStaffRole = effRole === 'admin' || effRole === 'staff' || effRole === 'team' || effRole === 'fluglehrer' || effRole === 'guestGlider' || effRole === 'guestMotor';
+      const isStaffRole = effRole === 'admin' || effRole === 'staff' || effRole === 'team' || effRole === 'guestGlider' || effRole === 'guestMotor';
       // Eigene Buchung erkennen: per UID (Standard-Weg — Schnellbuchungen für
       // registrierte Kunden tragen seit lookupCustomerForName auch die UID).
       // E-Mail-Match greift nur in Staff-Ansichten: für Kunden ist email PII
@@ -5031,7 +5045,7 @@ function acFilterFluglehrer(inputId) {
   const list = document.getElementById(inputId + '-ac');
   if (!input || !list) return;
   const q = input.value.trim().toLowerCase();
-  const staffFl = staffUsers.filter(u => u.role === 'flugleiter' && u.name).map(u => u.name);
+  const staffFl = staffUsers.filter(u => (u.role === 'guestGlider' || u.role === 'guestMotor') && u.name).map(u => u.name);
   const allFl = [...new Set([...(settings.fluglehrerList || []), ...staffFl])].sort((a, b) => a.localeCompare(b, 'de'));
   let matches = !q ? allFl.slice(0, 15) : allFl.filter(n => n.toLowerCase().includes(q));
   if (!matches.length) { list.style.display = 'none'; flAcIdx = -1; return; }
@@ -6069,8 +6083,8 @@ function devApplyPerspective() {
   if (info) {
     const labels = {
       'kunde': 'Ansicht: Kunde (nur Kalender, Buchungen, Konto)',
-      'guestGlider': 'Ansicht: Gastfluglehrer Segelflug (+ Schüler, Theorie)',
-      'guestMotor': 'Ansicht: Gastfluglehrer Motor/UL (+ Schüler, Theorie)',
+      'guestGlider': 'Ansicht: Segelfluglehrer (+ Schüler, Theorie)',
+      'guestMotor': 'Ansicht: Motorfluglehrer (+ Schüler, Theorie)',
       'team': 'Ansicht: Team/Staff (+ Verwaltung)',
       'admin': 'Ansicht: Admin (voller Zugriff)'
     };
@@ -6386,24 +6400,28 @@ function updateMsgBadge() {
   }
 }
 
+// Kategorie-Darstellung (Hinweis / Kritik / Anmerkung / Sonstiges)
+const MSG_CAT_META = {
+  hinweis:   { label: 'Hinweis',   bg: '#e8f0fe', fg: '#1a56b3' },
+  kritik:    { label: 'Kritik',    bg: '#fdecea', fg: '#b3261e' },
+  anmerkung: { label: 'Anmerkung', bg: '#fef6e6', fg: '#9a6700' },
+  sonstiges: { label: 'Sonstiges', bg: '#eef0f2', fg: '#555555' }
+};
+function msgCatBadge(cat) {
+  const m = MSG_CAT_META[cat] || MSG_CAT_META.sonstiges;
+  return '<span style="display:inline-block; padding:2px 9px; border-radius:10px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; background:' + m.bg + '; color:' + m.fg + ';">' + m.label + '</span>';
+}
+
 function renderMessages() {
   const list = document.getElementById('msgList');
-  if (!list) return;
   const uid = firebase.auth().currentUser?.uid;
-  if (!uid) { list.innerHTML = '<p style="color:var(--c-muted); padding:24px 0;">Bitte einloggen.</p>'; return; }
-
-  // Compose-Box nur für Admins anzeigen
-  const composeBox = document.getElementById('msgComposeBox');
-  if (composeBox) {
-    const effRole = getEffectiveRole();
-    composeBox.style.display = (effRole === 'admin') ? '' : 'none';
-  }
-
-  // Listener starten falls noch nicht aktiv
   initMessagesListener();
+  renderMyInternal();
+  if (!list) return;
+  if (!uid) { list.innerHTML = '<p style="color:var(--c-muted); padding:16px 0;">Bitte einloggen.</p>'; return; }
 
   if (messagesData.length === 0) {
-    list.innerHTML = '<p style="color:var(--c-muted); padding:24px 0;">Keine Nachrichten vorhanden.</p>';
+    list.innerHTML = '<p style="color:var(--c-muted); padding:16px 0;">Keine Ankündigungen vorhanden.</p>';
     return;
   }
 
@@ -6434,6 +6452,8 @@ function openMessage(messageId) {
   const uid = firebase.auth().currentUser?.uid;
 
   document.getElementById('msgModalTitle').textContent = m.title || 'Ohne Betreff';
+  const catEl = document.getElementById('msgModalCat');
+  if (catEl) catEl.innerHTML = m.category ? msgCatBadge(m.category) : '';
   const dateStr = new Date(m.createdAt).toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   document.getElementById('msgModalMeta').textContent = 'Von ' + (m.createdByName || 'Admin') + ' · ' + dateStr;
   document.getElementById('msgModalBody').textContent = m.body || '';
@@ -6462,28 +6482,62 @@ function openMessage(messageId) {
   }
 }
 
-// Admin: Nachricht senden aus index.html
-async function sendMsgFromIndex() {
-  const title = document.getElementById('msgComposeTitle').value.trim();
-  const body = document.getElementById('msgComposeBody').value.trim();
+// Fluglehrer/Staff: vertrauliche Nachricht an die Leitung senden
+async function lehrerSendInternal() {
+  const catEl = document.getElementById('msgLehrerCat');
+  const titleEl = document.getElementById('msgLehrerTitle');
+  const bodyEl = document.getElementById('msgLehrerBody');
+  const title = (titleEl.value || '').trim();
+  const body = (bodyEl.value || '').trim();
   if (!title && !body) { notify('Bitte Betreff oder Text eingeben.', 'error'); return; }
-
   const user = firebase.auth().currentUser;
   if (!user) { notify('Nicht eingeloggt.', 'error'); return; }
 
-  // Admin-Name aus staffUsers holen
-  const snap = await firebase.database().ref('staffUsers/' + user.uid).once('value');
-  const prof = snap.val();
-  const senderName = prof ? (prof.firstName || '') + ' ' + (prof.lastName || '') : user.email;
+  const btn = document.getElementById('msgLehrerSendBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Wird gesendet…'; }
 
-  const result = await DASSU_MESSAGES.sendMessage(title, body, [], senderName.trim());
+  // Anzeigename aus staffUsers-Profil holen
+  let senderName = (typeof customerProfile !== 'undefined' && customerProfile && customerProfile.name) || user.email || '';
+  try {
+    const snap = await firebase.database().ref('staffUsers/' + user.uid).once('value');
+    const prof = snap.val();
+    if (prof) senderName = prof.name || ((prof.firstName || '') + ' ' + (prof.lastName || '')).trim() || senderName;
+  } catch (e) {}
+
+  const result = await DASSU_MESSAGES.sendInternal(title, body, catEl ? catEl.value : 'hinweis', [], senderName);
   if (result.ok) {
-    notify('Nachricht gesendet!', 'success');
-    document.getElementById('msgComposeTitle').value = '';
-    document.getElementById('msgComposeBody').value = '';
+    notify('An die Leitung gesendet.', 'success');
+    titleEl.value = ''; bodyEl.value = ''; if (catEl) catEl.value = 'hinweis';
+    renderMyInternal();
   } else {
     notify(result.error || 'Fehler beim Senden.', 'error');
   }
+  if (btn) { btn.disabled = false; btn.textContent = 'Senden'; }
+}
+
+// Eigene gesendete interne Nachrichten (an die Leitung) anzeigen
+async function renderMyInternal() {
+  const el = document.getElementById('msgMineList');
+  if (!el) return;
+  let mine = [];
+  try { mine = await DASSU_MESSAGES.getInternalMine(50); } catch (e) { mine = []; }
+  if (!mine.length) {
+    el.innerHTML = '<p style="color:var(--c-muted); padding:8px 0; font-size:13px;">Noch nichts gesendet.</p>';
+    return;
+  }
+  el.innerHTML = mine.map(m => {
+    const dateStr = new Date(m.createdAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const readByLeitung = m.readBy && Object.keys(m.readBy).some(r => r !== m.createdBy);
+    const status = readByLeitung ? '✓ von der Leitung gelesen' : 'gesendet';
+    return '<div style="padding:12px 14px; border:1px solid var(--c-border); border-radius:8px; margin-bottom:8px; background:var(--c-card);">' +
+      '<div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:5px;">' +
+      msgCatBadge(m.category) +
+      '<span style="font-size:11px; color:var(--c-muted);">' + dateStr + '</span></div>' +
+      '<div style="font-weight:600; font-size:14px;">' + escMsg(m.title || 'Ohne Betreff') + '</div>' +
+      '<div style="font-size:13px; color:var(--c-muted); margin-top:3px; white-space:pre-wrap; line-height:1.5;">' + escMsg(m.body || '') + '</div>' +
+      '<div style="font-size:11px; color:var(--c-muted); margin-top:6px;">' + status + '</div>' +
+      '</div>';
+  }).join('');
 }
 
 // Listener starten wenn eingeloggt und Fluglehrer-Rolle
@@ -8110,8 +8164,8 @@ if ('serviceWorker' in navigator) {
   <span class="dev-toolbar-label">DEV</span>
   <div class="dev-toolbar-btns">
     <button class="dev-toolbar-btn active" data-perspective="kunde" onclick="devSwitchPerspective('kunde')"><span class="dot c-kunde"></span>Kunde</button>
-    <button class="dev-toolbar-btn" data-perspective="guestGlider" onclick="devSwitchPerspective('guestGlider')"><span class="dot c-fluglehrer"></span>Gast Segel</button>
-    <button class="dev-toolbar-btn" data-perspective="guestMotor" onclick="devSwitchPerspective('guestMotor')"><span class="dot c-fluglehrer"></span>Gast Motor</button>
+    <button class="dev-toolbar-btn" data-perspective="guestGlider" onclick="devSwitchPerspective('guestGlider')"><span class="dot c-fluglehrer"></span>Segelfluglehrer</button>
+    <button class="dev-toolbar-btn" data-perspective="guestMotor" onclick="devSwitchPerspective('guestMotor')"><span class="dot c-fluglehrer"></span>Motorfluglehrer</button>
     <button class="dev-toolbar-btn" data-perspective="team" onclick="devSwitchPerspective('team')"><span class="dot c-staff"></span>Team</button>
     <button class="dev-toolbar-btn" data-perspective="admin" onclick="devSwitchPerspective('admin')"><span class="dot c-admin"></span>Admin</button>
   </div>
