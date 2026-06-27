@@ -6343,21 +6343,27 @@ function initTheoryListener() {
 let messagesData = [];
 let messagesListener = null;
 
+let _msgGroupData = {};
 function initMessagesListener() {
   if (messagesListener) return;
-  const db = firebase.database();
-  messagesListener = db.ref('messages').orderByChild('createdAt').limitToLast(50);
-  messagesListener.on('value', snap => {
-    const data = snap.val();
-    if (!data) { messagesData = []; } else {
-      messagesData = Object.entries(data)
-        .map(([id, m]) => ({ id, ...m }))
+  messagesListener = true; // Listener aktiv (mehrere Gruppen-Pfade)
+  // Fluglehrer dürfen per Rules NUR ihre erlaubten Gruppen lesen: 'all' + eigene
+  // Variante. Das Eltern-/messages ist nur für Team/Admin lesbar — daher hier
+  // gezielt die einzelnen Gruppen-Pfade abonnieren.
+  const variant = _msgMyVariant();
+  const groups = ['all'];
+  if (variant) groups.push(variant);
+  _msgGroupData = {};
+  groups.forEach(grp => {
+    firebase.database().ref('messages/' + grp).orderByChild('createdAt').limitToLast(50).on('value', snap => {
+      const data = snap.val() || {};
+      _msgGroupData[grp] = Object.entries(data).map(([id, m]) => ({ id, group: grp, ...m }));
+      messagesData = Object.keys(_msgGroupData)
+        .reduce((acc, k) => acc.concat(_msgGroupData[k]), [])
         .sort((a, b) => b.createdAt - a.createdAt);
-    }
-    updateMsgBadge();
-    if (document.getElementById('messagesView')?.style.display !== 'none') {
-      renderMessages();
-    }
+      updateMsgBadge();
+      if (document.getElementById('messagesView')?.style.display !== 'none') renderMessages();
+    }, () => { /* fehlendes Leserecht (z.B. Kunde) — still ignorieren */ });
   });
 }
 
@@ -6366,7 +6372,7 @@ function updateMsgBadge() {
   if (!badge) return;
   const uid = firebase.auth().currentUser?.uid;
   if (!uid) { badge.style.display = 'none'; return; }
-  const unread = messagesData.filter(_msgVisibleToMe).filter(m => !m.readBy || !m.readBy[uid]).length;
+  const unread = messagesData.filter(m => !m.readBy || !m.readBy[uid]).length;
   if (unread > 0) {
     badge.textContent = unread;
     badge.style.display = 'inline';
@@ -6382,12 +6388,6 @@ function _msgMyVariant() {
   if (r === 'guestMotor') return 'motor';
   return null;
 }
-function _msgVisibleToMe(m) {
-  const t = (m && m.target) || 'all';
-  if (t === 'all') return true;
-  return _msgMyVariant() === t;
-}
-
 function renderMessages() {
   const list = document.getElementById('msgList');
   const uid = firebase.auth().currentUser?.uid;
@@ -6395,7 +6395,7 @@ function renderMessages() {
   if (!list) return;
   if (!uid) { list.innerHTML = '<p style="color:var(--c-muted); padding:16px 0;">Bitte einloggen.</p>'; return; }
 
-  const mine = messagesData.filter(_msgVisibleToMe);
+  const mine = messagesData;
   if (mine.length === 0) {
     list.innerHTML = '<p style="color:var(--c-muted); padding:16px 0;">Keine Nachrichten vorhanden.</p>';
     return;
@@ -6452,7 +6452,7 @@ function openMessage(messageId) {
 
   // Als gelesen markieren
   if (uid && (!m.readBy || !m.readBy[uid])) {
-    DASSU_MESSAGES.markAsRead(messageId, uid);
+    DASSU_MESSAGES.markRead(m.group, messageId, uid);
   }
 }
 

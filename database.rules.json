@@ -93,15 +93,17 @@
     },
 
     "messages": {
-      ".read": "auth != null && root.child('staffUsers').child(auth.uid).exists()",
-      ".indexOn": ["createdAt"],
-      "$mid": {
-        ".write": "auth != null && ((!data.exists() && newData.exists() && (root.child('staffUsers').child(auth.uid).child('role').val() === 'admin' || root.child('staffUsers').child(auth.uid).child('role').val() === 'team')) || (!newData.exists() && root.child('staffUsers').child(auth.uid).child('role').val() === 'admin'))",
-        "title":    { ".validate": "newData.isString() && newData.val().length <= 200" },
-        "body":     { ".validate": "newData.isString() && newData.val().length <= 5000" },
-        "target":   { ".validate": "newData.isString() && newData.val().length <= 16" },
-        "readBy": {
-          "$r": { ".write": "auth != null && $r === auth.uid && root.child('staffUsers').child(auth.uid).exists()" }
+      ".read": "auth != null && (root.child('staffUsers').child(auth.uid).child('role').val() === 'admin' || root.child('staffUsers').child(auth.uid).child('role').val() === 'team')",
+      "$group": {
+        ".read": "auth != null && root.child('staffUsers').child(auth.uid).exists() && ($group === 'all' || root.child('staffUsers').child(auth.uid).child('role').val() === 'admin' || root.child('staffUsers').child(auth.uid).child('role').val() === 'team' || ($group === 'glider' && root.child('staffUsers').child(auth.uid).child('role').val() === 'guestGlider') || ($group === 'motor' && root.child('staffUsers').child(auth.uid).child('role').val() === 'guestMotor'))",
+        ".indexOn": ["createdAt"],
+        "$mid": {
+          ".write": "auth != null && ((!data.exists() && newData.exists() && ($group === 'all' || $group === 'glider' || $group === 'motor') && (root.child('staffUsers').child(auth.uid).child('role').val() === 'admin' || root.child('staffUsers').child(auth.uid).child('role').val() === 'team')) || (!newData.exists() && root.child('staffUsers').child(auth.uid).child('role').val() === 'admin'))",
+          "title":  { ".validate": "newData.isString() && newData.val().length <= 200" },
+          "body":   { ".validate": "newData.isString() && newData.val().length <= 5000" },
+          "readBy": {
+            "$r": { ".write": "auth != null && $r === auth.uid && root.child('staffUsers').child(auth.uid).exists()" }
+          }
         }
       }
     },

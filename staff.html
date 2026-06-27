@@ -9103,10 +9103,10 @@ async function staffRenderMessages() {
   if (!el) return;
   const canDelete = currentUser && currentUser.role === 'admin';
   try {
-    const msgs = await DASSU_MESSAGES.getMessages(50);
+    const msgs = await DASSU_MESSAGES.getAll(50);
     if (!msgs.length) { el.innerHTML = '<p style="text-align:center;color:var(--stone);font-size:12px;padding:20px;">Noch keine Nachrichten gesendet.</p>'; return; }
     el.innerHTML = msgs.map(m => {
-      const target = m.target || 'all';
+      const target = m.group || 'all';
       const recipients = _msgRecipients(target);
       const readBy = m.readBy || {};
       const readCount = recipients.filter(r => readBy[r.id]).length;
@@ -9128,7 +9128,7 @@ async function staffRenderMessages() {
         '<div style="font-size:13px;font-weight:600;">' + escHtml(m.title || 'Ohne Betreff') + '</div>' +
         '<div style="font-size:11px;color:var(--stone);">' + escHtml(m.createdByName || '') + ' · ' + dt + ' · ' + readCount + '/' + recipients.length + ' gelesen</div>' +
         '</div>' +
-        (canDelete ? '<button onclick="staffDeleteMsg(\'' + m.id + '\')" style="background:var(--rejected);color:#fff;border:none;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;flex-shrink:0;">Löschen</button>' : '') +
+        (canDelete ? '<button onclick="staffDeleteMsg(\'' + target + '\',\'' + m.id + '\')" style="background:var(--rejected);color:#fff;border:none;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;flex-shrink:0;">Löschen</button>' : '') +
         '</div>' +
         '<div style="font-size:12px;color:var(--ink-2);margin-top:8px;line-height:1.5;white-space:pre-wrap;">' + escHtml(m.body) + '</div>' +
         filesHtml +
@@ -9138,9 +9138,9 @@ async function staffRenderMessages() {
   } catch (e) { el.innerHTML = '<p style="color:var(--rejected);">Fehler: ' + e.message + '</p>'; }
 }
 
-async function staffDeleteMsg(id) {
+async function staffDeleteMsg(group, id) {
   if (!confirm('Nachricht wirklich löschen?')) return;
-  const res = await DASSU_MESSAGES.deleteMessage(id);
+  const res = await DASSU_MESSAGES.deleteMessage(group, id);
   if (res.ok) { notify('Gelöscht', 'info'); staffRenderMessages(); }
   else notify('Fehler: ' + res.error, 'error');
 }

@@ -106,13 +106,14 @@ Maschineller Ersatz für die fehlende `script-src`-CSP. Sucht in `index.html`/`s
 ## Nachrichten (Team → Fluglehrer)
 
 Modul `shared/messages.js` (`DASSU_MESSAGES`). **Ein Kanal, eine Richtung:** Team/Admin senden Nachrichten **+ Dateien** an Fluglehrer; Fluglehrer **lesen nur**.
-- **Knoten:** `/messages/{id} = { title, body, target, createdAt, createdBy, createdByName, createdByRole, files[], readBy{uid:ts} }`.
-- **`target`** = Empfängergruppe: `'all'` (alle Fluglehrer) · `'glider'` (Segelfluglehrer) · `'motor'` (Motorfluglehrer).
-- **API:** `sendMessage(title, body, target, files, name)` (nur Team/Admin), `getMessages(limit)`, `markRead(id, uid)`, `deleteMessage(id)` (nur Admin).
-- **Rules** (`database.rules.json`): Senden = Team/Admin, Lesen = alle Staff, Löschen = Admin, `readBy/$uid` nur durch den jeweiligen User. Hinweis: Die Gruppen-Zuordnung (`target`) ist **Relevanz-Filterung im Client, keine harte Geheimhaltung** — ein anderer Fluglehrer könnte per Direktzugriff fremde Gruppen-Nachrichten lesen. Reicht für interne Infos; bei echter Geheimhaltung müsste man pro Gruppe trennen.
-- **Lese-Protokoll (Kernfeature):** Sender sieht je Nachricht, **wer wann gelesen hat** (Name + Zeitstempel) und wer noch nicht. UID→Name über `staffUsers`. Lesen = Öffnen des Detail-Dialogs → `readBy/{uid}` mit Zeitstempel.
-- **UI:** staff.html (Tab „Nachrichten", **Team + Admin**) = senden mit Zielgruppe + Dateien + „Lese-Protokoll anzeigen". index.html (Tab „Nachrichten", **nur guestGlider/guestMotor**) = lesen + Dateien laden. **Wichtig:** Der Tab wird in index.html im echten Login nur für `guestGlider`/`guestMotor` eingeblendet (real-auth-Block ~Z. 7820) — Team/Admin nutzen staff.html.
-- **Anhänge:** Firebase Storage unter `messages/{id}/…` (**Storage-Rules liegen NUR in der Firebase Console**, nicht im Repo).
+- **HARTE Gruppen-Trennung über getrennte Pfade** (serverseitig per Rules erzwungen): `/messages/all/{id}` (alle Fluglehrer) · `/messages/glider/{id}` (nur Segelfluglehrer) · `/messages/motor/{id}` (nur Motorfluglehrer). Ein Motorfluglehrer kann `/messages/glider` **technisch nicht lesen** (Rule verweigert) — nicht nur Client-Filter.
+- **Nachricht:** `{ title, body, createdAt, createdBy, createdByName, createdByRole, files[], readBy{uid:ts} }`. Die Gruppe steckt im Pfad (Client hängt `group` an jedes Item).
+- **API:** `sendMessage(title, body, target, files, name)` (Team/Admin; `target` ∈ all/glider/motor → schreibt in den Gruppen-Pfad), `getAll(limit)` (Team/Admin, liest alle Gruppen), `getForInstructor(variant, limit)`, `markRead(group, id, uid)`, `deleteMessage(group, id)` (Admin).
+- **Rules** (`database.rules.json`): `/messages` (Eltern) nur für Team/Admin lesbar; `/messages/$group` mit `$group`-Wildcard-`.read`: `all` = alle Staff, `glider` = nur guestGlider (+Team/Admin), `motor` = nur guestMotor (+Team/Admin). Senden = Team/Admin, Löschen = Admin, `readBy/$uid` nur durch den jeweiligen User.
+- **Live-Listener:** Team/Admin lesen `/messages` (ganz); Fluglehrer abonnieren gezielt `/messages/all` + `/messages/{variante}` (Eltern ist für sie gesperrt) — siehe `initMessagesListener()` in index.html.
+- **Lese-Protokoll (Kernfeature):** Sender sieht je Nachricht, **wer wann gelesen hat** (Name + Zeitstempel) und wer noch nicht. UID→Name über `staffUsers` (`_msgRecipients(group)`). Lesen = Öffnen des Detail-Dialogs → `readBy/{uid}` mit Zeitstempel.
+- **UI:** staff.html (Tab „Nachrichten", **Team + Admin**) = senden mit Zielgruppe + Dateien + „Lese-Protokoll anzeigen". index.html (Tab „Nachrichten", **nur guestGlider/guestMotor**) = lesen + Dateien laden. Der Tab wird in index.html im echten Login nur für `guestGlider`/`guestMotor` eingeblendet (real-auth-Block) — Team/Admin nutzen staff.html.
+- **Anhänge:** Firebase Storage unter `messages/{group}/{id}/…` (**Storage-Rules liegen NUR in der Firebase Console**, nicht im Repo).
 
 ## Dateistruktur
 
