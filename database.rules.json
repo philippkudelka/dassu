@@ -99,27 +99,9 @@
         ".write": "auth != null && ((!data.exists() && newData.exists() && (root.child('staffUsers').child(auth.uid).child('role').val() === 'admin' || root.child('staffUsers').child(auth.uid).child('role').val() === 'team')) || (!newData.exists() && root.child('staffUsers').child(auth.uid).child('role').val() === 'admin'))",
         "title":    { ".validate": "newData.isString() && newData.val().length <= 200" },
         "body":     { ".validate": "newData.isString() && newData.val().length <= 5000" },
-        "category": { ".validate": "newData.isString() && newData.val().length <= 32" },
+        "target":   { ".validate": "newData.isString() && newData.val().length <= 16" },
         "readBy": {
           "$r": { ".write": "auth != null && $r === auth.uid && root.child('staffUsers').child(auth.uid).exists()" }
-        }
-      }
-    },
-
-    "internalMessages": {
-      ".read": "auth != null && (root.child('staffUsers').child(auth.uid).child('role').val() === 'admin' || root.child('staffUsers').child(auth.uid).child('role').val() === 'team')",
-      "$auid": {
-        ".read": "auth != null && auth.uid === $auid",
-        ".indexOn": ["createdAt"],
-        "$mid": {
-          ".write": "auth != null && ((!data.exists() && newData.exists() && auth.uid === $auid && root.child('staffUsers').child(auth.uid).exists()) || (!newData.exists() && root.child('staffUsers').child(auth.uid).child('role').val() === 'admin'))",
-          "title":         { ".validate": "newData.isString() && newData.val().length <= 200" },
-          "body":          { ".validate": "newData.isString() && newData.val().length <= 5000" },
-          "category":      { ".validate": "newData.isString() && newData.val().length <= 32" },
-          "createdByRole": { ".validate": "newData.isString() && newData.val().length <= 32" },
-          "readBy": {
-            "$r": { ".write": "auth != null && $r === auth.uid && (auth.uid === $auid || root.child('staffUsers').child(auth.uid).child('role').val() === 'admin' || root.child('staffUsers').child(auth.uid).child('role').val() === 'team')" }
-          }
         }
       }
     },

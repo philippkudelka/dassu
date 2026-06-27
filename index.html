@@ -2344,32 +2344,8 @@
 <div id="messagesView" style="display:none;">
   <div class="my-bookings-panel">
     <h2>Nachrichten</h2>
-    <p class="mb-subtitle">Ank&uuml;ndigungen lesen &amp; Hinweise an die Leitung senden</p>
-
-    <!-- Compose: an die Leitung (vertraulich) -->
-    <div style="background:var(--c-bg); border:1px solid var(--c-border); border-radius:8px; padding:16px; margin-bottom:24px;">
-      <div style="font-size:12px; font-weight:600; color:var(--c-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:10px;">Nachricht an die Leitung</div>
-      <select id="msgLehrerCat" style="width:100%; padding:10px 10px; border:1px solid var(--c-border); border-radius:6px; font-size:14px; margin-bottom:8px; background:var(--c-card); color:var(--c-text); box-sizing:border-box;">
-        <option value="hinweis">Hinweis</option>
-        <option value="kritik">Kritik</option>
-        <option value="anmerkung">Anmerkung</option>
-        <option value="sonstiges">Sonstiges</option>
-      </select>
-      <input id="msgLehrerTitle" type="text" placeholder="Betreff" maxlength="200" style="width:100%; padding:10px 10px; border:1px solid var(--c-border); border-radius:6px; font-size:14px; margin-bottom:8px; background:var(--c-card); color:var(--c-text); box-sizing:border-box;">
-      <textarea id="msgLehrerBody" placeholder="Hinweis, Kritik oder Anmerkung an die Leitung&hellip;" rows="4" style="width:100%; padding:10px 10px; border:1px solid var(--c-border); border-radius:6px; font-size:14px; margin-bottom:8px; background:var(--c-card); color:var(--c-text); resize:vertical; font-family:inherit; box-sizing:border-box;"></textarea>
-      <div style="font-size:11px; color:var(--c-muted); margin-bottom:10px; line-height:1.5;">&#128274; Vertraulich &mdash; nur die Leitung (Team/Admin) sieht das. Andere Fluglehrer nicht.</div>
-      <div style="text-align:right;">
-        <button id="msgLehrerSendBtn" onclick="lehrerSendInternal()" style="background:var(--navy); color:white; border:none; padding:9px 22px; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer;">Senden</button>
-      </div>
-    </div>
-
-    <!-- Meine gesendeten Nachrichten an die Leitung -->
-    <div style="font-size:12px; font-weight:700; color:var(--c-muted); text-transform:uppercase; letter-spacing:0.04em; margin:0 0 8px;">Meine Nachrichten an die Leitung</div>
-    <div id="msgMineList" style="margin-bottom:28px;"><p style="color:var(--c-muted); padding:8px 0; font-size:13px;">Noch nichts gesendet.</p></div>
-
-    <!-- Ank&uuml;ndigungen -->
-    <div style="font-size:12px; font-weight:700; color:var(--c-muted); text-transform:uppercase; letter-spacing:0.04em; margin:0 0 8px;">Ank&uuml;ndigungen</div>
-    <div id="msgList"><p style="color:var(--c-muted); padding:16px 0;">Keine Ank&uuml;ndigungen vorhanden.</p></div>
+    <p class="mb-subtitle">Nachrichten &amp; Dateien vom DASSU-Team</p>
+    <div id="msgList"><p style="color:var(--c-muted); padding:16px 0;">Keine Nachrichten vorhanden.</p></div>
   </div>
 </div>
 
@@ -2377,7 +2353,6 @@
 <div class="modal-overlay" id="messageModal">
   <div class="modal" style="max-width:560px;">
     <h3 id="msgModalTitle" style="margin-bottom:6px;"></h3>
-    <div id="msgModalCat" style="margin-bottom:8px;"></div>
     <div id="msgModalMeta" style="font-size:12px; color:var(--c-muted); margin-bottom:12px;"></div>
     <div id="msgModalBody" style="white-space:pre-wrap; line-height:1.6; margin-bottom:16px;"></div>
     <div id="msgModalFiles" style="margin-bottom:16px;"></div>
@@ -6391,7 +6366,7 @@ function updateMsgBadge() {
   if (!badge) return;
   const uid = firebase.auth().currentUser?.uid;
   if (!uid) { badge.style.display = 'none'; return; }
-  const unread = messagesData.filter(m => !m.readBy || !m.readBy[uid]).length;
+  const unread = messagesData.filter(_msgVisibleToMe).filter(m => !m.readBy || !m.readBy[uid]).length;
   if (unread > 0) {
     badge.textContent = unread;
     badge.style.display = 'inline';
@@ -6400,32 +6375,33 @@ function updateMsgBadge() {
   }
 }
 
-// Kategorie-Darstellung (Hinweis / Kritik / Anmerkung / Sonstiges)
-const MSG_CAT_META = {
-  hinweis:   { label: 'Hinweis',   bg: '#e8f0fe', fg: '#1a56b3' },
-  kritik:    { label: 'Kritik',    bg: '#fdecea', fg: '#b3261e' },
-  anmerkung: { label: 'Anmerkung', bg: '#fef6e6', fg: '#9a6700' },
-  sonstiges: { label: 'Sonstiges', bg: '#eef0f2', fg: '#555555' }
-};
-function msgCatBadge(cat) {
-  const m = MSG_CAT_META[cat] || MSG_CAT_META.sonstiges;
-  return '<span style="display:inline-block; padding:2px 9px; border-radius:10px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; background:' + m.bg + '; color:' + m.fg + ';">' + m.label + '</span>';
+// Zielgruppen-Filter: welche Variante bin ich, und welche Nachrichten sehe ich?
+function _msgMyVariant() {
+  const r = (typeof currentStaffRole !== 'undefined') ? currentStaffRole : null;
+  if (r === 'guestGlider') return 'glider';
+  if (r === 'guestMotor') return 'motor';
+  return null;
+}
+function _msgVisibleToMe(m) {
+  const t = (m && m.target) || 'all';
+  if (t === 'all') return true;
+  return _msgMyVariant() === t;
 }
 
 function renderMessages() {
   const list = document.getElementById('msgList');
   const uid = firebase.auth().currentUser?.uid;
   initMessagesListener();
-  renderMyInternal();
   if (!list) return;
   if (!uid) { list.innerHTML = '<p style="color:var(--c-muted); padding:16px 0;">Bitte einloggen.</p>'; return; }
 
-  if (messagesData.length === 0) {
-    list.innerHTML = '<p style="color:var(--c-muted); padding:16px 0;">Keine Ankündigungen vorhanden.</p>';
+  const mine = messagesData.filter(_msgVisibleToMe);
+  if (mine.length === 0) {
+    list.innerHTML = '<p style="color:var(--c-muted); padding:16px 0;">Keine Nachrichten vorhanden.</p>';
     return;
   }
 
-  list.innerHTML = messagesData.map(m => {
+  list.innerHTML = mine.map(m => {
     const isUnread = !m.readBy || !m.readBy[uid];
     const dateStr = new Date(m.createdAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     const fileCount = (m.files && m.files.length) ? m.files.length : 0;
@@ -6452,10 +6428,8 @@ function openMessage(messageId) {
   const uid = firebase.auth().currentUser?.uid;
 
   document.getElementById('msgModalTitle').textContent = m.title || 'Ohne Betreff';
-  const catEl = document.getElementById('msgModalCat');
-  if (catEl) catEl.innerHTML = m.category ? msgCatBadge(m.category) : '';
   const dateStr = new Date(m.createdAt).toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-  document.getElementById('msgModalMeta').textContent = 'Von ' + (m.createdByName || 'Admin') + ' · ' + dateStr;
+  document.getElementById('msgModalMeta').textContent = 'Von ' + (m.createdByName || 'DASSU-Team') + ' · ' + dateStr;
   document.getElementById('msgModalBody').textContent = m.body || '';
 
   // Dateien
@@ -6480,64 +6454,6 @@ function openMessage(messageId) {
   if (uid && (!m.readBy || !m.readBy[uid])) {
     DASSU_MESSAGES.markAsRead(messageId, uid);
   }
-}
-
-// Fluglehrer/Staff: vertrauliche Nachricht an die Leitung senden
-async function lehrerSendInternal() {
-  const catEl = document.getElementById('msgLehrerCat');
-  const titleEl = document.getElementById('msgLehrerTitle');
-  const bodyEl = document.getElementById('msgLehrerBody');
-  const title = (titleEl.value || '').trim();
-  const body = (bodyEl.value || '').trim();
-  if (!title && !body) { notify('Bitte Betreff oder Text eingeben.', 'error'); return; }
-  const user = firebase.auth().currentUser;
-  if (!user) { notify('Nicht eingeloggt.', 'error'); return; }
-
-  const btn = document.getElementById('msgLehrerSendBtn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Wird gesendet…'; }
-
-  // Anzeigename aus staffUsers-Profil holen
-  let senderName = (typeof customerProfile !== 'undefined' && customerProfile && customerProfile.name) || user.email || '';
-  try {
-    const snap = await firebase.database().ref('staffUsers/' + user.uid).once('value');
-    const prof = snap.val();
-    if (prof) senderName = prof.name || ((prof.firstName || '') + ' ' + (prof.lastName || '')).trim() || senderName;
-  } catch (e) {}
-
-  const result = await DASSU_MESSAGES.sendInternal(title, body, catEl ? catEl.value : 'hinweis', [], senderName);
-  if (result.ok) {
-    notify('An die Leitung gesendet.', 'success');
-    titleEl.value = ''; bodyEl.value = ''; if (catEl) catEl.value = 'hinweis';
-    renderMyInternal();
-  } else {
-    notify(result.error || 'Fehler beim Senden.', 'error');
-  }
-  if (btn) { btn.disabled = false; btn.textContent = 'Senden'; }
-}
-
-// Eigene gesendete interne Nachrichten (an die Leitung) anzeigen
-async function renderMyInternal() {
-  const el = document.getElementById('msgMineList');
-  if (!el) return;
-  let mine = [];
-  try { mine = await DASSU_MESSAGES.getInternalMine(50); } catch (e) { mine = []; }
-  if (!mine.length) {
-    el.innerHTML = '<p style="color:var(--c-muted); padding:8px 0; font-size:13px;">Noch nichts gesendet.</p>';
-    return;
-  }
-  el.innerHTML = mine.map(m => {
-    const dateStr = new Date(m.createdAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-    const readByLeitung = m.readBy && Object.keys(m.readBy).some(r => r !== m.createdBy);
-    const status = readByLeitung ? '✓ von der Leitung gelesen' : 'gesendet';
-    return '<div style="padding:12px 14px; border:1px solid var(--c-border); border-radius:8px; margin-bottom:8px; background:var(--c-card);">' +
-      '<div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:5px;">' +
-      msgCatBadge(m.category) +
-      '<span style="font-size:11px; color:var(--c-muted);">' + dateStr + '</span></div>' +
-      '<div style="font-weight:600; font-size:14px;">' + escMsg(m.title || 'Ohne Betreff') + '</div>' +
-      '<div style="font-size:13px; color:var(--c-muted); margin-top:3px; white-space:pre-wrap; line-height:1.5;">' + escMsg(m.body || '') + '</div>' +
-      '<div style="font-size:11px; color:var(--c-muted); margin-top:6px;">' + status + '</div>' +
-      '</div>';
-  }).join('');
 }
 
 // Listener starten wenn eingeloggt und Fluglehrer-Rolle
@@ -7825,6 +7741,14 @@ firebase.auth().onAuthStateChanged(async (user) => {
           document.getElementById('mobileTabStudentBookings')?.style.removeProperty('display');
           document.getElementById('mobileTabTheory')?.style.removeProperty('display');
           document.getElementById('mobileTabTraining')?.style.removeProperty('display');
+        }
+
+        // Nachrichten-Tab: nur echte Fluglehrer (Segel-/Motorfluglehrer) sind Empfänger
+        // der Team-Nachrichten. Team/Admin senden über staff.html, brauchen ihn hier nicht.
+        if (staffProfile.role === 'guestGlider' || staffProfile.role === 'guestMotor') {
+          document.getElementById('tabMessages')?.style.removeProperty('display');
+          document.getElementById('mobileTabMessages')?.style.removeProperty('display');
+          initMessagesListener();
         }
 
         // Staff-User auch als Kunde behandeln (E-Mail automatisch verifiziert)

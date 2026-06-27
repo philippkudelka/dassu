@@ -103,16 +103,16 @@ Maschineller Ersatz für die fehlende `script-src`-CSP. Sucht in `index.html`/`s
 - **Direkt-Download** via `downloadIcalOnce()` baut das ICS clientseitig aus den bereits geladenen Buchungen (kein Server-Roundtrip nötig).
 - **Rules-Anpassung**: `users/$uid` ist jetzt für den eigenen User lesbar+schreibbar (vorher komplett gesperrt). Daher: nach Rules-Update **VF-Credentials weiterhin nur über Backend** (sind verschlüsselt) — der User darf seine eigenen Felder sehen, das ist OK.
 
-## Nachrichten (Team-Kommunikation)
+## Nachrichten (Team → Fluglehrer)
 
-Modul `shared/messages.js` (`DASSU_MESSAGES`), **zwei Kanäle**:
-- **Ankündigungen** — `/messages/{id}`. Senden: **Team + Admin**. Lesen: **alle Staff**. (`sendAnnouncement`, `getAnnouncements`.)
-- **Interne Nachrichten** — `/internalMessages/{autorUid}/{id}`. Senden: **jeder Staff** (inkl. Segel-/Motorfluglehrer) → an die Leitung. Lesen: **nur Leitung (Team/Admin) + der Autor selbst**. (`sendInternal`, `getInternalAll` = Leitung sieht alle, `getInternalMine` = Autor sieht eigene.)
-- **Vertraulichkeit serverseitig** in `database.rules.json`: `/internalMessages` nur für Team/Admin lesbar, `/internalMessages/$uid` zusätzlich für den Autor; Schreiben nur in den eigenen Teilbaum, **Löschen nur Admin**, Einträge unveränderlich.
-- **Kategorien:** Hinweis / Kritik / Anmerkung / Sonstiges (`MSG_CAT_META`/`msgCatBadge` in beiden HTMLs).
-- **Kein Chat/Threads** — diskrete, dokumentierte Posts. Gelesen-Status via `readBy/{uid}`.
-- **UI:** index.html (Fluglehrer-Tab „Nachrichten") = Ankündigungen lesen + an Leitung schreiben + eigene Liste. staff.html (Team/Admin-Tab) = Posteingang aller internen Nachrichten + Ankündigung/intern senden (Empfänger-Wahl).
-- **Anhänge:** über Firebase Storage. Interne Anhänge liegen bewusst unter `messages/_internal/{uid}/…` (der `messages/`-Storage-Pfad ist in der Console bereits freigegeben; `internalMessages/` evtl. nicht). **Storage-Rules liegen NUR in der Firebase Console**, nicht im Repo.
+Modul `shared/messages.js` (`DASSU_MESSAGES`). **Ein Kanal, eine Richtung:** Team/Admin senden Nachrichten **+ Dateien** an Fluglehrer; Fluglehrer **lesen nur**.
+- **Knoten:** `/messages/{id} = { title, body, target, createdAt, createdBy, createdByName, createdByRole, files[], readBy{uid:ts} }`.
+- **`target`** = Empfängergruppe: `'all'` (alle Fluglehrer) · `'glider'` (Segelfluglehrer) · `'motor'` (Motorfluglehrer).
+- **API:** `sendMessage(title, body, target, files, name)` (nur Team/Admin), `getMessages(limit)`, `markRead(id, uid)`, `deleteMessage(id)` (nur Admin).
+- **Rules** (`database.rules.json`): Senden = Team/Admin, Lesen = alle Staff, Löschen = Admin, `readBy/$uid` nur durch den jeweiligen User. Hinweis: Die Gruppen-Zuordnung (`target`) ist **Relevanz-Filterung im Client, keine harte Geheimhaltung** — ein anderer Fluglehrer könnte per Direktzugriff fremde Gruppen-Nachrichten lesen. Reicht für interne Infos; bei echter Geheimhaltung müsste man pro Gruppe trennen.
+- **Lese-Protokoll (Kernfeature):** Sender sieht je Nachricht, **wer wann gelesen hat** (Name + Zeitstempel) und wer noch nicht. UID→Name über `staffUsers`. Lesen = Öffnen des Detail-Dialogs → `readBy/{uid}` mit Zeitstempel.
+- **UI:** staff.html (Tab „Nachrichten", **Team + Admin**) = senden mit Zielgruppe + Dateien + „Lese-Protokoll anzeigen". index.html (Tab „Nachrichten", **nur guestGlider/guestMotor**) = lesen + Dateien laden. **Wichtig:** Der Tab wird in index.html im echten Login nur für `guestGlider`/`guestMotor` eingeblendet (real-auth-Block ~Z. 7820) — Team/Admin nutzen staff.html.
+- **Anhänge:** Firebase Storage unter `messages/{id}/…` (**Storage-Rules liegen NUR in der Firebase Console**, nicht im Repo).
 
 ## Dateistruktur
 
